@@ -5,3 +5,4 @@ WORKDIR /app
 COPY calculator.py test_calculator.py lambda_function.py ./
 
 CMD ["python", "-m", "unittest", "test_calculator.py", "-v"]
+

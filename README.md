@@ -222,3 +222,4 @@ If asked how infrastructure is deleted after the assignment:
 ```bash
 sam delete --stack-name calculator-app-prod --no-prompts
 ```
+

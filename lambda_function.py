@@ -83,3 +83,4 @@ def lambda_handler(event, context=None):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"error": f"Internal Server Error: {str(exc)}"})
         }
+

@@ -34,3 +34,4 @@ Outputs:
   CalculatorFunctionArn:
     Description: Calculator Lambda Function ARN
     Value: !GetAtt CalculatorFunction.Arn
+

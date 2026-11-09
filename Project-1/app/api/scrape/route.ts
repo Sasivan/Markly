@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { normalizeUrl } from "@/server/scraper/url";
 import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
 import { BookmarkRepository } from "@/server/db/repository";
+import { suggestWithGemini } from "@/server/ai/suggest";
 
 const ScrapeSchema = z.object({
   url: z.string().min(1, "URL is required"),
@@ -60,8 +62,13 @@ export async function POST(req: Request) {
 
     const { url, canonicalUrl, domain } = normResult;
 
+    // Extract current user and Gemini API key from cookies
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+    const geminiApiKey = cookieStore.get("markly_gemini_api_key")?.value || process.env.GEMINI_API_KEY;
+
     // 4. Duplicate Detection Check
-    const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl);
+    const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, userId);
     if (existingBookmark && !forceDuplicate) {
       return NextResponse.json({
         success: true,
@@ -94,6 +101,39 @@ export async function POST(req: Request) {
     // 7. Persist to Database if requested
     let bookmark = null;
     if (saveImmediately) {
+      let finalFolderId = folderId || null;
+      let finalTags = tagNames && tagNames.length > 0 ? tagNames : [];
+
+      // If folder or tags are not specified, run Gemini / AI Suggestion Engine
+      if (!finalFolderId || finalTags.length === 0) {
+        try {
+          const userFolders = BookmarkRepository.getAllFolders(userId);
+          const aiSuggestions = await suggestWithGemini(
+            {
+              title: metadata.title || domain,
+              description: metadata.description || undefined,
+              domain,
+              url: fetchResult.finalUrl,
+              folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
+            },
+            geminiApiKey
+          );
+
+          if (!finalFolderId && aiSuggestions.suggestedFolderId) {
+            finalFolderId = aiSuggestions.suggestedFolderId;
+          }
+          if (finalTags.length === 0 && aiSuggestions.suggestedTags?.length > 0) {
+            finalTags = aiSuggestions.suggestedTags;
+          }
+        } catch {
+          // Graceful fallback to domain tag
+        }
+      }
+
+      if (finalTags.length === 0) {
+        finalTags = [domain.split(".")[0]];
+      }
+
       bookmark = BookmarkRepository.createBookmark({
         url: fetchResult.finalUrl,
         canonicalUrl: metadata.canonicalUrl || canonicalUrl,
@@ -102,9 +142,10 @@ export async function POST(req: Request) {
         iconUrl: metadata.iconUrl,
         imageUrl: metadata.imageUrl || undefined,
         domain,
-        folderId: folderId || null,
+        folderId: finalFolderId,
         isFavorite,
-        tagNames: tagNames && tagNames.length > 0 ? tagNames : [domain.split(".")[0]],
+        tagNames: finalTags,
+        userId,
       });
     }
 

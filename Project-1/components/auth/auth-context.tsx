@@ -137,13 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         setUser(data.user);
         setSession(data.session);
-
-        // Auto-migrate local bookmarks to the newly created user account
-        await fetch("/api/auth/migrate-local", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: data.user.id }),
-        }).catch(() => {});
+        document.cookie = `markly_user_id=${data.user.id}; path=/; max-age=2592000; SameSite=Lax`;
       }
 
       closeAuthModal();

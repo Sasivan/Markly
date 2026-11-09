@@ -1,14 +1,18 @@
-import { BookmarkRepository } from "@/server/db/repository";
+import { cookies } from "next/headers";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { MarklyWorkspace } from "@/components/markly-workspace";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
+export default async function HomePage() {
   BookmarkRepository.ensureDefaultUser();
-  const folderTree = BookmarkRepository.getFolderTree();
-  const allFolders = BookmarkRepository.getAllFolders();
-  const bookmarks = BookmarkRepository.getBookmarks({ view: "all" });
-  const stats = BookmarkRepository.getDashboardStats();
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+
+  const folderTree = BookmarkRepository.getFolderTree(userId);
+  const allFolders = BookmarkRepository.getAllFolders(userId);
+  const bookmarks = BookmarkRepository.getBookmarks({ view: "all", userId });
+  const stats = BookmarkRepository.getDashboardStats(userId);
 
   return (
     <MarklyWorkspace

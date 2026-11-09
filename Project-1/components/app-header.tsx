@@ -10,6 +10,7 @@ import {
   Plus,
   User,
   LogOut,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -20,6 +21,7 @@ interface AppHeaderProps {
   onOpenAddModal: () => void;
   onOpenImportExport: () => void;
   onOpenSearch?: () => void;
+  onOpenApiKeyModal?: () => void;
   onNavigateHome?: () => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
@@ -31,6 +33,7 @@ export function AppHeader({
   onOpenAddModal,
   onOpenImportExport,
   onOpenSearch,
+  onOpenApiKeyModal,
   onNavigateHome,
   isSidebarCollapsed,
   onToggleSidebar,
@@ -104,7 +107,17 @@ export function AppHeader({
           <Search className="h-3.5 w-3.5" />
         </button>
 
-        {/* 4. Icon Mode (Theme Toggle) */}
+        {/* 4. API Key & AI Settings */}
+        <button
+          type="button"
+          onClick={onOpenApiKeyModal}
+          title="Custom Gemini API Key & AI Settings"
+          className="h-8 w-8 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:border-indigo-300 dark:hover:border-indigo-800 flex items-center justify-center text-slate-700 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors shadow-2xs"
+        >
+          <KeyRound className="h-3.5 w-3.5 text-indigo-500" />
+        </button>
+
+        {/* 5. Icon Mode (Theme Toggle) */}
         <ThemeToggle />
 
         {/* 5. User Profile / Sign In */}

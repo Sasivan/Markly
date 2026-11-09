@@ -405,6 +405,30 @@ export function WorkspaceHome({
         </div>
       </div>
 
+      {/* Empty Database State Banner */}
+      {bookmarks.length === 0 && (
+        <div className="rounded-2xl border-2 border-dashed border-blue-300 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 p-8 text-center space-y-4">
+          <div className="mx-auto h-14 w-14 rounded-2xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm">
+            <Bookmark className="h-7 w-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Your Cloud Database is Ready & Clean</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              You are signed in with a fresh personal database synced with Supabase. Add your first bookmark or import existing bookmarks to get started!
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button
+              onClick={onOpenAddModal}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs h-9 px-4 cursor-pointer shadow-xs gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add First Bookmark</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* 1. Quick Access Section */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">

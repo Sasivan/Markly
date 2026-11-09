@@ -21,9 +21,11 @@ import { WorkspaceHome } from "@/components/home/workspace-home";
 import { FolderCollectionsView } from "@/components/collections/folder-collections-view";
 import { ChildSubfoldersBar } from "@/components/collections/child-subfolders-bar";
 import { EditBookmarkModal } from "@/components/table/edit-bookmark-modal";
+import { ApiKeyModal } from "@/components/ai/api-key-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { DomainInsightsView } from "@/components/domain/domain-insights-view";
 import { LibraryInsightsView } from "@/components/insights/library-insights-view";
+import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
 interface MarklyWorkspaceProps {
@@ -48,6 +50,7 @@ export function MarklyWorkspace({
   initialBookmarks,
   initialStats,
 }: MarklyWorkspaceProps) {
+  const { user } = useAuth();
   const [folderTree, setFolderTree] = React.useState(initialFolderTree);
   const [folders, setFolders] = React.useState(initialFolders);
   const [bookmarks, setBookmarks] = React.useState(initialBookmarks);
@@ -81,6 +84,7 @@ export function MarklyWorkspace({
   const [prefillUrl, setPrefillUrl] = React.useState("");
   const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
   const [importExportOpen, setImportExportOpen] = React.useState(false);
+  const [apiKeyModalOpen, setApiKeyModalOpen] = React.useState(false);
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
 
   // Check for incoming query params from Bookmarklet, Browser Extension or PWA Share Target
@@ -193,7 +197,7 @@ export function MarklyWorkspace({
 
   React.useEffect(() => {
     refreshData();
-  }, [activeFolderId, activeView, includeSubfolders, activeDomainFilter, activeTagFilter, refreshData]);
+  }, [user?.id, activeFolderId, activeView, includeSubfolders, activeDomainFilter, activeTagFilter, refreshData]);
 
   const handleBookmarkAdded = (newBookmark: BookmarkWithDetails) => {
     setBookmarks((prev) => [newBookmark, ...prev]);
@@ -257,6 +261,12 @@ export function MarklyWorkspace({
         onOpenSearch={() => setCommandPaletteOpen(true)}
       />
 
+      {/* Gemini AI API Key Settings Modal */}
+      <ApiKeyModal
+        open={apiKeyModalOpen}
+        onOpenChange={setApiKeyModalOpen}
+      />
+
       {/* Edit Bookmark Modal (for Homepage Organization and Direct Edit) */}
       <EditBookmarkModal
         bookmark={editingBookmark}
@@ -312,6 +322,7 @@ export function MarklyWorkspace({
           onOpenAddModal={() => openAddModal()}
           onOpenImportExport={() => setImportExportOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
+          onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
           onNavigateHome={() => {
             setActiveView("home");
             setActiveFolderId(null);

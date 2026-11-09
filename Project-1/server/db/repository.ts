@@ -1,6 +1,7 @@
 import { db, sqlite } from "./client";
 import { folders, bookmarks, tags, bookmarkTags, users, type Folder, type Bookmark, type Tag, type BookmarkWithDetails, type FolderTreeNode } from "./schema";
 import { eq, and, desc, asc, isNull, inArray, like, or, sql } from "drizzle-orm";
+import { SupabaseManager } from "@/server/supabase/supabase-client";
 
 export const DEFAULT_USER_ID = "usr_default_markly";
 
@@ -163,7 +164,9 @@ export class BookmarkRepository {
       updatedAt: now,
     }).run();
 
-    return db.select().from(folders).where(eq(folders.id, id)).get()!;
+    const created = db.select().from(folders).where(eq(folders.id, id)).get()!;
+    SupabaseManager.syncFolder(created, "upsert").catch(() => {});
+    return created;
   }
 
   /**
@@ -184,7 +187,9 @@ export class BookmarkRepository {
       .where(and(eq(folders.id, id), eq(folders.userId, userId)))
       .run();
 
-    return db.select().from(folders).where(eq(folders.id, id)).get()!;
+    const updated = db.select().from(folders).where(eq(folders.id, id)).get()!;
+    SupabaseManager.syncFolder(updated, "upsert").catch(() => {});
+    return updated;
   }
 
   /**
@@ -194,6 +199,8 @@ export class BookmarkRepository {
   static deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId: string = DEFAULT_USER_ID) {
     const targetFolder = db.select().from(folders).where(and(eq(folders.id, id), eq(folders.userId, userId))).get();
     if (!targetFolder) return;
+
+    SupabaseManager.syncFolder({ id }, "delete").catch(() => {});
 
     if (mode === "move_up") {
       // Re-parent subfolders
@@ -255,7 +262,7 @@ export class BookmarkRepository {
       SELECT 
         b.id, b.user_id, b.folder_id, b.url, b.canonical_url, b.title, b.description,
         b.icon_url, b.image_url, b.domain, b.is_favorite, b.is_archived, b.status,
-        b.visit_count, b.last_visited_at, b.created_at, b.search_text,
+        b.visit_count, b.last_visited_at, b.last_clicked_at, b.created_at, b.search_text,
         f.name as folder_name
       FROM bookmarks b
       LEFT JOIN folders f ON b.folder_id = f.id
@@ -354,6 +361,7 @@ export class BookmarkRepository {
       status: string;
       visit_count: number;
       last_visited_at: number | null;
+      last_clicked_at?: number | null;
       created_at: number;
       search_text: string | null;
       folder_name: string | null;
@@ -413,6 +421,7 @@ export class BookmarkRepository {
       status: r.status as "alive" | "dead" | "pending",
       visitCount: r.visit_count,
       lastVisitedAt: r.last_visited_at,
+      lastClickedAt: r.last_clicked_at ?? r.last_visited_at ?? null,
       createdAt: r.created_at,
       searchText: r.search_text,
       folderName: r.folder_name,
@@ -440,6 +449,12 @@ export class BookmarkRepository {
     const id = `bm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
 
+    let canonicalUrl = data.canonicalUrl;
+    const existing = db.select({ id: bookmarks.id }).from(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.canonicalUrl, canonicalUrl))).get();
+    if (existing) {
+      canonicalUrl = `${canonicalUrl}#copy_${Date.now().toString(36)}`;
+    }
+
     const searchText = [
       data.title,
       data.description || "",
@@ -453,7 +468,7 @@ export class BookmarkRepository {
       userId,
       folderId: data.folderId || null,
       url: data.url,
-      canonicalUrl: data.canonicalUrl,
+      canonicalUrl,
       title: data.title,
       description: data.description || null,
       iconUrl: data.iconUrl || null,
@@ -464,6 +479,7 @@ export class BookmarkRepository {
       status: "alive",
       visitCount: 0,
       lastVisitedAt: null,
+      lastClickedAt: null,
       createdAt: now,
       searchText,
     }).run();
@@ -474,6 +490,9 @@ export class BookmarkRepository {
     }
 
     const created = this.getBookmarks({ userId }).find((b) => b.id === id);
+    if (created) {
+      SupabaseManager.syncBookmark(created, "upsert").catch(() => {});
+    }
     return created!;
   }
 
@@ -560,12 +579,18 @@ export class BookmarkRepository {
         this.attachTagsToBookmark(id, tagNames, userId);
       }
     }
+
+    const updated = this.getBookmarks({ userId }).find((b) => b.id === id);
+    if (updated) {
+      SupabaseManager.syncBookmark(updated, "upsert").catch(() => {});
+    }
   }
 
   /**
    * Delete single bookmark
    */
   static deleteBookmark(id: string, userId: string = DEFAULT_USER_ID) {
+    SupabaseManager.syncBookmark({ id }, "delete").catch(() => {});
     db.delete(bookmarks).where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId))).run();
   }
 
@@ -716,9 +741,282 @@ export class BookmarkRepository {
   }
 
   /**
+   * Domain-specific analytics for Website Insights
+   */
+  static getDomainStats(domain: string, userId: string = DEFAULT_USER_ID) {
+    const cleanDomain = domain.toLowerCase().replace(/^www\./, "");
+    const allBookmarks = this.getBookmarks({ userId, domain: cleanDomain });
+
+    const totalBookmarks = allBookmarks.length;
+    const totalVisits = allBookmarks.reduce((sum, b) => sum + (b.visitCount || 0), 0);
+    const lastVisitedAt = allBookmarks.reduce((latest, b) => Math.max(latest, b.lastVisitedAt || 0), 0);
+
+    const folderCountMap = new Map<string, { id: string; name: string; count: number }>();
+    for (const b of allBookmarks) {
+      const fId = b.folderId || "unsorted";
+      const fName = b.folderName || "Unsorted";
+      if (!folderCountMap.has(fId)) {
+        folderCountMap.set(fId, { id: fId, name: fName, count: 0 });
+      }
+      folderCountMap.get(fId)!.count++;
+    }
+    const folderDistribution = Array.from(folderCountMap.values());
+
+    const healthCounts = {
+      alive: allBookmarks.filter((b) => b.status === "alive").length,
+      dead: allBookmarks.filter((b) => b.status === "dead").length,
+      pending: allBookmarks.filter((b) => b.status === "pending").length,
+    };
+
+    const tagCountMap = new Map<string, { name: string; color: string; count: number }>();
+    for (const b of allBookmarks) {
+      for (const t of b.tags) {
+        if (!tagCountMap.has(t.name)) {
+          tagCountMap.set(t.name, { name: t.name, color: t.color, count: 0 });
+        }
+        tagCountMap.get(t.name)!.count++;
+      }
+    }
+    const tagDistribution = Array.from(tagCountMap.values()).sort((a, b) => b.count - a.count);
+
+    const mostAccessed = [...allBookmarks].sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0)).slice(0, 10);
+    const recentlyAdded = [...allBookmarks].sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);
+
+    const timeline = sqlite.prepare(`
+      SELECT strftime('%Y-%m-%d', datetime(b.created_at / 1000, 'unixepoch')) as date, COUNT(*) as count
+      FROM bookmarks b
+      WHERE b.user_id = ? AND b.domain = ? AND b.is_archived = 0
+      GROUP BY date
+      ORDER BY date ASC
+    `).all(userId, cleanDomain) as { date: string; count: number }[];
+
+    return {
+      domain: cleanDomain,
+      iconUrl: allBookmarks[0]?.iconUrl || null,
+      totalBookmarks,
+      totalVisits,
+      lastVisitedAt: lastVisitedAt > 0 ? lastVisitedAt : null,
+      foldersCount: folderDistribution.length,
+      folderDistribution,
+      healthCounts,
+      tagDistribution,
+      mostAccessed,
+      recentlyAdded,
+      timeline,
+      bookmarks: allBookmarks,
+    };
+  }
+
+  /**
+   * Record a bookmark visit (increments visitCount, sets lastVisitedAt and lastClickedAt)
+   */
+  static recordVisit(bookmarkId: string): boolean {
+    const now = Date.now();
+    const info = sqlite
+      .prepare(`UPDATE bookmarks SET visit_count = visit_count + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ?`)
+      .run(now, now, bookmarkId);
+    return info.changes > 0;
+  }
+
+  /**
+   * Interactive Knowledge Graph data generation
+   */
+  static getGraphData(options: {
+    mode: "global" | "folder" | "domain";
+    folderId?: string | null;
+    domain?: string | null;
+    depth?: number;
+    userId?: string;
+  }) {
+    const userId = options.userId || DEFAULT_USER_ID;
+    const depth = options.depth || 1;
+
+    const flatFolders = db.select().from(folders).where(eq(folders.userId, userId)).all();
+    const allBookmarks = this.getBookmarks({ userId });
+
+    interface GraphNode {
+      id: string;
+      label: string;
+      type: "domain" | "folder" | "bookmark" | "tag";
+      color: string;
+      size: number;
+      data?: any;
+    }
+
+    interface GraphEdge {
+      id: string;
+      source: string;
+      target: string;
+      type: string;
+      color: string;
+    }
+
+    let targetBookmarks = allBookmarks;
+
+    if (options.mode === "domain" && options.domain) {
+      const cleanDom = options.domain.toLowerCase().replace(/^www\./, "");
+      targetBookmarks = allBookmarks.filter((b) => b.domain.toLowerCase().replace(/^www\./, "") === cleanDom);
+    } else if (options.mode === "folder" && options.folderId) {
+      if (depth === 1) {
+        targetBookmarks = allBookmarks.filter((b) => b.folderId === options.folderId);
+      } else {
+        const descendantIds = this.getDescendantFolderIds(options.folderId, userId);
+        targetBookmarks = allBookmarks.filter((b) => b.folderId && descendantIds.includes(b.folderId));
+      }
+    }
+
+    const nodeMap = new Map<string, GraphNode>();
+    const edgeMap = new Map<string, GraphEdge>();
+
+    const addEdge = (source: string, target: string, type: string, color: string = "rgba(100, 116, 139, 0.35)") => {
+      const edgeId = `${source}->${target}`;
+      if (!edgeMap.has(edgeId) && source !== target) {
+        edgeMap.set(edgeId, { id: edgeId, source, target, type, color });
+      }
+    };
+
+    if (options.mode === "folder" && options.folderId) {
+      const descendantIds = this.getDescendantFolderIds(options.folderId, userId);
+      for (const dId of descendantIds) {
+        const subFolder = flatFolders.find((x) => x.id === dId);
+        if (subFolder) {
+          const subId = `fld_${subFolder.id}`;
+          if (!nodeMap.has(subId)) {
+            nodeMap.set(subId, {
+              id: subId,
+              label: subFolder.name,
+              type: "folder",
+              color: "#7963E9",
+              size: subFolder.id === options.folderId ? 18 : 13,
+              data: { ...subFolder, bookmarkCount: targetBookmarks.filter((b) => b.folderId === subFolder.id).length },
+            });
+          }
+          if (subFolder.parentId && (subFolder.parentId === options.folderId || descendantIds.includes(subFolder.parentId))) {
+            addEdge(`fld_${subFolder.parentId}`, subId, "folder-child-folder", "rgba(121, 99, 233, 0.65)");
+          }
+        }
+      }
+    }
+
+    if (options.mode === "domain" && options.domain) {
+      const dom = options.domain.toLowerCase().replace(/^www\./, "");
+      nodeMap.set(`dom_${dom}`, {
+        id: `dom_${dom}`,
+        label: dom,
+        type: "domain",
+        color: "#4AA8E8",
+        size: 20,
+        data: { domain: dom, bookmarkCount: targetBookmarks.length },
+      });
+    }
+
+    for (const bm of targetBookmarks) {
+      const bmNodeId = `bm_${bm.id}`;
+      const bmSize = Math.min(14, Math.max(6, 6 + Math.log2((bm.visitCount || 0) + 1) * 2));
+      nodeMap.set(bmNodeId, {
+        id: bmNodeId,
+        label: bm.title,
+        type: "bookmark",
+        color: bm.isFavorite ? "#E8B75B" : "#A78BFA",
+        size: bmSize,
+        data: bm,
+      });
+
+      const domId = `dom_${bm.domain.toLowerCase().replace(/^www\./, "")}`;
+      if (!nodeMap.has(domId)) {
+        nodeMap.set(domId, {
+          id: domId,
+          label: bm.domain,
+          type: "domain",
+          color: "#4AA8E8",
+          size: 10,
+          data: { domain: bm.domain },
+        });
+      }
+      addEdge(domId, bmNodeId, "domain-has-bookmark", "rgba(74, 168, 232, 0.45)");
+
+      if (bm.folderId) {
+        const fldId = `fld_${bm.folderId}`;
+        if (!nodeMap.has(fldId)) {
+          const f = flatFolders.find((x) => x.id === bm.folderId);
+          nodeMap.set(fldId, {
+            id: fldId,
+            label: f ? f.name : (bm.folderName || "Folder"),
+            type: "folder",
+            color: "#7963E9",
+            size: 12,
+            data: f,
+          });
+        }
+        addEdge(fldId, bmNodeId, "folder-contains-bookmark", "rgba(121, 99, 233, 0.45)");
+      }
+
+      for (const t of bm.tags) {
+        const tagId = `tag_${t.name.toLowerCase()}`;
+        if (!nodeMap.has(tagId)) {
+          nodeMap.set(tagId, {
+            id: tagId,
+            label: `#${t.name}`,
+            type: "tag",
+            color: "#42C99A",
+            size: 8,
+            data: t,
+          });
+        }
+        addEdge(bmNodeId, tagId, "bookmark-has-tag", "rgba(66, 201, 154, 0.35)");
+      }
+    }
+
+    for (const f of flatFolders) {
+      if (f.parentId && nodeMap.has(`fld_${f.parentId}`) && nodeMap.has(`fld_${f.id}`)) {
+        addEdge(`fld_${f.parentId}`, `fld_${f.id}`, "parent-child-folder", "rgba(121, 99, 233, 0.6)");
+      }
+    }
+
+    if (depth >= 2 && options.mode === "domain") {
+      const currentTags = new Set(targetBookmarks.flatMap((b) => b.tags.map((t) => t.name.toLowerCase())));
+      const otherBookmarks = allBookmarks.filter((b) => b.domain.toLowerCase().replace(/^www\./, "") !== options.domain);
+      for (const ob of otherBookmarks) {
+        const shared = ob.tags.filter((t) => currentTags.has(t.name.toLowerCase()));
+        if (shared.length > 0) {
+          const relDomId = `dom_${ob.domain.toLowerCase().replace(/^www\./, "")}`;
+          if (!nodeMap.has(relDomId)) {
+            nodeMap.set(relDomId, {
+              id: relDomId,
+              label: ob.domain,
+              type: "domain",
+              color: "#38bdf8",
+              size: 8,
+              data: { domain: ob.domain, related: true },
+            });
+          }
+          for (const s of shared) {
+            addEdge(relDomId, `tag_${s.name.toLowerCase()}`, "related-tag", "rgba(56, 189, 248, 0.25)");
+          }
+        }
+      }
+    }
+
+    return {
+      nodes: Array.from(nodeMap.values()),
+      edges: Array.from(edgeMap.values()),
+      summary: {
+        totalNodes: nodeMap.size,
+        totalEdges: edgeMap.size,
+        domains: Array.from(nodeMap.values()).filter((n) => n.type === "domain").length,
+        folders: Array.from(nodeMap.values()).filter((n) => n.type === "folder").length,
+        bookmarks: Array.from(nodeMap.values()).filter((n) => n.type === "bookmark").length,
+        tags: Array.from(nodeMap.values()).filter((n) => n.type === "tag").length,
+      },
+    };
+  }
+
+  /**
    * Get all tags for user
    */
   static getTags(userId: string = DEFAULT_USER_ID): Tag[] {
     return db.select().from(tags).where(eq(tags.userId, userId)).orderBy(asc(tags.name)).all();
   }
 }
+
+export const FolderRepository = BookmarkRepository;

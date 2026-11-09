@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { BookmarkRepository } from "@/server/db/repository";
 
 export async function GET() {
   try {
-    const tree = BookmarkRepository.getFolderTree();
-    const flat = BookmarkRepository.getAllFolders();
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+
+    const tree = BookmarkRepository.getFolderTree(userId);
+    const flat = BookmarkRepository.getAllFolders(userId);
     return NextResponse.json({ success: true, tree, folders: flat });
   } catch (error) {
     console.error("GET /api/folders error:", error);
@@ -19,11 +23,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Folder name is required" }, { status: 400 });
     }
 
+    const cookieStore = await cookies();
+    const userId = body.userId || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+
     const folder = BookmarkRepository.createFolder({
       name: body.name.trim(),
       parentId: body.parentId || null,
       icon: body.icon || "📁",
       color: body.color || "gray",
+      userId,
     });
 
     return NextResponse.json({ success: true, folder });

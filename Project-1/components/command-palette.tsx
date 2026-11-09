@@ -104,29 +104,29 @@ export function CommandPalette({
             </Command.Empty>
 
             {/* Quick Actions */}
-            <Command.Group heading="Actions" className="text-[11px] font-semibold text-muted-foreground px-2 py-1">
+            <Command.Group heading="Actions" className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 px-2 py-1">
               <Command.Item
                 onSelect={() => {
                   onOpenChange(false);
                   onOpenAddModal();
                 }}
-                className="flex items-center gap-2 px-2.5 py-2 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
               >
-                <Sparkles className="h-4 w-4 text-primary" />
+                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span>Add new bookmark</span>
-                <span className="ml-auto text-[10px] text-muted-foreground">Ctrl+V / Cmd+V</span>
+                <span className="ml-auto text-[10px] text-slate-400 dark:text-neutral-500 font-mono">⌘N / N</span>
               </Command.Item>
             </Command.Group>
 
             {/* System Views */}
-            <Command.Group heading="Views" className="text-[11px] font-semibold text-muted-foreground px-2 py-1 mt-1">
+            <Command.Group heading="Views" className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 px-2 py-1 mt-1">
               <Command.Item
                 onSelect={() => {
                   onOpenChange(false);
                   onSelectFolder(null);
                   onSelectView("home");
                 }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
               >
                 <Sparkles className="h-3.5 w-3.5 text-blue-500" />
                 <span>Workspace Home</span>
@@ -137,17 +137,17 @@ export function CommandPalette({
                   onSelectFolder(null);
                   onSelectView("all");
                 }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
               >
-                <Compass className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>All Bookmarks</span>
+                <Compass className="h-3.5 w-3.5 text-blue-500" />
+                <span>Quick Access</span>
               </Command.Item>
               <Command.Item
                 onSelect={() => {
                   onOpenChange(false);
                   onSelectView("favorites");
                 }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
               >
                 <Star className="h-3.5 w-3.5 text-amber-500" />
                 <span>Favorites</span>
@@ -157,25 +157,25 @@ export function CommandPalette({
                   onOpenChange(false);
                   onSelectView("recent");
                 }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
               >
-                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Recent</span>
+                <Clock className="h-3.5 w-3.5 text-indigo-500" />
+                <span>Recently Added</span>
               </Command.Item>
               <Command.Item
                 onSelect={() => {
                   onOpenChange(false);
                   onSelectView("unsorted");
                 }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
               >
-                <Inbox className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Unsorted (Inbox)</span>
+                <Inbox className="h-3.5 w-3.5 text-violet-500" />
+                <span>Inbox / Needs Organization</span>
               </Command.Item>
             </Command.Group>
 
             {/* Folders */}
-            <Command.Group heading="Folders" className="text-[11px] font-semibold text-muted-foreground px-2 py-1 mt-1">
+            <Command.Group heading="Folders" className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 px-2 py-1 mt-1">
               {folders.map((folder) => (
                 <Command.Item
                   key={folder.id}
@@ -184,16 +184,16 @@ export function CommandPalette({
                     onOpenChange(false);
                     onSelectFolder(folder.id);
                   }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent cursor-pointer text-foreground"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 transition-colors"
                 >
                   <FolderIconRenderer icon={folder.icon} className="h-4 w-4" color={folder.color} />
-                  <span>{folder.name}</span>
+                  <span className="truncate">{folder.name}</span>
                 </Command.Item>
               ))}
             </Command.Group>
 
             {/* Bookmarks */}
-            <Command.Group heading="Bookmarks" className="text-[11px] font-semibold text-muted-foreground px-2 py-1 mt-1">
+            <Command.Group heading="Bookmarks" className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 px-2 py-1 mt-1">
               {bookmarks.slice(0, 15).map((bm) => (
                 <Command.Item
                   key={bm.id}
@@ -202,16 +202,16 @@ export function CommandPalette({
                     window.open(bm.url, "_blank");
                     onOpenChange(false);
                   }}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-md hover:bg-accent cursor-pointer text-foreground group"
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 group transition-colors"
                 >
-                  <div className="h-4 w-4 rounded bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground flex-shrink-0">
+                  <div className="h-4 w-4 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-[9px] font-bold text-slate-500 dark:text-neutral-400 flex-shrink-0">
                     {bm.domain.charAt(0).toUpperCase()}
                   </div>
                   <div className="truncate flex-1">
-                    <div className="truncate font-medium">{bm.title}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{bm.domain}</div>
+                    <span className="font-medium truncate block">{bm.title}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-neutral-500 truncate block font-mono">{bm.domain}</span>
                   </div>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                  <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                 </Command.Item>
               ))}
             </Command.Group>

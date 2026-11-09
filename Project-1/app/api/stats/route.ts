@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { BookmarkRepository } from "@/server/db/repository";
 
 export async function GET(req: Request) {
@@ -7,8 +8,11 @@ export async function GET(req: Request) {
     const folderId = searchParams.get("folderId");
     const includeSubfolders = searchParams.get("includeSubfolders") === "true";
 
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+
     const stats = BookmarkRepository.getDashboardStats(
-      undefined,
+      userId,
       folderId === "null" || folderId === "" ? null : folderId,
       includeSubfolders
     );

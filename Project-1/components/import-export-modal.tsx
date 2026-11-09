@@ -9,6 +9,7 @@ interface ImportExportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRefreshData: () => void;
+  onOpenSearch?: () => void;
 }
 
 export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportExportModalProps) {
@@ -79,33 +80,33 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
 
         <div className="space-y-4 mt-4 text-xs">
           {/* Export Section */}
-          <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
-            <h4 className="font-semibold text-foreground flex items-center gap-1.5">
-              <Download className="h-3.5 w-3.5 text-primary" />
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-700 p-3.5 space-y-2 bg-slate-50/80 dark:bg-neutral-800/40">
+            <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Download className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               <span>Export Bookmarks</span>
             </h4>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-slate-500 dark:text-neutral-400">
               Download your complete bookmark collection with folder structures.
             </p>
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
               <a
                 href="/api/export?format=html"
                 download
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-accent font-medium text-[11px] transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-800 dark:text-neutral-200 font-medium text-[11px] transition-colors shadow-2xs"
               >
                 HTML (Browser standard)
               </a>
               <a
                 href="/api/export?format=json"
                 download
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-accent font-medium text-[11px] transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-800 dark:text-neutral-200 font-medium text-[11px] transition-colors shadow-2xs"
               >
                 JSON
               </a>
               <a
                 href="/api/export?format=csv"
                 download
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-accent font-medium text-[11px] transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-800 dark:text-neutral-200 font-medium text-[11px] transition-colors shadow-2xs"
               >
                 CSV
               </a>
@@ -113,12 +114,12 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
           </div>
 
           {/* Import Section */}
-          <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
-            <h4 className="font-semibold text-foreground flex items-center gap-1.5">
-              <Upload className="h-3.5 w-3.5 text-emerald-600" />
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-700 p-3.5 space-y-2 bg-slate-50/80 dark:bg-neutral-800/40">
+            <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Upload className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Import Bookmarks</span>
             </h4>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-slate-500 dark:text-neutral-400">
               Upload exported HTML bookmarks from Chrome, Arc, Safari, Firefox, or JSON.
             </p>
             <input
@@ -146,12 +147,12 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
           </div>
 
           {/* Health Check Section */}
-          <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
-            <h4 className="font-semibold text-foreground flex items-center gap-1.5">
+          <div className="rounded-xl border border-slate-200 dark:border-neutral-700 p-3.5 space-y-2 bg-slate-50/80 dark:bg-neutral-800/40">
+            <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
               <Activity className="h-3.5 w-3.5 text-amber-500" />
               <span>Link Health Check</span>
             </h4>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-slate-500 dark:text-neutral-400">
               Scan all saved bookmarks in background to flag broken or 404 links.
             </p>
             <Button

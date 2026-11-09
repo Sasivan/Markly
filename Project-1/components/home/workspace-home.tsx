@@ -19,11 +19,14 @@ import {
   Bookmark,
   Layers,
   Search,
+  Ghost,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { GlobalHomepageAnalytics } from "./global-homepage-analytics";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
 interface WorkspaceHomeProps {
@@ -31,11 +34,13 @@ interface WorkspaceHomeProps {
   folders: Folder[];
   folderTree: FolderTreeNode[];
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "database") => void;
+  onSelectDomain?: (domain: string) => void;
   onSelectTag?: (tag: string | null) => void;
   onOpenAddModal: () => void;
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
   onToggleFavorite?: (bm: BookmarkWithDetails) => void;
+  onRefreshData?: () => void;
 }
 
 export function WorkspaceHome({
@@ -44,11 +49,22 @@ export function WorkspaceHome({
   folderTree,
   onSelectFolder,
   onSelectView,
+  onSelectDomain,
   onSelectTag,
   onOpenAddModal,
   onEditBookmark,
   onToggleFavorite,
+  onRefreshData,
 }: WorkspaceHomeProps) {
+  // Realtime visit handler
+  const handleSiteVisit = async (bm: BookmarkWithDetails) => {
+    try {
+      await fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST" });
+      onRefreshData?.();
+    } catch (e) {
+      console.error("Visit error:", e);
+    }
+  };
   // 1. Quick Access: Top visited & active bookmarks
   const quickAccessList = React.useMemo(() => {
     return [...bookmarks]
@@ -74,11 +90,18 @@ export function WorkspaceHome({
     });
   }, [folderTree, folders]);
 
-  // 3. Recently Added (sorted by createdAt desc)
-  const recentlyAdded = React.useMemo(() => {
+  // 3. Recently Visited (sorted by lastClickedAt or lastVisitedAt desc)
+  const recentlyVisited = React.useMemo(() => {
     return [...bookmarks]
       .filter((b) => !b.isArchived)
-      .sort((a, b) => b.createdAt - a.createdAt)
+      .sort((a, b) => {
+        const timeA = a.lastClickedAt || a.lastVisitedAt || 0;
+        const timeB = b.lastClickedAt || b.lastVisitedAt || 0;
+        if (timeA && timeB) return timeB - timeA;
+        if (timeA) return -1;
+        if (timeB) return 1;
+        return (b.visitCount || 0) - (a.visitCount || 0);
+      })
       .slice(0, 6);
   }, [bookmarks]);
 
@@ -109,6 +132,160 @@ export function WorkspaceHome({
       .sort((a, b) => b.count - a.count)
       .slice(0, 12);
   }, [bookmarks]);
+
+  // 7. Forgotten Bookmarks State: 1 to 90 Days Slider & Spot Hover
+  const [inactiveThreshold, setInactiveThreshold] = React.useState<number>(30);
+  const [hoveredSpot, setHoveredSpot] = React.useState<{
+    bookmark: BookmarkWithDetails;
+    x: number;
+    y: number;
+    daysAgo: number;
+    timeAgoLabel?: string;
+  } | null>(null);
+
+  // Dot Palette for distinct sites (modern, vibrant, high-contrast)
+  const DOT_PALETTE = [
+    "#6366f1", // Indigo
+    "#3b82f6", // Blue
+    "#8b5cf6", // Violet
+    "#0ea5e9", // Sky
+    "#10b981", // Emerald
+    "#06b6d4", // Cyan
+    "#ec4899", // Pink
+    "#a855f7", // Purple
+    "#38bdf8", // Light Blue
+    "#14b8a6", // Teal
+    "#f43f5e", // Rose
+    "#64748b", // Slate
+  ];
+
+  // Compute Area Dot Spectrum data mapped dynamically across Hours (1 day) or Days (N days)
+  const spectrumData = React.useMemo(() => {
+    // Quantize now to the current hour to guarantee deterministic coordinates across SSR & client hydration
+    const now = Math.floor(Date.now() / 3600000) * 3600000;
+    const unarchived = bookmarks.filter((b) => !b.isArchived);
+
+    // Check if threshold is 1 day (divide by hours) or N days (divide by days)
+    const isHourly = inactiveThreshold === 1;
+
+    let timeMarkers: { val: number; label: string; xPercent: number }[] = [];
+    let gridLines: { xPercent: number; isMajor: boolean }[] = [];
+
+    if (isHourly) {
+      // 24 hours mode (1 day)
+      // Major markers: 0h (Now), 4h, 8h, 12h, 16h, 20h, 24h+
+      const hourlyIntervals = [0, 4, 8, 12, 16, 20, 24];
+      timeMarkers = hourlyIntervals.map((h) => ({
+        val: h,
+        label: h === 0 ? "Now (0h)" : h === 24 ? "24h+ (Dormant)" : `${h}h`,
+        xPercent: (h / 24) * 100,
+      }));
+
+      // Grid lines every 2 hours
+      for (let h = 0; h <= 24; h += 2) {
+        gridLines.push({
+          xPercent: (h / 24) * 100,
+          isMajor: h % 4 === 0,
+        });
+      }
+    } else {
+      // N days mode (e.g. 7, 14, 30, 60, 90 days)
+      const N = Math.max(2, inactiveThreshold);
+      let step = 1;
+      if (N > 60) step = 15;
+      else if (N > 30) step = 10;
+      else if (N > 14) step = 5;
+      else if (N > 7) step = 2;
+      else step = 1;
+
+      const markers: number[] = [1];
+      for (let d = step; d < N; d += step) {
+        if (d > 1 && !markers.includes(d)) markers.push(d);
+      }
+      if (!markers.includes(N)) markers.push(N);
+
+      timeMarkers = markers.map((d) => ({
+        val: d,
+        label: d === 1 ? "Day 1" : d === N ? `${d}d+ (Dormant)` : `${d}d`,
+        xPercent: ((d - 1) / Math.max(1, N - 1)) * 100,
+      }));
+
+      // Dynamic grid divisions: divide row into days
+      const gridStep = N <= 14 ? 1 : N <= 30 ? 2 : N <= 60 ? 5 : 10;
+      for (let d = 1; d <= N; d += gridStep) {
+        gridLines.push({
+          xPercent: ((d - 1) / Math.max(1, N - 1)) * 100,
+          isMajor: markers.includes(d),
+        });
+      }
+    }
+
+    const dots: {
+      bookmark: BookmarkWithDetails;
+      x: number; // 0..1000 in SVG viewBox
+      y: number; // 0..200 in SVG viewBox
+      color: string;
+      timeAgoLabel: string;
+      daysAgo: number;
+      isInactive: boolean;
+    }[] = [];
+
+    unarchived.forEach((bm, idx) => {
+      const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
+      const diffMs = lastTime ? Math.max(0, now - lastTime) : Infinity;
+      const hoursAgo = diffMs / (1000 * 60 * 60);
+      const daysAgo = diffMs / (1000 * 60 * 60 * 24);
+
+      let normX = 0; // 0 to 1
+      let isInactive = false;
+      let timeAgoLabel = "";
+
+      if (isHourly) {
+        if (!lastTime || hoursAgo >= 24) {
+          normX = 0.94 + ((idx * 7) % 45) / 1000;
+          isInactive = true;
+          timeAgoLabel = !lastTime ? "Never clicked" : `${Math.floor(hoursAgo)}h ago (>24h)`;
+        } else {
+          normX = Math.max(0.04, Math.min(0.94, hoursAgo / 24));
+          isInactive = hoursAgo >= 24;
+          timeAgoLabel = hoursAgo < 1 ? "< 1h ago" : `${Math.floor(hoursAgo)}h ago`;
+        }
+      } else {
+        const N = inactiveThreshold;
+        if (!lastTime || daysAgo >= N) {
+          normX = 0.93 + ((idx * 11) % 50) / 1000;
+          isInactive = true;
+          timeAgoLabel = !lastTime ? "Never clicked" : `${Math.floor(daysAgo)}d ago (≥${N}d)`;
+        } else {
+          normX = Math.max(0.04, Math.min(0.93, (daysAgo - 1) / Math.max(1, N - 1)));
+          isInactive = daysAgo >= N;
+          timeAgoLabel = daysAgo < 1 ? "Today" : `${Math.floor(daysAgo)}d ago`;
+        }
+      }
+
+      // Map to SVG coordinates (viewBox 0 0 1000 200) with fixed precision
+      const jitterX = ((idx * 17) % 18) - 9;
+      const x = Number(Math.min(960, Math.max(40, 50 + normX * 880 + jitterX)).toFixed(2));
+      // Vertical curve distribution (40 to 150 px)
+      const y = Number((40 + ((idx * 31 + Math.floor(normX * 100) * 11) % 110)).toFixed(2));
+
+      const color = DOT_PALETTE[idx % DOT_PALETTE.length];
+
+      dots.push({
+        bookmark: bm,
+        x,
+        y,
+        color,
+        timeAgoLabel,
+        daysAgo: lastTime ? Math.floor(daysAgo) : 999,
+        isInactive,
+      });
+    });
+
+    const inactiveCount = dots.filter((d) => d.isInactive).length;
+
+    return { isHourly, timeMarkers, gridLines, dots, inactiveCount };
+  }, [bookmarks, inactiveThreshold]);
 
   // Workspace summary calculations
   const totalCount = bookmarks.filter((b) => !b.isArchived).length;
@@ -150,7 +327,7 @@ export function WorkspaceHome({
                 <Sparkles className="h-3 w-3" />
                 Workspace Home
               </span>
-              <span className="text-xs text-muted-foreground font-mono">
+              <span className="text-xs text-muted-foreground font-mono" suppressHydrationWarning>
                 {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               </span>
             </div>
@@ -269,6 +446,7 @@ export function WorkspaceHome({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => handleSiteVisit(bm)}
                     className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
                   >
                     {bm.title}
@@ -285,6 +463,7 @@ export function WorkspaceHome({
                 href={bm.url}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => handleSiteVisit(bm)}
                 className="h-7 w-7 rounded-md bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0 transition-colors"
                 title="Launch Site"
               >
@@ -364,68 +543,76 @@ export function WorkspaceHome({
         </div>
       </section>
 
-      {/* Grid: 3. Recently Added & 4. Favorites */}
+      {/* Grid: 3. Recently Visited & 4. Favorites */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 3. Recently Added */}
+        {/* 3. Recently Visited */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <Clock className="h-3.5 w-3.5" />
+              <div className="h-5 w-5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <History className="h-3.5 w-3.5" />
               </div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recently Added</h2>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recently Visited</h2>
             </div>
             <button
               type="button"
               onClick={() => {
                 onSelectFolder(null);
-                onSelectView("recent");
+                onSelectView("all");
               }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium"
             >
-              View Recent →
+              View Activity →
             </button>
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] shadow-xs divide-y divide-slate-100 dark:divide-neutral-800/80 overflow-hidden">
-            {recentlyAdded.map((bm) => (
-              <div key={bm.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <BookmarkIcon
-                    src={bm.iconUrl}
-                    alt={bm.title}
-                    domain={bm.domain}
-                    className="h-5 w-5 rounded object-contain flex-shrink-0"
-                  />
-                  <div className="truncate">
+            {recentlyVisited.map((bm) => {
+              const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
+              return (
+                <div key={bm.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <BookmarkIcon
+                      src={bm.iconUrl}
+                      alt={bm.title}
+                      domain={bm.domain}
+                      className="h-5 w-5 rounded object-contain flex-shrink-0"
+                    />
+                    <div className="truncate">
+                      <a
+                        href={bm.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => handleSiteVisit(bm)}
+                        className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                      >
+                        {bm.title}
+                      </a>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                          {lastTime ? `Visited ${formatTimeAgo(lastTime)}` : "Not visited yet"}
+                        </span>
+                        <span>•</span>
+                        <span className="truncate max-w-[120px]">{getParentName(bm)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <a
                       href={bm.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                      onClick={() => handleSiteVisit(bm)}
+                      className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      title="Open link"
                     >
-                      {bm.title}
+                      <ExternalLink className="h-3 w-3" />
                     </a>
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                      <span className="font-mono">{formatTimeAgo(bm.createdAt)}</span>
-                      <span>•</span>
-                      <span className="truncate max-w-[120px]">{getParentName(bm)}</span>
-                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -574,6 +761,255 @@ export function WorkspaceHome({
           </div>
         )}
       </section>
+
+      {/* 6. Forgotten Bookmarks Section with Dynamic Hourly/Daily Slider Divisions & Site Dots */}
+      <section className="space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+              <Ghost className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Forgotten Bookmarks</h2>
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono px-2 py-0.5 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
+                  {spectrumData.isHourly ? "24-Hour Activity Division" : `${inactiveThreshold}-Day Dynamic Division`}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Hover any site dot to inspect its exact last clicked time • Click dot to visit & record realtime
+              </p>
+            </div>
+          </div>
+
+          {/* Range Slider: 1 Day (Hourly) to 90 Days */}
+          <div className="flex flex-wrap items-center gap-2.5 bg-slate-50 dark:bg-neutral-900/60 p-2 rounded-xl border border-slate-200 dark:border-neutral-800 text-xs">
+            <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-neutral-300">
+              <span className="text-muted-foreground text-[11px]">Threshold:</span>
+              <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                {inactiveThreshold === 1 ? "1 Day (24 Hours)" : `${inactiveThreshold} Days`}
+              </span>
+              <span className="text-[10px] text-muted-foreground">({spectrumData.inactiveCount} dormant)</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="90"
+              value={inactiveThreshold}
+              onChange={(e) => setInactiveThreshold(Number(e.target.value))}
+              className="w-28 sm:w-36 accent-indigo-600 cursor-pointer"
+              title={`Adjust threshold (1 day = hourly division, >1 = dynamic daily division)`}
+            />
+            <div className="flex items-center gap-1">
+              {[1, 7, 14, 30, 60, 90].map((d) => (
+                <button
+                  type="button"
+                  key={`preset-${d}`}
+                  onClick={() => setInactiveThreshold(d)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                    inactiveThreshold === d
+                      ? "bg-indigo-600 text-white font-bold shadow-2xs"
+                      : "bg-slate-200/80 dark:bg-neutral-800 text-slate-600 dark:text-neutral-400 hover:text-foreground"
+                  }`}
+                >
+                  {d === 1 ? "1d (24h)" : `${d}d`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* INTERACTIVE AREA SPECTRUM WITH DYNAMIC HOURLY / DAILY GRID DIVISIONS */}
+        <div className="relative rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-sm overflow-hidden">
+          <div className="text-[11px] font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>
+              {spectrumData.isHourly
+                ? "Hourly Activity Division (0h to 24h)"
+                : `Daily Grid Division across ${inactiveThreshold} Days (Day 1 to ${inactiveThreshold}d+)`}
+            </span>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">
+              ● {spectrumData.dots.length} total sites • Inactive / Dormant: {spectrumData.inactiveCount}
+            </span>
+          </div>
+
+          <div className="relative w-full h-56 select-none">
+            {/* SVG Area Background Curve & Dynamic Grid Lines */}
+            <svg
+              className="w-full h-full overflow-visible"
+              viewBox="0 0 1000 200"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="forgottenIndigoGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.32" />
+                  <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.14" />
+                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.01" />
+                </linearGradient>
+              </defs>
+
+              {/* Horizontal Guidelines */}
+              <line x1="40" y1="40" x2="960" y2="40" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
+              <line x1="40" y1="100" x2="960" y2="100" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
+              <line x1="40" y1="160" x2="960" y2="160" stroke="currentColor" strokeOpacity="0.12" />
+
+              {/* Dynamic Vertical Grid Division Lines */}
+              {spectrumData.gridLines.map((gl, i) => {
+                const gx = 50 + (gl.xPercent / 100) * 880;
+                return (
+                  <line
+                    key={`gl-${i}`}
+                    x1={gx}
+                    y1={gl.isMajor ? 28 : 38}
+                    x2={gx}
+                    y2={160}
+                    stroke="currentColor"
+                    strokeOpacity={gl.isMajor ? "0.14" : "0.05"}
+                    strokeDasharray={gl.isMajor ? undefined : "2 2"}
+                  />
+                );
+              })}
+
+              {/* Area Background Shape */}
+              <path
+                d="M 40,160 Q 250,65 500,90 T 800,60 T 960,45 L 960,160 L 40,160 Z"
+                fill="url(#forgottenIndigoGrad)"
+              />
+              {/* Area Top Boundary Stroke */}
+              <path
+                d="M 40,160 Q 250,65 500,90 T 800,60 T 960,45"
+                fill="none"
+                stroke="#6366f1"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+                opacity="0.65"
+              />
+
+              {/* Small, Crisp, Interactive Dots for Each Site */}
+              {spectrumData.dots.map((dot, idx) => {
+                const isHovered = hoveredSpot?.bookmark.id === dot.bookmark.id;
+                return (
+                  <g
+                    key={`dot-${dot.bookmark.id}-${idx}`}
+                    className="cursor-pointer"
+                    onMouseEnter={() => {
+                      setHoveredSpot({
+                        bookmark: dot.bookmark,
+                        x: (dot.x / 1000) * 100,
+                        y: (dot.y / 200) * 100,
+                        daysAgo: dot.daysAgo,
+                        timeAgoLabel: dot.timeAgoLabel,
+                      });
+                    }}
+                    onMouseLeave={() => setHoveredSpot(null)}
+                    onClick={() => {
+                      handleSiteVisit(dot.bookmark);
+                      window.open(dot.bookmark.url, "_blank");
+                    }}
+                  >
+                    {isHovered && (
+                      <circle
+                        suppressHydrationWarning
+                        cx={dot.x}
+                        cy={dot.y}
+                        r="6.5"
+                        fill="none"
+                        stroke={dot.color}
+                        strokeWidth="1.5"
+                        className="animate-ping opacity-75"
+                      />
+                    )}
+                    <circle
+                      suppressHydrationWarning
+                      cx={dot.x}
+                      cy={dot.y}
+                      r={isHovered ? "4.5" : dot.isInactive ? "2.6" : "3.2"}
+                      fill={dot.color}
+                      fillOpacity={dot.isInactive ? 0.35 : 0.95}
+                      stroke={isHovered ? "#ffffff" : dot.isInactive ? "currentColor" : "#ffffff"}
+                      strokeOpacity={dot.isInactive ? 0.3 : 0.85}
+                      strokeWidth={isHovered ? "1.5" : "0.75"}
+                      className="transition-all duration-150 drop-shadow-xs"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Dynamic Bottom Time Axis */}
+            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-neutral-400 pt-1.5 border-t border-slate-200/80 dark:border-neutral-800 px-3">
+              {spectrumData.timeMarkers.map((m, i) => (
+                <div key={`tm-${i}`} className="text-center" style={{ width: `${100 / spectrumData.timeMarkers.length}%` }}>
+                  <span className="font-semibold text-slate-700 dark:text-neutral-300">{m.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Tooltip Over the Spot (Last Time Clicked) */}
+            {hoveredSpot && (
+              <div
+                className="absolute z-30 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 p-2.5 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-56"
+                style={{
+                  left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
+                  top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
+                }}
+              >
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-neutral-800 pb-1.5">
+                  <BookmarkIcon
+                    src={hoveredSpot.bookmark.iconUrl}
+                    domain={hoveredSpot.bookmark.domain}
+                    className="h-4 w-4 rounded object-contain flex-shrink-0"
+                  />
+                  <div className="truncate font-bold text-slate-900 dark:text-white">
+                    {hoveredSpot.bookmark.title}
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-[11px]">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Domain:</span>
+                    <span className="font-mono text-slate-700 dark:text-neutral-300">
+                      {hoveredSpot.bookmark.domain}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Category:</span>
+                    <span className="text-slate-700 dark:text-neutral-300">
+                      {getParentName(hoveredSpot.bookmark)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400 font-semibold pt-0.5 border-t border-slate-100 dark:border-neutral-800/80">
+                    <span>Last Time Clicked:</span>
+                    <span className="font-mono">
+                      {hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt
+                        ? `${new Date(hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt!).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "numeric" })} (${hoveredSpot.timeAgoLabel || `${hoveredSpot.daysAgo}d ago`})`
+                        : `Never Clicked (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Total Visits:</span>
+                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                      {hoveredSpot.bookmark.visitCount || 0}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-center text-indigo-600 dark:text-indigo-400 font-medium pt-1 border-t border-slate-100 dark:border-neutral-800">
+                  Click dot to visit site ↗
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Global Homepage Visual Analytics: 3 Exact Charts from Reference (Stacked Area, Radar Fingerprint, Donut) */}
+      <GlobalHomepageAnalytics
+        bookmarks={bookmarks}
+        folders={folders}
+        folderTree={folderTree}
+        onSelectFolder={(fId) => onSelectFolder(fId)}
+        onSelectDomain={onSelectDomain}
+      />
 
       {/* 6. Tags & Categories Explorer */}
       {topTags.length > 0 && (

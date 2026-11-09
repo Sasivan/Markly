@@ -46,6 +46,7 @@ export const bookmarks = sqliteTable(
     status: text("status", { enum: ["alive", "dead", "pending"] }).notNull().default("alive"),
     visitCount: integer("visit_count").notNull().default(0),
     lastVisitedAt: integer("last_visited_at"),
+    lastClickedAt: integer("last_clicked_at"),
     createdAt: integer("created_at").notNull(),
     searchText: text("search_text"),
   },
@@ -128,7 +129,8 @@ export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type BookmarkTag = typeof bookmarkTags.$inferSelect;
 
-export type BookmarkWithDetails = Bookmark & {
+export type BookmarkWithDetails = Omit<Bookmark, "lastClickedAt"> & {
+  lastClickedAt?: number | null;
   tags: Tag[];
   folderName?: string | null;
   folderPath?: string | null;

@@ -1,18 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
 interface BreadcrumbsProps {
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database";
   folders: Folder[];
   includeSubfolders: boolean;
   onToggleIncludeSubfolders: (val: boolean) => void;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database") => void;
   totalBookmarksCount: number;
 }
 
@@ -56,11 +56,12 @@ export function Breadcrumbs({
           type="button"
           onClick={() => {
             onSelectFolder(null);
-            onSelectView("all");
+            onSelectView("home");
           }}
-          className="flex items-center gap-1 hover:text-foreground font-medium cursor-pointer"
+          className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 font-medium cursor-pointer transition-colors"
+          title="Open Workspace Home"
         >
-          <Compass className="h-3.5 w-3.5" />
+          <Sparkles className="h-3.5 w-3.5 text-blue-500" />
           <span>Workspace</span>
         </button>
 
@@ -124,18 +125,32 @@ export function Breadcrumbs({
       {/* Right: Subfolder filter toggle & count */}
       <div className="flex items-center gap-3 flex-shrink-0">
         {activeFolderId && (
-          <button
-            type="button"
-            onClick={() => onToggleIncludeSubfolders(!includeSubfolders)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium border cursor-pointer transition-colors ${
-              includeSubfolders
-                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                : "bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-slate-200 dark:border-neutral-700 hover:bg-slate-200"
-            }`}
-          >
-            <Layers className="h-3 w-3" />
-            <span>{includeSubfolders ? "Including Subfolders" : "This Folder Only"}</span>
-          </button>
+          <div className="flex items-center p-0.5 rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-100 dark:bg-neutral-900 text-xs">
+            <button
+              type="button"
+              onClick={() => onToggleIncludeSubfolders(false)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-all ${
+                !includeSubfolders
+                  ? "bg-white dark:bg-[#2a2a2a] text-slate-900 dark:text-white shadow-2xs font-semibold"
+                  : "text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200"
+              }`}
+            >
+              <span>📁</span>
+              <span>This Folder Only</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleIncludeSubfolders(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-all ${
+                includeSubfolders
+                  ? "bg-white dark:bg-[#2a2a2a] text-slate-900 dark:text-white shadow-2xs font-semibold"
+                  : "text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200"
+              }`}
+            >
+              <span>📁</span>
+              <span>Include Subfolders</span>
+            </button>
+          </div>
         )}
 
         <span className="text-[11px] text-slate-700 dark:text-neutral-300 bg-slate-100 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 px-2 py-0.5 rounded-md font-mono font-semibold">

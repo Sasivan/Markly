@@ -21,6 +21,9 @@ import { WorkspaceHome } from "@/components/home/workspace-home";
 import { FolderCollectionsView } from "@/components/collections/folder-collections-view";
 import { ChildSubfoldersBar } from "@/components/collections/child-subfolders-bar";
 import { EditBookmarkModal } from "@/components/table/edit-bookmark-modal";
+import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
+import { DomainInsightsView } from "@/components/domain/domain-insights-view";
+import { LibraryInsightsView } from "@/components/insights/library-insights-view";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
 interface MarklyWorkspaceProps {
@@ -52,10 +55,23 @@ export function MarklyWorkspace({
 
   // Active filter state
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive">("home");
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database">("home");
+  const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
   const [includeSubfolders, setIncludeSubfolders] = React.useState(false); // Default false: show only sites in that specific folder
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
+
+  // Sidebar collapse state
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+
+  // Main scroll container ref to automatically scroll to top on section/folder open
+  const mainScrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [activeView, activeFolderId, activeDomain]);
 
   // Search state across header and table
   const [globalSearch, setGlobalSearch] = React.useState("");
@@ -92,8 +108,8 @@ export function MarklyWorkspace({
         return;
       }
 
-      // N: New Bookmark
-      if (e.key === "n" || e.key === "N") {
+      // N: New Bookmark (only in standard view, not in database view)
+      if ((e.key === "n" || e.key === "N") && activeView !== "database") {
         e.preventDefault();
         setPrefillUrl("");
         setAddModalOpen(true);
@@ -143,7 +159,7 @@ export function MarklyWorkspace({
   // Refresh data function
   const refreshData = React.useCallback(async () => {
     try {
-      let url = `/api/bookmarks?view=${activeView === "home" || activeView === "collections" ? "all" : activeView}&includeSubfolders=${includeSubfolders}`;
+      let url = `/api/bookmarks?view=${activeView === "home" || activeView === "collections" || activeView === "database" ? "all" : activeView}&includeSubfolders=${includeSubfolders}`;
       if (activeFolderId) {
         url += `&folderId=${activeFolderId}`;
       }
@@ -210,12 +226,14 @@ export function MarklyWorkspace({
           setActiveFolderId(id);
           setActiveView("all");
           setIncludeSubfolders(isParent);
+          setActiveDomain(null);
           setActiveDomainFilter(null);
           setActiveTagFilter(null);
         }}
         onSelectView={(view) => {
           setActiveView(view);
           setActiveFolderId(null);
+          setActiveDomain(null);
           setActiveDomainFilter(null);
           setActiveTagFilter(null);
         }}
@@ -263,17 +281,21 @@ export function MarklyWorkspace({
         activeFolderId={activeFolderId}
         activeView={activeView}
         totalBookmarksCount={stats.totalBookmarks}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((p) => !p)}
         onSelectFolder={(id) => {
           const isParent = id ? folders.some((f) => f.parentId === id) : false;
           setActiveFolderId(id);
           setActiveView("all");
           setIncludeSubfolders(isParent);
+          setActiveDomain(null);
           setActiveDomainFilter(null);
           setActiveTagFilter(null);
         }}
         onSelectView={(view) => {
           setActiveView(view);
           setActiveFolderId(null);
+          setActiveDomain(null);
           setActiveDomainFilter(null);
           setActiveTagFilter(null);
         }}
@@ -283,13 +305,22 @@ export function MarklyWorkspace({
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header / Paste Link Bar */}
+        {/* Top Header without search bar (available in left panel) */}
         <AppHeader
-          searchQuery={globalSearch}
-          onSearchChange={setGlobalSearch}
-          onOpenAddModal={openAddModal}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          isSidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((p) => !p)}
+          onOpenAddModal={() => openAddModal()}
           onOpenImportExport={() => setImportExportOpen(true)}
+          onOpenSearch={() => setCommandPaletteOpen(true)}
+          onNavigateHome={() => {
+            setActiveView("home");
+            setActiveFolderId(null);
+            setActiveDomain(null);
+            setActiveDomainFilter(null);
+            setActiveTagFilter(null);
+          }}
+          activeView={activeView}
+          activeFolder={activeFolderId ? folders.find((f) => f.id === activeFolderId) || null : null}
         />
 
         {/* Breadcrumb Navigation Trail */}
@@ -313,9 +344,85 @@ export function MarklyWorkspace({
           totalBookmarksCount={bookmarks.length}
         />
 
-        {/* Dashboard, Home & Table Zone */}
-        <div className="overflow-y-auto flex-1 p-6 space-y-6">
-          {activeView === "home" && !activeFolderId ? (
+        {/* Dashboard, Home, Graph & Table Zone */}
+        <div ref={mainScrollRef} className="overflow-y-auto flex-1 p-6 space-y-6">
+          {activeDomain ? (
+            /* Dedicated Level 3: Website / Domain Insights Page */
+            <DomainInsightsView
+              domain={activeDomain}
+              onBack={() => setActiveDomain(null)}
+              onSelectFolder={(fId) => {
+                setActiveFolderId(fId);
+                setActiveDomain(null);
+                setActiveView("all");
+              }}
+              onEditBookmark={(bm) => setEditingBookmark(bm)}
+              onToggleFavorite={async (bm) => {
+                await fetch(`/api/bookmarks/${bm.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ isFavorite: !bm.isFavorite }),
+                });
+                refreshData();
+              }}
+            />
+          ) : activeView === "graph" && !activeFolderId ? (
+            /* Dedicated Obsidian Knowledge Graph View (Global) */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    Obsidian Knowledge Graph
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Interactive force-directed graph connecting domains, folders, bookmarks, and shared tags.
+                  </p>
+                </div>
+              </div>
+              <KnowledgeGraph
+                mode="global"
+                onSelectDomain={(dom) => {
+                setActiveDomainFilter(dom);
+                setActiveView("all");
+                setActiveFolderId(null);
+              }}
+                onSelectFolder={(fId) => {
+                  setActiveFolderId(fId);
+                  setActiveView("all");
+                }}
+                onEditBookmark={(bm) => setEditingBookmark(bm)}
+                onToggleFavorite={async (bm) => {
+                  await fetch(`/api/bookmarks/${bm.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ isFavorite: !bm.isFavorite }),
+                  });
+                  refreshData();
+                }}
+              />
+            </div>
+          ) : activeView === "insights" && !activeFolderId ? (
+            /* Dedicated Library Insights & Analytics Hub */
+            <LibraryInsightsView
+              bookmarks={bookmarks}
+              folders={folders}
+              folderTree={folderTree}
+              onSelectFolder={(fId) => {
+                setActiveFolderId(fId);
+                setActiveView("all");
+              }}
+              onSelectTag={(tag) => {
+                setActiveTagFilter(tag);
+                setActiveView("all");
+              }}
+              onSelectDomain={(dom) => {
+                setActiveDomainFilter(dom);
+                setActiveView("all");
+              }}
+              onEditBookmark={(bm) => setEditingBookmark(bm)}
+              onRefreshData={refreshData}
+            />
+          ) : activeView === "home" && !activeFolderId ? (
             /* Dedicated Modern Workspace Homepage */
             <WorkspaceHome
               bookmarks={bookmarks}
@@ -325,14 +432,21 @@ export function MarklyWorkspace({
                 setActiveFolderId(id);
                 setActiveView("all");
                 setIncludeSubfolders(Boolean(isParent));
+                setActiveDomain(null);
                 setActiveDomainFilter(null);
                 setActiveTagFilter(null);
               }}
               onSelectView={(view) => {
                 setActiveView(view);
                 setActiveFolderId(null);
+                setActiveDomain(null);
                 setActiveDomainFilter(null);
                 setActiveTagFilter(null);
+              }}
+              onSelectDomain={(dom) => {
+                setActiveDomainFilter(dom);
+                setActiveView("all");
+                setActiveFolderId(null);
               }}
               onSelectTag={(tag) => {
                 setActiveTagFilter(tag);
@@ -349,6 +463,7 @@ export function MarklyWorkspace({
                 });
                 refreshData();
               }}
+              onRefreshData={refreshData}
             />
           ) : activeView === "collections" && !activeFolderId ? (
             /* Dedicated Folder Collections Directory */
@@ -359,6 +474,7 @@ export function MarklyWorkspace({
                 setActiveFolderId(id);
                 setActiveView("all");
                 setIncludeSubfolders(Boolean(isParent));
+                setActiveDomain(null);
                 setActiveDomainFilter(null);
                 setActiveTagFilter(null);
               }}
@@ -440,12 +556,15 @@ export function MarklyWorkspace({
                 />
               )}
 
-              {/* Visual Intelligence Dashboard (Top Zone) */}
+              {/* Visual Intelligence Dashboard (Top Zone with Contextual Folder Analytics) */}
               <VisualDashboard
                 folderTree={folderTree}
                 folders={folders}
                 bookmarks={bookmarks}
                 stats={stats}
+                activeFolderId={activeFolderId}
+                includeSubfolders={includeSubfolders}
+                onToggleIncludeSubfolders={setIncludeSubfolders}
                 onSelectFolder={(fId) => {
                   setActiveFolderId(fId);
                   setActiveView("all");
@@ -454,6 +573,7 @@ export function MarklyWorkspace({
                 onSelectDomain={setActiveDomainFilter}
                 activeTagFilter={activeTagFilter}
                 onSelectTag={setActiveTagFilter}
+                onOpenDomainInsights={(dom) => setActiveDomain(dom)}
               />
 
               {/* TanStack Table Section (Bottom Zone) */}

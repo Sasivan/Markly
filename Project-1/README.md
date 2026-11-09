@@ -1,190 +1,239 @@
-# Markly 🔖 — Notion-Style Bookmark Manager & Visual Analytics
+<div align="center">
 
-**Markly** is a production-quality, Notion-inspired bookmark manager built for deep organization, visual intelligence, and bookmark health tracking.
+# 🔖 Markly
 
-![Markly Phase 6 Overview](/phase6_verification.png)
+### *The Intelligent Visual Bookmark Manager & Personal Knowledge Workspace*
 
----
+[![Next.js](https://img.shields.io/badge/Next.js-16.4.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Realtime_&_Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Multi--Tenant_RLS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-Modern_UI-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-## 🌟 Key Features
-
-### 1. Paste-to-Add Flow & Scraper Engine
-- **Global Link Paste**: Paste any link anywhere on the page (`Ctrl+V` / `Cmd+V`) or via the top input bar.
-- **SSRF-Hardened Scraper (`/api/scrape`)**: Strict multi-layer IP protection via `ipaddr.js` blocking localhost, loopback, private ranges, link-local, and cloud metadata (`169.254.169.254`).
-- **Safe Fetching**: 8-second timeout, max 2MB payload cap, and manual redirect validation across every hop.
-- **6-Tier Icon Waterfall**: Apple touch icon (largest) ➔ standard favicon ➔ Web App manifest ➔ root `/favicon.ico` ➔ Google S2 Favicon API ➔ unique SVG letter avatar.
-- **WebP Optimization**: Automatically resizes and converts all scraped favicons to 64x64 WebP format via `sharp`.
-- **Duplicate Detection**: Real-time canonical URL deduplication alerting you if a link is already saved and displaying its folder location.
-
-### 2. Notion-Style Recursive Sidebar
-- **Unlimited Nesting Depth**: Adjacency list data model powered by recursive SQL CTEs.
-- **Drag-and-Drop Organization**: Reorder folders or drag them onto other folders to reparent instantly.
-- **Inline Editing & Context Menus**: Double-click to rename inline, customize folder icons & color badges, duplicate, or delete with options (*Move contents up* vs *Delete all*).
-- **System Views**: All Bookmarks, Favorites, Recent, Unsorted (Inbox), and Archive.
-- **Collapsible & Resizable**: Drag the right border to adjust width (190px–450px) or press `Ctrl+\` to toggle collapse.
-
-### 3. Visual Analytics Dashboard
-- **Folder Volume Treemap (Apache ECharts)**: Proportional tiles representing bookmark counts; click to drill down and filter.
-- **Nested Sunburst (Apache ECharts)**: Radial concentric visualization of nested folder hierarchies.
-- **Activity Calendar Heatmap (Apache ECharts)**: GitHub-style 365-day calendar grid tracking additions over time.
-- **Domain & Tag Breakdown (Recharts)**: Interactive donut and horizontal bar charts with slice click-to-filter support.
-- **Force-Directed Graph (`react-force-graph-2d`)**: Physics simulation connecting folder hubs to bookmark leaf nodes.
-- **Favicon Wall**: Visual gallery displaying scraped high-resolution favicons.
-
-### 4. Advanced TanStack Table v8
-- **Power Views**: One-click switcher between **Table View**, **Cards / Gallery View**, and **Compact List View**.
-- **Multi-Column Sorting**: Shift-click column headers to sort across multiple fields.
-- **Global Fuzzy Search**: Search instantly across titles, URLs, descriptions, domains, and tags.
-- **Link Health Filter**: Filter between `All Health`, `🟢 Alive`, and `🔴 Dead Links`.
-- **Column Visibility Toggles**: Customize visible columns.
-- **Floating Bulk Action Toolbar**: Select multiple bookmarks to move, tag, favorite, archive, export, or delete in bulk.
-
-### 5. Portability & Health Tracking
-- **Import & Export**:
-  - Netscape Bookmark HTML format (compatible with Chrome, Arc, Safari, Firefox, Edge).
-  - JSON and CSV export/import.
-- **Background Health Check**: Scans bookmarks with fast HEAD/GET requests and flags dead/404 links.
-- **Keyboard Shortcuts**:
-  - `Ctrl+K` / `Cmd+K`: Command palette.
-  - `Ctrl+V` / `Cmd+V`: Global link paste.
-  - `N`: Quick-add bookmark modal.
-  - `/`: Focus search input.
-  - `G` then `F`: Go to Favorites.
-  - `G` then `A`: Go to All Bookmarks.
-  - `Ctrl+\`: Toggle sidebar collapse.
+<p align="center">
+  A privacy-first, cloud-synchronized bookmark operating system featuring interactive local knowledge graphs, real-time visit telemetry, dynamic forgotten bookmarks timelines, and comprehensive visual analytics.
+</p>
 
 ---
 
-## 🏛️ Architecture Diagram
+![Markly Workspace Hero](docs/screenshots/hero_folder_workspace.png)
 
-```mermaid
-flowchart TD
-    subgraph Client["Next.js App Router (React 19 + Tailwind v4 + shadcn)"]
-        Nav["Top Bar (Paste Input + Quick Add + Cmd+K)"]
-        Sidebar["Notion Sidebar (Recursive Tree + Drag-and-Drop)"]
-        Dashboard["Visual Analytics (ECharts Treemap/Sunburst + Recharts + Force Graph)"]
-        TableArea["TanStack Table v8 (Sorting, Fuzzy Search, Bulk Actions)"]
-        BreadcrumbsBar["Breadcrumbs (Path Ancestry + Subfolder Toggle)"]
-    end
+</div>
 
-    subgraph Server["Next.js Route Handlers & Scraper Engine"]
-        ScrapeRoute["/api/scrape (SSRF Guard + Cheerio + Sharp 64x64 WebP)"]
-        BookmarkRoute["/api/bookmarks (CRUD, Bulk Mutations, Deduplication)"]
-        FolderRoute["/api/folders (Recursive CTEs, Reordering, Context Actions)"]
-        ImportExportRoute["/api/import & /api/export (Netscape HTML, JSON, CSV)"]
-        HealthRoute["/api/health-check (Async HTTP Link Status Scanner)"]
-    end
+---
 
-    subgraph Persistence["Drizzle ORM Repository Layer"]
-        Drizzle["Drizzle Repository"]
-        SQLite[("Local SQLite ./data/markly.db (Turnkey Local Dev)")]
-        SupabasePG[("Supabase PostgreSQL + RLS (Production Ready)")]
-    end
+## 📑 Table of Contents
 
-    Nav --> ScrapeRoute
-    Sidebar --> FolderRoute
-    TableArea --> BookmarkRoute
-    Dashboard --> TableArea
-    BreadcrumbsBar --> TableArea
-    ScrapeRoute --> BookmarkRoute
-    BookmarkRoute --> Drizzle
-    FolderRoute --> Drizzle
-    ImportExportRoute --> Drizzle
-    HealthRoute --> Drizzle
-    Drizzle -.-> SQLite
-    Drizzle -.-> SupabasePG
+- [Overview](#-overview)
+- [Key Features & Visual Tour](#-key-features--visual-tour)
+  - [1. Universal Supabase Auth & Realtime Sync](#1-universal-supabase-auth--realtime-sync)
+  - [2. Deep Visual Analytics Suite](#2-deep-visual-analytics-suite)
+  - [3. Forgotten Bookmarks Timeline](#3-forgotten-bookmarks-timeline)
+  - [4. Nested Folders & Segmented Filter Control](#4-nested-folders--segmented-filter-control)
+  - [5. Obsidian-Style Knowledge Graph](#5-obsidian-style-knowledge-graph)
+  - [6. Destructive Actions Safety Modal](#6-destructive-actions-safety-modal)
+- [Architecture & Tech Stack](#-architecture--tech-stack)
+- [Security Hardening](#-security-hardening)
+- [Replication & Setup Guide](#-replication--setup-guide)
+- [Repository Structure](#-repository-structure)
+
+---
+
+## 🌟 Overview
+
+Modern bookmark managers often become digital graveyards where links are saved once and forgotten forever. **Markly** reinvents link management by combining **hierarchical folder organization**, **force-directed knowledge graphs**, and **live usage telemetry** to ensure your knowledge library remains vibrant, accessible, and insightful.
+
+All your links, nested collections, and tags synchronize instantaneously across sessions and devices using **Supabase PostgreSQL** guarded by strict **Row-Level Security (RLS)**.
+
+---
+
+## 📸 Key Features & Visual Tour
+
+### 1. Universal Supabase Auth & Realtime Sync
+
+Seamless multi-tenant authentication powered by Supabase GoTrue. Users can sign in via **Google OAuth**, **GitHub OAuth**, or **Email / Username + Password**.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%" align="center"><b>Sign In Modal</b></td>
+      <td width="50%" align="center"><b>Create Account / Sign Up Modal</b></td>
+    </tr>
+    <tr>
+      <td><img src="docs/screenshots/auth_modal_login.png" alt="Markly Sign In Modal" width="100%"/></td>
+      <td><img src="docs/screenshots/auth_modal_signup.png" alt="Markly Sign Up Modal" width="100%"/></td>
+    </tr>
+  </table>
+</div>
+
+- **Instant Migration**: Guest users are automatically prompted on registration to seamlessly migrate their existing local links into their cloud account.
+- **Real-Time WebSocket Sync**: Open multiple tabs or devices; changes propagate instantly with zero manual page refreshes.
+
+---
+
+### 2. Deep Visual Analytics Suite
+
+Markly transforms your bookmarks into real-time intellectual insights:
+
+<div align="center">
+  <img src="docs/screenshots/analytics_radar_donut.png" alt="Category Fingerprint & Tag Distribution" width="100%"/>
+</div>
+
+- **❄️ Category Fingerprint (Radar Chart)**: Maps your library's intellectual shape across your top collections, giving you an immediate fingerprint of your focus areas.
+- **🍩 Tag Distribution (Donut Chart)**: Visualizes the proportional volume of active tags with precise percentages and one-click filtering pills.
+- **📚 Bookmarking Activity Over Time (Stacked Area)**: Visualizes visit frequency over monthly timeframes, supporting toggles between **Visited Sites** and **Created**.
+
+---
+
+### 3. Forgotten Bookmarks Timeline
+
+*Identify and rediscover dormant links before they decay.*
+
+<div align="center">
+  <img src="docs/screenshots/analytics_activity_forgotten.png" alt="Activity Over Time & Forgotten Bookmarks" width="100%"/>
+</div>
+
+- **Dynamic Recency Slider**: Slide anywhere from **1 Day (24-Hour Division)** to **90 Days (Daily Grid Divisions)**.
+- **Crisp Interactive Dots**: Each dot represents an exact website. Hovering over any dot displays a rich tooltip with the domain, parent collection, total visit count, and exact timestamp of when it was last clicked.
+- **`Last Clicked` Telemetry**: Every bookmark row displays an updated `Last Clicked` column adjacent to link health status.
+
+---
+
+### 4. Nested Folders & Segmented Filter Control
+
+Manage complex bookmark hierarchies effortlessly with infinite subfolder nesting and instant breadcrumb navigation.
+
+<div align="center">
+  <img src="docs/screenshots/hero_folder_workspace.png" alt="Folder Collections & Segmented Toggle" width="100%"/>
+</div>
+
+- **Segmented Subfolder Capsule**: Switch effortlessly between:
+  ```
+  [ 📁 This Folder Only ] [ 📁 Include Subfolders ]
+  ```
+- **Visual Subfolder Cards**: Clickable overview cards preview child folder counts and health metrics.
+- **Live Link Health Checker**: Real-time status indicators highlight reachable URLs and detect broken links.
+
+---
+
+### 5. Obsidian-Style Knowledge Graph
+
+Explore the intellectual topology of your entire bookmark library through an interactive force-directed graph.
+
+<div align="center">
+  <img src="docs/screenshots/knowledge_graph_view.png" alt="Knowledge Graph Visualization" width="100%"/>
+</div>
+
+- **Force-Directed Physics Simulation**: Folders and bookmarks act as interconnected nodes.
+- **Local & Nested Modes**: Zoom in on specific parent folders to inspect localized relationship clusters.
+- **Customizable Controls**: Adjust node repulsion, link distance, collision radii, and label visibility in real time.
+
+---
+
+### 6. Destructive Actions Safety Modal
+
+To prevent accidental deletions, all native browser `confirm()` prompts have been replaced with centered, high-contrast confirmation dialogs:
+
+<div align="center">
+  <img src="docs/screenshots/centered_delete_modal.png" alt="Centered Delete Confirmation Modal" width="70%"/>
+</div>
+
+- **Centered Viewport Placement**: Ensures notifications are never obscured beneath address bars.
+- **Clear Intent Feedback**: Displays exact bookmark or folder titles with an explicit destructive confirmation button.
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend Framework** | [Next.js 16.4.5](https://nextjs.org/) (App Router, Turbopack, React Server Components) |
+| **UI Library** | [React 19](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), Radix UI Primitives, Lucide Icons |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL 15+, GoTrue Auth, Realtime Replication Channels) |
+| **Data Visualizations** | [Recharts](https://recharts.org/), [React Force Graph 2D](https://github.com/vasturiano/react-force-graph), [Graphology](https://graphology.github.io/) |
+| **Security & Utilities** | `ipaddr.js` (SSRF Guard), `cheerio` (Metadata Extraction), `sharp` (Favicon Processing) |
+
+---
+
+## 🛡️ Security Hardening
+
+- **SSRF Mitigation**: Outbound scraping requests strictly resolve destination IPs against loopback (`127.0.0.1`), private RFC1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and Cloud metadata endpoints (`169.254.169.254`).
+- **Postgres Row-Level Security (RLS)**: Enforced directly on `folders`, `bookmarks`, `tags`, and `bookmark_tags`. Users cannot query or mutate data belonging to other tenant UIDs.
+- **Zero Client Credential Leakage**: Only public publishable anon keys are exposed to the browser. Admin service-role keys are strictly server-side.
+- **XSS Sanitization**: Cheerio parses third-party HTML strictly as plain text nodes, preventing stored script injection.
+
+---
+
+## ⚡ Replication & Setup Guide
+
+Replicating Markly takes under 5 minutes:
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/Sasivan/Markly.git
+cd Markly/Project-1
 ```
 
----
-
-## 📦 Pinned Package Versions
-
-| Package | Version | Purpose |
-| :--- | :--- | :--- |
-| `next` | `16.4.5` | React Server Components, App Router, Route Handlers |
-| `react` & `react-dom` | `19.3.1` | React 19 core primitives |
-| `tailwindcss` | `^4.0.12` | CSS-first theming with Notion color tokens |
-| `drizzle-orm` | `^0.45.4` | Relational query builder and migrations |
-| `better-sqlite3` | `^13.0.3` | Zero-config synchronous SQLite driver |
-| `@tanstack/react-table` | `^8.21.2` | Headless table engine with sorting, filters, and selection |
-| `echarts` & `echarts-for-react` | `^6.1.0` / `^3.0.6` | Treemap, Sunburst, and Activity Heatmap |
-| `recharts` | `^3.2.0` | Domain donut and tag horizontal bar charts |
-| `react-force-graph-2d` | `^1.29.2` | Force-directed physics network simulation |
-| `cheerio` | `^1.2.0` | Server-side HTML metadata extraction |
-| `sharp` | `^0.35.5` | High-performance WebP conversion (64x64) |
-| `ipaddr.js` | `^2.5.0` | Strict SSRF IP parsing and range protection |
-| `cmdk` | `^1.1.1` | Notion-style command palette |
-| `lucide-react` | `^1.70.0` | Vector icon suite |
-| `vitest` | `^3.0.8` | Unit testing framework |
-| `@playwright/test` | `^1.51.0` | End-to-end browser integration testing |
-
----
-
-## 🚀 Getting Started
-
-### 1. Prerequisites
-- Node.js `20.x` or later (tested on Node `24.19.0`)
-- npm or pnpm
-
-### 2. Installation
+### 2. Install dependencies
 ```bash
-git clone <repo-url>
-cd Markly
 npm install
 ```
 
-### 3. Environment Variables
-Copy `.env.example` to `.env.local`:
+### 3. Initialize your Supabase Database
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Markly will automatically synchronize and provision your user tables and bookmarks in real time upon connection.
+
+### 4. Configure Environment Variables
 ```bash
 cp .env.example .env.local
 ```
-
-Default contents (zero-config SQLite):
-```env
-DATABASE_MODE=sqlite
-DATABASE_SQLITE_PATH=./data/markly.db
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NODE_ENV=development
+Add your Supabase credentials:
+```ini
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-*(Optional Supabase setup for PostgreSQL):*
-```env
-DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### 4. Seed the Database
-Populate 14 nested folders across 3 hierarchy levels and 55+ realistic bookmarks:
-```bash
-npm run db:seed
-```
-
-### 5. Start Development Server
+### 5. Start the Application
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+
+### 6. Run Automated Verification
+```bash
+node scripts/verify-all.js
+```
 
 ---
 
-## 🧪 Testing
+## 📁 Repository Structure
 
-### Run Vitest Unit Tests
-Tests SSRF protection, URL normalizer, Netscape HTML parser/generator, and CSV converter:
-```bash
-npm test
+```text
+Markly/
+├── docs/
+│   └── screenshots/                   # High-resolution application screenshots
+├── Project-1/                         # Core Next.js Application
+│   ├── app/                           # App Router routes & API endpoints
+│   │   ├── api/bookmarks/             # Scoped CRUD & visit telemetry
+│   │   ├── api/folders/               # Nested collection management
+│   │   ├── api/auth/                  # Migration & cloud user sync
+│   │   ├── api/scrape/                # SSRF-protected metadata fetcher
+│   │   └── page.tsx                   # Main workspace shell
+│   ├── components/                    # Modular React components
+│   │   ├── auth/                      # Supabase Auth modal & context
+│   │   ├── graph/                     # Force-directed knowledge graph
+│   │   ├── home/                      # Analytics & Forgotten Bookmarks
+│   │   ├── table/                     # Bookmark list & batch operations
+│   │   └── ui/                        # Reusable dialogs, badges, inputs
+│   ├── server/                        # Backend repository & scraper engines
+│   └── scripts/                       # Verification suite
+└── README.md                          # Main repository landing page
 ```
 
-### Run Playwright E2E Tests
-Runs automated browser tests against the live application:
-```bash
-npx playwright test
-```
+---
 
-### Production Build
-```bash
-npm run build
-npm start
-```
-
+<div align="center">
+  <sub>Built with ❤️ for privacy, clarity, and knowledge organization.</sub>
+</div>

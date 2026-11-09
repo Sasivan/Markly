@@ -17,9 +17,15 @@ import {
   ChevronsUpDown,
   Sparkles,
   Search,
+  Layers,
+  History,
+  Database,
+  User,
+  LogOut,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth/auth-context";
 import { FolderTreeNodeComponent } from "./folder-tree-node";
 import { DeleteFolderModal } from "./delete-folder-modal";
 import { FolderCustomizeModal } from "./folder-customize-modal";
@@ -30,12 +36,14 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database";
   totalBookmarksCount: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export function Sidebar({
@@ -48,8 +56,22 @@ export function Sidebar({
   onSelectView,
   onRefreshData,
   onOpenSearch,
+  isCollapsed: controlledCollapsed,
+  onToggleCollapse,
 }: SidebarProps) {
-  const [collapsed, setCollapsed] = React.useState(false);
+  const { user, signOut, openAuthModal } = useAuth();
+  const [internalCollapsed, setInternalCollapsed] = React.useState(false);
+  const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+  const setCollapsed = React.useCallback(
+    (val: boolean | ((prev: boolean) => boolean)) => {
+      if (onToggleCollapse) {
+        onToggleCollapse();
+      } else {
+        setInternalCollapsed(val);
+      }
+    },
+    [onToggleCollapse]
+  );
   const [sidebarWidth, setSidebarWidth] = React.useState(260);
   const [isResizing, setIsResizing] = React.useState(false);
 
@@ -212,29 +234,16 @@ export function Sidebar({
 
   if (collapsed) {
     return (
-      <div className="w-12 flex-shrink-0 flex flex-col items-center py-3 border-r border-border bg-[#fbfbfa] dark:bg-[#191919] justify-between select-none">
-        <div className="space-y-3 flex flex-col items-center w-full px-1.5">
-          <button
-            type="button"
-            onClick={() => setCollapsed(false)}
-            title="Expand Sidebar (Ctrl+\)"
-            className="h-8 w-8 rounded-lg hover:bg-slate-200 dark:hover:bg-neutral-800 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
+      <aside className="w-12 flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none">
+        {/* Workspace Brand Header - identical h-12 container and h-6 w-6 icon matching expanded sidebar */}
+        <div className="h-12 border-b border-border flex items-center justify-center bg-[#fbfbfa] dark:bg-[#191919] flex-shrink-0">
+          <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
+            M
+          </div>
+        </div>
 
-          {/* Quick Search in Minimized Rail */}
-          <button
-            type="button"
-            onClick={onOpenSearch}
-            title="Search Bookmarks (⌘K)"
-            className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-
-          <div className="w-6 h-[1px] bg-border my-1" />
-
+        {/* Collapsed Nav Rail */}
+        <div className="flex-1 py-2 flex flex-col items-center space-y-2.5 px-1 overflow-y-auto">
           {/* Home Option */}
           <button
             type="button"
@@ -250,6 +259,16 @@ export function Sidebar({
             }`}
           >
             <Sparkles className="h-4 w-4" />
+          </button>
+
+          {/* Quick Search in Minimized Rail */}
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            title="Search Bookmarks (⌘K)"
+            className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
+          >
+            <Search className="h-4 w-4" />
           </button>
 
           {/* All Bookmarks / Quick Access Option */}
@@ -286,38 +305,21 @@ export function Sidebar({
             <Folder className="h-4 w-4 text-indigo-500" />
           </button>
 
-          {/* Recently Added Option */}
+          {/* Knowledge Graph Option */}
           <button
             type="button"
             onClick={() => {
               onSelectFolder(null);
-              onSelectView("recent");
+              onSelectView("graph");
             }}
-            title="Recently Added"
+            title="Interactive Knowledge Graph (Obsidian)"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "recent"
-                ? "bg-emerald-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
+              activeView === "graph" && !activeFolderId
+                ? "bg-purple-600 text-white shadow-xs"
+                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-purple-400"
             }`}
           >
-            <Clock className="h-4 w-4 text-emerald-500" />
-          </button>
-
-          {/* Favorites Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("favorites");
-            }}
-            title="Starred Favorites"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "favorites"
-                ? "bg-amber-500 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-amber-500"
-            }`}
-          >
-            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+            <Layers className="h-4 w-4 text-purple-500" />
           </button>
 
           {/* Inbox Option */}
@@ -336,13 +338,24 @@ export function Sidebar({
           >
             <Inbox className="h-4 w-4 text-violet-500" />
           </button>
-        </div>
 
-        {/* Minimized bottom badge */}
-        <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-neutral-300">
-          M
+          {/* User Account / Sign In in Rail */}
+          <button
+            type="button"
+            onClick={() => openAuthModal(user ? "login" : "login")}
+            title={user ? `Signed in as ${user.email}` : "Sign In / Sign Up"}
+            className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800 mt-2 border-t border-border/60 pt-2"
+          >
+            {user ? (
+              <div className="h-5 w-5 rounded-md bg-blue-600 text-white font-bold text-[9px] flex items-center justify-center">
+                {user.email?.charAt(0).toUpperCase()}
+              </div>
+            ) : (
+              <User className="h-4 w-4 text-blue-500" />
+            )}
+          </button>
         </div>
-      </div>
+      </aside>
     );
   }
 
@@ -378,34 +391,14 @@ export function Sidebar({
         style={{ width: `${sidebarWidth}px` }}
         className="relative flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none"
       >
-        {/* Workspace Brand Header */}
-        <div className="h-12 border-b border-border flex items-center justify-between px-3 gap-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0">
-              M
-            </div>
-            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate">
-              Markly
-            </span>
+        {/* Workspace Brand Header - clean, full width */}
+        <div className="h-12 border-b border-border flex items-center px-3.5 gap-2.5 bg-[#fbfbfa] dark:bg-[#191919]">
+          <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0">
+            M
           </div>
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button
-              type="button"
-              onClick={onOpenSearch}
-              title="Search Bookmarks (⌘K)"
-              className="h-7 w-7 rounded-md hover:bg-slate-200 dark:hover:bg-neutral-800 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-            >
-              <Search className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setCollapsed(true)}
-              title="Collapse Sidebar (Ctrl+\)"
-              className="h-7 w-7 rounded-md hover:bg-slate-200 dark:hover:bg-neutral-800 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-            >
-              <PanelLeftClose className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate">
+            Markly
+          </span>
         </div>
 
         {/* Modern Homepage Section */}
@@ -486,7 +479,25 @@ export function Sidebar({
             <span className="ml-auto text-[11px] font-mono text-muted-foreground">{folders.length}</span>
           </button>
 
-          {/* Recently Added */}
+          {/* Obsidian-Style Interactive Knowledge Graph */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("graph");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "graph" && !activeFolderId
+                ? "bg-purple-600 text-white font-semibold shadow-xs"
+                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+            }`}
+          >
+            <Layers className="h-4 w-4 text-purple-500 flex-shrink-0" />
+            <span className="truncate">Knowledge Graph</span>
+            <span className="ml-auto text-[9px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-mono px-1.5 py-0.2 rounded">Obsidian</span>
+          </button>
+
+          {/* Recently Visited */}
           <button
             type="button"
             onClick={() => {
@@ -499,8 +510,8 @@ export function Sidebar({
                 : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
             }`}
           >
-            <Clock className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-            <span className="truncate">Recently Added</span>
+            <History className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+            <span className="truncate">Recently Visited</span>
           </button>
 
           {/* Favorites */}
@@ -636,13 +647,48 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-medium text-slate-700 dark:text-neutral-300">Phase 7 Ready</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground/60 font-mono">v1.1</span>
+        {/* Sidebar Footer: Supabase Realtime User Profile */}
+        <div className="p-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground flex-shrink-0 bg-slate-50/70 dark:bg-neutral-900/40">
+          {user ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 truncate">
+                <div className="h-7 w-7 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 shadow-xs">
+                  {user.email?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                    {user.user_metadata?.display_name || user.email?.split("@")[0]}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Supabase Realtime Synced
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={signOut}
+                title="Sign out of Markly"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openAuthModal("login")}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 font-medium cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-2xs"
+            >
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span className="text-xs font-bold">Sign In / Sign Up</span>
+              </div>
+              <span className="text-[10px] bg-blue-200/60 dark:bg-blue-900/60 px-1.5 py-0.5 rounded font-mono font-semibold">
+                Supabase
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Draggable Resizer Bar on right edge */}

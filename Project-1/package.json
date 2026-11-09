@@ -29,6 +29,8 @@
     "drizzle-orm": "^0.45.4",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "iconoir-react": "^7.12.2",
     "ipaddr.js": "^2.5.0",
     "lucide-react": "^1.70.0",
@@ -41,6 +43,7 @@
     "react-hook-form": "^7.55.0",
     "recharts": "^3.2.0",
     "sharp": "^0.35.5",
+    "sigma": "^4.0.5",
     "tailwind-merge": "^3.0.2",
     "zod": "^3.24.2",
     "zustand": "^5.1.0"

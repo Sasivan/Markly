@@ -38,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { BulkActionBar } from "./bulk-action-bar";
 import { EditBookmarkModal } from "./edit-bookmark-modal";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import { formatDate, formatDateTime } from "@/lib/utils";
@@ -106,14 +107,36 @@ export function BookmarkTable({
     setTimeout(() => setCopiedId(null), 1500);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this bookmark?")) return;
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; title: string } | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = React.useState(false);
+
+  const confirmSingleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await fetch(`/api/bookmarks/${id}`, { method: "DELETE" });
+      await fetch(`/api/bookmarks/${deleteTarget.id}`, { method: "DELETE" });
       onRefreshData();
     } catch (e) {
       console.error("Delete error:", e);
     }
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      await fetch("/api/bookmarks/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", ids: selectedIds }),
+      });
+      setRowSelection({});
+      onRefreshData();
+    } catch (e) {
+      console.error("Bulk delete error:", e);
+    }
+  };
+
+  const handleDelete = (id: string, title?: string) => {
+    const bm = data.find((b) => b.id === id);
+    setDeleteTarget({ id, title: title || bm?.title || "this bookmark" });
   };
 
   const handleSaveEdit = async (id: string, updates: any) => {
@@ -165,15 +188,9 @@ export function BookmarkTable({
     onRefreshData();
   };
 
-  const handleBulkDelete = async () => {
-    if (!confirm(`Delete ${selectedIds.length} selected bookmarks?`)) return;
-    await fetch("/api/bookmarks/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", ids: selectedIds }),
-    });
-    setRowSelection({});
-    onRefreshData();
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleteOpen(true);
   };
 
   const handleBulkExport = (format: "json" | "csv") => {
@@ -292,6 +309,10 @@ export function BookmarkTable({
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => {
+                    fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST" }).catch(() => {});
+                    setTimeout(onRefreshData, 300);
+                  }}
                   className="font-medium hover:underline text-foreground truncate block"
                 >
                   {bm.title}
@@ -368,6 +389,31 @@ export function BookmarkTable({
         },
       },
       {
+        id: "lastClicked",
+        accessorFn: (row) => row.lastClickedAt || row.lastVisitedAt || 0,
+        header: ({ column }) => (
+          <button
+            type="button"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-foreground font-medium"
+          >
+            <span>Last Clicked</span>
+            <ArrowUpDown className="h-3 w-3" />
+          </button>
+        ),
+        cell: ({ row }) => {
+          const lastTime = row.original.lastClickedAt || row.original.lastVisitedAt;
+          if (!lastTime) {
+            return <span className="text-muted-foreground/40 font-mono text-[11px]">- Never -</span>;
+          }
+          return (
+            <span className="text-foreground/90 whitespace-nowrap font-mono text-[11px]" title={new Date(lastTime).toLocaleString()}>
+              {formatDateTime(lastTime)}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "visitCount",
         header: ({ column }) => (
           <button
@@ -424,7 +470,7 @@ export function BookmarkTable({
               </button>
               <button
                 type="button"
-                onClick={() => handleDelete(bm.id)}
+                onClick={() => handleDelete(bm.id, bm.title)}
                 className="h-6 w-6 rounded flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                 title="Delete"
               >
@@ -775,6 +821,25 @@ export function BookmarkTable({
           ))}
         </div>
       )}
+
+      {/* Centered Delete Confirmation Modal for Single Bookmark */}
+      <ConfirmDeleteModal
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={confirmSingleDelete}
+        title="Delete Bookmark"
+        itemName={deleteTarget?.title}
+      />
+
+      {/* Centered Delete Confirmation Modal for Bulk Bookmarks */}
+      <ConfirmDeleteModal
+        open={isBulkDeleteOpen}
+        onOpenChange={setIsBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Bookmarks"
+        isBulk={true}
+        count={selectedIds.length}
+      />
     </div>
   );
 }

@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
-import Database from "better-sqlite3";
-import path from "path";
-
-const dbPath = path.join(process.cwd(), "data", "markly.db");
-const sqlite = new Database(dbPath);
+import { sqlite } from "@/server/db/client";
 
 export async function POST(req: Request) {
   try {

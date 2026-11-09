@@ -10,15 +10,19 @@ export class BookmarkRepository {
    * Ensure default user exists
    */
   static ensureDefaultUser() {
-    const user = db.select().from(users).where(eq(users.id, DEFAULT_USER_ID)).get();
-    if (!user) {
-      db.insert(users).values({
-        id: DEFAULT_USER_ID,
-        email: "demo@markly.app",
-        displayName: "Markly Explorer",
-        avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=Markly",
-        createdAt: Date.now(),
-      }).run();
+    try {
+      const user = db.select().from(users).where(eq(users.id, DEFAULT_USER_ID)).get();
+      if (!user) {
+        db.insert(users).values({
+          id: DEFAULT_USER_ID,
+          email: "demo@markly.app",
+          displayName: "Markly Explorer",
+          avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=Markly",
+          createdAt: Date.now(),
+        }).run();
+      }
+    } catch (e) {
+      console.warn("ensureDefaultUser notice:", e);
     }
   }
 

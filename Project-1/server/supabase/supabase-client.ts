@@ -1,18 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import Database from "better-sqlite3";
-import path from "path";
-
-const dbPath = path.join(process.cwd(), "data", "markly.db");
-const sqlite = new Database(dbPath);
-
-// Ensure settings table exists in SQLite for persisting connection info
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS app_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-`);
+import { sqlite } from "@/server/db/client";
 
 export interface SupabaseConfig {
   url: string;

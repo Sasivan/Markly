@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="rocket-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#rocket-grad)" />
+  <!-- Rocket SVG -->
+  <path d="M38 16C38 16 28 18 24 26C21.5 31 23 35 23 35L29 41C29 41 33 42.5 38 40C46 36 48 26 48 26C48 26 44 22 38 16Z" fill="#ffffff" />
+  <circle cx="34" cy="30" r="3" fill="#ea580c" />
+  <path d="M22 36L16 40L20 44L24 42" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M19 45L15 49L17 51L21 47" stroke="#fdba74" stroke-width="2" stroke-linecap="round" fill="none" />
+</svg>
+

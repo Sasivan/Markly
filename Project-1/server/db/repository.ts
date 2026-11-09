@@ -1,0 +1,724 @@
+import { db, sqlite } from "./client";
+import { folders, bookmarks, tags, bookmarkTags, users, type Folder, type Bookmark, type Tag, type BookmarkWithDetails, type FolderTreeNode } from "./schema";
+import { eq, and, desc, asc, isNull, inArray, like, or, sql } from "drizzle-orm";
+
+export const DEFAULT_USER_ID = "usr_default_markly";
+
+export class BookmarkRepository {
+  /**
+   * Ensure default user exists
+   */
+  static ensureDefaultUser() {
+    const user = db.select().from(users).where(eq(users.id, DEFAULT_USER_ID)).get();
+    if (!user) {
+      db.insert(users).values({
+        id: DEFAULT_USER_ID,
+        email: "demo@markly.app",
+        displayName: "Markly Explorer",
+        avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=Markly",
+        createdAt: Date.now(),
+      }).run();
+    }
+  }
+
+  /**
+   * Get all folders for user, ordered by position
+   */
+  static getAllFolders(userId: string = DEFAULT_USER_ID): Folder[] {
+    return db.select()
+      .from(folders)
+      .where(eq(folders.userId, userId))
+      .orderBy(asc(folders.position), asc(folders.name))
+      .all();
+  }
+
+  /**
+   * Get all descendant folder IDs using Recursive CTE
+   */
+  static getDescendantFolderIds(folderId: string, userId: string = DEFAULT_USER_ID): string[] {
+    const stmt = sqlite.prepare(`
+      WITH RECURSIVE descendants AS (
+        SELECT id FROM folders WHERE id = ? AND user_id = ?
+        UNION ALL
+        SELECT f.id FROM folders f
+        INNER JOIN descendants d ON f.parent_id = d.id
+        WHERE f.user_id = ?
+      )
+      SELECT id FROM descendants;
+    `);
+
+    const rows = stmt.all(folderId, userId, userId) as { id: string }[];
+    return rows.map((r) => r.id);
+  }
+
+  /**
+   * Get full folder breadcrumb path (e.g. "Engineering / Frontend / React")
+   */
+  static getFolderPath(folderId: string | null, userId: string = DEFAULT_USER_ID): string {
+    if (!folderId) return "Unsorted";
+
+    const stmt = sqlite.prepare(`
+      WITH RECURSIVE path_cte AS (
+        SELECT id, parent_id, name, 1 as lvl FROM folders WHERE id = ? AND user_id = ?
+        UNION ALL
+        SELECT f.id, f.parent_id, f.name, p.lvl + 1
+        FROM folders f
+        JOIN path_cte p ON f.id = p.parent_id
+        WHERE f.user_id = ?
+      )
+      SELECT name FROM path_cte ORDER BY lvl DESC;
+    `);
+
+    const rows = stmt.all(folderId, userId, userId) as { name: string }[];
+    return rows.map((r) => r.name).join(" / ");
+  }
+
+  /**
+   * Build complete folder tree with counts
+   */
+  static getFolderTree(userId: string = DEFAULT_USER_ID): FolderTreeNode[] {
+    const allFolders = this.getAllFolders(userId);
+
+    // Get bookmark count per folder
+    const countStmt = sqlite.prepare(`
+      SELECT folder_id, COUNT(*) as count
+      FROM bookmarks
+      WHERE user_id = ? AND is_archived = 0
+      GROUP BY folder_id
+    `);
+    const countRows = countStmt.all(userId) as { folder_id: string | null; count: number }[];
+    const countsMap = new Map<string, number>();
+    for (const row of countRows) {
+      if (row.folder_id) countsMap.set(row.folder_id, row.count);
+    }
+
+    // Map into tree node structure
+    const nodeMap = new Map<string, FolderTreeNode>();
+    for (const f of allFolders) {
+      nodeMap.set(f.id, {
+        ...f,
+        children: [],
+        bookmarkCount: countsMap.get(f.id) || 0,
+        totalDescendantBookmarkCount: countsMap.get(f.id) || 0,
+      });
+    }
+
+    const roots: FolderTreeNode[] = [];
+
+    for (const node of nodeMap.values()) {
+      if (node.parentId && nodeMap.has(node.parentId)) {
+        nodeMap.get(node.parentId)!.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    // Calculate total descendants recursively
+    function computeDescendants(n: FolderTreeNode): number {
+      let total = n.bookmarkCount;
+      for (const child of n.children) {
+        total += computeDescendants(child);
+      }
+      n.totalDescendantBookmarkCount = total;
+      return total;
+    }
+
+    for (const r of roots) {
+      computeDescendants(r);
+    }
+
+    return roots;
+  }
+
+  /**
+   * Create folder
+   */
+  static createFolder(data: {
+    name: string;
+    parentId?: string | null;
+    icon?: string;
+    color?: string;
+    userId?: string;
+  }): Folder {
+    const userId = data.userId || DEFAULT_USER_ID;
+    const id = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = Date.now();
+
+    // Determine position: append to end of siblings
+    const maxPos = sqlite.prepare(`
+      SELECT MAX(position) as max_p FROM folders WHERE user_id = ? AND (parent_id = ? OR (? IS NULL AND parent_id IS NULL))
+    `).get(userId, data.parentId || null, data.parentId || null) as { max_p: number | null };
+
+    const position = (maxPos?.max_p ?? -1) + 1;
+
+    db.insert(folders).values({
+      id,
+      userId,
+      parentId: data.parentId || null,
+      name: data.name,
+      icon: data.icon || "📁",
+      color: data.color || "gray",
+      position,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    return db.select().from(folders).where(eq(folders.id, id)).get()!;
+  }
+
+  /**
+   * Update folder (name, icon, color, position, parentId)
+   */
+  static updateFolder(id: string, updates: Partial<{
+    name: string;
+    parentId: string | null;
+    icon: string;
+    color: string;
+    position: number;
+  }>, userId: string = DEFAULT_USER_ID): Folder {
+    db.update(folders)
+      .set({
+        ...updates,
+        updatedAt: Date.now(),
+      })
+      .where(and(eq(folders.id, id), eq(folders.userId, userId)))
+      .run();
+
+    return db.select().from(folders).where(eq(folders.id, id)).get()!;
+  }
+
+  /**
+   * Delete folder
+   * mode: "move_up" (move bookmarks to parent folder) | "delete_all" (delete bookmarks and subfolders)
+   */
+  static deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId: string = DEFAULT_USER_ID) {
+    const targetFolder = db.select().from(folders).where(and(eq(folders.id, id), eq(folders.userId, userId))).get();
+    if (!targetFolder) return;
+
+    if (mode === "move_up") {
+      // Re-parent subfolders
+      db.update(folders)
+        .set({ parentId: targetFolder.parentId, updatedAt: Date.now() })
+        .where(and(eq(folders.parentId, id), eq(folders.userId, userId)))
+        .run();
+
+      // Re-parent bookmarks
+      db.update(bookmarks)
+        .set({ folderId: targetFolder.parentId })
+        .where(and(eq(bookmarks.folderId, id), eq(bookmarks.userId, userId)))
+        .run();
+
+      // Delete folder itself
+      db.delete(folders).where(eq(folders.id, id)).run();
+    } else {
+      // Delete all descendants and their bookmarks
+      const allIds = this.getDescendantFolderIds(id, userId);
+      for (const fId of allIds) {
+        db.delete(bookmarks).where(and(eq(bookmarks.folderId, fId), eq(bookmarks.userId, userId))).run();
+        db.delete(folders).where(eq(folders.id, fId)).run();
+      }
+    }
+  }
+
+  /**
+   * Find duplicate bookmark by canonical URL
+   */
+  static findDuplicate(canonicalUrl: string, userId: string = DEFAULT_USER_ID): (Bookmark & { folderName?: string }) | null {
+    const item = db.select().from(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.canonicalUrl, canonicalUrl))).get();
+    if (!item) return null;
+
+    let folderName = "Unsorted";
+    if (item.folderId) {
+      const folder = db.select().from(folders).where(eq(folders.id, item.folderId)).get();
+      if (folder) folderName = folder.name;
+    }
+
+    return { ...item, folderName };
+  }
+
+  /**
+   * Get filtered and enriched bookmarks
+   */
+  static getBookmarks(options: {
+    userId?: string;
+    folderId?: string | null;
+    includeSubfolders?: boolean;
+    view?: "all" | "favorites" | "recent" | "unsorted" | "archive" | "trash";
+    domain?: string;
+    status?: "alive" | "dead" | "pending";
+    tag?: string;
+    search?: string;
+  } = {}): BookmarkWithDetails[] {
+    const userId = options.userId || DEFAULT_USER_ID;
+
+    let query = `
+      SELECT 
+        b.id, b.user_id, b.folder_id, b.url, b.canonical_url, b.title, b.description,
+        b.icon_url, b.image_url, b.domain, b.is_favorite, b.is_archived, b.status,
+        b.visit_count, b.last_visited_at, b.created_at, b.search_text,
+        f.name as folder_name
+      FROM bookmarks b
+      LEFT JOIN folders f ON b.folder_id = f.id
+      WHERE b.user_id = ?
+    `;
+
+    const params: (string | number)[] = [userId];
+
+    // Filter by view type
+    if (options.view === "favorites") {
+      query += ` AND b.is_favorite = 1 AND b.is_archived = 0`;
+    } else if (options.view === "recent") {
+      query += ` AND b.is_archived = 0`;
+    } else if (options.view === "unsorted") {
+      query += ` AND b.folder_id IS NULL AND b.is_archived = 0`;
+    } else if (options.view === "archive") {
+      query += ` AND b.is_archived = 1`;
+    } else {
+      // Default: exclude archived unless in archive view
+      query += ` AND b.is_archived = 0`;
+    }
+
+    // Folder filtering
+    if (options.folderId !== undefined && options.folderId !== null && options.folderId !== "") {
+      if (options.includeSubfolders) {
+        const folderIds = this.getDescendantFolderIds(options.folderId, userId);
+        if (folderIds.length > 0) {
+          const placeholders = folderIds.map(() => "?").join(",");
+          query += ` AND b.folder_id IN (${placeholders})`;
+          params.push(...folderIds);
+        } else {
+          query += ` AND b.folder_id = ?`;
+          params.push(options.folderId);
+        }
+      } else {
+        query += ` AND b.folder_id = ?`;
+        params.push(options.folderId);
+      }
+    }
+
+    // Domain filter
+    if (options.domain) {
+      query += ` AND b.domain = ?`;
+      params.push(options.domain);
+    }
+
+    // Status filter
+    if (options.status) {
+      query += ` AND b.status = ?`;
+      params.push(options.status);
+    }
+
+    // Tag filter
+    if (options.tag) {
+      query += ` AND b.id IN (
+        SELECT bt.bookmark_id FROM bookmark_tags bt
+        JOIN tags t ON bt.tag_id = t.id
+        WHERE t.name = ? AND t.user_id = ?
+      )`;
+      params.push(options.tag, userId);
+    }
+
+    // Full-text / fuzzy search
+    if (options.search && options.search.trim() !== "") {
+      const term = `%${options.search.trim().toLowerCase()}%`;
+      query += ` AND (
+        LOWER(b.title) LIKE ? OR
+        LOWER(b.description) LIKE ? OR
+        LOWER(b.domain) LIKE ? OR
+        LOWER(b.url) LIKE ? OR
+        LOWER(b.search_text) LIKE ?
+      )`;
+      params.push(term, term, term, term, term);
+    }
+
+    // Default sorting
+    if (options.view === "recent") {
+      query += ` ORDER BY b.created_at DESC LIMIT 50`;
+    } else {
+      query += ` ORDER BY b.created_at DESC`;
+    }
+
+    interface RawBookmarkRow {
+      id: string;
+      user_id: string;
+      folder_id: string | null;
+      url: string;
+      canonical_url: string;
+      title: string;
+      description: string | null;
+      icon_url: string | null;
+      image_url: string | null;
+      domain: string;
+      is_favorite: number;
+      is_archived: number;
+      status: string;
+      visit_count: number;
+      last_visited_at: number | null;
+      created_at: number;
+      search_text: string | null;
+      folder_name: string | null;
+    }
+
+    interface RawTagRow {
+      id: string;
+      user_id: string;
+      name: string;
+      color: string;
+      created_at: number;
+      bookmark_id: string;
+    }
+
+    const rows = sqlite.prepare(query).all(...params) as RawBookmarkRow[];
+
+    // Fetch tags for these bookmarks
+    const bookmarkIds = rows.map((r) => r.id);
+    const tagMap = new Map<string, Tag[]>();
+
+    if (bookmarkIds.length > 0) {
+      const placeholders = bookmarkIds.map(() => "?").join(",");
+      const tagRows = sqlite.prepare(`
+        SELECT bt.bookmark_id, t.id, t.user_id, t.name, t.color, t.created_at
+        FROM bookmark_tags bt
+        JOIN tags t ON bt.tag_id = t.id
+        WHERE bt.bookmark_id IN (${placeholders})
+      `).all(...bookmarkIds) as RawTagRow[];
+
+      for (const tr of tagRows) {
+        if (!tagMap.has(tr.bookmark_id)) {
+          tagMap.set(tr.bookmark_id, []);
+        }
+        tagMap.get(tr.bookmark_id)!.push({
+          id: tr.id,
+          userId: tr.user_id,
+          name: tr.name,
+          color: tr.color,
+          createdAt: tr.created_at,
+        });
+      }
+    }
+
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      folderId: r.folder_id,
+      url: r.url,
+      canonicalUrl: r.canonical_url,
+      title: r.title,
+      description: r.description,
+      iconUrl: r.icon_url,
+      imageUrl: r.image_url,
+      domain: r.domain,
+      isFavorite: Boolean(r.is_favorite),
+      isArchived: Boolean(r.is_archived),
+      status: r.status as "alive" | "dead" | "pending",
+      visitCount: r.visit_count,
+      lastVisitedAt: r.last_visited_at,
+      createdAt: r.created_at,
+      searchText: r.search_text,
+      folderName: r.folder_name,
+      tags: tagMap.get(r.id) || [],
+    }));
+  }
+
+  /**
+   * Create new bookmark with tags
+   */
+  static createBookmark(data: {
+    url: string;
+    canonicalUrl: string;
+    title: string;
+    description?: string;
+    iconUrl?: string;
+    imageUrl?: string;
+    domain: string;
+    folderId?: string | null;
+    isFavorite?: boolean;
+    tagNames?: string[];
+    userId?: string;
+  }): BookmarkWithDetails {
+    const userId = data.userId || DEFAULT_USER_ID;
+    const id = `bm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = Date.now();
+
+    const searchText = [
+      data.title,
+      data.description || "",
+      data.domain,
+      data.url,
+      (data.tagNames || []).join(" "),
+    ].join(" ").toLowerCase();
+
+    db.insert(bookmarks).values({
+      id,
+      userId,
+      folderId: data.folderId || null,
+      url: data.url,
+      canonicalUrl: data.canonicalUrl,
+      title: data.title,
+      description: data.description || null,
+      iconUrl: data.iconUrl || null,
+      imageUrl: data.imageUrl || null,
+      domain: data.domain,
+      isFavorite: data.isFavorite ? true : false,
+      isArchived: false,
+      status: "alive",
+      visitCount: 0,
+      lastVisitedAt: null,
+      createdAt: now,
+      searchText,
+    }).run();
+
+    // Attach tags
+    if (data.tagNames && data.tagNames.length > 0) {
+      this.attachTagsToBookmark(id, data.tagNames, userId);
+    }
+
+    const created = this.getBookmarks({ userId }).find((b) => b.id === id);
+    return created!;
+  }
+
+  /**
+   * Attach tags helper
+   */
+  static attachTagsToBookmark(bookmarkId: string, tagNames: string[], userId: string = DEFAULT_USER_ID) {
+    const colors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4"];
+
+    for (let i = 0; i < tagNames.length; i++) {
+      const rawName = tagNames[i].trim().toLowerCase();
+      if (!rawName) continue;
+
+      let tag = db.select().from(tags).where(and(eq(tags.userId, userId), eq(tags.name, rawName))).get();
+      if (!tag) {
+        const tagId = `tag_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        db.insert(tags).values({
+          id: tagId,
+          userId,
+          name: rawName,
+          color: colors[i % colors.length],
+          createdAt: Date.now(),
+        }).run();
+        tag = db.select().from(tags).where(eq(tags.id, tagId)).get();
+      }
+
+      if (tag) {
+        sqlite.prepare(`
+          INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)
+        `).run(bookmarkId, tag.id);
+      }
+    }
+  }
+
+  /**
+   * Update bookmark
+   */
+  static updateBookmark(
+    id: string,
+    updates: Partial<{
+      title: string;
+      description: string | null;
+      url: string;
+      domain: string;
+      imageUrl: string | null;
+      iconUrl: string | null;
+      canonicalUrl: string;
+      folderId: string | null;
+      isFavorite: boolean;
+      isArchived: boolean;
+      status: "alive" | "dead" | "pending";
+      visitCount: number;
+      lastVisitedAt: number | null;
+      tagNames: string[];
+    }>,
+    userId: string = DEFAULT_USER_ID
+  ) {
+    const { tagNames, ...bmUpdates } = updates;
+
+    if (bmUpdates.url) {
+      try {
+        let fullUrl = bmUpdates.url.trim();
+        if (!/^https?:\/\//i.test(fullUrl)) {
+          fullUrl = `https://${fullUrl}`;
+        }
+        bmUpdates.url = fullUrl;
+        const u = new URL(fullUrl);
+        bmUpdates.domain = u.hostname.replace(/^www\./, "");
+        bmUpdates.canonicalUrl = `${u.origin}${u.pathname}`.replace(/\/$/, "");
+      } catch {}
+    }
+
+    if (Object.keys(bmUpdates).length > 0) {
+      db.update(bookmarks)
+        .set(bmUpdates)
+        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+        .run();
+    }
+
+    if (tagNames !== undefined) {
+      // Clear existing tags and re-attach
+      db.delete(bookmarkTags).where(eq(bookmarkTags.bookmarkId, id)).run();
+      if (tagNames.length > 0) {
+        this.attachTagsToBookmark(id, tagNames, userId);
+      }
+    }
+  }
+
+  /**
+   * Delete single bookmark
+   */
+  static deleteBookmark(id: string, userId: string = DEFAULT_USER_ID) {
+    db.delete(bookmarks).where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId))).run();
+  }
+
+  /**
+   * Bulk actions on bookmarks
+   */
+  static bulkUpdate(ids: string[], updates: Partial<{
+    folderId: string | null;
+    isFavorite: boolean;
+    isArchived: boolean;
+    status: "alive" | "dead";
+  }>, userId: string = DEFAULT_USER_ID) {
+    if (ids.length === 0) return;
+    const placeholders = ids.map(() => "?").join(",");
+
+    const setClauses: string[] = [];
+    const params: (string | number | null)[] = [];
+
+    if (updates.folderId !== undefined) {
+      setClauses.push("folder_id = ?");
+      params.push(updates.folderId);
+    }
+    if (updates.isFavorite !== undefined) {
+      setClauses.push("is_favorite = ?");
+      params.push(updates.isFavorite ? 1 : 0);
+    }
+    if (updates.isArchived !== undefined) {
+      setClauses.push("is_archived = ?");
+      params.push(updates.isArchived ? 1 : 0);
+    }
+    if (updates.status !== undefined) {
+      setClauses.push("status = ?");
+      params.push(updates.status);
+    }
+
+    if (setClauses.length === 0) return;
+
+    params.push(userId, ...ids);
+
+    const query = `
+      UPDATE bookmarks
+      SET ${setClauses.join(", ")}
+      WHERE user_id = ? AND id IN (${placeholders})
+    `;
+
+    sqlite.prepare(query).run(...params);
+  }
+
+  static bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {
+    if (ids.length === 0) return;
+    const placeholders = ids.map(() => "?").join(",");
+    sqlite.prepare(`
+      DELETE FROM bookmarks WHERE user_id = ? AND id IN (${placeholders})
+    `).run(userId, ...ids);
+  }
+
+  /**
+   * Analytics & Dashboard statistics
+   */
+  static getDashboardStats(userId: string = DEFAULT_USER_ID, folderId?: string | null, includeSubfolders: boolean = false) {
+    let folderIds: string[] = [];
+    if (folderId) {
+      folderIds = includeSubfolders ? this.getDescendantFolderIds(folderId, userId) : [folderId];
+    }
+
+    let folderFilter = "";
+    const filterParams: (string | number)[] = [userId];
+
+    if (folderIds.length > 0) {
+      const placeholders = folderIds.map(() => "?").join(",");
+      folderFilter = `AND b.folder_id IN (${placeholders})`;
+      filterParams.push(...folderIds);
+    }
+
+    // Total active bookmarks
+    const totalRow = sqlite.prepare(`
+      SELECT COUNT(*) as count FROM bookmarks b WHERE b.user_id = ? AND b.is_archived = 0 ${folderFilter}
+    `).get(...filterParams) as { count: number };
+
+    // Total folders
+    const totalFolders = db.select().from(folders).where(eq(folders.userId, userId)).all().length;
+
+    // Added this week (last 7 days)
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const weekParams = [userId, sevenDaysAgo, ...(folderIds.length > 0 ? folderIds : [])];
+    const weekRow = sqlite.prepare(`
+      SELECT COUNT(*) as count FROM bookmarks b
+      WHERE b.user_id = ? AND b.created_at >= ? AND b.is_archived = 0 ${folderFilter}
+    `).get(...weekParams) as { count: number };
+
+    // Dead links count
+    const deadRow = sqlite.prepare(`
+      SELECT COUNT(*) as count FROM bookmarks b
+      WHERE b.user_id = ? AND b.status = 'dead' AND b.is_archived = 0 ${folderFilter}
+    `).get(...filterParams) as { count: number };
+
+    // Top domains
+    const topDomains = sqlite.prepare(`
+      SELECT b.domain, COUNT(*) as count
+      FROM bookmarks b
+      WHERE b.user_id = ? AND b.is_archived = 0 ${folderFilter}
+      GROUP BY b.domain
+      ORDER BY count DESC
+      LIMIT 8
+    `).all(...filterParams) as { domain: string; count: number }[];
+
+    // Folder counts for Treemap / Sunburst
+    const folderBreakdown = sqlite.prepare(`
+      SELECT f.id, f.name, f.parent_id, COUNT(b.id) as count
+      FROM folders f
+      LEFT JOIN bookmarks b ON f.id = b.folder_id AND b.is_archived = 0
+      WHERE f.user_id = ?
+      GROUP BY f.id
+    `).all(userId) as { id: string; name: string; parent_id: string | null; count: number }[];
+
+    // Activity timeline (past 30 days)
+    const timeline = sqlite.prepare(`
+      SELECT strftime('%Y-%m-%d', datetime(b.created_at / 1000, 'unixepoch')) as date, COUNT(*) as count
+      FROM bookmarks b
+      WHERE b.user_id = ? AND b.is_archived = 0 ${folderFilter}
+      GROUP BY date
+      ORDER BY date ASC
+    `).all(...filterParams) as { date: string; count: number }[];
+
+    // Tags distribution
+    const tagDistribution = sqlite.prepare(`
+      SELECT t.name, t.color, COUNT(bt.bookmark_id) as count
+      FROM tags t
+      JOIN bookmark_tags bt ON t.id = bt.tag_id
+      JOIN bookmarks b ON bt.bookmark_id = b.id
+      WHERE t.user_id = ? AND b.is_archived = 0 ${folderFilter}
+      GROUP BY t.id
+      ORDER BY count DESC
+      LIMIT 8
+    `).all(...filterParams) as { name: string; color: string; count: number }[];
+
+    return {
+      totalBookmarks: totalRow?.count || 0,
+      totalFolders,
+      addedThisWeek: weekRow?.count || 0,
+      deadLinks: deadRow?.count || 0,
+      topDomain: topDomains[0]?.domain || "N/A",
+      topDomains,
+      folderBreakdown,
+      timeline,
+      tagDistribution,
+    };
+  }
+
+  /**
+   * Get all tags for user
+   */
+  static getTags(userId: string = DEFAULT_USER_ID): Tag[] {
+    return db.select().from(tags).where(eq(tags.userId, userId)).orderBy(asc(tags.name)).all();
+  }
+}

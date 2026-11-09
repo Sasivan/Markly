@@ -6,7 +6,7 @@ import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
 import { BookmarkRepository } from "@/server/db/repository";
-import { suggestWithGemini } from "@/server/ai/suggest";
+import { suggestWithAi } from "@/server/ai/suggest";
 
 const ScrapeSchema = z.object({
   url: z.string().min(1, "URL is required"),
@@ -62,10 +62,18 @@ export async function POST(req: Request) {
 
     const { url, canonicalUrl, domain } = normResult;
 
-    // Extract current user and Gemini API key from cookies
+    // Extract current user and AI configuration from cookies
     const cookieStore = await cookies();
     const userId = cookieStore.get("markly_user_id")?.value || "usr_default_markly";
-    const geminiApiKey = cookieStore.get("markly_gemini_api_key")?.value || process.env.GEMINI_API_KEY;
+    let aiConfig =
+      cookieStore.get("markly_ai_config")?.value ||
+      cookieStore.get("markly_gemini_api_key")?.value ||
+      process.env.GEMINI_API_KEY;
+    if (typeof aiConfig === "string" && aiConfig.startsWith("%7B")) {
+      try {
+        aiConfig = decodeURIComponent(aiConfig);
+      } catch {}
+    }
 
     // 4. Duplicate Detection Check
     const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, userId);
@@ -108,7 +116,7 @@ export async function POST(req: Request) {
       if (!finalFolderId || finalTags.length === 0) {
         try {
           const userFolders = BookmarkRepository.getAllFolders(userId);
-          const aiSuggestions = await suggestWithGemini(
+          const aiSuggestions = await suggestWithAi(
             {
               title: metadata.title || domain,
               description: metadata.description || undefined,
@@ -116,7 +124,7 @@ export async function POST(req: Request) {
               url: fetchResult.finalUrl,
               folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
             },
-            geminiApiKey
+            aiConfig
           );
 
           if (!finalFolderId && aiSuggestions.suggestedFolderId) {

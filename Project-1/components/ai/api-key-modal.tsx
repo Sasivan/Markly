@@ -20,7 +20,66 @@ import {
   Trash2,
   Loader2,
   Cpu,
+  Globe,
+  Bot,
+  Zap,
 } from "lucide-react";
+
+export type ProviderType = "gemini" | "openrouter" | "grok" | "universal";
+
+interface ProviderPreset {
+  id: ProviderType;
+  name: string;
+  badge: string;
+  defaultBaseUrl: string;
+  defaultModel: string;
+  keyUrl: string;
+  keyLabel: string;
+  placeholder: string;
+}
+
+const PROVIDERS: ProviderPreset[] = [
+  {
+    id: "gemini",
+    name: "Google Gemini",
+    badge: "Free Tier Available",
+    defaultBaseUrl: "https://generativelanguage.googleapis.com",
+    defaultModel: "gemini-1.5-flash",
+    keyUrl: "https://aistudio.google.com/app/apikey",
+    keyLabel: "Google AI Studio",
+    placeholder: "AIzaSy...",
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    badge: "Free & Multi-LLM",
+    defaultBaseUrl: "https://openrouter.ai/api/v1",
+    defaultModel: "meta-llama/llama-3.3-70b-instruct:free",
+    keyUrl: "https://openrouter.ai/keys",
+    keyLabel: "openrouter.ai/keys",
+    placeholder: "sk-or-v1-...",
+  },
+  {
+    id: "grok",
+    name: "Grok (xAI)",
+    badge: "Fast & Smart",
+    defaultBaseUrl: "https://api.x.ai/v1",
+    defaultModel: "grok-beta",
+    keyUrl: "https://console.x.ai",
+    keyLabel: "console.x.ai",
+    placeholder: "xai-...",
+  },
+  {
+    id: "universal",
+    name: "Universal (OpenAI)",
+    badge: "Ollama / DeepSeek / Any API",
+    defaultBaseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
+    keyUrl: "https://platform.openai.com/api-keys",
+    keyLabel: "Custom / OpenAI",
+    placeholder: "sk-...",
+  },
+];
 
 interface ApiKeyModalProps {
   open: boolean;
@@ -28,7 +87,11 @@ interface ApiKeyModalProps {
 }
 
 export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
+  const [provider, setProvider] = React.useState<ProviderType>("gemini");
   const [apiKey, setApiKey] = React.useState("");
+  const [baseUrl, setBaseUrl] = React.useState("https://generativelanguage.googleapis.com");
+  const [model, setModel] = React.useState("gemini-1.5-flash");
+
   const [showKey, setShowKey] = React.useState(false);
   const [isSaved, setIsSaved] = React.useState(false);
   const [isTesting, setIsTesting] = React.useState(false);
@@ -37,29 +100,68 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     message: string;
   } | null>(null);
 
-  // Load API key from localStorage on mount or open
+  // Load configuration from localStorage on open
   React.useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("markly_gemini_api_key") || "";
-      setApiKey(stored);
-      setIsSaved(Boolean(stored));
+      const storedConfig = localStorage.getItem("markly_ai_config");
+      const legacyGeminiKey = localStorage.getItem("markly_gemini_api_key");
+
+      if (storedConfig) {
+        try {
+          const parsed = JSON.parse(storedConfig);
+          setProvider(parsed.provider || "gemini");
+          setApiKey(parsed.apiKey || "");
+          setBaseUrl(parsed.baseUrl || PROVIDERS.find((p) => p.id === parsed.provider)?.defaultBaseUrl || "");
+          setModel(parsed.model || PROVIDERS.find((p) => p.id === parsed.provider)?.defaultModel || "");
+          setIsSaved(Boolean(parsed.apiKey));
+        } catch {
+          // ignore parse error
+        }
+      } else if (legacyGeminiKey) {
+        setProvider("gemini");
+        setApiKey(legacyGeminiKey);
+        setBaseUrl("https://generativelanguage.googleapis.com");
+        setModel("gemini-1.5-flash");
+        setIsSaved(true);
+      } else {
+        setIsSaved(false);
+      }
       setTestStatus(null);
     }
   }, [open]);
 
-  // Save key
+  // Handle provider tab switch
+  const handleSelectProvider = (newProvider: ProviderType) => {
+    setProvider(newProvider);
+    const preset = PROVIDERS.find((p) => p.id === newProvider)!;
+    setBaseUrl(preset.defaultBaseUrl);
+    setModel(preset.defaultModel);
+    setTestStatus(null);
+  };
+
+  // Save config
   const handleSave = () => {
-    const trimmed = apiKey.trim();
+    const trimmedKey = apiKey.trim();
     if (typeof window !== "undefined") {
-      if (trimmed) {
-        localStorage.setItem("markly_gemini_api_key", trimmed);
-        document.cookie = `markly_gemini_api_key=${encodeURIComponent(
-          trimmed
-        )}; path=/; max-age=31536000; SameSite=Lax`;
+      if (trimmedKey) {
+        const config = {
+          provider,
+          apiKey: trimmedKey,
+          baseUrl: baseUrl.trim(),
+          model: model.trim(),
+        };
+
+        const serialized = JSON.stringify(config);
+        localStorage.setItem("markly_ai_config", serialized);
+        localStorage.setItem("markly_gemini_api_key", trimmedKey);
+
+        document.cookie = `markly_ai_config=${encodeURIComponent(serialized)}; path=/; max-age=31536000; SameSite=Lax`;
+        document.cookie = `markly_gemini_api_key=${encodeURIComponent(trimmedKey)}; path=/; max-age=31536000; SameSite=Lax`;
+
         setIsSaved(true);
         setTestStatus({
           success: true,
-          message: "API Key saved successfully! Gemini AI is now enabled.",
+          message: `${PROVIDERS.find((p) => p.id === provider)?.name} connected and saved successfully!`,
         });
       } else {
         handleClear();
@@ -67,24 +169,26 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     }
   };
 
-  // Clear key
+  // Clear config
   const handleClear = () => {
     if (typeof window !== "undefined") {
+      localStorage.removeItem("markly_ai_config");
       localStorage.removeItem("markly_gemini_api_key");
+      document.cookie = "markly_ai_config=; path=/; max-age=0";
       document.cookie = "markly_gemini_api_key=; path=/; max-age=0";
       setApiKey("");
       setIsSaved(false);
       setTestStatus({
         success: false,
-        message: "Key removed. Using built-in offline classification engine.",
+        message: "Configuration cleared. Using built-in offline classification engine.",
       });
     }
   };
 
-  // Test Key with Gemini API
+  // Live Test Key against active provider
   const handleTestKey = async () => {
-    const keyToTest = apiKey.trim();
-    if (!keyToTest) {
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey) {
       setTestStatus({
         success: false,
         message: "Please enter an API key first.",
@@ -96,69 +200,93 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     setTestStatus(null);
 
     try {
-      // Test directly with Google Gemini generateContent endpoint
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${keyToTest}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: "Respond with the word: Ready" }],
-              },
-            ],
-          }),
-        }
-      );
+      if (provider === "gemini") {
+        // Google Gemini API Test
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-1.5-flash"}:generateContent?key=${trimmedKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: "Say 'Ready'" }] }],
+            }),
+          }
+        );
 
-      const data = await res.json();
-      if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        setTestStatus({
-          success: true,
-          message: "Verified! Your Gemini API key is valid and working.",
-        });
-        // Auto-save on successful test
-        localStorage.setItem("markly_gemini_api_key", keyToTest);
-        document.cookie = `markly_gemini_api_key=${encodeURIComponent(
-          keyToTest
-        )}; path=/; max-age=31536000; SameSite=Lax`;
-        setIsSaved(true);
+        const data = await res.json();
+        if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+          setTestStatus({
+            success: true,
+            message: "Verified! Google Gemini API key is valid and connected.",
+          });
+          handleSave();
+        } else {
+          setTestStatus({
+            success: false,
+            message: data.error?.message || "Invalid Gemini key or quota exceeded.",
+          });
+        }
       } else {
-        const errorMsg = data.error?.message || "Invalid API key or quota exceeded.";
-        setTestStatus({
-          success: false,
-          message: `Verification failed: ${errorMsg}`,
+        // OpenAI-Compatible Providers (OpenRouter, Grok, Universal)
+        const cleanBase = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+        const res = await fetch(`${cleanBase}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${trimmedKey}`,
+            "HTTP-Referer": "https://markly.app",
+            "X-Title": "Markly",
+          },
+          body: JSON.stringify({
+            model: model || "gpt-4o-mini",
+            messages: [{ role: "user", content: "Say 'Ready'" }],
+            max_tokens: 10,
+          }),
         });
+
+        const data = await res.json();
+        if (res.ok && data.choices?.[0]?.message?.content) {
+          setTestStatus({
+            success: true,
+            message: `Verified! ${PROVIDERS.find((p) => p.id === provider)?.name} is active and responding.`,
+          });
+          handleSave();
+        } else {
+          setTestStatus({
+            success: false,
+            message: data.error?.message || `Endpoint returned status ${res.status}. Check API key and Base URL.`,
+          });
+        }
       }
     } catch (err: any) {
       setTestStatus({
         success: false,
-        message: `Network error verifying key: ${err.message}`,
+        message: `Network error verifying provider: ${err.message}`,
       });
     } finally {
       setIsTesting(false);
     }
   };
 
+  const activePreset = PROVIDERS.find((p) => p.id === provider)!;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-hidden bg-white dark:bg-[#181818] border-2 border-slate-200 dark:border-neutral-800 shadow-2xl rounded-3xl animate-in zoom-in-95">
+      <DialogContent className="max-w-lg p-0 overflow-hidden bg-white dark:bg-[#181818] border-2 border-slate-200 dark:border-neutral-800 shadow-2xl rounded-3xl animate-in zoom-in-95">
         {/* Header gradient banner */}
         <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 text-white relative">
           <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold text-2xl mx-auto shadow-inner border border-white/30 mb-3">
             <Sparkles className="h-6 w-6 text-yellow-300" />
           </div>
           <DialogTitle className="text-xl font-bold tracking-tight text-center text-white">
-            Gemini AI Settings
+            Universal AI & API Key Settings
           </DialogTitle>
-          <DialogDescription className="text-xs text-white/80 mt-1 max-w-xs mx-auto text-center">
-            Configure your personal Google Gemini API key to activate smart folder classification and auto-tagging.
+          <DialogDescription className="text-xs text-white/80 mt-1 max-w-sm mx-auto text-center">
+            Connect Google Gemini, OpenRouter, Grok, or any custom OpenAI-compatible API to auto-classify bookmarks.
           </DialogDescription>
         </div>
 
-        {/* Content body */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* Status Indicator */}
           <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900/60 text-xs">
             <div className="flex items-center gap-2">
@@ -168,28 +296,56 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 }`}
               />
               <span className="font-medium text-slate-700 dark:text-neutral-300">
-                {isSaved ? "Custom Gemini API Active" : "Built-in Offline Engine (Free)"}
+                {isSaved ? `Connected: ${activePreset.name}` : "Built-in Offline Engine (Free)"}
               </span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-neutral-800 text-muted-foreground">
-              {isSaved ? "gemini-1.5-flash" : "heuristic taxonomy"}
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-neutral-800 text-muted-foreground truncate max-w-36">
+              {isSaved ? model : "heuristic taxonomy"}
             </span>
           </div>
 
-          {/* Input field */}
+          {/* Provider Selector Tabs */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1.5">
+              <Bot className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Choose AI Provider</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-100 dark:bg-neutral-900 p-1.5 rounded-xl border border-slate-200 dark:border-neutral-800">
+              {PROVIDERS.map((p) => {
+                const isSelected = provider === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectProvider(p.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
+                      isSelected
+                        ? "bg-white dark:bg-neutral-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
+                        : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <span>{p.name.split(" ")[0]}</span>
+                    <span className="text-[9px] opacity-70 font-normal truncate max-w-[75px]">{p.badge}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* API Key Input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1.5">
                 <KeyRound className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Google Gemini API Key</span>
+                <span>{activePreset.name} API Key</span>
               </label>
               <a
-                href="https://aistudio.google.com/app/apikey"
+                href={activePreset.keyUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5"
               >
-                <span>Get free key</span>
+                <span>Get key from {activePreset.keyLabel}</span>
                 <ExternalLink className="h-2.5 w-2.5" />
               </a>
             </div>
@@ -197,14 +353,14 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             <div className="relative">
               <input
                 type={showKey ? "text" : "password"}
-                placeholder="AIzaSy..."
+                placeholder={activePreset.placeholder}
                 value={apiKey}
                 onChange={(e) => {
                   setApiKey(e.target.value);
                   setIsSaved(false);
                   setTestStatus(null);
                 }}
-                className="w-full h-10 px-3.5 pr-20 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full h-10 px-3.5 pr-20 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <button
@@ -217,12 +373,49 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 </button>
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Your key is saved locally in your browser and used securely to auto-classify bookmarks.
-            </p>
           </div>
 
-          {/* Test Status feedback */}
+          {/* Model Name & Base URL (For OpenRouter, Grok, and Universal) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
+                <Zap className="h-3 w-3 text-amber-500" />
+                <span>Model Name</span>
+              </label>
+              <input
+                type="text"
+                value={model}
+                onChange={(e) => {
+                  setModel(e.target.value);
+                  setIsSaved(false);
+                }}
+                placeholder="e.g. gemini-1.5-flash or llama-3.3-70b"
+                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
+                <Globe className="h-3 w-3 text-blue-500" />
+                <span>API Base URL</span>
+              </label>
+              <input
+                type="text"
+                value={baseUrl}
+                disabled={provider === "gemini"}
+                onChange={(e) => {
+                  setBaseUrl(e.target.value);
+                  setIsSaved(false);
+                }}
+                placeholder="https://..."
+                className={`w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono ${
+                  provider === "gemini" ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* Test Status Feedback */}
           {testStatus && (
             <div
               className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
@@ -241,7 +434,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-neutral-800">
             {apiKey ? (
               <button
                 type="button"
@@ -270,7 +463,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 ) : (
                   <Cpu className="h-3 w-3 text-indigo-500" />
                 )}
-                <span>Test Key</span>
+                <span>Test Connection</span>
               </Button>
 
               <Button
@@ -280,7 +473,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 disabled={!apiKey.trim()}
                 className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
               >
-                Save Key
+                Save Settings
               </Button>
             </div>
           </div>

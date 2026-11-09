@@ -77,7 +77,14 @@ export function AuthModal() {
     try {
       const res = await signInWithOAuth(provider);
       if (!res.success) {
-        setErrorMessage(res.error || `Failed to sign in with ${provider}`);
+        const err = res.error || "";
+        if (err.includes("provider is not enabled") || err.includes("Unsupported provider") || err.includes("validation_failed")) {
+          setErrorMessage(
+            `${provider === "google" ? "Google" : "GitHub"} OAuth is not enabled in your Supabase project yet. Please use Email & Password above, or toggle on ${provider} in Supabase Dashboard > Authentication > Providers.`
+          );
+        } else {
+          setErrorMessage(err || `Failed to sign in with ${provider}`);
+        }
       }
     } finally {
       setIsLoading(false);

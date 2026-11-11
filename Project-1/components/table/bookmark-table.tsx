@@ -48,6 +48,7 @@ interface BookmarkTableProps {
   folders: FolderType[];
   onRefreshData: () => void;
   onOpenAddModal: () => void;
+  onRecordVisit?: (bm: BookmarkWithDetails) => void;
   externalSearchQuery?: string;
   onSearchChange?: (val: string) => void;
 }
@@ -57,6 +58,7 @@ export function BookmarkTable({
   folders,
   onRefreshData,
   onOpenAddModal,
+  onRecordVisit,
   externalSearchQuery,
   onSearchChange,
 }: BookmarkTableProps) {
@@ -236,6 +238,10 @@ export function BookmarkTable({
 
   const recordVisit = React.useCallback(
     (bm: BookmarkWithDetails) => {
+      if (onRecordVisit) {
+        onRecordVisit(bm);
+        return;
+      }
       bm.visitCount = (bm.visitCount || 0) + 1;
       const now = Date.now();
       bm.lastVisitedAt = now;
@@ -243,7 +249,7 @@ export function BookmarkTable({
       fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true }).catch(() => {});
       setTimeout(onRefreshData, 300);
     },
-    [onRefreshData]
+    [onRecordVisit, onRefreshData]
   );
 
   // TanStack Table Column Definitions

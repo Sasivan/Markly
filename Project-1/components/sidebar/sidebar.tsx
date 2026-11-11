@@ -200,7 +200,9 @@ export function Sidebar({
 
   const handleConfirmDelete = async (folderId: string, mode: "move_up" | "delete_all") => {
     try {
-      await fetch(`/api/folders/${folderId}?mode=${mode}`, {
+      const q = new URLSearchParams({ mode });
+      if (user?.id) q.set("userId", user.id);
+      await fetch(`/api/folders/${folderId}?${q.toString()}`, {
         method: "DELETE",
       });
       if (activeFolderId === folderId) {

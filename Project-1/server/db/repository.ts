@@ -35,15 +35,18 @@ export class BookmarkRepository {
 
       // Ensure user record exists in local DB
       const user = db.select().from(users).where(eq(users.id, userId)).get();
-      if (!user) {
-        db.insert(users).values({
-          id: userId,
-          email: `${userId}@markly.app`,
-          displayName: "Markly User",
-          avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
-          createdAt: Date.now(),
-        }).run();
+      if (user) {
+        // User already initialized in DB! Never re-create starter data if user deleted it.
+        return;
       }
+
+      db.insert(users).values({
+        id: userId,
+        email: `${userId}@markly.app`,
+        displayName: "Markly User",
+        avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+        createdAt: Date.now(),
+      }).run();
 
       const existingCount = sqlite
         .prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ?`)
@@ -318,32 +321,48 @@ export class BookmarkRepository {
    * mode: "move_up" (move bookmarks to parent folder) | "delete_all" (delete bookmarks and subfolders)
    */
   static deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId: string = DEFAULT_USER_ID) {
-    const targetFolder = db.select().from(folders).where(and(eq(folders.id, id), eq(folders.userId, userId))).get();
+    const targetFolder = db.select().from(folders).where(eq(folders.id, id)).get();
     if (!targetFolder) return;
+
+    // Verify ownership: allow if matches userId, or if folder belongs to default demo library
+    if (userId && userId !== DEFAULT_USER_ID && targetFolder.userId !== userId && targetFolder.userId !== DEFAULT_USER_ID) {
+      return;
+    }
 
     SupabaseManager.syncFolder({ id }, "delete").catch(() => {});
 
     if (mode === "move_up") {
-      // Re-parent subfolders
+      // Re-parent subfolders to parent (or null if root)
       db.update(folders)
         .set({ parentId: targetFolder.parentId, updatedAt: Date.now() })
-        .where(and(eq(folders.parentId, id), eq(folders.userId, userId)))
+        .where(eq(folders.parentId, id))
         .run();
 
-      // Re-parent bookmarks
+      // Re-parent bookmarks to parent (or null for Unsorted/Inbox)
       db.update(bookmarks)
         .set({ folderId: targetFolder.parentId })
-        .where(and(eq(bookmarks.folderId, id), eq(bookmarks.userId, userId)))
+        .where(eq(bookmarks.folderId, id))
         .run();
 
       // Delete folder itself
       db.delete(folders).where(eq(folders.id, id)).run();
     } else {
       // Delete all descendants and their bookmarks
-      const allIds = this.getDescendantFolderIds(id, userId);
+      const allIds = this.getDescendantFolderIds(id, targetFolder.userId);
       for (const fId of allIds) {
-        db.delete(bookmarks).where(and(eq(bookmarks.folderId, fId), eq(bookmarks.userId, userId))).run();
+        sqlite.prepare(`
+          DELETE FROM bookmark_tags WHERE bookmark_id IN (
+            SELECT id FROM bookmarks WHERE folder_id = ?
+          )
+        `).run(fId);
+        db.delete(bookmarks).where(eq(bookmarks.folderId, fId)).run();
+      }
+
+      // Delete folders in reverse order (deepest child folders first, root last)
+      const reversedIds = [...allIds].reverse();
+      for (const fId of reversedIds) {
         db.delete(folders).where(eq(folders.id, fId)).run();
+        SupabaseManager.syncFolder({ id: fId }, "delete").catch(() => {});
       }
     }
   }
@@ -461,7 +480,7 @@ export class BookmarkRepository {
 
     // Default sorting
     if (options.view === "recent") {
-      query += ` ORDER BY b.created_at DESC LIMIT 50`;
+      query += ` ORDER BY COALESCE(b.last_clicked_at, b.last_visited_at, b.created_at) DESC LIMIT 50`;
     } else {
       query += ` ORDER BY b.created_at DESC`;
     }

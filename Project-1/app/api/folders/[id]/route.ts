@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { BookmarkRepository } from "@/server/db/repository";
+import { cookies } from "next/headers";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { db } from "@/server/db/client";
 import { folders } from "@/server/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -38,7 +39,10 @@ export async function DELETE(
     const { searchParams } = new URL(req.url);
     const mode = (searchParams.get("mode") || "move_up") as "move_up" | "delete_all";
 
-    BookmarkRepository.deleteFolder(id, mode);
+    const cookieStore = await cookies();
+    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+
+    BookmarkRepository.deleteFolder(id, mode, userId);
 
     return NextResponse.json({ success: true, deletedId: id, mode });
   } catch (error: any) {

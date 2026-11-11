@@ -142,6 +142,51 @@ export function MarklyWorkspace({
     }
   }, []);
 
+  const isNavigatingFromPopRef = React.useRef(false);
+  const lastHistoryStateRef = React.useRef({ view: "home", folderId: null as string | null });
+
+  // Listen for browser / mouse back and forward button clicks
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlView = params.get("view");
+      const urlFolderId = params.get("folderId");
+
+      const validViews = [
+        "home",
+        "all",
+        "collections",
+        "favorites",
+        "recent",
+        "unsorted",
+        "archive",
+        "graph",
+        "insights",
+        "database",
+        "profile",
+      ];
+
+      const targetFolderId = urlFolderId || null;
+      const targetView = urlView && validViews.includes(urlView) ? (urlView as any) : "home";
+
+      isNavigatingFromPopRef.current = true;
+      setActiveFolderId(targetFolderId);
+      setActiveView(targetFolderId ? "all" : targetView);
+      lastHistoryStateRef.current = { view: targetView, folderId: targetFolderId };
+
+      if (targetFolderId) {
+        sessionStorage.setItem("markly_active_folder_id", targetFolderId);
+        sessionStorage.setItem("markly_active_view", "all");
+      } else {
+        sessionStorage.removeItem("markly_active_folder_id");
+        sessionStorage.setItem("markly_active_view", targetView);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   // Synchronize active view & folder to sessionStorage and URL query params
   React.useEffect(() => {
     if (!isHydratedRef.current || typeof window === "undefined") return;
@@ -165,7 +210,18 @@ export function MarklyWorkspace({
         }
       }
 
-      window.history.replaceState({}, "", url.pathname + url.search);
+      if (isNavigatingFromPopRef.current) {
+        isNavigatingFromPopRef.current = false;
+        window.history.replaceState({ view: activeView, folderId: activeFolderId }, "", url.pathname + url.search);
+      } else {
+        const changed =
+          lastHistoryStateRef.current.view !== activeView ||
+          lastHistoryStateRef.current.folderId !== activeFolderId;
+        if (changed) {
+          lastHistoryStateRef.current = { view: activeView, folderId: activeFolderId };
+          window.history.pushState({ view: activeView, folderId: activeFolderId }, "", url.pathname + url.search);
+        }
+      }
     } catch {}
   }, [activeView, activeFolderId]);
 
@@ -290,10 +346,36 @@ export function MarklyWorkspace({
     setAddModalOpen(true);
   };
 
-  const openAddModal = (urlToPrefill?: string) => {
-    setPrefillUrl(urlToPrefill || "");
+  const openAddModal = React.useCallback((urlToPrefill?: unknown) => {
+    const cleanUrl = typeof urlToPrefill === "string" ? urlToPrefill.trim() : "";
+    setPrefillUrl(cleanUrl);
     setAddModalOpen(true);
-  };
+  }, []);
+
+  // Real-time Bookmark Visit / Click handler
+  const handleBookmarkVisit = React.useCallback(async (bm: BookmarkWithDetails) => {
+    const now = Date.now();
+    // 1. Instantly update React state so the UI (Recently Visited, Quick Access, Activity) updates and re-sorts in real time without waiting
+    setBookmarks((prev) =>
+      prev.map((b) =>
+        b.id === bm.id
+          ? {
+              ...b,
+              visitCount: (b.visitCount || 0) + 1,
+              lastVisitedAt: now,
+              lastClickedAt: now,
+            }
+          : b
+      )
+    );
+
+    // 2. Persist to SQLite and sync to Supabase in the background
+    try {
+      await fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true });
+    } catch (err) {
+      console.error("Visit recording error:", err);
+    }
+  }, []);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
@@ -557,7 +639,8 @@ export function MarklyWorkspace({
                 setActiveView("all");
                 setActiveFolderId(null);
               }}
-              onOpenAddModal={openAddModal}
+              onOpenAddModal={() => openAddModal()}
+              onRecordVisit={handleBookmarkVisit}
               onEditBookmark={(bm) => setEditingBookmark(bm)}
               onToggleFavorite={async (bm) => {
                 await fetch(`/api/bookmarks/${bm.id}`, {
@@ -754,7 +837,8 @@ export function MarklyWorkspace({
                 data={bookmarks}
                 folders={folders}
                 onRefreshData={refreshData}
-                onOpenAddModal={openAddModal}
+                onOpenAddModal={() => openAddModal()}
+                onRecordVisit={handleBookmarkVisit}
                 externalSearchQuery={globalSearch}
                 onSearchChange={setGlobalSearch}
               />

@@ -41,6 +41,7 @@ interface WorkspaceHomeProps {
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
   onToggleFavorite?: (bm: BookmarkWithDetails) => void;
   onRefreshData?: () => void;
+  onRecordVisit?: (bm: BookmarkWithDetails) => void;
 }
 
 export function WorkspaceHome({
@@ -55,9 +56,14 @@ export function WorkspaceHome({
   onEditBookmark,
   onToggleFavorite,
   onRefreshData,
+  onRecordVisit,
 }: WorkspaceHomeProps) {
   // Realtime visit handler
   const handleSiteVisit = async (bm: BookmarkWithDetails) => {
+    if (onRecordVisit) {
+      onRecordVisit(bm);
+      return;
+    }
     try {
       bm.visitCount = (bm.visitCount || 0) + 1;
       const now = Date.now();
@@ -101,9 +107,7 @@ export function WorkspaceHome({
       .sort((a, b) => {
         const timeA = a.lastClickedAt || a.lastVisitedAt || 0;
         const timeB = b.lastClickedAt || b.lastVisitedAt || 0;
-        if (timeA && timeB) return timeB - timeA;
-        if (timeA) return -1;
-        if (timeB) return 1;
+        if (timeA !== timeB) return timeB - timeA;
         return (b.visitCount || 0) - (a.visitCount || 0);
       })
       .slice(0, 6);

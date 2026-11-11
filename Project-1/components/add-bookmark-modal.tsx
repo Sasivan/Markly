@@ -51,9 +51,10 @@ export function AddBookmarkModal({
   } | null>(null);
 
   React.useEffect(() => {
-    if (initialUrl) {
-      setUrl(initialUrl);
-      handleScrape(initialUrl, false);
+    if (initialUrl && typeof initialUrl === "string" && initialUrl.trim() && (initialUrl.includes(".") || initialUrl.startsWith("http"))) {
+      const clean = initialUrl.trim();
+      setUrl(clean);
+      handleScrape(clean, false);
     }
   }, [initialUrl]);
 

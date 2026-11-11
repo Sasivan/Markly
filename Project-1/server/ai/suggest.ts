@@ -7,9 +7,8 @@ export interface SuggestInput {
 }
 
 export interface AiConfig {
-  provider: "gemini" | "codecraft" | "openrouter" | "grok" | "openai" | "universal";
+  provider?: "gemini";
   apiKey: string;
-  baseUrl?: string;
   model?: string;
 }
 
@@ -18,7 +17,7 @@ export interface SuggestOutput {
   suggestedFolderName: string | null;
   suggestedTags: string[];
   summary?: string;
-  source?: "gemini" | "codecraft" | "openrouter" | "grok" | "openai" | "universal" | "heuristic";
+  source?: "gemini" | "heuristic";
 }
 
 /**
@@ -137,23 +136,22 @@ export async function suggestWithAi(
     config = configOrKey;
   }
 
-  // Fallback to environment variables if no user config passed
+  // Fallback to GEMINI_API_KEY environment variable if no user config passed
   if (!config?.apiKey) {
-    const envKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+    const envKey = process.env.GEMINI_API_KEY;
     if (envKey) {
       config = {
-        provider: process.env.GEMINI_API_KEY ? "gemini" : "openai",
+        provider: "gemini",
         apiKey: envKey,
       };
     }
   }
 
-  // If still no API key, use instant offline heuristic
+  // If still no API key, use instant offline heuristic classification engine
   if (!config || !config.apiKey?.trim()) {
     return suggestFolderAndTags(input);
   }
 
-  const provider = config.provider || "gemini";
   const apiKey = config.apiKey.trim();
   const folderNames = input.folders.map((f) => f.name);
 
@@ -181,116 +179,43 @@ Respond strictly in valid JSON:
   try {
     let rawText = "";
 
-    // 1. Google Gemini Native API
-    if (provider === "gemini") {
-      const rawModel = config.model?.trim() || "gemini-flash-latest";
-      let cleanModel = rawModel.replace(/^models\//, "");
-      // Remap deprecated Gemini 1.5 models to Gemini Flash Latest
-      if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
-        cleanModel = "gemini-flash-latest";
-      }
-      
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
+    // Google Gemini Native API
+    const rawModel = config.model?.trim() || "gemini-flash-latest";
+    let cleanModel = rawModel.replace(/^models\//, "");
+    if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
+      cleanModel = "gemini-flash-latest";
+    }
 
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            signal: controller.signal,
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.2,
-              },
-            }),
-          }
-        );
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
 
-        if (!res.ok) {
-          const errorText = await res.text().catch(() => "");
-          console.warn(`Gemini API call failed (${res.status}):`, errorText);
-          return suggestFolderAndTags(input);
-        }
-
-        const data = await res.json();
-        rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      } finally {
-        clearTimeout(timer);
-      }
-    } else {
-      // 2. OpenAI-Compatible Providers: OpenRouter, Grok, OpenAI, Universal / Local / CodeCraft
-      let baseUrl = config.baseUrl?.trim();
-      let model = config.model?.trim();
-
-      if (provider === "openrouter") {
-        baseUrl = baseUrl || "https://openrouter.ai/api/v1";
-        model = model || "meta-llama/llama-3.3-70b-instruct:free";
-      } else if (provider === "grok") {
-        baseUrl = baseUrl || "https://api.x.ai/v1";
-        model = model || "grok-beta";
-      } else if (provider === "codecraft" || baseUrl?.includes("codecraft")) {
-        baseUrl = baseUrl || "https://codecraftapi.com/v1";
-        model = !model || model === "gpt-4o-mini" ? "gemini-3.7-flash" : model;
-      } else if (provider === "openai") {
-        baseUrl = baseUrl || "https://api.openai.com/v1";
-        model = model || "gpt-4o-mini";
-      } else {
-        // Universal / Custom (CodeCraft, Ollama, etc.)
-        baseUrl = baseUrl || "https://api.openai.com/v1";
-        if (baseUrl.includes("codecraft")) {
-          model = !model || model === "gpt-4o-mini" ? "gemini-3.7-flash" : model;
-        } else {
-          model = model || "gpt-4o-mini";
-        }
-      }
-
-      const cleanBase = baseUrl.replace(/\/+$/, "");
-      const cleanUrl = cleanBase.endsWith("/chat/completions") ? cleanBase : `${cleanBase}/chat/completions`;
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4500);
-
-      try {
-        const res = await fetch(cleanUrl, {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
+        {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-            "HTTP-Referer": "https://markly.app",
-            "X-Title": "Markly",
-          },
+          headers: { "Content-Type": "application/json" },
           signal: controller.signal,
           body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are a bookmark organization assistant. Respond strictly in valid JSON with keys: \"suggestedFolderName\", \"suggestedTags\", and \"summary\".",
-              },
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-            temperature: 0.2,
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.2,
+            },
           }),
-        });
-
-        if (!res.ok) {
-          console.warn(`${provider} API call failed with status:`, res.status);
-          return suggestFolderAndTags(input);
         }
+      );
 
-        const data = await res.json();
-        rawText = data.choices?.[0]?.message?.content || "";
-      } finally {
-        clearTimeout(timer);
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.warn(`Gemini API call failed (${res.status}):`, errorText);
+        return suggestFolderAndTags(input);
       }
+
+      const data = await res.json();
+      rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } finally {
+      clearTimeout(timer);
     }
 
     if (!rawText) {
@@ -323,10 +248,10 @@ Respond strictly in valid JSON:
       suggestedTags:
         suggestedTags.length > 0 ? suggestedTags : suggestFolderAndTags(input).suggestedTags,
       summary: parsed.summary || undefined,
-      source: provider,
+      source: "gemini",
     };
   } catch (err) {
-    console.warn(`AI suggestion (${provider}) failed, using heuristic:`, err);
+    console.warn("Gemini AI suggestion failed, using heuristic:", err);
     return suggestFolderAndTags(input);
   }
 }

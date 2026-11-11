@@ -929,6 +929,13 @@ export class BookmarkRepository {
   }
 
   /**
+   * Get a single bookmark with tags by its ID
+   */
+  static getBookmarkById(bookmarkId: string): BookmarkWithDetails | undefined {
+    return this.getBookmarks({}).find((b) => b.id === bookmarkId);
+  }
+
+  /**
    * Record a bookmark visit (increments visitCount, sets lastVisitedAt and lastClickedAt)
    */
   static recordVisit(bookmarkId: string): boolean {
@@ -936,6 +943,16 @@ export class BookmarkRepository {
     const info = sqlite
       .prepare(`UPDATE bookmarks SET visit_count = visit_count + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ?`)
       .run(now, now, bookmarkId);
+
+    if (info.changes > 0) {
+      try {
+        const bm = this.getBookmarkById(bookmarkId);
+        if (bm) {
+          SupabaseManager.syncBookmark(bm, "upsert").catch((e) => console.warn("Supabase recordVisit sync notice:", e));
+        }
+      } catch {}
+    }
+
     return info.changes > 0;
   }
 

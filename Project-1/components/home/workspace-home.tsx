@@ -59,7 +59,11 @@ export function WorkspaceHome({
   // Realtime visit handler
   const handleSiteVisit = async (bm: BookmarkWithDetails) => {
     try {
-      await fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST" });
+      bm.visitCount = (bm.visitCount || 0) + 1;
+      const now = Date.now();
+      bm.lastVisitedAt = now;
+      bm.lastClickedAt = now;
+      await fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true });
       onRefreshData?.();
     } catch (e) {
       console.error("Visit error:", e);
@@ -681,6 +685,7 @@ export function WorkspaceHome({
                         href={bm.url}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={() => handleSiteVisit(bm)}
                         className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
                       >
                         {bm.title}
@@ -697,6 +702,7 @@ export function WorkspaceHome({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => handleSiteVisit(bm)}
                     className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-amber-600 transition-colors flex-shrink-0"
                   >
                     <ExternalLink className="h-3 w-3" />
@@ -773,7 +779,10 @@ export function WorkspaceHome({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSiteVisit(bm);
+                    }}
                     className="text-muted-foreground hover:text-foreground p-1 hover:bg-slate-100 dark:hover:bg-neutral-800 rounded"
                     title="Open link"
                   >

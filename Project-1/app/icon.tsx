@@ -12,17 +12,16 @@ export default function Icon() {
       <div
         style={{
           fontSize: 20,
-          background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+          background: "#2563eb",
           width: "100%",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
-          borderRadius: 8,
+          color: "#ffffff",
+          borderRadius: 6,
           fontWeight: 800,
-          fontFamily: "system-ui, -apple-system, sans-serif",
-          boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.4)",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
         }}
       >
         M

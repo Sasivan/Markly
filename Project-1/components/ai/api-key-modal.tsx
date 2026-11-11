@@ -26,7 +26,7 @@ import {
   Zap,
 } from "lucide-react";
 
-export type ProviderType = "gemini" | "openrouter" | "grok" | "universal";
+export type ProviderType = "gemini" | "codecraft" | "openrouter" | "grok" | "universal";
 
 const DEFAULT_GOOGLE_KEY = process.env.NEXT_PUBLIC_DEFAULT_GEMINI_KEY || "";
 
@@ -79,6 +79,43 @@ const PROVIDERS: ProviderPreset[] = [
     keyUrl: "https://aistudio.google.com/app/apikey",
     keyLabel: "Google AI Studio",
     placeholder: "AIzaSy... or AQ.Ab8...",
+  },
+  {
+    id: "codecraft",
+    name: "CodeCraft API",
+    badge: "Fast & OpenAI-Compatible",
+    defaultBaseUrl: "https://codecraftapi.com/v1",
+    defaultModel: "gemini-3.7-flash",
+    models: [
+      {
+        id: "gemini-3.7-flash",
+        label: "gemini-3.7-flash (Recommended)",
+        desc: "Ultra-fast response on CodeCraft",
+      },
+      {
+        id: "deepseek-v4-flash-0731",
+        label: "deepseek-v4-flash-0731",
+        desc: "DeepSeek Flash model on CodeCraft",
+      },
+      {
+        id: "gpt-5.5",
+        label: "gpt-5.5",
+        desc: "Next-gen GPT model on CodeCraft",
+      },
+      {
+        id: "qwen3.8-27b",
+        label: "qwen3.8-27b",
+        desc: "Qwen 27B model on CodeCraft",
+      },
+      {
+        id: "custom",
+        label: "Custom CodeCraft Model...",
+        desc: "Type custom model ID",
+      },
+    ],
+    keyUrl: "https://codecraftapi.com",
+    keyLabel: "codecraftapi.com",
+    placeholder: "cc_zNRfWvwFEZ2sHIi787kIQfPxsmXw2zK1t2RuoYonlJ1BXTx1",
   },
   {
     id: "grok",
@@ -250,16 +287,21 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
   };
 
   const activePreset = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
-  const effectiveModel =
-    model === "custom"
-      ? customModelInput.trim() || activePreset.defaultModel
-      : model;
+  const effectiveModel = React.useMemo(() => {
+    if (model === "custom") {
+      return customModelInput.trim() || activePreset.defaultModel;
+    }
+    if ((provider === "codecraft" || baseUrl.includes("codecraft")) && (!model || model === "gpt-4o-mini")) {
+      return "gemini-3.7-flash";
+    }
+    return model || activePreset.defaultModel;
+  }, [model, customModelInput, activePreset, provider, baseUrl]);
 
   // Save config and close popup
   const handleSave = (closeImmediately: boolean = true) => {
     const trimmedKey = apiKey.trim();
     if (typeof window !== "undefined") {
-      if (trimmedKey || provider === "universal") {
+      if (trimmedKey || provider === "universal" || provider === "codecraft") {
         const config = {
           provider,
           apiKey: trimmedKey,
@@ -281,12 +323,13 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         });
 
         if (closeImmediately) {
-          setTimeout(() => {
-            onOpenChange(false);
-          }, 350);
+          onOpenChange(false);
         }
       } else {
         handleClear();
+        if (closeImmediately) {
+          onOpenChange(false);
+        }
       }
     }
   };

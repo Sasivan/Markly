@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Folder as FolderIcon, ArrowRight, Layers, Plus } from "lucide-react";
+import { Folder as FolderIcon, ArrowRight, ArrowLeft, Layers, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -12,6 +12,7 @@ interface FolderCollectionsViewProps {
   folderTree: FolderTreeNode[];
   onSelectFolder: (folderId: string, isParent?: boolean) => void;
   onOpenAddFolder?: () => void;
+  onNavigateHome?: () => void;
 }
 
 export function FolderCollectionsView({
@@ -19,6 +20,7 @@ export function FolderCollectionsView({
   folderTree,
   onSelectFolder,
   onOpenAddFolder,
+  onNavigateHome,
 }: FolderCollectionsViewProps) {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
@@ -40,16 +42,29 @@ export function FolderCollectionsView({
           </p>
         </div>
 
-        {onOpenAddFolder && (
-          <Button
-            size="sm"
-            onClick={onOpenAddFolder}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-8 px-3 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>New Collection</span>
-          </Button>
-        )}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {onNavigateHome && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNavigateHome}
+              className="font-medium text-xs h-8 px-3 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 border-border hover:bg-accent"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to Home</span>
+            </Button>
+          )}
+          {onOpenAddFolder && (
+            <Button
+              size="sm"
+              onClick={onOpenAddFolder}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-8 px-3 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>New Collection</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Grid of Collection Cards */}

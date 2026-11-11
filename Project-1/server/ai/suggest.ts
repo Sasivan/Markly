@@ -7,7 +7,7 @@ export interface SuggestInput {
 }
 
 export interface AiConfig {
-  provider: "gemini" | "openrouter" | "grok" | "openai" | "universal";
+  provider: "gemini" | "codecraft" | "openrouter" | "grok" | "openai" | "universal";
   apiKey: string;
   baseUrl?: string;
   model?: string;
@@ -18,7 +18,7 @@ export interface SuggestOutput {
   suggestedFolderName: string | null;
   suggestedTags: string[];
   summary?: string;
-  source?: "gemini" | "openrouter" | "grok" | "openai" | "universal" | "heuristic";
+  source?: "gemini" | "codecraft" | "openrouter" | "grok" | "openai" | "universal" | "heuristic";
 }
 
 /**
@@ -232,13 +232,20 @@ Respond strictly in valid JSON:
       } else if (provider === "grok") {
         baseUrl = baseUrl || "https://api.x.ai/v1";
         model = model || "grok-beta";
+      } else if (provider === "codecraft" || baseUrl?.includes("codecraft")) {
+        baseUrl = baseUrl || "https://codecraftapi.com/v1";
+        model = !model || model === "gpt-4o-mini" ? "gemini-3.7-flash" : model;
       } else if (provider === "openai") {
         baseUrl = baseUrl || "https://api.openai.com/v1";
         model = model || "gpt-4o-mini";
       } else {
         // Universal / Custom (CodeCraft, Ollama, etc.)
         baseUrl = baseUrl || "https://api.openai.com/v1";
-        model = model || "gpt-4o-mini";
+        if (baseUrl.includes("codecraft")) {
+          model = !model || model === "gpt-4o-mini" ? "gemini-3.7-flash" : model;
+        } else {
+          model = model || "gpt-4o-mini";
+        }
       }
 
       const cleanBase = baseUrl.replace(/\/+$/, "");

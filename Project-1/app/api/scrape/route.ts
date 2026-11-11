@@ -6,7 +6,7 @@ import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
 import { BookmarkRepository } from "@/server/db/repository";
-import { suggestWithAi } from "@/server/ai/suggest";
+import { suggestWithAi, suggestFolderAndTags } from "@/server/ai/suggest";
 
 const ScrapeSchema = z.object({
   url: z.string().min(1, "URL is required"),
@@ -112,20 +112,24 @@ export async function POST(req: Request) {
       let finalFolderId = folderId || null;
       let finalTags = tagNames && tagNames.length > 0 ? tagNames : [];
 
-      // If folder or tags are not specified, run Gemini / AI Suggestion Engine
+      // If folder or tags are not specified, run AI Suggestion Engine (capped at 2500ms timeout)
       if (!finalFolderId || finalTags.length === 0) {
         try {
           const userFolders = BookmarkRepository.getAllFolders(userId);
-          const aiSuggestions = await suggestWithAi(
-            {
-              title: metadata.title || domain,
-              description: metadata.description || undefined,
-              domain,
-              url: fetchResult.finalUrl,
-              folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
-            },
-            aiConfig
+          const inputData = {
+            title: metadata.title || domain,
+            description: metadata.description || undefined,
+            domain,
+            url: fetchResult.finalUrl,
+            folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
+          };
+
+          const aiPromise = suggestWithAi(inputData, aiConfig);
+          const timeoutFallback = new Promise<any>((resolve) =>
+            setTimeout(() => resolve(suggestFolderAndTags(inputData)), 2500)
           );
+
+          const aiSuggestions = await Promise.race([aiPromise, timeoutFallback]);
 
           if (!finalFolderId && aiSuggestions.suggestedFolderId) {
             finalFolderId = aiSuggestions.suggestedFolderId;

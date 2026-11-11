@@ -175,12 +175,17 @@ export async function parseHtmlMetadata(html: string, pageUrl: string, domain: s
     return (b.size || 0) - (a.size || 0);
   });
 
-  // Attempt download and WebP conversion through candidates
+  // Attempt download and WebP conversion through top candidates (capped at 2 with 2s timeout)
   let resolvedIconUrl: string | null = null;
-  for (const candidate of iconCandidates) {
+  const topCandidates = iconCandidates.slice(0, 2);
+  for (const candidate of topCandidates) {
     try {
-      resolvedIconUrl = await downloadAndConvertIcon(candidate.url, domain);
-      if (resolvedIconUrl && !resolvedIconUrl.startsWith("/icons/avatar-")) {
+      // Race download with a 2000ms timeout
+      const downloadPromise = downloadAndConvertIcon(candidate.url, domain);
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+      const res = await Promise.race([downloadPromise, timeoutPromise]);
+      if (res && !res.startsWith("/icons/avatar-")) {
+        resolvedIconUrl = res;
         break; // Successfully downloaded and converted a real icon!
       }
     } catch {

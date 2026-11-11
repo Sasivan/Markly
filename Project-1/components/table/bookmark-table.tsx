@@ -234,6 +234,18 @@ export function BookmarkTable({
     [folders]
   );
 
+  const recordVisit = React.useCallback(
+    (bm: BookmarkWithDetails) => {
+      bm.visitCount = (bm.visitCount || 0) + 1;
+      const now = Date.now();
+      bm.lastVisitedAt = now;
+      bm.lastClickedAt = now;
+      fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true }).catch(() => {});
+      setTimeout(onRefreshData, 300);
+    },
+    [onRefreshData]
+  );
+
   // TanStack Table Column Definitions
   const columns = React.useMemo<ColumnDef<BookmarkWithDetails>[]>(
     () => [
@@ -309,10 +321,7 @@ export function BookmarkTable({
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => {
-                    fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST" }).catch(() => {});
-                    setTimeout(onRefreshData, 300);
-                  }}
+                  onClick={() => recordVisit(bm)}
                   className="font-medium hover:underline text-foreground truncate block"
                 >
                   {bm.title}
@@ -716,6 +725,7 @@ export function BookmarkTable({
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => recordVisit(bm)}
                   className="font-semibold text-sm hover:underline text-foreground block line-clamp-1"
                 >
                   {bm.title}
@@ -760,6 +770,7 @@ export function BookmarkTable({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => recordVisit(bm)}
                     className="hover:text-foreground inline-flex items-center gap-0.5"
                   >
                     Open <ExternalLink className="h-3 w-3" />
@@ -801,6 +812,7 @@ export function BookmarkTable({
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => recordVisit(bm)}
                   className="font-medium hover:underline text-foreground truncate"
                 >
                   {bm.title}

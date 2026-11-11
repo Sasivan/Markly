@@ -7,7 +7,10 @@ import {
   FolderTree,
   Globe,
   Activity,
+  ArrowLeft,
+  Home,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
 import { AddBookmarkModal } from "@/components/add-bookmark-modal";
 import { CommandPalette } from "@/components/command-palette";
@@ -88,7 +91,10 @@ export function MarklyWorkspace({
   const [apiKeyModalOpen, setApiKeyModalOpen] = React.useState(false);
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
 
-  // Check for incoming query params from Bookmarklet, Browser Extension or PWA Share Target
+  // Hydration ref to avoid overwriting URL query params on initial mount
+  const isHydratedRef = React.useRef(false);
+
+  // Restore view and folder from URL query parameters or sessionStorage on initial load
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -96,10 +102,72 @@ export function MarklyWorkspace({
       if (incomingUrl) {
         setPrefillUrl(incomingUrl);
         setAddModalOpen(true);
-        window.history.replaceState({}, "", window.location.pathname);
       }
+
+      const urlView = params.get("view");
+      const urlFolderId = params.get("folderId");
+      const sessionView = sessionStorage.getItem("markly_active_view");
+      const sessionFolderId = sessionStorage.getItem("markly_active_folder_id");
+
+      const validViews = [
+        "home",
+        "all",
+        "collections",
+        "favorites",
+        "recent",
+        "unsorted",
+        "archive",
+        "graph",
+        "insights",
+        "database",
+        "profile",
+      ];
+
+      const restoredFolderId = urlFolderId || sessionFolderId || null;
+      const restoredView =
+        urlView && validViews.includes(urlView)
+          ? (urlView as any)
+          : sessionView && validViews.includes(sessionView)
+          ? (sessionView as any)
+          : null;
+
+      if (restoredFolderId) {
+        setActiveFolderId(restoredFolderId);
+        setActiveView("all");
+      } else if (restoredView) {
+        setActiveView(restoredView);
+      }
+
+      isHydratedRef.current = true;
     }
   }, []);
+
+  // Synchronize active view & folder to sessionStorage and URL query params
+  React.useEffect(() => {
+    if (!isHydratedRef.current || typeof window === "undefined") return;
+
+    try {
+      const url = new URL(window.location.href);
+
+      if (activeFolderId) {
+        sessionStorage.setItem("markly_active_folder_id", activeFolderId);
+        sessionStorage.setItem("markly_active_view", "all");
+        url.searchParams.set("folderId", activeFolderId);
+        url.searchParams.delete("view");
+      } else {
+        sessionStorage.removeItem("markly_active_folder_id");
+        sessionStorage.setItem("markly_active_view", activeView);
+        url.searchParams.delete("folderId");
+        if (activeView === "home") {
+          url.searchParams.delete("view");
+        } else {
+          url.searchParams.set("view", activeView);
+        }
+      }
+
+      window.history.replaceState({}, "", url.pathname + url.search);
+    } catch {}
+  }, [activeView, activeFolderId]);
 
   // Keyboard shortcut state for two-key sequence (G then F / G then A)
   const gPressedRef = React.useRef(false);
@@ -506,6 +574,10 @@ export function MarklyWorkspace({
             <FolderCollectionsView
               folders={folders}
               folderTree={folderTree}
+              onNavigateHome={() => {
+                setActiveView("home");
+                setActiveFolderId(null);
+              }}
               onSelectFolder={(id, isParent) => {
                 setActiveFolderId(id);
                 setActiveView("all");
@@ -517,6 +589,71 @@ export function MarklyWorkspace({
             />
           ) : (
             <>
+              {/* Back to Parent / Collections Banner inside Folder View */}
+              {activeFolderId && (
+                <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card/80 backdrop-blur-xs shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const cur = folders.find((f) => f.id === activeFolderId);
+                        if (cur?.parentId) {
+                          setActiveFolderId(cur.parentId);
+                        } else {
+                          setActiveFolderId(null);
+                          setActiveView("collections");
+                        }
+                      }}
+                      className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer hover:bg-accent text-foreground border-border shadow-xs group"
+                      title={
+                        folders.find((f) => f.id === activeFolderId)?.parentId
+                          ? "Go back to parent folder"
+                          : "Go back to Collections"
+                      }
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
+                      <span>
+                        {(() => {
+                          const cur = folders.find((f) => f.id === activeFolderId);
+                          if (cur?.parentId) {
+                            const parent = folders.find((f) => f.id === cur.parentId);
+                            return `Back to ${parent?.name || "Parent Folder"}`;
+                          }
+                          return "Back to Collections";
+                        })()}
+                      </span>
+                    </Button>
+
+                    <div className="h-4 w-px bg-border/80" />
+
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Inside Folder:</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-foreground bg-accent/60">
+                        <span>{folders.find((f) => f.id === activeFolderId)?.icon || "📁"}</span>
+                        <span>{folders.find((f) => f.id === activeFolderId)?.name || "Folder"}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setActiveFolderId(null);
+                        setActiveView("home");
+                      }}
+                      className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1.5 hover:bg-accent"
+                      title="Return to Workspace Homepage"
+                    >
+                      <Home className="h-3.5 w-3.5" />
+                      <span>Workspace Home</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Stats KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">

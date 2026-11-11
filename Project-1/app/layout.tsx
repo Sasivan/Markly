@@ -10,10 +10,10 @@ export const metadata: Metadata = {
   description: "A fast, Notion-style bookmark manager with visual analytics, unlimited folder nesting, and intelligent scraping.",
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
       { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico" },
     ],
-    shortcut: "/favicon.svg",
+    shortcut: "/favicon.ico",
     apple: "/favicon.svg",
   },
 };

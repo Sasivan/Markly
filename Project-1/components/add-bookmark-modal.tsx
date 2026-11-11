@@ -70,10 +70,14 @@ export function AddBookmarkModal({
   }, [open]);
 
   const handleScrape = async (urlToScrape: string, force: boolean = false) => {
-    const trimmed = urlToScrape.trim();
+    let trimmed = urlToScrape.trim();
     if (!trimmed) {
       setError("Please enter a valid link");
       return;
+    }
+
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      trimmed = "https://" + trimmed;
     }
 
     setLoading(true);
@@ -89,6 +93,7 @@ export function AddBookmarkModal({
       const res = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(4500),
         body: JSON.stringify({
           url: trimmed,
           folderId: selectedFolderId || null,

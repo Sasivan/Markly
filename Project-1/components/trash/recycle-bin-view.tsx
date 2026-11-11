@@ -124,7 +124,9 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handleRestore = async (item: RecycleBinItem) => {
     setActionLoadingId(item.id);
     try {
-      const res = await fetch(`/api/recycle-bin/${item.id}`, { method: "POST" });
+      const effectiveId = getEffectiveUserId();
+      const url = `/api/recycle-bin/${item.id}${effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : ""}`;
+      const res = await fetch(url, { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -147,7 +149,9 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handlePermanentDelete = async (item: RecycleBinItem) => {
     setActionLoadingId(item.id);
     try {
-      const res = await fetch(`/api/recycle-bin/${item.id}`, { method: "DELETE" });
+      const effectiveId = getEffectiveUserId();
+      const url = `/api/recycle-bin/${item.id}${effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : ""}`;
+      const res = await fetch(url, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));

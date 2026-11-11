@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { BookmarkRepository } from "@/server/db/repository";
+import { cookies } from "next/headers";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 
 // PATCH /api/bookmarks/[id]
 export async function PATCH(
@@ -43,7 +44,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    BookmarkRepository.deleteBookmark(id);
+    const cookieStore = await cookies();
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+
+    await BookmarkRepository.deleteBookmark(id, userId);
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error: any) {
     console.error("DELETE /api/bookmarks/[id] error:", error);

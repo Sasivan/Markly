@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         break;
 
       case "delete":
-        BookmarkRepository.bulkDelete(ids);
+        await BookmarkRepository.bulkDelete(ids);
         break;
 
       default:

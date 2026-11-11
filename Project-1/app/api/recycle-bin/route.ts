@@ -34,7 +34,7 @@ export async function DELETE(req: Request) {
     const cookieStore = await cookies();
     const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
-    BookmarkRepository.emptyRecycleBin(userId);
+    await BookmarkRepository.emptyRecycleBin(userId);
 
     return NextResponse.json({ success: true, message: "Recycle bin emptied" });
   } catch (error: any) {

@@ -426,17 +426,25 @@ export class BookmarkRepository {
           INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
         `).run(bm.id, userId, Date.now());
       }
-
-      // Sync delete to Supabase with service key
-      SupabaseManager.syncBookmark({ id: bm.id }, "delete").catch(() => {});
     }
 
-    // 4. Delete the bookmarks from SQLite
+    // 4. Batch delete all inside bookmarks from Supabase (awaited!)
+    const client = SupabaseManager.getClient();
+    if (client && bmsInside.length > 0) {
+      try {
+        const bmIds = bmsInside.map((b) => b.id);
+        await client.from("bookmarks").delete().in("id", bmIds);
+      } catch (err) {
+        console.warn("Supabase batch delete bookmarks error:", err);
+      }
+    }
+
+    // 5. Delete the bookmarks from SQLite
     sqlite.prepare(`
       DELETE FROM bookmarks WHERE folder_id IN (${placeholders})
     `).run(...allFolderIdsToDelete);
 
-    // 5. Save each folder to Recycle Bin (including snapshot of its contained bookmarks)
+    // 6. Save each folder to Recycle Bin (including snapshot of its contained bookmarks)
     for (const fId of allFolderIdsToDelete) {
       const f = db.select().from(folders).where(eq(folders.id, fId)).get();
       if (f) {
@@ -466,13 +474,19 @@ export class BookmarkRepository {
             INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
           `).run(f.id, userId, Date.now());
         }
-
-        // Sync folder delete to Supabase with service key
-        SupabaseManager.syncFolder({ id: f.id, userId: effectiveUserId }, "delete", { mode: "delete_all" }).catch(() => {});
       }
     }
 
-    // 6. Delete folders from SQLite
+    // 7. Batch delete all folders from Supabase (awaited!)
+    if (client && allFolderIdsToDelete.length > 0) {
+      try {
+        await client.from("folders").delete().in("id", allFolderIdsToDelete);
+      } catch (err) {
+        console.warn("Supabase batch delete folders error:", err);
+      }
+    }
+
+    // 8. Delete folders from SQLite
     sqlite.prepare(`
       DELETE FROM folders WHERE id IN (${placeholders})
     `).run(...allFolderIdsToDelete);
@@ -844,12 +858,9 @@ export class BookmarkRepository {
   }
 
   /**
-   * Delete single bookmark
-   */
-  /**
    * Delete single bookmark and move to Recycle Bin
    */
-  static deleteBookmark(id: string, userId?: string) {
+  static async deleteBookmark(id: string, userId?: string) {
     try {
       const b = db.select().from(bookmarks).where(eq(bookmarks.id, id)).get();
       if (!b) return;
@@ -887,8 +898,14 @@ export class BookmarkRepository {
         INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
       `).run(id, effectiveUserId, Date.now());
 
-      // 3. Remove from active bookmarks
-      SupabaseManager.syncBookmark({ id }, "delete").catch(() => {});
+      if (userId && userId !== effectiveUserId) {
+        sqlite.prepare(`
+          INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
+        `).run(id, userId, Date.now());
+      }
+
+      // 3. Remove from active bookmarks and Supabase (awaited!)
+      await SupabaseManager.syncBookmark({ id }, "delete");
       db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
     } catch (e) {
       console.error("deleteBookmark error:", e);
@@ -1120,17 +1137,28 @@ export class BookmarkRepository {
   /**
    * Permanently delete a single item from Recycle Bin
    */
-  static permanentlyDeleteRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
+  static async permanentlyDeleteRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
     const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ?`).get(id) as any;
     if (!item) return;
+
+    const client = SupabaseManager.getClient();
 
     if (item.item_type === "folder") {
       sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
       sqlite.prepare(`DELETE FROM recycle_bin WHERE original_folder_id = ?`).run(item.item_id);
-      SupabaseManager.syncFolder({ id: item.item_id, userId: item.user_id }, "delete", { mode: "delete_all" }).catch(() => {});
+      if (client) {
+        try {
+          await client.from("folders").delete().eq("id", item.item_id);
+          await client.from("bookmarks").delete().eq("folder_id", item.item_id);
+        } catch {}
+      }
     } else {
       sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
-      SupabaseManager.syncBookmark({ id: item.item_id }, "delete").catch(() => {});
+      if (client) {
+        try {
+          await client.from("bookmarks").delete().eq("id", item.item_id);
+        } catch {}
+      }
     }
 
     sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
@@ -1139,17 +1167,33 @@ export class BookmarkRepository {
   /**
    * Empty entire recycle bin
    */
-  static emptyRecycleBin(userId: string = DEFAULT_USER_ID) {
+  static async emptyRecycleBin(userId: string = DEFAULT_USER_ID) {
     const items = sqlite.prepare(`SELECT * FROM recycle_bin WHERE user_id = ?`).all(userId) as any[];
+    const client = SupabaseManager.getClient();
+    const folderIds: string[] = [];
+    const bmIds: string[] = [];
+
     for (const item of items) {
       if (item.item_type === "folder") {
+        folderIds.push(item.item_id);
         sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
-        SupabaseManager.syncFolder({ id: item.item_id, userId: item.user_id }, "delete", { mode: "delete_all" }).catch(() => {});
       } else {
+        bmIds.push(item.item_id);
         sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
-        SupabaseManager.syncBookmark({ id: item.item_id }, "delete").catch(() => {});
       }
     }
+
+    if (client) {
+      try {
+        if (bmIds.length > 0) {
+          await client.from("bookmarks").delete().in("id", bmIds);
+        }
+        if (folderIds.length > 0) {
+          await client.from("folders").delete().in("id", folderIds);
+        }
+      } catch {}
+    }
+
     sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ?`).run(userId);
   }
 
@@ -1198,10 +1242,10 @@ export class BookmarkRepository {
     sqlite.prepare(query).run(...params);
   }
 
-  static bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {
+  static async bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {
     if (ids.length === 0) return;
     for (const id of ids) {
-      this.deleteBookmark(id, userId);
+      await this.deleteBookmark(id, userId);
     }
   }
 

@@ -10,7 +10,8 @@ export async function POST(
   try {
     const { id } = await params;
     const cookieStore = await cookies();
-    const userId = cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     const result = await BookmarkRepository.restoreRecycleBinItem(id, userId);
 
@@ -36,9 +37,10 @@ export async function DELETE(
   try {
     const { id } = await params;
     const cookieStore = await cookies();
-    const userId = cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
-    BookmarkRepository.permanentlyDeleteRecycleBinItem(id, userId);
+    await BookmarkRepository.permanentlyDeleteRecycleBinItem(id, userId);
 
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error: any) {

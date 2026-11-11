@@ -55,6 +55,9 @@ interface BookmarkTableProps {
   onSearchChange?: (val: string) => void;
   onDeleteBookmark?: (id: string, title?: string) => void;
   onBulkDeleteBookmarks?: (ids: string[]) => void;
+  onToggleFavorite?: (bookmark: BookmarkWithDetails) => void;
+  onToggleArchive?: (bookmark: BookmarkWithDetails) => void;
+  onMoveBookmark?: (bookmarkId: string, folderId: string | null) => void;
 }
 
 export function BookmarkTable({
@@ -67,6 +70,9 @@ export function BookmarkTable({
   onSearchChange,
   onDeleteBookmark,
   onBulkDeleteBookmarks,
+  onToggleFavorite,
+  onToggleArchive,
+  onMoveBookmark,
 }: BookmarkTableProps) {
   // State
   const [sorting, setSorting] = React.useState<SortingState>([{ id: "createdAt", desc: true }]);
@@ -149,6 +155,10 @@ export function BookmarkTable({
 
   // Actions
   const handleToggleFavorite = async (bookmark: BookmarkWithDetails) => {
+    if (onToggleFavorite) {
+      onToggleFavorite(bookmark);
+      return;
+    }
     try {
       await fetch(`/api/bookmarks/${bookmark.id}`, {
         method: "PATCH",
@@ -242,6 +252,9 @@ export function BookmarkTable({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "move", ids: selectedIds, folderId }),
     });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+    }
     setRowSelection({});
     onRefreshData();
   };
@@ -252,6 +265,9 @@ export function BookmarkTable({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "favorite", ids: selectedIds, isFavorite }),
     });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+    }
     setRowSelection({});
     onRefreshData();
   };
@@ -262,6 +278,9 @@ export function BookmarkTable({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "archive", ids: selectedIds, isArchived }),
     });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+    }
     setRowSelection({});
     onRefreshData();
   };

@@ -669,6 +669,77 @@ export function MarklyWorkspace({
     [getEffectiveUserId, refreshData]
   );
 
+  const handleToggleFavoriteOptimistic = React.useCallback(
+    async (bm: BookmarkWithDetails) => {
+      const nextFav = !bm.isFavorite;
+      // 1. Instantly update React state in 0ms across all pages
+      setBookmarks((prev) =>
+        prev.map((b) => (b.id === bm.id ? { ...b, isFavorite: nextFav } : b))
+      );
+
+      // 2. Persist to API with effective userId
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch(`/api/bookmarks/${bm.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isFavorite: nextFav, userId: effectiveId }),
+        });
+      } catch (e) {
+        console.error("Toggle favorite error:", e);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
+  const handleToggleArchiveOptimistic = React.useCallback(
+    async (bm: BookmarkWithDetails) => {
+      const nextArchive = !bm.isArchived;
+      // 1. Instantly update React state in 0ms across all pages
+      setBookmarks((prev) =>
+        prev.map((b) => (b.id === bm.id ? { ...b, isArchived: nextArchive } : b))
+      );
+
+      // 2. Persist to API with effective userId
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch(`/api/bookmarks/${bm.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isArchived: nextArchive, userId: effectiveId }),
+        });
+      } catch (e) {
+        console.error("Toggle archive error:", e);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
+  const handleMoveBookmarkOptimistic = React.useCallback(
+    async (bookmarkId: string, folderId: string | null) => {
+      // 1. Instantly update React state in 0ms across all pages
+      setBookmarks((prev) =>
+        prev.map((b) => (b.id === bookmarkId ? { ...b, folderId } : b))
+      );
+
+      // 2. Persist to API with effective userId
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch(`/api/bookmarks/${bookmarkId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folderId, userId: effectiveId }),
+        });
+      } catch (e) {
+        console.error("Move bookmark error:", e);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
   const handleBulkDeleteBookmarksOptimistic = React.useCallback(
     async (ids: string[]) => {
       const idSet = new Set(ids);
@@ -977,14 +1048,7 @@ export function MarklyWorkspace({
               onOpenAddModal={() => openAddModal()}
               onRecordVisit={handleBookmarkVisit}
               onEditBookmark={(bm) => setEditingBookmark(bm)}
-              onToggleFavorite={async (bm) => {
-                await fetch(`/api/bookmarks/${bm.id}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ isFavorite: !bm.isFavorite }),
-                });
-                refreshData();
-              }}
+              onToggleFavorite={handleToggleFavoriteOptimistic}
               onRefreshData={refreshData}
               onDeleteBookmark={handleDeleteBookmarkOptimistic}
             />
@@ -1188,6 +1252,9 @@ export function MarklyWorkspace({
                 onSearchChange={setGlobalSearch}
                 onDeleteBookmark={handleDeleteBookmarkOptimistic}
                 onBulkDeleteBookmarks={handleBulkDeleteBookmarksOptimistic}
+                onToggleFavorite={handleToggleFavoriteOptimistic}
+                onToggleArchive={handleToggleArchiveOptimistic}
+                onMoveBookmark={handleMoveBookmarkOptimistic}
               />
             </>
           )}

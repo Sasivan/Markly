@@ -69,18 +69,18 @@ export class BookmarkRepository {
         createdAt: Date.now(),
       }).run();
 
-      // Ensure the default folder named "Folder" exists for the user
+      // Ensure the default folder named "Folder" exists for the user with a deterministic ID
+      const deterministicFolderId = `fld_folder_${userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 8)}`;
       let folderRow = sqlite
-        .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Folder'`)
-        .get(userId) as { id: string } | undefined;
+        .prepare(`SELECT id FROM folders WHERE user_id = ? AND (name = 'Folder' OR id = ?)`)
+        .get(userId, deterministicFolderId) as { id: string } | undefined;
 
       if (!folderRow) {
-        const folderId = `fld_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
         sqlite.prepare(`
           INSERT OR IGNORE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
           VALUES (?, ?, NULL, 'Folder', '📁', '#3b82f6', 0, ?, ?)
-        `).run(folderId, userId, Date.now(), Date.now());
-        folderRow = { id: folderId };
+        `).run(deterministicFolderId, userId, Date.now(), Date.now());
+        folderRow = { id: deterministicFolderId };
       }
 
       const inFolderCount = sqlite
@@ -88,10 +88,10 @@ export class BookmarkRepository {
         .get(userId, folderRow.id) as { count: number };
 
       if (inFolderCount.count === 0) {
-        // 2. Insert 3 minimal, clean starter bookmarks inside Folder
+        // 2. Insert 3 minimal, clean starter bookmarks inside Folder with deterministic IDs
         const starterBookmarks = [
           {
-            id: `bm_fld_gh_${userId.substring(0, 6)}_${Date.now().toString(36)}`,
+            id: `bm_gh_${folderRow.id}`,
             url: "https://github.com",
             canonicalUrl: "https://github.com",
             title: "GitHub: Let's build from here",
@@ -101,7 +101,7 @@ export class BookmarkRepository {
             tags: ["developer", "tools"],
           },
           {
-            id: `bm_fld_gg_${userId.substring(0, 6)}_${Date.now().toString(36)}`,
+            id: `bm_gg_${folderRow.id}`,
             url: "https://www.google.com",
             canonicalUrl: "https://google.com",
             title: "Google Search",
@@ -111,7 +111,7 @@ export class BookmarkRepository {
             tags: ["search", "tools"],
           },
           {
-            id: `bm_fld_nxt_${userId.substring(0, 6)}_${Date.now().toString(36)}`,
+            id: `bm_nxt_${folderRow.id}`,
             url: "https://nextjs.org",
             canonicalUrl: "https://nextjs.org",
             title: "Next.js by Vercel - The React Framework",
@@ -865,7 +865,7 @@ export class BookmarkRepository {
     if (Object.keys(bmUpdates).length > 0) {
       db.update(bookmarks)
         .set(bmUpdates)
-        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
+        .where(eq(bookmarks.id, id))
         .run();
     }
 
@@ -1260,15 +1260,23 @@ export class BookmarkRepository {
 
     if (setClauses.length === 0) return;
 
-    params.push(userId, ...ids);
+    params.push(...ids);
 
     const query = `
       UPDATE bookmarks
       SET ${setClauses.join(", ")}
-      WHERE user_id = ? AND id IN (${placeholders})
+      WHERE id IN (${placeholders})
     `;
 
     sqlite.prepare(query).run(...params);
+
+    // Sync updated rows to Supabase in background
+    for (const bId of ids) {
+      const b = this.getBookmarkById(bId);
+      if (b) {
+        SupabaseManager.syncBookmark(b, "upsert").catch(() => {});
+      }
+    }
   }
 
   static async bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {

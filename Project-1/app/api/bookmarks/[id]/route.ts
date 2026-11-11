@@ -26,7 +26,7 @@ export async function PATCH(
       tagNames: body.tagNames,
     });
 
-    const updated = BookmarkRepository.getBookmarks().find((b) => b.id === id);
+    const updated = BookmarkRepository.getBookmarkById(id);
     return NextResponse.json({ success: true, bookmark: updated });
   } catch (error: any) {
     console.error("PATCH /api/bookmarks/[id] error:", error);

@@ -615,6 +615,69 @@ export function MarklyWorkspace({
     [folders, bookmarks, user?.id, refreshData]
   );
 
+  const getEffectiveUserId = React.useCallback(() => {
+    if (user?.id) return user.id;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("markly_user_id");
+      if (stored) return stored;
+      const match = document.cookie.match(/markly_user_id=([^;]+)/);
+      if (match) return match[1];
+    }
+    return null;
+  }, [user?.id]);
+
+  const handleDeleteBookmarkOptimistic = React.useCallback(
+    async (id: string) => {
+      // 1. Immediately drop from state in 0ms (instantly removes from Quick Access, Recently Visited, and Table)
+      setBookmarks((prev) => prev.filter((b) => b.id !== id));
+
+      // 2. Notify Recycle Bin to refresh in real time
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+      }
+
+      // 3. Await delete on server
+      try {
+        const effectiveId = getEffectiveUserId();
+        const url = effectiveId
+          ? `/api/bookmarks/${id}?userId=${encodeURIComponent(effectiveId)}`
+          : `/api/bookmarks/${id}`;
+        await fetch(url, { method: "DELETE" });
+      } catch (err) {
+        console.error("Delete bookmark error:", err);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
+  const handleBulkDeleteBookmarksOptimistic = React.useCallback(
+    async (ids: string[]) => {
+      const idSet = new Set(ids);
+      // 1. Immediately drop from state in 0ms
+      setBookmarks((prev) => prev.filter((b) => !idSet.has(b.id)));
+
+      // 2. Notify Recycle Bin to refresh in real time
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+      }
+
+      // 3. Await bulk delete on server
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", ids, userId: effectiveId }),
+        });
+      } catch (err) {
+        console.error("Bulk delete error:", err);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       {/* Global paste listener */}
@@ -904,6 +967,7 @@ export function MarklyWorkspace({
                 refreshData();
               }}
               onRefreshData={refreshData}
+              onDeleteBookmark={handleDeleteBookmarkOptimistic}
             />
           ) : activeView === "collections" && !activeFolderId ? (
             /* Dedicated Folder Collections Directory */
@@ -1103,6 +1167,8 @@ export function MarklyWorkspace({
                 onRecordVisit={handleBookmarkVisit}
                 externalSearchQuery={globalSearch}
                 onSearchChange={setGlobalSearch}
+                onDeleteBookmark={handleDeleteBookmarkOptimistic}
+                onBulkDeleteBookmarks={handleBulkDeleteBookmarksOptimistic}
               />
             </>
           )}

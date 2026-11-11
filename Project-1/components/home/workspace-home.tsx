@@ -21,6 +21,7 @@ import {
   Search,
   Ghost,
   History,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ interface WorkspaceHomeProps {
   onToggleFavorite?: (bm: BookmarkWithDetails) => void;
   onRefreshData?: () => void;
   onRecordVisit?: (bm: BookmarkWithDetails) => void;
+  onDeleteBookmark?: (id: string, title?: string) => void;
 }
 
 export function WorkspaceHome({
@@ -57,6 +59,7 @@ export function WorkspaceHome({
   onToggleFavorite,
   onRefreshData,
   onRecordVisit,
+  onDeleteBookmark,
 }: WorkspaceHomeProps) {
   // Realtime visit handler
   const handleSiteVisit = async (bm: BookmarkWithDetails) => {
@@ -498,16 +501,32 @@ export function WorkspaceHome({
                 </div>
               </div>
 
-              <a
-                href={bm.url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => handleSiteVisit(bm)}
-                className="h-7 w-7 rounded-md bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0 transition-colors"
-                title="Launch Site"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              <div className="flex items-center gap-1">
+                {onDeleteBookmark && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onDeleteBookmark(bm.id, bm.title);
+                    }}
+                    className="h-7 w-7 rounded-md bg-slate-100 hover:bg-rose-50 dark:bg-neutral-800 dark:hover:bg-rose-950/50 flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                    title="Delete bookmark"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <a
+                  href={bm.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => handleSiteVisit(bm)}
+                  className="h-7 w-7 rounded-md bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0 transition-colors"
+                  title="Launch Site"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
             </div>
           ))}
         </div>
@@ -644,7 +663,21 @@ export function WorkspaceHome({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {onDeleteBookmark && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDeleteBookmark(bm.id, bm.title);
+                          }}
+                          className="h-6 w-6 rounded bg-slate-100 hover:bg-rose-50 dark:bg-neutral-800 dark:hover:bg-rose-950/50 flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                          title="Delete bookmark"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                       <a
                         href={bm.url}
                         target="_blank"

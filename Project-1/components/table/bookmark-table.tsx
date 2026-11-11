@@ -53,6 +53,8 @@ interface BookmarkTableProps {
   onRecordVisit?: (bm: BookmarkWithDetails) => void;
   externalSearchQuery?: string;
   onSearchChange?: (val: string) => void;
+  onDeleteBookmark?: (id: string, title?: string) => void;
+  onBulkDeleteBookmarks?: (ids: string[]) => void;
 }
 
 export function BookmarkTable({
@@ -63,6 +65,8 @@ export function BookmarkTable({
   onRecordVisit,
   externalSearchQuery,
   onSearchChange,
+  onDeleteBookmark,
+  onBulkDeleteBookmarks,
 }: BookmarkTableProps) {
   // State
   const [sorting, setSorting] = React.useState<SortingState>([{ id: "createdAt", desc: true }]);
@@ -168,31 +172,43 @@ export function BookmarkTable({
 
   const confirmSingleDelete = async () => {
     if (!deleteTarget) return;
-    try {
-      await fetch(`/api/bookmarks/${deleteTarget.id}`, { method: "DELETE" });
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+    const targetId = deleteTarget.id;
+    setDeleteTarget(null);
+    if (onDeleteBookmark) {
+      onDeleteBookmark(targetId, deleteTarget.title);
+    } else {
+      try {
+        await fetch(`/api/bookmarks/${targetId}`, { method: "DELETE" });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+        }
+        onRefreshData();
+      } catch (e) {
+        console.error("Delete error:", e);
       }
-      onRefreshData();
-    } catch (e) {
-      console.error("Delete error:", e);
     }
   };
 
   const confirmBulkDelete = async () => {
-    try {
-      await fetch("/api/bookmarks/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "delete", ids: selectedIds }),
-      });
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+    const ids = [...selectedIds];
+    setIsBulkDeleteOpen(false);
+    setRowSelection({});
+    if (onBulkDeleteBookmarks) {
+      onBulkDeleteBookmarks(ids);
+    } else {
+      try {
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", ids }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+        }
+        onRefreshData();
+      } catch (e) {
+        console.error("Bulk delete error:", e);
       }
-      setRowSelection({});
-      onRefreshData();
-    } catch (e) {
-      console.error("Bulk delete error:", e);
     }
   };
 

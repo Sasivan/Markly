@@ -74,16 +74,16 @@ export class BookmarkRepository {
         .get(userId) as { count: number };
 
       if (existingCount.count === 0) {
-        // 1. Create a minimal starter folder
-        const folderId = `fld_start_${Date.now().toString(36)}`;
+        // 1. Create a minimal starter folder named "Folder"
+        const folderId = `fld_${Date.now().toString(36)}`;
         sqlite.prepare(`
           INSERT OR IGNORE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
           VALUES (?, ?, NULL, ?, ?, ?, 0, ?, ?)
         `).run(
           folderId,
           userId,
-          "⭐ Quick Access & Favorites",
-          "⭐",
+          "Folder",
+          "📁",
           "#3b82f6",
           Date.now(),
           Date.now()
@@ -229,7 +229,7 @@ export class BookmarkRepository {
     const countStmt = sqlite.prepare(`
       SELECT folder_id, COUNT(*) as count
       FROM bookmarks
-      WHERE user_id = ? AND is_archived = 0
+      WHERE user_id = ? AND is_archived = 0 AND id NOT IN (SELECT id FROM deleted_bookmarks)
       GROUP BY folder_id
     `);
     const countRows = countStmt.all(userId) as { folder_id: string | null; count: number }[];
@@ -534,6 +534,7 @@ export class BookmarkRepository {
       FROM bookmarks b
       LEFT JOIN folders f ON b.folder_id = f.id
       WHERE b.user_id = ?
+        AND b.id NOT IN (SELECT id FROM deleted_bookmarks)
     `;
 
     const params: (string | number)[] = [userId];
@@ -863,35 +864,36 @@ export class BookmarkRepository {
   static async deleteBookmark(id: string, userId?: string) {
     try {
       const b = db.select().from(bookmarks).where(eq(bookmarks.id, id)).get();
-      if (!b) return;
-      const effectiveUserId = b.userId || userId || DEFAULT_USER_ID;
-
-      // Fetch attached tags
-      const tagRows = sqlite.prepare(`
-        SELECT t.id, t.name, t.color
-        FROM bookmark_tags bt
-        JOIN tags t ON bt.tag_id = t.id
-        WHERE bt.bookmark_id = ?
-      `).all(id);
+      const effectiveUserId = b?.userId || userId || DEFAULT_USER_ID;
 
       const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
 
-      // 1. Move to Recycle Bin with full restore snapshot
-      sqlite.prepare(`
-        INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
-        VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        `rb_bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        effectiveUserId,
-        id,
-        b.title,
-        b.folderId,
-        b.iconUrl,
-        null,
-        JSON.stringify({ ...b, tags: tagRows }),
-        Date.now(),
-        retentionDays
-      );
+      if (b) {
+        // Fetch attached tags
+        const tagRows = sqlite.prepare(`
+          SELECT t.id, t.name, t.color
+          FROM bookmark_tags bt
+          JOIN tags t ON bt.tag_id = t.id
+          WHERE bt.bookmark_id = ?
+        `).all(id);
+
+        // 1. Move to Recycle Bin with full restore snapshot
+        sqlite.prepare(`
+          INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+          VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          `rb_bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          effectiveUserId,
+          id,
+          b.title,
+          b.folderId,
+          b.iconUrl,
+          null,
+          JSON.stringify({ ...b, tags: tagRows }),
+          Date.now(),
+          retentionDays
+        );
+      }
 
       // 2. Record tombstone
       sqlite.prepare(`
@@ -904,9 +906,11 @@ export class BookmarkRepository {
         `).run(id, userId, Date.now());
       }
 
-      // 3. Remove from active bookmarks and Supabase (awaited!)
-      await SupabaseManager.syncBookmark({ id }, "delete");
+      // 3. Remove from active SQLite bookmarks FIRST (guarantees local deletion even if Supabase is slow)
       db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
+
+      // 4. Remove from Supabase (awaited!)
+      await SupabaseManager.syncBookmark({ id }, "delete");
     } catch (e) {
       console.error("deleteBookmark error:", e);
     }
@@ -1269,7 +1273,7 @@ export class BookmarkRepository {
 
     // Total active bookmarks
     const totalRow = sqlite.prepare(`
-      SELECT COUNT(*) as count FROM bookmarks b WHERE b.user_id = ? AND b.is_archived = 0 ${folderFilter}
+      SELECT COUNT(*) as count FROM bookmarks b WHERE b.user_id = ? AND b.is_archived = 0 AND b.id NOT IN (SELECT id FROM deleted_bookmarks) ${folderFilter}
     `).get(...filterParams) as { count: number };
 
     // Total folders
@@ -1280,20 +1284,20 @@ export class BookmarkRepository {
     const weekParams = [userId, sevenDaysAgo, ...(folderIds.length > 0 ? folderIds : [])];
     const weekRow = sqlite.prepare(`
       SELECT COUNT(*) as count FROM bookmarks b
-      WHERE b.user_id = ? AND b.created_at >= ? AND b.is_archived = 0 ${folderFilter}
+      WHERE b.user_id = ? AND b.created_at >= ? AND b.is_archived = 0 AND b.id NOT IN (SELECT id FROM deleted_bookmarks) ${folderFilter}
     `).get(...weekParams) as { count: number };
 
     // Dead links count
     const deadRow = sqlite.prepare(`
       SELECT COUNT(*) as count FROM bookmarks b
-      WHERE b.user_id = ? AND b.status = 'dead' AND b.is_archived = 0 ${folderFilter}
+      WHERE b.user_id = ? AND b.status = 'dead' AND b.is_archived = 0 AND b.id NOT IN (SELECT id FROM deleted_bookmarks) ${folderFilter}
     `).get(...filterParams) as { count: number };
 
     // Top domains
     const topDomains = sqlite.prepare(`
       SELECT b.domain, COUNT(*) as count
       FROM bookmarks b
-      WHERE b.user_id = ? AND b.is_archived = 0 ${folderFilter}
+      WHERE b.user_id = ? AND b.is_archived = 0 AND b.id NOT IN (SELECT id FROM deleted_bookmarks) ${folderFilter}
       GROUP BY b.domain
       ORDER BY count DESC
       LIMIT 8
@@ -1303,7 +1307,7 @@ export class BookmarkRepository {
     const folderBreakdown = sqlite.prepare(`
       SELECT f.id, f.name, f.parent_id, COUNT(b.id) as count
       FROM folders f
-      LEFT JOIN bookmarks b ON f.id = b.folder_id AND b.is_archived = 0
+      LEFT JOIN bookmarks b ON f.id = b.folder_id AND b.is_archived = 0 AND b.id NOT IN (SELECT id FROM deleted_bookmarks)
       WHERE f.user_id = ?
       GROUP BY f.id
     `).all(userId) as { id: string; name: string; parent_id: string | null; count: number }[];
@@ -1312,7 +1316,7 @@ export class BookmarkRepository {
     const timeline = sqlite.prepare(`
       SELECT strftime('%Y-%m-%d', datetime(b.created_at / 1000, 'unixepoch')) as date, COUNT(*) as count
       FROM bookmarks b
-      WHERE b.user_id = ? AND b.is_archived = 0 ${folderFilter}
+      WHERE b.user_id = ? AND b.is_archived = 0 AND b.id NOT IN (SELECT id FROM deleted_bookmarks) ${folderFilter}
       GROUP BY date
       ORDER BY date ASC
     `).all(...filterParams) as { date: string; count: number }[];

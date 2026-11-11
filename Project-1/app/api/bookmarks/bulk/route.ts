@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { BookmarkRepository } from "@/server/db/repository";
+import { cookies } from "next/headers";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { action, ids, folderId, isFavorite, isArchived, status, tagNames } = body;
+
+    const cookieStore = await cookies();
+    const { searchParams } = new URL(req.url);
+    const userId = body.userId || searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ success: false, error: "ids must be a non-empty array" }, { status: 400 });
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
         break;
 
       case "delete":
-        await BookmarkRepository.bulkDelete(ids);
+        await BookmarkRepository.bulkDelete(ids, userId);
         break;
 
       default:

@@ -131,19 +131,15 @@ export function Breadcrumbs({
           </>
         )}
 
-        {/* Search Icon Trigger right of breadcrumb items */}
+        {/* Search right after breadcrumb items as ONE icon */}
         {onOpenSearch && (
           <button
             type="button"
             onClick={onOpenSearch}
             title="Search all pages & bookmarks (⌘K)"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-slate-200/70 dark:hover:bg-neutral-800 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors border border-transparent hover:border-slate-300 dark:hover:border-neutral-700 ml-1.5 flex-shrink-0"
+            className="h-6 w-6 rounded-md hover:bg-slate-200/80 dark:hover:bg-neutral-800 text-slate-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 flex items-center justify-center cursor-pointer transition-colors ml-1.5 flex-shrink-0"
           >
-            <Search className="h-3.5 w-3.5 text-blue-500" />
-            <span className="text-[11px] font-medium hidden sm:inline">Search all</span>
-            <kbd className="hidden md:inline-flex h-3.5 items-center gap-0.5 rounded border border-border bg-muted px-1 font-mono text-[8.5px] text-muted-foreground font-semibold">
-              ⌘K
-            </kbd>
+            <Search className="h-3.5 w-3.5" />
           </button>
         )}
       </div>

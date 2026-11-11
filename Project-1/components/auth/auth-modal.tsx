@@ -260,9 +260,23 @@ export function AuthModal() {
 
             {/* Error Message */}
             {errorMessage && (
-              <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <span>{errorMessage}</span>
+              <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+                {errorMessage.includes("already exists") && mode === "signup" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("login");
+                      setErrorMessage(null);
+                    }}
+                    className="text-xs text-blue-600 dark:text-blue-400 font-bold underline text-left cursor-pointer hover:opacity-80 ml-6"
+                  >
+                    Click here to Sign In instead &rarr;
+                  </button>
+                )}
               </div>
             )}
 

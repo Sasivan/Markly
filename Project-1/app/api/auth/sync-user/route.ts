@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { sqlite } from "@/server/db/client";
+import { BookmarkRepository } from "@/server/db/repository";
 
 export async function POST(req: Request) {
   try {
@@ -94,6 +95,11 @@ export async function POST(req: Request) {
           b.search_text
         );
       }
+    }
+
+    // If remote user has 0 bookmarks, seed a minimal starter set (1 folder, 3 bookmarks)
+    if (!remoteBookmarks || remoteBookmarks.length === 0) {
+      BookmarkRepository.ensureUserStarterData(userId);
     }
 
     return NextResponse.json({

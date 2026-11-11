@@ -10,6 +10,10 @@ export default async function HomePage() {
     const cookieStore = await cookies();
     const userId = cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
+    if (userId && userId !== DEFAULT_USER_ID) {
+      BookmarkRepository.ensureUserStarterData(userId);
+    }
+
     const folderTree = BookmarkRepository.getFolderTree(userId) || [];
     const allFolders = BookmarkRepository.getAllFolders(userId) || [];
     const bookmarks = BookmarkRepository.getBookmarks({ view: "all", userId }) || [];

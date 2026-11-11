@@ -27,6 +27,123 @@ export class BookmarkRepository {
   }
 
   /**
+   * Ensure user has a clean, minimal starter library (1 folder, 3 essential bookmarks)
+   */
+  static ensureUserStarterData(userId: string) {
+    try {
+      if (!userId || userId === DEFAULT_USER_ID) return;
+
+      // Ensure user record exists in local DB
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!user) {
+        db.insert(users).values({
+          id: userId,
+          email: `${userId}@markly.app`,
+          displayName: "Markly User",
+          avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+          createdAt: Date.now(),
+        }).run();
+      }
+
+      const existingCount = sqlite
+        .prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ?`)
+        .get(userId) as { count: number };
+
+      if (existingCount.count === 0) {
+        // 1. Create a minimal starter folder
+        const folderId = `fld_start_${Date.now().toString(36)}`;
+        sqlite.prepare(`
+          INSERT OR IGNORE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+          VALUES (?, ?, NULL, ?, ?, ?, 0, ?, ?)
+        `).run(
+          folderId,
+          userId,
+          "⭐ Quick Access & Favorites",
+          "⭐",
+          "#3b82f6",
+          Date.now(),
+          Date.now()
+        );
+
+        // 2. Insert 3 minimal, clean starter bookmarks
+        const starterBookmarks = [
+          {
+            id: `bm_start_1_${Date.now().toString(36)}`,
+            url: "https://github.com/Sasivan/Markly",
+            canonicalUrl: "https://github.com/Sasivan/Markly",
+            title: "Markly Workspace & Documentation",
+            domain: "github.com",
+            description: "Markly project repository, visual analytics, and feature documentation.",
+            iconUrl: "https://github.githubassets.com/favicons/favicon.svg",
+            tags: ["markly", "docs"],
+          },
+          {
+            id: `bm_start_2_${Date.now().toString(36)}`,
+            url: "https://github.com",
+            canonicalUrl: "https://github.com",
+            title: "GitHub: Let's build from here",
+            domain: "github.com",
+            description: "GitHub is where over 100 million developers shape the future of software.",
+            iconUrl: "https://github.githubassets.com/favicons/favicon.svg",
+            tags: ["developer", "tools"],
+          },
+          {
+            id: `bm_start_3_${Date.now().toString(36)}`,
+            url: "https://www.google.com",
+            canonicalUrl: "https://google.com",
+            title: "Google Search",
+            domain: "google.com",
+            description: "Search the world's information, including webpages, images, videos and more.",
+            iconUrl: "https://www.google.com/favicon.ico",
+            tags: ["search", "tools"],
+          },
+        ];
+
+        const insertBm = sqlite.prepare(`
+          INSERT OR IGNORE INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, domain, is_favorite, is_archived, status, visit_count, created_at, search_text)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'alive', 1, ?, ?)
+        `);
+
+        for (const b of starterBookmarks) {
+          const now = Date.now();
+          insertBm.run(
+            b.id,
+            userId,
+            folderId,
+            b.url,
+            b.canonicalUrl,
+            b.title,
+            b.description,
+            b.iconUrl,
+            b.domain,
+            now,
+            `${b.title} ${b.description} ${b.domain}`.toLowerCase()
+          );
+
+          // Add tags
+          for (const tName of b.tags) {
+            const tagId = `tag_${tName}`;
+            sqlite.prepare(`
+              INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at)
+              VALUES (?, ?, ?, '#3b82f6', ?)
+            `).run(tagId, userId, tName, now);
+
+            sqlite.prepare(`
+              INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id)
+              VALUES (?, ?)
+            `).run(b.id, tagId);
+          }
+        }
+
+        // Push starter data to Supabase in the background
+        SupabaseManager.syncLocalToSupabase().catch(() => {});
+      }
+    } catch (e) {
+      console.warn("ensureUserStarterData notice:", e);
+    }
+  }
+
+  /**
    * Get all folders for user, ordered by position
    */
   static getAllFolders(userId: string = DEFAULT_USER_ID): Folder[] {

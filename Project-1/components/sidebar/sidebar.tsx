@@ -36,10 +36,10 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile";
   totalBookmarksCount: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   isCollapsed?: boolean;
@@ -651,25 +651,39 @@ export function Sidebar({
         <div className="p-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground flex-shrink-0 bg-slate-50/70 dark:bg-neutral-900/40">
           {user ? (
             <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 truncate">
-                <div className="h-7 w-7 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 shadow-xs">
-                  {user.email?.charAt(0).toUpperCase() || "U"}
-                </div>
+              <button
+                type="button"
+                onClick={() => onSelectView("profile")}
+                title="View Profile & Settings"
+                className="flex items-center gap-2 truncate cursor-pointer hover:opacity-80 transition-opacity text-left min-w-0 flex-1 mr-2"
+              >
+                <img
+                  src={
+                    user.user_metadata?.avatar_url ||
+                    user.user_metadata?.picture ||
+                    `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email || user.id}`
+                  }
+                  alt={user.email || "User"}
+                  className="h-7 w-7 rounded-full object-cover bg-blue-600 text-white font-bold flex-shrink-0 border border-slate-200 dark:border-neutral-700 shadow-2xs"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${user.email || "User"}`;
+                  }}
+                />
                 <div className="truncate">
                   <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                     {user.user_metadata?.display_name || user.email?.split("@")[0]}
                   </div>
                   <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Supabase Realtime Synced
+                    Supabase Synced
                   </div>
                 </div>
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={signOut}
                 title="Sign out of Markly"
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors flex-shrink-0"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>

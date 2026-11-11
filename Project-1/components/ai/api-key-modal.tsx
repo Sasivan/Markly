@@ -23,6 +23,8 @@ import {
   Globe,
   Bot,
   Zap,
+  HelpCircle,
+  ChevronDown,
 } from "lucide-react";
 
 export type ProviderType = "gemini" | "openrouter" | "grok" | "universal";
@@ -33,9 +35,11 @@ interface ProviderPreset {
   badge: string;
   defaultBaseUrl: string;
   defaultModel: string;
+  models: { id: string; label: string; desc: string }[];
   keyUrl: string;
   keyLabel: string;
   placeholder: string;
+  steps: string[];
 }
 
 const PROVIDERS: ProviderPreset[] = [
@@ -45,9 +49,33 @@ const PROVIDERS: ProviderPreset[] = [
     badge: "Free Tier Available",
     defaultBaseUrl: "https://generativelanguage.googleapis.com",
     defaultModel: "gemini-1.5-flash",
+    models: [
+      {
+        id: "gemini-1.5-flash",
+        label: "gemini-1.5-flash (Recommended)",
+        desc: "Fast, accurate, 100% free tier available on Google AI Studio",
+      },
+      {
+        id: "gemini-2.0-flash",
+        label: "gemini-2.0-flash (Next-Gen)",
+        desc: "Google's newest multimodal intelligence model",
+      },
+      {
+        id: "gemini-1.5-pro",
+        label: "gemini-1.5-pro (High Reasoning)",
+        desc: "Deep reasoning and extensive context window",
+      },
+    ],
     keyUrl: "https://aistudio.google.com/app/apikey",
     keyLabel: "Google AI Studio",
     placeholder: "AIzaSy...",
+    steps: [
+      "Open Google AI Studio using the link above (sign in with your Google account).",
+      "Click 'Get API key' -> click '+ Create API key'.",
+      "Copy your key (starts with AIzaSy...) and paste it in the box below.",
+      "Keep model as 'gemini-1.5-flash' (Recommended & Free).",
+      "Click 'Test Connection' and then 'Save Settings'!",
+    ],
   },
   {
     id: "openrouter",
@@ -55,9 +83,38 @@ const PROVIDERS: ProviderPreset[] = [
     badge: "Free & Multi-LLM",
     defaultBaseUrl: "https://openrouter.ai/api/v1",
     defaultModel: "meta-llama/llama-3.3-70b-instruct:free",
+    models: [
+      {
+        id: "meta-llama/llama-3.3-70b-instruct:free",
+        label: "Llama 3.3 70B (Free)",
+        desc: "Meta's most capable open model, completely free on OpenRouter",
+      },
+      {
+        id: "deepseek/deepseek-r1:free",
+        label: "DeepSeek R1 (Free)",
+        desc: "Leading reasoning model available with free tier tokens",
+      },
+      {
+        id: "google/gemini-2.0-flash-exp:free",
+        label: "Gemini 2.0 Flash (Free via OpenRouter)",
+        desc: "Next-gen experimental Gemini hosted on OpenRouter",
+      },
+      {
+        id: "custom",
+        label: "Custom OpenRouter Model...",
+        desc: "Enter any model ID from the OpenRouter catalog",
+      },
+    ],
     keyUrl: "https://openrouter.ai/keys",
-    keyLabel: "openrouter.ai/keys",
+    keyLabel: "OpenRouter Keys",
     placeholder: "sk-or-v1-...",
+    steps: [
+      "Open openrouter.ai/keys and sign in or sign up.",
+      "Click 'Create Key', give it a name like 'Markly', and copy the key.",
+      "Paste your key (starts with sk-or-v1-...) below.",
+      "Select a free model from the dropdown (e.g. Llama 3.3 70B Free).",
+      "Click 'Test Connection' to verify, then save!",
+    ],
   },
   {
     id: "grok",
@@ -65,9 +122,27 @@ const PROVIDERS: ProviderPreset[] = [
     badge: "Fast & Smart",
     defaultBaseUrl: "https://api.x.ai/v1",
     defaultModel: "grok-beta",
+    models: [
+      {
+        id: "grok-beta",
+        label: "grok-beta (Fast & Direct)",
+        desc: "xAI's flagship conversational and classification model",
+      },
+      {
+        id: "grok-2",
+        label: "grok-2 (High Precision)",
+        desc: "Advanced Grok 2 reasoning model",
+      },
+    ],
     keyUrl: "https://console.x.ai",
     keyLabel: "console.x.ai",
     placeholder: "xai-...",
+    steps: [
+      "Open console.x.ai and sign in.",
+      "Go to API Keys -> Click '+ Create API Key'.",
+      "Copy your key (starts with xai-...) and paste it below.",
+      "Click 'Test Connection' and click 'Save Settings'!",
+    ],
   },
   {
     id: "universal",
@@ -75,9 +150,32 @@ const PROVIDERS: ProviderPreset[] = [
     badge: "Ollama / DeepSeek / Any API",
     defaultBaseUrl: "https://api.openai.com/v1",
     defaultModel: "gpt-4o-mini",
+    models: [
+      {
+        id: "gpt-4o-mini",
+        label: "gpt-4o-mini (OpenAI Default)",
+        desc: "Fast, cost-effective OpenAI model",
+      },
+      {
+        id: "deepseek-chat",
+        label: "deepseek-chat (DeepSeek V3)",
+        desc: "Use with https://api.deepseek.com/v1",
+      },
+      {
+        id: "custom",
+        label: "Custom Model / Local Ollama...",
+        desc: "Enter custom model name (e.g. llama3, mistral)",
+      },
+    ],
     keyUrl: "https://platform.openai.com/api-keys",
-    keyLabel: "Custom / OpenAI",
+    keyLabel: "OpenAI / Custom",
     placeholder: "sk-...",
+    steps: [
+      "Enter your API Base URL (e.g. https://api.openai.com/v1, or http://localhost:11434/v1 for local Ollama).",
+      "Enter your API Key.",
+      "Choose or type your model name.",
+      "Click 'Test Connection' to confirm connectivity!",
+    ],
   },
 ];
 
@@ -91,6 +189,8 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
   const [apiKey, setApiKey] = React.useState("");
   const [baseUrl, setBaseUrl] = React.useState("https://generativelanguage.googleapis.com");
   const [model, setModel] = React.useState("gemini-1.5-flash");
+  const [customModelInput, setCustomModelInput] = React.useState("");
+  const [showSteps, setShowSteps] = React.useState(true);
 
   const [showKey, setShowKey] = React.useState(false);
   const [isSaved, setIsSaved] = React.useState(false);
@@ -109,13 +209,24 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
       if (storedConfig) {
         try {
           const parsed = JSON.parse(storedConfig);
-          setProvider(parsed.provider || "gemini");
+          const p = (parsed.provider || "gemini") as ProviderType;
+          setProvider(p);
           setApiKey(parsed.apiKey || "");
-          setBaseUrl(parsed.baseUrl || PROVIDERS.find((p) => p.id === parsed.provider)?.defaultBaseUrl || "");
-          setModel(parsed.model || PROVIDERS.find((p) => p.id === parsed.provider)?.defaultModel || "");
+          setBaseUrl(parsed.baseUrl || PROVIDERS.find((item) => item.id === p)?.defaultBaseUrl || "");
+
+          const storedModel = parsed.model || PROVIDERS.find((item) => item.id === p)?.defaultModel || "gemini-1.5-flash";
+          const preset = PROVIDERS.find((item) => item.id === p)!;
+          const knownModel = preset.models.some((m) => m.id === storedModel);
+          if (knownModel) {
+            setModel(storedModel);
+          } else {
+            setModel("custom");
+            setCustomModelInput(storedModel);
+          }
+
           setIsSaved(Boolean(parsed.apiKey));
         } catch {
-          // ignore parse error
+          // ignore error
         }
       } else if (legacyGeminiKey) {
         setProvider("gemini");
@@ -136,8 +247,12 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     const preset = PROVIDERS.find((p) => p.id === newProvider)!;
     setBaseUrl(preset.defaultBaseUrl);
     setModel(preset.defaultModel);
+    setCustomModelInput("");
     setTestStatus(null);
   };
+
+  const activePreset = PROVIDERS.find((p) => p.id === provider)!;
+  const effectiveModel = model === "custom" ? customModelInput.trim() || activePreset.defaultModel : model;
 
   // Save config
   const handleSave = () => {
@@ -148,7 +263,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
           provider,
           apiKey: trimmedKey,
           baseUrl: baseUrl.trim(),
-          model: model.trim(),
+          model: effectiveModel,
         };
 
         const serialized = JSON.stringify(config);
@@ -161,7 +276,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         setIsSaved(true);
         setTestStatus({
           success: true,
-          message: `${PROVIDERS.find((p) => p.id === provider)?.name} connected and saved successfully!`,
+          message: `${activePreset.name} (${effectiveModel}) connected and saved successfully!`,
         });
       } else {
         handleClear();
@@ -201,9 +316,10 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
 
     try {
       if (provider === "gemini") {
-        // Google Gemini API Test
+        // Sanitize model name (strip any models/ prefix)
+        const cleanModel = (effectiveModel || "gemini-1.5-flash").replace(/^models\//, "");
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model || "gemini-1.5-flash"}:generateContent?key=${trimmedKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${trimmedKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -217,13 +333,14 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
           setTestStatus({
             success: true,
-            message: "Verified! Google Gemini API key is valid and connected.",
+            message: `Verified! Google Gemini API key is valid and connected to ${cleanModel}.`,
           });
           handleSave();
         } else {
+          const errMsg = data.error?.message || "Invalid Gemini key or quota exceeded.";
           setTestStatus({
             success: false,
-            message: data.error?.message || "Invalid Gemini key or quota exceeded.",
+            message: `Gemini verification failed: ${errMsg}`,
           });
         }
       } else {
@@ -238,7 +355,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             "X-Title": "Markly",
           },
           body: JSON.stringify({
-            model: model || "gpt-4o-mini",
+            model: effectiveModel || "gpt-4o-mini",
             messages: [{ role: "user", content: "Say 'Ready'" }],
             max_tokens: 10,
           }),
@@ -248,7 +365,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         if (res.ok && data.choices?.[0]?.message?.content) {
           setTestStatus({
             success: true,
-            message: `Verified! ${PROVIDERS.find((p) => p.id === provider)?.name} is active and responding.`,
+            message: `Verified! ${activePreset.name} (${effectiveModel}) is active and responding.`,
           });
           handleSave();
         } else {
@@ -268,8 +385,6 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     }
   };
 
-  const activePreset = PROVIDERS.find((p) => p.id === provider)!;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 overflow-hidden bg-white dark:bg-[#181818] border-2 border-slate-200 dark:border-neutral-800 shadow-2xl rounded-3xl animate-in zoom-in-95">
@@ -282,7 +397,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             Universal AI & API Key Settings
           </DialogTitle>
           <DialogDescription className="text-xs text-white/80 mt-1 max-w-sm mx-auto text-center">
-            Connect Google Gemini, OpenRouter, Grok, or any custom OpenAI-compatible API to auto-classify bookmarks.
+            Connect Google Gemini, OpenRouter, Grok, or any custom API for smart folder suggestions and auto-tagging.
           </DialogDescription>
         </div>
 
@@ -299,8 +414,8 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 {isSaved ? `Connected: ${activePreset.name}` : "Built-in Offline Engine (Free)"}
               </span>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-neutral-800 text-muted-foreground truncate max-w-36">
-              {isSaved ? model : "heuristic taxonomy"}
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-neutral-800 text-muted-foreground truncate max-w-44">
+              {isSaved ? effectiveModel : "heuristic taxonomy"}
             </span>
           </div>
 
@@ -330,6 +445,35 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 );
               })}
             </div>
+          </div>
+
+          {/* Collapsible Step-by-Step Instructions */}
+          <div className="rounded-xl border border-indigo-100 dark:border-indigo-950/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 space-y-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowSteps(!showSteps)}
+              className="flex items-center justify-between w-full font-semibold text-indigo-700 dark:text-indigo-300 cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
+                <span>How to get & fill details for {activePreset.name}:</span>
+              </div>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${
+                  showSteps ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showSteps && (
+              <ol className="list-decimal list-inside space-y-1 text-[11px] text-muted-foreground pt-1 border-t border-indigo-100 dark:border-indigo-900/40 leading-relaxed">
+                {activePreset.steps.map((st, i) => (
+                  <li key={i} className="pl-1">
+                    {st}
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
 
           {/* API Key Input */}
@@ -375,26 +519,46 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             </div>
           </div>
 
-          {/* Model Name & Base URL (For OpenRouter, Grok, and Universal) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                <Zap className="h-3 w-3 text-amber-500" />
-                <span>Model Name</span>
-              </label>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => {
-                  setModel(e.target.value);
-                  setIsSaved(false);
-                }}
-                placeholder="e.g. gemini-1.5-flash or llama-3.3-70b"
-                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
-              />
-            </div>
+          {/* Model Selection Dropdown (No typing needed!) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
+              <Zap className="h-3 w-3 text-amber-500" />
+              <span>Select Model</span>
+            </label>
+            <select
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setIsSaved(false);
+              }}
+              className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-indigo-500 font-medium"
+            >
+              {activePreset.models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
 
-            <div className="space-y-1">
+            {model === "custom" && (
+              <div className="pt-1.5">
+                <input
+                  type="text"
+                  placeholder="Type custom model name (e.g. mistralai/mistral-large)..."
+                  value={customModelInput}
+                  onChange={(e) => {
+                    setCustomModelInput(e.target.value);
+                    setIsSaved(false);
+                  }}
+                  className="w-full h-8 px-3 text-xs rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Custom Base URL (Only visible for Universal or OpenRouter) */}
+          {provider !== "gemini" && (
+            <div className="space-y-1 pt-1">
               <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
                 <Globe className="h-3 w-3 text-blue-500" />
                 <span>API Base URL</span>
@@ -402,18 +566,15 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
               <input
                 type="text"
                 value={baseUrl}
-                disabled={provider === "gemini"}
                 onChange={(e) => {
                   setBaseUrl(e.target.value);
                   setIsSaved(false);
                 }}
                 placeholder="https://..."
-                className={`w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono ${
-                  provider === "gemini" ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
               />
             </div>
-          </div>
+          )}
 
           {/* Test Status Feedback */}
           {testStatus && (

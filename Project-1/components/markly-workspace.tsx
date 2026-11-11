@@ -25,6 +25,7 @@ import { ApiKeyModal } from "@/components/ai/api-key-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { DomainInsightsView } from "@/components/domain/domain-insights-view";
 import { LibraryInsightsView } from "@/components/insights/library-insights-view";
+import { ProfileView } from "@/components/profile/profile-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -58,7 +59,7 @@ export function MarklyWorkspace({
 
   // Active filter state
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database">("home");
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile">("home");
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
   const [includeSubfolders, setIncludeSubfolders] = React.useState(false); // Default false: show only sites in that specific folder
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
@@ -323,6 +324,7 @@ export function MarklyWorkspace({
           onOpenImportExport={() => setImportExportOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
           onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
+          onOpenProfile={() => setActiveView("profile")}
           onNavigateHome={() => {
             setActiveView("home");
             setActiveFolderId(null);
@@ -432,6 +434,17 @@ export function MarklyWorkspace({
               }}
               onEditBookmark={(bm) => setEditingBookmark(bm)}
               onRefreshData={refreshData}
+            />
+          ) : activeView === "profile" ? (
+            /* Dedicated User Profile & Account Connections View */
+            <ProfileView
+              totalBookmarks={stats.totalBookmarks}
+              totalFolders={stats.totalFolders}
+              onRefreshData={refreshData}
+              onNavigateHome={() => {
+                setActiveView("home");
+                setActiveFolderId(null);
+              }}
             />
           ) : activeView === "home" && !activeFolderId ? (
             /* Dedicated Modern Workspace Homepage */

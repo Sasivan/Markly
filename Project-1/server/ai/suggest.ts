@@ -174,9 +174,10 @@ Respond strictly in valid JSON:
 
     // 1. Google Gemini Native API
     if (provider === "gemini") {
-      const model = config.model || "gemini-1.5-flash";
+      const rawModel = config.model?.trim() || "gemini-1.5-flash";
+      const cleanModel = rawModel.replace(/^models\//, "");
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -191,7 +192,8 @@ Respond strictly in valid JSON:
       );
 
       if (!res.ok) {
-        console.warn("Gemini API call failed with status:", res.status);
+        const errorText = await res.text().catch(() => "");
+        console.warn(`Gemini API call failed (${res.status}):`, errorText);
         return suggestFolderAndTags(input);
       }
 

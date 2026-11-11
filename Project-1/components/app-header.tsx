@@ -22,6 +22,7 @@ interface AppHeaderProps {
   onOpenImportExport: () => void;
   onOpenSearch?: () => void;
   onOpenApiKeyModal?: () => void;
+  onOpenProfile?: () => void;
   onNavigateHome?: () => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
@@ -34,6 +35,7 @@ export function AppHeader({
   onOpenImportExport,
   onOpenSearch,
   onOpenApiKeyModal,
+  onOpenProfile,
   onNavigateHome,
   isSidebarCollapsed,
   onToggleSidebar,
@@ -120,20 +122,33 @@ export function AppHeader({
         {/* 5. Icon Mode (Theme Toggle) */}
         <ThemeToggle />
 
-        {/* 5. User Profile / Sign In */}
+        {/* 5. User Profile Avatar / Sign In */}
         {user ? (
           <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-neutral-700">
             <button
               type="button"
-              onClick={signOut}
-              title={`Signed in as ${user.email}. Click to sign out.`}
-              className="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-300 dark:hover:border-rose-800 flex items-center gap-1.5 text-xs text-slate-700 dark:text-neutral-300 hover:text-rose-600 transition-colors cursor-pointer shadow-2xs"
+              onClick={onOpenProfile}
+              title={`View Account Profile & Linked Logins (${user.email})`}
+              className="flex items-center gap-2 p-0.5 pr-2.5 rounded-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50 dark:hover:bg-neutral-700/60 transition-all cursor-pointer shadow-2xs group"
             >
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-semibold truncate max-w-28">
-                {user.user_metadata?.display_name || user.email?.split("@")[0] || "Account"}
+              <div className="relative flex-shrink-0">
+                <img
+                  src={
+                    user.user_metadata?.avatar_url ||
+                    user.user_metadata?.picture ||
+                    `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email || user.id}`
+                  }
+                  alt={user.user_metadata?.display_name || user.email || "User"}
+                  className="h-7 w-7 rounded-full object-cover bg-slate-100 dark:bg-neutral-800 border border-white dark:border-neutral-700 shadow-2xs"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${user.email || "User"}`;
+                  }}
+                />
+                <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-white dark:border-neutral-900" />
+              </div>
+              <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-24 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                {user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile"}
               </span>
-              <LogOut className="h-3 w-3 text-muted-foreground ml-0.5" />
             </button>
           </div>
         ) : (

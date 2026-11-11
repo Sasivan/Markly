@@ -12,7 +12,9 @@ import {
   Check,
   Loader2,
   Calendar,
-  Sparkles,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,11 +56,23 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const [emptying, setEmptying] = React.useState(false);
   const [showEmptyConfirm, setShowEmptyConfirm] = React.useState(false);
   const [notice, setNotice] = React.useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [expandedFolderId, setExpandedFolderId] = React.useState<string | null>(null);
+
+  const getEffectiveUserId = React.useCallback(() => {
+    if (user?.id) return user.id;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("markly_user_id");
+      if (stored) return stored;
+      const match = document.cookie.match(/markly_user_id=([^;]+)/);
+      if (match) return match[1];
+    }
+    return null;
+  }, [user?.id]);
 
   const fetchItems = React.useCallback(async () => {
     try {
-      setLoading(true);
-      const url = user?.id ? `/api/recycle-bin?userId=${encodeURIComponent(user.id)}` : "/api/recycle-bin";
+      const effectiveId = getEffectiveUserId();
+      const url = effectiveId ? `/api/recycle-bin?userId=${encodeURIComponent(effectiveId)}` : "/api/recycle-bin";
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -72,10 +86,20 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [getEffectiveUserId]);
 
   React.useEffect(() => {
     fetchItems();
+
+    // Listen for real-time deletions anywhere in workspace while this page is open!
+    const handleUpdate = () => {
+      fetchItems();
+    };
+
+    window.addEventListener("markly-recycle-bin-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("markly-recycle-bin-updated", handleUpdate);
+    };
   }, [fetchItems]);
 
   const handleUpdateRetention = async (days: number) => {
@@ -143,7 +167,8 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handleEmptyRecycleBin = async () => {
     setEmptying(true);
     try {
-      const url = user?.id ? `/api/recycle-bin?userId=${encodeURIComponent(user.id)}` : "/api/recycle-bin";
+      const effectiveId = getEffectiveUserId();
+      const url = effectiveId ? `/api/recycle-bin?userId=${encodeURIComponent(effectiveId)}` : "/api/recycle-bin";
       const res = await fetch(url, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
@@ -190,7 +215,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                PC-style Trash: deleted folders keep all inside sites in Unknown (Inbox). Restore any item in 0ms or configure auto-purge retention.
+                PC-style Trash: deleted folders and websites can be inspected, restored in 0ms, or auto-purged based on retention policy.
               </p>
             </div>
           </div>
@@ -285,7 +310,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
 
       {/* Main Content Area */}
       <div className="max-w-5xl mx-auto w-full px-6 py-6 space-y-4">
-        {/* Controls: Search & Filter Tabs */}
+        {/* Controls: Search & Separate Filter Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#1a1a1a] border border-border/50 w-fit text-xs font-semibold">
@@ -365,8 +390,8 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
             </Button>
           </div>
         ) : (
-          /* Items List */
-          <div className="space-y-2">
+          /* Items List with PC-Style Folder Inspection */
+          <div className="space-y-2.5">
             {filteredItems.map((item) => {
               const isFolder = item.itemType === "folder";
               const isOperating = actionLoadingId === item.id;
@@ -376,98 +401,169 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               } catch {}
 
               const isExpiringSoon = item.expiresInDays <= 1;
+              const insideBookmarks: any[] = isFolder && Array.isArray(parsedData.bookmarks) ? parsedData.bookmarks : [];
+              const isExpanded = expandedFolderId === item.id;
 
               return (
                 <div
                   key={item.id}
-                  className="group flex items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-card dark:bg-[#181818] hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs"
+                  className="rounded-xl border border-border bg-card dark:bg-[#181818] hover:border-slate-300 dark:hover:border-neutral-700 transition-all text-xs overflow-hidden shadow-2xs"
                 >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {/* Item Icon */}
-                    <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-[#252525] flex items-center justify-center flex-shrink-0 border border-black/5 dark:border-white/5">
-                      {isFolder ? (
-                        <FolderIconRenderer icon={item.icon} color={item.color || "#3b82f6"} className="h-5 w-5" />
+                  {/* Folder / Item Main Bar */}
+                  <div className="flex items-center justify-between gap-3 p-3.5">
+                    <div
+                      className={`flex items-center gap-3 min-w-0 flex-1 ${isFolder ? "cursor-pointer" : ""}`}
+                      onClick={() => {
+                        if (isFolder) {
+                          setExpandedFolderId(isExpanded ? null : item.id);
+                        }
+                      }}
+                    >
+                      {/* Item Icon */}
+                      <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-[#252525] flex items-center justify-center flex-shrink-0 border border-black/5 dark:border-white/5">
+                        {isFolder ? (
+                          <FolderIconRenderer icon={item.icon} color={item.color || "#3b82f6"} className="h-5 w-5" />
+                        ) : (
+                          <BookmarkIcon
+                            src={parsedData.iconUrl || item.icon}
+                            domain={parsedData.domain || ""}
+                            alt={item.title}
+                            className="h-5 w-5 rounded object-contain flex-shrink-0"
+                          />
+                        )}
+                      </div>
+
+                      {/* Metadata */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-foreground truncate text-xs sm:text-sm">
+                            {item.title}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0 font-medium"
+                          >
+                            {isFolder ? "Folder" : "Website"}
+                          </Badge>
+                          {isFolder && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 font-semibold border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5 flex items-center gap-1"
+                            >
+                              <span>{insideBookmarks.length} site{insideBookmarks.length !== 1 ? "s" : ""}</span>
+                              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                          {isFolder ? (
+                            <span>Click to {isExpanded ? "collapse" : "view contained sites"}</span>
+                          ) : (
+                            <span className="truncate max-w-xs">{parsedData.url || "No link"}</span>
+                          )}
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>Deleted {new Date(item.deletedAt).toLocaleDateString()}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Expiration Countdown & Action Buttons */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Expiration Badge */}
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] font-semibold px-2 py-0.5 border ${
+                          isExpiringSoon
+                            ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10"
+                            : "border-slate-200 dark:border-neutral-800 text-muted-foreground bg-slate-50 dark:bg-neutral-850/40"
+                        }`}
+                      >
+                        <Clock className="h-3 w-3 mr-1" />
+                        {item.expiresInDays <= 0
+                          ? `Expires in ${item.expiresInHours}h`
+                          : `Expires in ${item.expiresInDays}d`}
+                      </Badge>
+
+                      {/* Restore Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isOperating}
+                        onClick={() => handleRestore(item)}
+                        className="h-8 px-3 text-xs font-semibold cursor-pointer border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 dark:hover:bg-blue-500/20 hover:border-blue-500 flex items-center gap-1 shadow-2xs"
+                        title={isFolder ? "Restore Folder and all contained websites" : "Restore website"}
+                      >
+                        {isOperating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                        <span>Restore{isFolder ? " All" : ""}</span>
+                      </Button>
+
+                      {/* Delete Permanently Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isOperating}
+                        onClick={() => handlePermanentDelete(item)}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer rounded-lg"
+                        title="Delete permanently right now"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* PC Folder Drill-Down: Contained Website Rows */}
+                  {isFolder && isExpanded && (
+                    <div className="border-t border-border/70 bg-slate-50/60 dark:bg-[#141414] px-4 py-3 space-y-2 animate-in fade-in slide-in-from-top-1">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground pb-1 border-b border-border/40">
+                        <span>Websites inside this deleted folder ({insideBookmarks.length})</span>
+                        <span className="text-[10px]">Restoring the folder restores all these sites</span>
+                      </div>
+
+                      {insideBookmarks.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground py-2 italic">
+                          This folder had no bookmarks when deleted.
+                        </p>
                       ) : (
-                        <BookmarkIcon
-                          src={parsedData.iconUrl || item.icon}
-                          domain={parsedData.domain || ""}
-                          alt={item.title}
-                          className="h-5 w-5 rounded object-contain flex-shrink-0"
-                        />
+                        <div className="space-y-1.5">
+                          {insideBookmarks.map((bm: any) => (
+                            <div
+                              key={bm.id}
+                              className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-white dark:bg-[#1d1d1d] border border-border/60 hover:border-border transition-colors text-xs"
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <BookmarkIcon
+                                  src={bm.icon_url || bm.iconUrl}
+                                  domain={bm.domain || ""}
+                                  alt={bm.title}
+                                  className="h-4 w-4 rounded object-contain flex-shrink-0"
+                                />
+                                <span className="font-medium text-foreground truncate max-w-sm">
+                                  {bm.title}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+                                  {bm.domain}
+                                </span>
+                              </div>
+
+                              <a
+                                href={bm.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-muted-foreground hover:text-blue-500 p-1 flex items-center gap-1 text-[11px]"
+                                title="Open URL in new tab"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-
-                    {/* Metadata */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-foreground truncate text-xs sm:text-sm">
-                          {item.title}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] px-1.5 py-0 font-medium"
-                        >
-                          {isFolder ? "Folder" : "Website"}
-                        </Badge>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-                        {isFolder ? (
-                          <span>Original collection</span>
-                        ) : (
-                          <span className="truncate max-w-xs">{parsedData.url || "No link"}</span>
-                        )}
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>Deleted {new Date(item.deletedAt).toLocaleDateString()}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Expiration Countdown & Action Buttons */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Expiration Badge */}
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-semibold px-2 py-0.5 border ${
-                        isExpiringSoon
-                          ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10"
-                          : "border-slate-200 dark:border-neutral-800 text-muted-foreground bg-slate-50 dark:bg-neutral-850/40"
-                      }`}
-                    >
-                      <Clock className="h-3 w-3 mr-1" />
-                      {item.expiresInDays <= 0
-                        ? `Expires in ${item.expiresInHours}h`
-                        : `Expires in ${item.expiresInDays}d`}
-                    </Badge>
-
-                    {/* Restore Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isOperating}
-                      onClick={() => handleRestore(item)}
-                      className="h-8 px-3 text-xs font-semibold cursor-pointer border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 dark:hover:bg-blue-500/20 hover:border-blue-500 flex items-center gap-1 shadow-2xs"
-                      title="Restore back to active collections"
-                    >
-                      {isOperating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                      <span>Restore</span>
-                    </Button>
-
-                    {/* Delete Permanently Button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={isOperating}
-                      onClick={() => handlePermanentDelete(item)}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer rounded-lg"
-                      title="Delete permanently right now"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  )}
                 </div>
               );
             })}

@@ -967,7 +967,7 @@ export function WorkspaceHome({
                         fill="none"
                         stroke={dot.color}
                         strokeWidth="1.5"
-                        className="animate-ping opacity-75"
+                        strokeOpacity="0.65"
                       />
                     )}
                     <circle

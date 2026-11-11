@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2 } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2, Search } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -14,6 +14,7 @@ interface BreadcrumbsProps {
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
   onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile") => void;
   totalBookmarksCount: number;
+  onOpenSearch?: () => void;
 }
 
 export function Breadcrumbs({
@@ -25,6 +26,7 @@ export function Breadcrumbs({
   onSelectFolder,
   onSelectView,
   totalBookmarksCount,
+  onOpenSearch,
 }: BreadcrumbsProps) {
   // Compute ancestry path if a folder is active
   const breadcrumbPath = React.useMemo(() => {
@@ -127,6 +129,22 @@ export function Breadcrumbs({
               )}
             </span>
           </>
+        )}
+
+        {/* Search Icon Trigger right of breadcrumb items */}
+        {onOpenSearch && (
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            title="Search all pages & bookmarks (⌘K)"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-slate-200/70 dark:hover:bg-neutral-800 text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors border border-transparent hover:border-slate-300 dark:hover:border-neutral-700 ml-1.5 flex-shrink-0"
+          >
+            <Search className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-[11px] font-medium hidden sm:inline">Search all</span>
+            <kbd className="hidden md:inline-flex h-3.5 items-center gap-0.5 rounded border border-border bg-muted px-1 font-mono text-[8.5px] text-muted-foreground font-semibold">
+              ⌘K
+            </kbd>
+          </button>
         )}
       </div>
 

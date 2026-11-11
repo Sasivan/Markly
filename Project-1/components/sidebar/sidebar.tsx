@@ -586,23 +586,6 @@ export function Sidebar({
             <span className="ml-auto text-[11px] font-mono text-muted-foreground">{totalBookmarksCount}</span>
           </button>
 
-          {/* Account Profile */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("profile");
-            }}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
-              activeView === "profile" && !activeFolderId
-                ? "bg-blue-600 text-white font-semibold shadow-xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
-            }`}
-          >
-            <User className={`h-4 w-4 ${activeView === "profile" && !activeFolderId ? "text-white" : "text-blue-500"} flex-shrink-0`} />
-            <span className="truncate">Profile & Account</span>
-          </button>
-
           {/* Folder Collections */}
           <button
             type="button"

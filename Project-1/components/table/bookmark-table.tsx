@@ -170,6 +170,9 @@ export function BookmarkTable({
     if (!deleteTarget) return;
     try {
       await fetch(`/api/bookmarks/${deleteTarget.id}`, { method: "DELETE" });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+      }
       onRefreshData();
     } catch (e) {
       console.error("Delete error:", e);
@@ -183,6 +186,9 @@ export function BookmarkTable({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", ids: selectedIds }),
       });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+      }
       setRowSelection({});
       onRefreshData();
     } catch (e) {

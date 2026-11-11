@@ -378,99 +378,106 @@ export class BookmarkRepository {
 
     const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
 
-    if (mode === "delete_all") {
-      // Get all descendant folders (including sub-subfolders)
-      const descendantIds = this.getDescendantFolderIds(id, effectiveUserId);
-      const allFolderIdsToDelete = [id, ...descendantIds];
+    // Get all descendant folders (including sub-subfolders)
+    const descendantIds = this.getDescendantFolderIds(id, effectiveUserId);
+    const allFolderIdsToDelete = [id, ...descendantIds];
+    const placeholders = allFolderIdsToDelete.map(() => "?").join(",");
 
-      // 2. ALWAYS keep inside bookmarks safe in "Unknown" (Unsorted/Inbox: folderId = NULL)
-      const placeholders = allFolderIdsToDelete.map(() => "?").join(",");
-      sqlite.prepare(`
-        UPDATE bookmarks SET folder_id = NULL WHERE folder_id IN (${placeholders})
-      `).run(...allFolderIdsToDelete);
+    // 1. Fetch all bookmarks inside these folders before deleting them
+    const bmsInside = sqlite.prepare(`
+      SELECT * FROM bookmarks WHERE folder_id IN (${placeholders})
+    `).all(...allFolderIdsToDelete) as any[];
 
-      // 3. Save each folder to Recycle Bin and record tombstones
-      for (const fId of allFolderIdsToDelete) {
-        const f = db.select().from(folders).where(eq(folders.id, fId)).get();
-        if (f) {
-          sqlite.prepare(`
-            INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
-            VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            `rb_fld_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            effectiveUserId,
-            f.id,
-            f.name,
-            f.parentId,
-            f.icon,
-            f.color,
-            JSON.stringify(f),
-            Date.now(),
-            retentionDays
-          );
-          sqlite.prepare(`
-            INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-          `).run(f.id, effectiveUserId, Date.now());
-          if (userId && userId !== effectiveUserId) {
-            sqlite.prepare(`
-              INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-            `).run(f.id, userId, Date.now());
-          }
-          SupabaseManager.syncFolder({ id: f.id, userId: effectiveUserId }, "delete", { mode: "delete_all" }).catch(() => {});
-        }
-      }
-
-      // 4. Delete folders from SQLite
-      sqlite.prepare(`
-        DELETE FROM folders WHERE id IN (${placeholders})
-      `).run(...allFolderIdsToDelete);
-
-      return;
+    // 2. Fetch tags for bookmarks
+    const bmTagsMap: Record<string, any[]> = {};
+    for (const bm of bmsInside) {
+      try {
+        const tags = sqlite.prepare(`
+          SELECT t.id, t.name, t.color FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = ?
+        `).all(bm.id);
+        bmTagsMap[bm.id] = tags;
+      } catch {}
     }
 
-    // mode === "move_up"
-    // 2. ALWAYS keep inside bookmarks safe in "Unknown" (Unsorted/Inbox: folderId = NULL)
-    db.update(bookmarks)
-      .set({ folderId: null })
-      .where(eq(bookmarks.folderId, id))
-      .run();
-
-    // 3. Re-parent direct subfolders to parent (or null if root)
-    db.update(folders)
-      .set({ parentId: targetFolder.parentId, updatedAt: Date.now() })
-      .where(eq(folders.parentId, id))
-      .run();
-
-    // 4. Save folder to Recycle Bin (preserving original metadata and state)
-    try {
+    // 3. Move each inside bookmark into Recycle Bin and record tombstones
+    for (const bm of bmsInside) {
       sqlite.prepare(`
         INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
-        VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        `rb_fld_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        `rb_bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         effectiveUserId,
-        id,
-        targetFolder.name,
-        targetFolder.parentId,
-        targetFolder.icon,
-        targetFolder.color,
-        JSON.stringify(targetFolder),
+        bm.id,
+        bm.title,
+        bm.folder_id,
+        bm.icon_url,
+        null,
+        JSON.stringify({ ...bm, tags: bmTagsMap[bm.id] || [] }),
         Date.now(),
         retentionDays
       );
-    } catch (rbErr) {
-      console.warn("Recycle bin insert folder warning:", rbErr);
+
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
+      `).run(bm.id, effectiveUserId, Date.now());
+
+      if (userId && userId !== effectiveUserId) {
+        sqlite.prepare(`
+          INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
+        `).run(bm.id, userId, Date.now());
+      }
+
+      // Sync delete to Supabase with service key
+      SupabaseManager.syncBookmark({ id: bm.id }, "delete").catch(() => {});
     }
 
-    // 5. Delete folder itself from SQLite
-    db.delete(folders).where(eq(folders.id, id)).run();
+    // 4. Delete the bookmarks from SQLite
+    sqlite.prepare(`
+      DELETE FROM bookmarks WHERE folder_id IN (${placeholders})
+    `).run(...allFolderIdsToDelete);
 
-    // 6. Sync folder deletion to Supabase with parent re-parenting
-    await SupabaseManager.syncFolder(
-      { id: targetFolder.id, userId: effectiveUserId },
-      "delete",
-      { mode: "move_up", newParentId: targetFolder.parentId }
-    );
+    // 5. Save each folder to Recycle Bin (including snapshot of its contained bookmarks)
+    for (const fId of allFolderIdsToDelete) {
+      const f = db.select().from(folders).where(eq(folders.id, fId)).get();
+      if (f) {
+        const folderBookmarks = bmsInside.filter((b) => b.folder_id === f.id);
+        sqlite.prepare(`
+          INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+          VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          `rb_fld_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          effectiveUserId,
+          f.id,
+          f.name,
+          f.parentId,
+          f.icon,
+          f.color,
+          JSON.stringify({ ...f, bookmarks: folderBookmarks }),
+          Date.now(),
+          retentionDays
+        );
+
+        sqlite.prepare(`
+          INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
+        `).run(f.id, effectiveUserId, Date.now());
+
+        if (userId && userId !== effectiveUserId) {
+          sqlite.prepare(`
+            INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
+          `).run(f.id, userId, Date.now());
+        }
+
+        // Sync folder delete to Supabase with service key
+        SupabaseManager.syncFolder({ id: f.id, userId: effectiveUserId }, "delete", { mode: "delete_all" }).catch(() => {});
+      }
+    }
+
+    // 6. Delete folders from SQLite
+    sqlite.prepare(`
+      DELETE FROM folders WHERE id IN (${placeholders})
+    `).run(...allFolderIdsToDelete);
+
+    return;
   }
 
   /**
@@ -1002,6 +1009,45 @@ export class BookmarkRepository {
         Date.now()
       );
 
+      // Restore all bookmarks that were inside this folder if present
+      if (Array.isArray(data.bookmarks)) {
+        for (const b of data.bookmarks) {
+          try {
+            sqlite.prepare(`
+              INSERT OR REPLACE INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, image_url, domain, is_favorite, is_archived, status, visit_count, last_visited_at, last_clicked_at, created_at, search_text)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              b.id,
+              item.user_id,
+              data.id,
+              b.url,
+              b.canonical_url || b.canonicalUrl || b.url,
+              b.title,
+              b.description || null,
+              b.icon_url || b.iconUrl || null,
+              b.image_url || b.imageUrl || null,
+              b.domain,
+              b.is_favorite || b.isFavorite ? 1 : 0,
+              b.is_archived || b.isArchived ? 1 : 0,
+              b.status || "alive",
+              b.visit_count || b.visitCount || 0,
+              b.last_visited_at || b.lastVisitedAt || null,
+              b.last_clicked_at || b.lastClickedAt || null,
+              b.created_at || b.createdAt || Date.now(),
+              b.search_text || b.searchText || null
+            );
+            sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(b.id);
+            sqlite.prepare(`DELETE FROM recycle_bin WHERE item_id = ? AND item_type = 'bookmark'`).run(b.id);
+            const restoredBm = this.getBookmarkById(b.id);
+            if (restoredBm) {
+              SupabaseManager.syncBookmark(restoredBm, "upsert").catch(() => {});
+            }
+          } catch (bmRestoreErr) {
+            console.warn("Restore folder child bookmark error:", bmRestoreErr);
+          }
+        }
+      }
+
       // Remove from tombstones
       sqlite.prepare(`DELETE FROM deleted_folders WHERE id = ?`).run(data.id);
       sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
@@ -1080,6 +1126,7 @@ export class BookmarkRepository {
 
     if (item.item_type === "folder") {
       sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE original_folder_id = ?`).run(item.item_id);
       SupabaseManager.syncFolder({ id: item.item_id, userId: item.user_id }, "delete", { mode: "delete_all" }).catch(() => {});
     } else {
       sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());

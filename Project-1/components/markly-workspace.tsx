@@ -533,49 +533,44 @@ export function MarklyWorkspace({
   );
 
   const handleDeleteFolderOptimistic = React.useCallback(
-    async (folderId: string, mode: "move_up" | "delete_all") => {
+    async (folderId: string, mode: "move_up" | "delete_all" = "delete_all") => {
       // Find all descendant IDs if delete_all
       const getDescendants = (pId: string): string[] => {
         const kids = folders.filter((f) => f.parentId === pId).map((f) => f.id);
         return [pId, ...kids.flatMap(getDescendants)];
       };
-      const toDeleteIds = new Set(mode === "delete_all" ? getDescendants(folderId) : [folderId]);
+      const toDeleteIds = new Set(getDescendants(folderId));
       const targetFolder = folders.find((f) => f.id === folderId);
-      const parentId = targetFolder?.parentId || null;
 
-      // 1. Instantly keep inside bookmarks safe in Unknown (Inbox: folderId = null)
-      setBookmarks((prev) =>
-        prev.map((b) => (b.folderId && toDeleteIds.has(b.folderId) ? { ...b, folderId: null } : b))
-      );
+      // 1. Instantly delete bookmarks inside this folder and descendant folders
+      const remainingBookmarks = bookmarks.filter((b) => !b.folderId || !toDeleteIds.has(b.folderId));
+      setBookmarks(remainingBookmarks);
 
       // 2. Instantly update folders list and tree
-      let nextFolders: FolderType[];
-      if (mode === "move_up") {
-        nextFolders = folders
-          .filter((f) => f.id !== folderId)
-          .map((f) => (f.parentId === folderId ? { ...f, parentId } : f));
-      } else {
-        nextFolders = folders.filter((f) => !toDeleteIds.has(f.id));
-      }
+      const nextFolders = folders.filter((f) => !toDeleteIds.has(f.id));
       setFolders(nextFolders);
-      setFolderTree(buildTreeFromFolders(nextFolders, bookmarks));
+      setFolderTree(buildTreeFromFolders(nextFolders, remainingBookmarks));
 
       if (activeFolderId && toDeleteIds.has(activeFolderId)) {
         setActiveFolderId(null);
-        setActiveView("unsorted"); // show preserved bookmarks in Unknown immediately!
+        setActiveView("collections");
       }
 
-      // 3. Persist deletion in background
+      // 3. Notify any open views that recycle bin was updated in real time
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+      }
+
+      // 4. Persist deletion to SQLite and Supabase in background
       try {
-        const q = new URLSearchParams({ mode });
+        const q = new URLSearchParams({ mode: "delete_all" });
         if (user?.id) q.set("userId", user.id);
         await fetch(`/api/folders/${folderId}?${q.toString()}`, { method: "DELETE" });
       } catch (err) {
         console.error("Delete folder error:", err);
-        refreshData();
       }
     },
-    [folders, bookmarks, activeFolderId, user?.id, refreshData]
+    [folders, bookmarks, activeFolderId, user?.id]
   );
 
   const handleRenameFolderOptimistic = React.useCallback(
@@ -773,6 +768,7 @@ export function MarklyWorkspace({
             setActiveTagFilter(null);
           }}
           totalBookmarksCount={filteredBookmarks.length}
+          onOpenSearch={() => setCommandPaletteOpen(true)}
         />
 
         {/* Dashboard, Home, Graph & Table Zone */}

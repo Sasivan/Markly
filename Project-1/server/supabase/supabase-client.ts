@@ -26,6 +26,12 @@ export class SupabaseManager {
 
       if (row?.value) {
         this.cachedConfig = JSON.parse(row.value);
+        if (!this.cachedConfig?.serviceRoleKey) {
+          const envServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+          if (envServiceKey && this.cachedConfig) {
+            this.cachedConfig.serviceRoleKey = envServiceKey;
+          }
+        }
         return this.cachedConfig;
       }
     } catch (e) {
@@ -35,8 +41,9 @@ export class SupabaseManager {
     // Fallback to process.env if available
     const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const envServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
     if (envUrl && envKey) {
-      return { url: envUrl, anonKey: envKey };
+      return { url: envUrl, anonKey: envKey, serviceRoleKey: envServiceKey };
     }
 
     return null;

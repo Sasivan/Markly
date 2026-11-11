@@ -19,7 +19,7 @@ export function DeleteFolderModal({
   onOpenChange,
   onConfirmDelete,
 }: DeleteFolderModalProps) {
-  const [mode, setMode] = React.useState<"move_up" | "delete_all">("move_up");
+  const [mode, setMode] = React.useState<"move_up" | "delete_all">("delete_all");
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   if (!folder) return null;
@@ -43,41 +43,15 @@ export function DeleteFolderModal({
               <Trash2 className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold">Delete Folder</DialogTitle>
+              <DialogTitle className="text-base font-semibold">Delete &quot;{folder.name}&quot;</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Choose what to do with bookmarks and subfolders inside &quot;{folder.name}&quot;.
+                Move folder and all contained websites to Recycle Bin.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="space-y-3 mt-4 text-xs">
-          <label
-            onClick={() => setMode("move_up")}
-            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-              mode === "move_up"
-                ? "border-primary bg-primary/5 text-foreground"
-                : "border-border hover:bg-muted/40 text-muted-foreground"
-            }`}
-          >
-            <input
-              type="radio"
-              name="delete_mode"
-              checked={mode === "move_up"}
-              onChange={() => setMode("move_up")}
-              className="mt-0.5"
-            />
-            <div className="space-y-0.5">
-              <div className="font-medium text-foreground flex items-center gap-1.5">
-                <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
-                <span>Move contents up to parent</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Preserves all bookmarks and subfolders by moving them up one level (or to Unsorted).
-              </p>
-            </div>
-          </label>
-
           <label
             onClick={() => setMode("delete_all")}
             className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -96,10 +70,36 @@ export function DeleteFolderModal({
             <div className="space-y-0.5">
               <div className="font-medium text-destructive flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                <span>Delete folder and all its contents</span>
+                <span>Delete folder and all websites inside</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Permanently removes this folder along with all nested subfolders and bookmarks.
+                PC-style Trash: moves the folder and all its bookmarks to Recycle Bin where they can be inspected and restored anytime.
+              </p>
+            </div>
+          </label>
+
+          <label
+            onClick={() => setMode("move_up")}
+            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+              mode === "move_up"
+                ? "border-primary bg-primary/5 text-foreground"
+                : "border-border hover:bg-muted/40 text-muted-foreground"
+            }`}
+          >
+            <input
+              type="radio"
+              name="delete_mode"
+              checked={mode === "move_up"}
+              onChange={() => setMode("move_up")}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <div className="font-medium text-foreground flex items-center gap-1.5">
+                <ArrowUpRight className="h-3.5 w-3.5 text-primary" />
+                <span>Move contents up to parent (keep websites)</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Deletes only this folder, keeping bookmarks safe in the parent folder or Unsorted.
               </p>
             </div>
           </label>

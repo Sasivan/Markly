@@ -75,12 +75,18 @@ export function WorkspaceHome({
       console.error("Visit error:", e);
     }
   };
-  // 1. Quick Access: Top visited & active bookmarks
+  // 1. Quick Access: High-frequency daily drivers & pinned bookmarks
   const quickAccessList = React.useMemo(() => {
-    return [...bookmarks]
-      .filter((b) => !b.isArchived)
-      .sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0) || b.createdAt - a.createdAt)
-      .slice(0, 6);
+    const unarchived = bookmarks.filter((b) => !b.isArchived);
+    // Prioritize high-visit sites and favorites
+    const activeAndFavs = unarchived.filter((b) => (b.visitCount || 0) > 0 || b.isFavorite);
+    if (activeAndFavs.length > 0) {
+      return activeAndFavs
+        .sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0) || (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0) || b.createdAt - a.createdAt)
+        .slice(0, 6);
+    }
+    // Fallback if no bookmarks have been visited yet: show newest additions
+    return [...unarchived].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   }, [bookmarks]);
 
   // 2. Folder Collections: Root level folder collections
@@ -100,15 +106,14 @@ export function WorkspaceHome({
     });
   }, [folderTree, folders]);
 
-  // 3. Recently Visited (sorted by lastClickedAt or lastVisitedAt desc)
+  // 3. Recently Visited: Strict chronological timeline of actual visits
   const recentlyVisited = React.useMemo(() => {
     return [...bookmarks]
-      .filter((b) => !b.isArchived)
+      .filter((b) => !b.isArchived && Boolean(b.lastClickedAt || b.lastVisitedAt))
       .sort((a, b) => {
-        const timeA = a.lastClickedAt || a.lastVisitedAt || 0;
-        const timeB = b.lastClickedAt || b.lastVisitedAt || 0;
-        if (timeA !== timeB) return timeB - timeA;
-        return (b.visitCount || 0) - (a.visitCount || 0);
+        const timeA = Math.max(a.lastClickedAt || 0, a.lastVisitedAt || 0);
+        const timeB = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0);
+        return timeB - timeA;
       })
       .slice(0, 6);
   }, [bookmarks]);
@@ -302,9 +307,11 @@ export function WorkspaceHome({
 
   // Helper to format relative time
   const formatTimeAgo = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return "Just now";
+    const diff = Math.max(0, Date.now() - timestamp);
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     if (days === 1) return "Yesterday";
@@ -598,54 +605,62 @@ export function WorkspaceHome({
             </button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] shadow-xs divide-y divide-slate-100 dark:divide-neutral-800/80 overflow-hidden">
-            {recentlyVisited.map((bm) => {
-              const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
-              return (
-                <div key={bm.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <BookmarkIcon
-                      src={bm.iconUrl}
-                      alt={bm.title}
-                      domain={bm.domain}
-                      className="h-5 w-5 rounded object-contain flex-shrink-0"
-                    />
-                    <div className="truncate">
+          {recentlyVisited.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-slate-200 dark:border-neutral-800">
+              <Clock className="h-6 w-6 mx-auto mb-2 text-indigo-400 opacity-60" />
+              <p className="font-medium text-slate-700 dark:text-neutral-300">No visit activity recorded yet</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Click or launch any bookmark to track it in your chronological activity stream.</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] shadow-xs divide-y divide-slate-100 dark:divide-neutral-800/80 overflow-hidden">
+              {recentlyVisited.map((bm) => {
+                const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
+                return (
+                  <div key={bm.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <BookmarkIcon
+                        src={bm.iconUrl}
+                        alt={bm.title}
+                        domain={bm.domain}
+                        className="h-5 w-5 rounded object-contain flex-shrink-0"
+                      />
+                      <div className="truncate">
+                        <a
+                          href={bm.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => handleSiteVisit(bm)}
+                          className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                        >
+                          {bm.title}
+                        </a>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                          <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                            {lastTime ? `Visited ${formatTimeAgo(lastTime)}` : "Not visited yet"}
+                          </span>
+                          <span>•</span>
+                          <span className="truncate max-w-[120px]">{getParentName(bm)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       <a
                         href={bm.url}
                         target="_blank"
                         rel="noreferrer"
                         onClick={() => handleSiteVisit(bm)}
-                        className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                        className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        title="Open link"
                       >
-                        {bm.title}
+                        <ExternalLink className="h-3 w-3" />
                       </a>
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">
-                          {lastTime ? `Visited ${formatTimeAgo(lastTime)}` : "Not visited yet"}
-                        </span>
-                        <span>•</span>
-                        <span className="truncate max-w-[120px]">{getParentName(bm)}</span>
-                      </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <a
-                      href={bm.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => handleSiteVisit(bm)}
-                      className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                      title="Open link"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* 4. Favorites */}

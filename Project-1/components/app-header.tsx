@@ -43,6 +43,30 @@ export function AppHeader({
   activeFolder,
 }: AppHeaderProps) {
   const { user, signOut, openAuthModal } = useAuth();
+  const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("markly_user_avatar");
+      if (stored) setCustomAvatar(stored);
+
+      const handler = (e: any) => {
+        if (e.detail?.avatarUrl) {
+          setCustomAvatar(e.detail.avatarUrl);
+        }
+      };
+      window.addEventListener("markly-avatar-updated", handler);
+      return () => window.removeEventListener("markly-avatar-updated", handler);
+    }
+  }, []);
+
+  const displayAvatar =
+    customAvatar ||
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    (user
+      ? `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email || user.id}`
+      : `https://api.dicebear.com/7.x/bottts/svg?seed=guest_markly`);
 
   const viewLabels: Record<string, string> = {
     home: "Workspace Home",
@@ -122,47 +146,47 @@ export function AppHeader({
         {/* 5. Icon Mode (Theme Toggle) */}
         <ThemeToggle />
 
-        {/* 5. User Profile Avatar / Sign In */}
-        {user ? (
-          <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-neutral-700">
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              title={`View Account Profile & Linked Logins (${user.email})`}
-              className="flex items-center gap-2 p-0.5 pr-2.5 rounded-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50 dark:hover:bg-neutral-700/60 transition-all cursor-pointer shadow-2xs group"
-            >
-              <div className="relative flex-shrink-0">
-                <img
-                  src={
-                    user.user_metadata?.avatar_url ||
-                    user.user_metadata?.picture ||
-                    `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email || user.id}`
-                  }
-                  alt={user.user_metadata?.display_name || user.email || "User"}
-                  className="h-7 w-7 rounded-full object-cover bg-slate-100 dark:bg-neutral-800 border border-white dark:border-neutral-700 shadow-2xs"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${user.email || "User"}`;
-                  }}
-                />
-                <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-white dark:border-neutral-900" />
-              </div>
-              <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-24 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                {user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile"}
-              </span>
-            </button>
-          </div>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openAuthModal("login")}
-            className="text-xs h-8 px-3 gap-1.5 font-semibold text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer shadow-2xs ml-0.5"
-            title="Sign in with Supabase or create an account"
+        {/* 5. User Profile Avatar & Sign In */}
+        <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-neutral-700">
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title={user ? `View Profile & Settings (${user.email})` : "View Profile (Local Mode)"}
+            className="flex items-center gap-2 p-0.5 pr-2 rounded-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50 dark:hover:bg-neutral-700/60 transition-all cursor-pointer shadow-2xs group"
           >
-            <User className="h-3.5 w-3.5 text-blue-500" />
-            <span>Sign In</span>
-          </Button>
-        )}
+            <div className="relative flex-shrink-0">
+              <img
+                src={displayAvatar}
+                alt={user?.user_metadata?.display_name || user?.email || "User"}
+                className="h-7 w-7 rounded-full object-cover bg-slate-100 dark:bg-neutral-800 border border-white dark:border-neutral-700 shadow-2xs"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${user?.email || "User"}`;
+                }}
+              />
+              <span
+                className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-white dark:border-neutral-900 ${
+                  user ? "bg-emerald-500" : "bg-amber-500"
+                }`}
+              />
+            </div>
+            <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-24 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              {user ? (user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile") : "Profile"}
+            </span>
+          </button>
+
+          {!user && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openAuthModal("login")}
+              className="text-xs h-7 px-2.5 gap-1 font-semibold text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer shadow-2xs"
+              title="Sign in with Supabase or create an account"
+            >
+              <User className="h-3 w-3 text-blue-500" />
+              <span>Sign In</span>
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

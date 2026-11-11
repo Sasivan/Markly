@@ -42,7 +42,7 @@ export async function DELETE(
     const cookieStore = await cookies();
     const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
-    BookmarkRepository.deleteFolder(id, mode, userId);
+    await BookmarkRepository.deleteFolder(id, mode, userId);
 
     return NextResponse.json({ success: true, deletedId: id, mode });
   } catch (error: any) {

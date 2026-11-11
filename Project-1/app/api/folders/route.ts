@@ -11,16 +11,18 @@ export async function GET(req: Request) {
     const queryUserId = searchParams.get("userId");
     const userId = queryUserId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
-    // Check if user has zero folders in local SQLite cache; if so, pull from Supabase
+    // Check if user is known in local SQLite cache; only sync from Supabase if brand new
     if (userId && userId !== DEFAULT_USER_ID) {
       try {
-        const localCount = sqlite
-          .prepare(`SELECT COUNT(*) as count FROM folders WHERE user_id = ?`)
-          .get(userId) as { count: number };
-        if (localCount.count === 0) {
+        const userRow = sqlite
+          .prepare(`SELECT id FROM users WHERE id = ?`)
+          .get(userId);
+        if (!userRow) {
           const syncRes = await SupabaseManager.syncRemoteUserToLocal(userId);
-          if (syncRes.foldersCount === 0) {
+          if (syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
             BookmarkRepository.ensureUserStarterData(userId);
+          } else {
+            BookmarkRepository.ensureUser(userId);
           }
         }
       } catch (err) {

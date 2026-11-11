@@ -26,11 +26,13 @@ import {
   EyeOff,
   FileText,
   LogIn,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { DicebearAvatarModal } from "./dicebear-avatar-modal";
 
 interface ProfileViewProps {
   totalBookmarks?: number;
@@ -54,6 +56,7 @@ export function ProfileView({
   const [bio, setBio] = React.useState("");
   const [location, setLocation] = React.useState("");
   const [avatarUrl, setAvatarUrl] = React.useState("");
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = React.useState(false);
 
   const [isEditingDetails, setIsEditingDetails] = React.useState(false);
   const [isSavingDetails, setIsSavingDetails] = React.useState(false);
@@ -114,6 +117,39 @@ export function ProfileView({
       }
     }
   }, [user]);
+
+  // Handle changing avatar from DiceBear modal or file upload
+  const handleApplyAvatar = async (newUrl: string) => {
+    setAvatarUrl(newUrl);
+    try {
+      if (user) {
+        await supabase.auth.updateUser({
+          data: {
+            avatar_url: newUrl,
+          },
+        });
+      }
+      fetch("/api/user/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, displayName, avatarUrl: newUrl }),
+      }).catch(() => {});
+
+      if (typeof window !== "undefined") {
+        document.cookie = `markly_user_avatar=${encodeURIComponent(newUrl)}; path=/; max-age=2592000; SameSite=Lax`;
+        localStorage.setItem("markly_user_avatar", newUrl);
+        window.dispatchEvent(new CustomEvent("markly-avatar-updated", { detail: { avatarUrl: newUrl } }));
+      }
+
+      setStatusMessage({
+        type: "success",
+        text: "Avatar updated successfully!",
+      });
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err: any) {
+      console.warn("Avatar apply notice:", err);
+    }
+  };
 
   // Update Profile Details in Supabase (or localStorage if guest)
   const handleSaveProfile = async () => {
@@ -361,8 +397,17 @@ export function ProfileView({
                   (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`;
                 }}
               />
+              <button
+                type="button"
+                onClick={() => setIsAvatarModalOpen(true)}
+                className="absolute inset-0 rounded-full bg-black/55 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[9px] font-semibold cursor-pointer"
+                title="Change Avatar (DiceBear or Upload)"
+              >
+                <Camera className="h-4 w-4 mb-0.5" />
+                <span>Change</span>
+              </button>
               <span
-                className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white dark:border-neutral-800 shadow-xs ${
+                className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white dark:border-neutral-800 shadow-xs pointer-events-none ${
                   isGuest ? "bg-amber-500" : "bg-emerald-500"
                 }`}
                 title={isGuest ? "Local Offline Mode" : "Online & Synced"}
@@ -572,16 +617,38 @@ export function ProfileView({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
-                  Avatar Picture URL (optional)
-                </label>
-                <Input
-                  type="url"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="h-8 text-xs"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                    Avatar Picture URL
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvatarModalOpen(true)}
+                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    <span>DiceBear / Upload</span>
+                  </button>
+                </div>
+                <div className="flex gap-1.5">
+                  <Input
+                    type="url"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="h-8 text-xs font-mono"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAvatarModalOpen(true)}
+                    className="h-8 px-2.5 text-xs flex-shrink-0 cursor-pointer gap-1"
+                    title="Open DiceBear and Upload modal"
+                  >
+                    <Camera className="h-3.5 w-3.5 text-blue-500" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -869,6 +936,14 @@ export function ProfileView({
           </Button>
         </div>
       )}
+
+      {/* DiceBear & Custom Image Avatar Modal */}
+      <DicebearAvatarModal
+        open={isAvatarModalOpen}
+        onOpenChange={setIsAvatarModalOpen}
+        currentAvatarUrl={avatarUrl}
+        onSelectAvatar={handleApplyAvatar}
+      />
     </div>
   );
 }

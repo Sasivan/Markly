@@ -37,6 +37,7 @@ interface LibraryInsightsViewProps {
   onSelectDomain?: (domain: string) => void;
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
   onRefreshData?: () => void;
+  onRecordVisit?: (bm: BookmarkWithDetails) => void;
 }
 
 type InsightsTab =
@@ -58,6 +59,7 @@ export function LibraryInsightsView({
   onSelectDomain,
   onEditBookmark,
   onRefreshData,
+  onRecordVisit,
 }: LibraryInsightsViewProps) {
   const [activeTab, setActiveTab] = React.useState<InsightsTab>("overview");
 
@@ -166,6 +168,10 @@ export function LibraryInsightsView({
   }, [bookmarks, folders]);
 
   const recordVisit = async (bm: BookmarkWithDetails) => {
+    if (onRecordVisit) {
+      onRecordVisit(bm);
+      return;
+    }
     try {
       await fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST" });
       onRefreshData?.();

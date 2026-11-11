@@ -831,7 +831,13 @@ export function BookmarkTable({
                   <span>{getParentFolderInfo(bm).name}</span>
                 </span>
                 <span className="font-mono">{bm.visitCount} visits</span>
-                <a href={bm.url} target="_blank" rel="noreferrer" className="hover:text-foreground">
+                <a
+                  href={bm.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => recordVisit(bm)}
+                  className="hover:text-foreground"
+                >
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>

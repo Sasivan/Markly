@@ -354,13 +354,41 @@ export class SupabaseManager {
   /**
    * Sync single folder change to Supabase
    */
-  static async syncFolder(folder: any, operation: "upsert" | "delete") {
+  static async syncFolder(
+    folder: any,
+    operation: "upsert" | "delete",
+    options?: { mode?: "move_up" | "delete_all"; newParentId?: string | null }
+  ) {
     const client = this.getClient();
     if (!client) return;
 
     try {
       if (operation === "delete") {
-        await client.from("folders").delete().eq("id", folder.id);
+        const mode = options?.mode || "move_up";
+        const newParentId = options?.newParentId || null;
+
+        if (mode === "move_up") {
+          // Re-parent subfolders and bookmarks first in Supabase so foreign key constraints are not violated!
+          try {
+            await client.from("folders").update({ parent_id: newParentId }).eq("parent_id", folder.id);
+            await client.from("bookmarks").update({ folder_id: newParentId }).eq("folder_id", folder.id);
+          } catch (fkErr) {
+            console.warn("Supabase reparent before folder delete warning:", fkErr);
+          }
+        } else {
+          // delete_all: cascade delete bookmarks and child folders in Supabase
+          try {
+            await client.from("bookmarks").delete().eq("folder_id", folder.id);
+            await client.from("folders").delete().eq("parent_id", folder.id);
+          } catch (cascadeErr) {
+            console.warn("Supabase cascade delete before folder delete warning:", cascadeErr);
+          }
+        }
+
+        const res = await client.from("folders").delete().eq("id", folder.id);
+        if (res.error) {
+          console.warn("Supabase syncFolder delete notice:", res.error.message);
+        }
       } else {
         await client.from("folders").upsert({
           id: folder.id,

@@ -288,7 +288,8 @@ export function MarklyWorkspace({
   // Refresh data function
   const refreshData = React.useCallback(async () => {
     try {
-      let url = `/api/bookmarks?view=${activeView === "home" || activeView === "collections" || activeView === "database" ? "all" : activeView}&includeSubfolders=${includeSubfolders}`;
+      const queryView = ["favorites", "recent", "unsorted", "archive", "trash"].includes(activeView) ? activeView : "all";
+      let url = `/api/bookmarks?view=${queryView}&includeSubfolders=${includeSubfolders}`;
       if (user?.id) {
         url += `&userId=${encodeURIComponent(user.id)}`;
       }
@@ -596,6 +597,7 @@ export function MarklyWorkspace({
               }}
               onEditBookmark={(bm) => setEditingBookmark(bm)}
               onRefreshData={refreshData}
+              onRecordVisit={handleBookmarkVisit}
             />
           ) : activeView === "profile" ? (
             /* Dedicated User Profile & Account Connections View */

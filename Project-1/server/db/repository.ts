@@ -27,6 +27,27 @@ export class BookmarkRepository {
   }
 
   /**
+   * Ensure user record exists in local DB
+   */
+  static ensureUser(userId: string, email?: string, displayName?: string, avatarUrl?: string) {
+    try {
+      if (!userId || userId === DEFAULT_USER_ID) return;
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!user) {
+        db.insert(users).values({
+          id: userId,
+          email: email || `${userId}@markly.app`,
+          displayName: displayName || "Markly User",
+          avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+          createdAt: Date.now(),
+        }).run();
+      }
+    } catch (e) {
+      console.warn("ensureUser notice:", e);
+    }
+  }
+
+  /**
    * Ensure user has a clean, minimal starter library (1 folder, 3 essential bookmarks)
    */
   static ensureUserStarterData(userId: string) {
@@ -320,7 +341,7 @@ export class BookmarkRepository {
    * Delete folder
    * mode: "move_up" (move bookmarks to parent folder) | "delete_all" (delete bookmarks and subfolders)
    */
-  static deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId: string = DEFAULT_USER_ID) {
+  static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId: string = DEFAULT_USER_ID) {
     const targetFolder = db.select().from(folders).where(eq(folders.id, id)).get();
     if (!targetFolder) return;
 
@@ -328,8 +349,6 @@ export class BookmarkRepository {
     if (userId && userId !== DEFAULT_USER_ID && targetFolder.userId !== userId && targetFolder.userId !== DEFAULT_USER_ID) {
       return;
     }
-
-    SupabaseManager.syncFolder({ id }, "delete").catch(() => {});
 
     if (mode === "move_up") {
       // Re-parent subfolders to parent (or null if root)
@@ -344,8 +363,15 @@ export class BookmarkRepository {
         .where(eq(bookmarks.folderId, id))
         .run();
 
-      // Delete folder itself
+      // Delete folder itself from SQLite
       db.delete(folders).where(eq(folders.id, id)).run();
+
+      // Sync folder deletion to Supabase with parent re-parenting
+      await SupabaseManager.syncFolder(
+        { id: targetFolder.id },
+        "delete",
+        { mode: "move_up", newParentId: targetFolder.parentId }
+      );
     } else {
       // Delete all descendants and their bookmarks
       const allIds = this.getDescendantFolderIds(id, targetFolder.userId);
@@ -362,7 +388,7 @@ export class BookmarkRepository {
       const reversedIds = [...allIds].reverse();
       for (const fId of reversedIds) {
         db.delete(folders).where(eq(folders.id, fId)).run();
-        SupabaseManager.syncFolder({ id: fId }, "delete").catch(() => {});
+        await SupabaseManager.syncFolder({ id: fId }, "delete", { mode: "delete_all" });
       }
     }
   }

@@ -94,6 +94,24 @@ export function Sidebar({
   const [customizeFolder, setCustomizeFolder] = React.useState<FolderType | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<FolderType | null>(null);
 
+  // Custom avatar live listener
+  const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("markly_user_avatar");
+      if (stored) setCustomAvatar(stored);
+
+      const handler = (e: any) => {
+        if (e.detail?.avatarUrl) {
+          setCustomAvatar(e.detail.avatarUrl);
+        }
+      };
+      window.addEventListener("markly-avatar-updated", handler);
+      return () => window.removeEventListener("markly-avatar-updated", handler);
+    }
+  }, []);
+
   // Resizing logic
   const startResizing = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -685,6 +703,7 @@ export function Sidebar({
               >
                 <img
                   src={
+                    customAvatar ||
                     user.user_metadata?.avatar_url ||
                     user.user_metadata?.picture ||
                     `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email || user.id}`
@@ -724,9 +743,17 @@ export function Sidebar({
               title="View Account Profile"
               className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 font-medium cursor-pointer hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors shadow-2xs"
             >
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-blue-500" />
-                <span className="text-xs font-semibold">Account Profile</span>
+              <div className="flex items-center gap-2 truncate">
+                {customAvatar ? (
+                  <img
+                    src={customAvatar}
+                    alt="Guest"
+                    className="h-5 w-5 rounded-full object-cover border border-slate-200 dark:border-neutral-700"
+                  />
+                ) : (
+                  <User className="h-4 w-4 text-blue-500" />
+                )}
+                <span className="text-xs font-semibold truncate">Account Profile</span>
               </div>
               <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-mono font-semibold">
                 Guest

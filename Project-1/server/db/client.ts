@@ -104,7 +104,8 @@ export function initDbSchema() {
 
       CREATE INDEX IF NOT EXISTS bookmarks_user_folder_idx ON bookmarks(user_id, folder_id);
       CREATE INDEX IF NOT EXISTS bookmarks_domain_idx ON bookmarks(domain);
-      CREATE UNIQUE INDEX IF NOT EXISTS bookmarks_user_canonical_idx ON bookmarks(user_id, canonical_url);
+      DROP INDEX IF EXISTS bookmarks_user_canonical_idx;
+      CREATE INDEX IF NOT EXISTS bookmarks_user_canonical_idx ON bookmarks(user_id, canonical_url);
 
       CREATE TABLE IF NOT EXISTS tags (
         id TEXT PRIMARY KEY,

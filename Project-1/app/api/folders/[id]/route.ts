@@ -4,6 +4,10 @@ import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { db } from "@/server/db/client";
 import { folders } from "@/server/db/schema";
 import { eq, and } from "drizzle-orm";
+import { SupabaseManager } from "@/server/supabase/supabase-client";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // PATCH /api/folders/[id]
 export async function PATCH(
@@ -21,6 +25,10 @@ export async function PATCH(
       color: body.color,
       position: body.position,
     });
+
+    if (updated?.userId) {
+      SupabaseManager.invalidateUserSyncCache(updated.userId);
+    }
 
     return NextResponse.json({ success: true, folder: updated });
   } catch (error: any) {
@@ -43,6 +51,7 @@ export async function DELETE(
     const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     await BookmarkRepository.deleteFolder(id, mode, userId);
+    SupabaseManager.invalidateUserSyncCache(userId);
 
     return NextResponse.json({ success: true, deletedId: id, mode });
   } catch (error: any) {
@@ -88,6 +97,8 @@ export async function POST(
         userId: original.userId,
       });
     }
+
+    SupabaseManager.invalidateUserSyncCache(original.userId);
 
     return NextResponse.json({ success: true, folder: duplicated });
   } catch (error: any) {

@@ -315,6 +315,7 @@ export class BookmarkRepository {
 
     const created = db.select().from(folders).where(eq(folders.id, id)).get()!;
     SupabaseManager.syncFolder(created, "upsert").catch(() => {});
+    SupabaseManager.invalidateUserSyncCache(userId);
     return created;
   }
 
@@ -339,6 +340,7 @@ export class BookmarkRepository {
     const updated = db.select().from(folders).where(eq(folders.id, id)).get()!;
     if (updated) {
       SupabaseManager.syncFolder(updated, "upsert").catch(() => {});
+      SupabaseManager.invalidateUserSyncCache(updated.userId);
     }
     return updated;
   }
@@ -775,6 +777,7 @@ export class BookmarkRepository {
     const created = this.getBookmarkById(id);
     if (created) {
       SupabaseManager.syncBookmark(created, "upsert").catch(() => {});
+      SupabaseManager.invalidateUserSyncCache(userId);
     }
     return created!;
   }
@@ -880,6 +883,7 @@ export class BookmarkRepository {
     const updated = this.getBookmarkById(id);
     if (updated) {
       SupabaseManager.syncBookmark(updated, "upsert").catch(() => {});
+      SupabaseManager.invalidateUserSyncCache(updated.userId);
     }
   }
 
@@ -934,8 +938,16 @@ export class BookmarkRepository {
       // 3. Remove from active SQLite bookmarks FIRST (guarantees local deletion even if Supabase is slow)
       db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
 
-      // 4. Remove from Supabase (awaited!)
-      await SupabaseManager.syncBookmark({ id }, "delete");
+      // 4. Soft-delete in Supabase by setting status = 'trash' (shared across all lambdas!)
+      const client = SupabaseManager.getClient();
+      if (client) {
+        try {
+          await client.from("bookmarks").update({ status: "trash" }).eq("id", id);
+        } catch (sErr) {
+          console.warn("Supabase soft-delete bookmark notice:", sErr);
+        }
+      }
+      SupabaseManager.invalidateUserSyncCache(effectiveUserId);
     } catch (e) {
       console.error("deleteBookmark error:", e);
     }
@@ -978,7 +990,7 @@ export class BookmarkRepository {
   /**
    * Fetch all recycle bin items for a user, purging any expired items
    */
-  static getRecycleBinItems(userId: string = DEFAULT_USER_ID): any[] {
+  static async getRecycleBinItems(userId: string = DEFAULT_USER_ID): Promise<any[]> {
     try {
       // 1. Purge expired items automatically
       const retentionDays = this.getRecycleBinRetentionDays(userId);
@@ -987,9 +999,48 @@ export class BookmarkRepository {
       sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ? AND deleted_at < ?`).run(userId, cutoff);
 
       // 2. Query active recycle bin items
-      const rows = sqlite
+      let rows = sqlite
         .prepare(`SELECT * FROM recycle_bin WHERE user_id = ? ORDER BY deleted_at DESC`)
         .all(userId) as any[];
+
+      // 3. Multi-instance cloud reconciliation: hydrate any soft-deleted bookmarks from Supabase
+      if (rows.length === 0 && userId !== DEFAULT_USER_ID) {
+        try {
+          const client = SupabaseManager.getClient();
+          if (client) {
+            const { data: trashBms } = await client
+              .from("bookmarks")
+              .select("*")
+              .eq("user_id", userId)
+              .eq("status", "trash");
+
+            if (trashBms && trashBms.length > 0) {
+              for (const b of trashBms) {
+                sqlite.prepare(`
+                  INSERT OR IGNORE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+                  VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(
+                  `rb_bm_${b.id}`,
+                  userId,
+                  b.id,
+                  b.title,
+                  b.folder_id,
+                  b.icon_url,
+                  null,
+                  JSON.stringify(b),
+                  b.created_at || Date.now(),
+                  retentionDays
+                );
+              }
+              rows = sqlite
+                .prepare(`SELECT * FROM recycle_bin WHERE user_id = ? ORDER BY deleted_at DESC`)
+                .all(userId) as any[];
+            }
+          }
+        } catch (cloudErr) {
+          console.warn("Recycle bin cloud hydration notice:", cloudErr);
+        }
+      }
 
       const now = Date.now();
       return rows.map((r) => {
@@ -1157,8 +1208,9 @@ export class BookmarkRepository {
 
       const restored = this.getBookmarkById(data.id);
       if (restored) {
-        await SupabaseManager.syncBookmark(restored, "upsert");
+        await SupabaseManager.syncBookmark({ ...restored, status: "alive" }, "upsert");
       }
+      SupabaseManager.invalidateUserSyncCache(item.user_id);
       return { success: true, item: restored, type: "bookmark" };
     }
   }
@@ -1191,6 +1243,7 @@ export class BookmarkRepository {
     }
 
     sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
+    SupabaseManager.invalidateUserSyncCache(item.user_id);
   }
 
   /**
@@ -1224,6 +1277,7 @@ export class BookmarkRepository {
     }
 
     sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ?`).run(userId);
+    SupabaseManager.invalidateUserSyncCache(userId);
   }
 
   /**
@@ -1277,6 +1331,7 @@ export class BookmarkRepository {
         SupabaseManager.syncBookmark(b, "upsert").catch(() => {});
       }
     }
+    SupabaseManager.invalidateUserSyncCache(userId);
   }
 
   static async bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {
@@ -1284,6 +1339,7 @@ export class BookmarkRepository {
     for (const id of ids) {
       await this.deleteBookmark(id, userId);
     }
+    SupabaseManager.invalidateUserSyncCache(userId);
   }
 
   /**

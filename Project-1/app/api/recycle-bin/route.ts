@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // GET /api/recycle-bin - List deleted items & current retention
 export async function GET(req: Request) {
   try {
@@ -9,7 +12,7 @@ export async function GET(req: Request) {
     const cookieStore = await cookies();
     const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
-    const items = BookmarkRepository.getRecycleBinItems(userId);
+    const items = await BookmarkRepository.getRecycleBinItems(userId);
     const retentionDays = BookmarkRepository.getRecycleBinRetentionDays(userId);
 
     return NextResponse.json({

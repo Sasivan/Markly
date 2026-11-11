@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
-import { sqlite } from "@/server/db/client";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(req: Request) {
   try {
@@ -11,19 +13,14 @@ export async function GET(req: Request) {
     const queryUserId = searchParams.get("userId");
     const userId = queryUserId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
-    // Check if user is known in local SQLite cache; only sync from Supabase if brand new
+    // Coherently sync from Supabase if cache is stale or lambda instance is fresh
     if (userId && userId !== DEFAULT_USER_ID) {
       try {
-        const userRow = sqlite
-          .prepare(`SELECT id FROM users WHERE id = ?`)
-          .get(userId);
-        if (!userRow) {
-          const syncRes = await SupabaseManager.syncRemoteUserToLocal(userId);
-          if (syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
-            BookmarkRepository.ensureUserStarterData(userId);
-          } else {
-            BookmarkRepository.ensureUser(userId);
-          }
+        const syncRes = await SupabaseManager.ensureUserSynced(userId);
+        if (syncRes.synced && syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
+          BookmarkRepository.ensureUserStarterData(userId);
+        } else {
+          BookmarkRepository.ensureUser(userId);
         }
       } catch (err) {
         console.warn("Folder cache check warning:", err);
@@ -57,6 +54,8 @@ export async function POST(req: Request) {
       color: body.color || "gray",
       userId,
     });
+
+    SupabaseManager.invalidateUserSyncCache(userId);
 
     return NextResponse.json({ success: true, folder });
   } catch (error) {

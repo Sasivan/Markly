@@ -648,21 +648,21 @@ export function MarklyWorkspace({
       // 1. Immediately drop from state in 0ms (instantly removes from Quick Access, Recently Visited, and Table)
       setBookmarks((prev) => prev.filter((b) => b.id !== id));
 
-      // 2. Notify Recycle Bin & all views to refresh in real time
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
-        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-      }
-
-      // 3. Await delete on server
+      // 2. Await delete on server first
       try {
         const effectiveId = getEffectiveUserId();
         const url = effectiveId
           ? `/api/bookmarks/${id}?userId=${encodeURIComponent(effectiveId)}`
           : `/api/bookmarks/${id}`;
         await fetch(url, { method: "DELETE" });
+
+        // 3. Notify Recycle Bin only AFTER server has committed the deletion
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+        }
       } catch (err) {
         console.error("Delete bookmark error:", err);
+        // Roll back on network failure
         refreshData();
       }
     },
@@ -746,13 +746,7 @@ export function MarklyWorkspace({
       // 1. Immediately drop from state in 0ms
       setBookmarks((prev) => prev.filter((b) => !idSet.has(b.id)));
 
-      // 2. Notify Recycle Bin & all views to refresh in real time
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
-        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-      }
-
-      // 3. Await bulk delete on server
+      // 2. Await bulk delete on server first
       try {
         const effectiveId = getEffectiveUserId();
         await fetch("/api/bookmarks/bulk", {
@@ -760,6 +754,11 @@ export function MarklyWorkspace({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "delete", ids, userId: effectiveId }),
         });
+
+        // 3. Notify Recycle Bin only AFTER server has committed the deletion
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+        }
       } catch (err) {
         console.error("Bulk delete error:", err);
         refreshData();

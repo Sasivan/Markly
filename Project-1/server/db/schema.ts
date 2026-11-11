@@ -53,7 +53,7 @@ export const bookmarks = sqliteTable(
   (table) => [
     index("bookmarks_user_folder_idx").on(table.userId, table.folderId),
     index("bookmarks_domain_idx").on(table.domain),
-    uniqueIndex("bookmarks_user_canonical_idx").on(table.userId, table.canonicalUrl),
+    index("bookmarks_user_canonical_idx").on(table.userId, table.canonicalUrl),
   ]
 );
 

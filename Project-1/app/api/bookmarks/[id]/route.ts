@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { SupabaseManager } from "@/server/supabase/supabase-client";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 // PATCH /api/bookmarks/[id]
 export async function PATCH(
@@ -10,6 +14,8 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
+    const cookieStore = await cookies();
+    const userId = body.userId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     BookmarkRepository.updateBookmark(id, {
       title: body.title?.trim(),
@@ -25,6 +31,8 @@ export async function PATCH(
       lastVisitedAt: body.lastVisitedAt,
       tagNames: body.tagNames,
     });
+
+    SupabaseManager.invalidateUserSyncCache(userId);
 
     const updated = BookmarkRepository.getBookmarkById(id);
     return NextResponse.json({ success: true, bookmark: updated });
@@ -49,6 +57,8 @@ export async function DELETE(
     const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     await BookmarkRepository.deleteBookmark(id, userId);
+    SupabaseManager.invalidateUserSyncCache(userId);
+
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error: any) {
     console.error("DELETE /api/bookmarks/[id] error:", error);

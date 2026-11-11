@@ -379,8 +379,11 @@ export function BookmarkTable({
           return (
             <button
               type="button"
-              onClick={() => handleToggleFavorite(bm)}
-              className="hover:scale-110 transition-transform cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleFavorite(bm);
+              }}
+              className="hover:scale-110 transition-transform cursor-pointer p-0.5 rounded"
               title={bm.isFavorite ? "Unfavorite" : "Favorite"}
             >
               {bm.isFavorite ? (
@@ -863,7 +866,10 @@ export function BookmarkTable({
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleToggleFavorite(bm)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleFavorite(bm);
+                          }}
                           className="cursor-pointer text-muted-foreground/30 hover:text-amber-500 flex-shrink-0"
                         >
                           <Star className={`h-3.5 w-3.5 ${bm.isFavorite ? "text-amber-500 fill-amber-500" : ""}`} />
@@ -948,7 +954,10 @@ export function BookmarkTable({
 
                   <button
                     type="button"
-                    onClick={() => handleToggleFavorite(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleFavorite(bm);
+                    }}
                     className="cursor-pointer"
                   >
                     {bm.isFavorite ? (

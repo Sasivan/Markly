@@ -68,7 +68,26 @@ export async function POST(
       parentId: original.parentId,
       icon: original.icon,
       color: original.color,
+      userId: original.userId,
     });
+
+    // Also duplicate bookmarks belonging to original folder into the new copy
+    const originalBookmarks = BookmarkRepository.getBookmarks({ folderId: original.id, userId: original.userId });
+    for (const b of originalBookmarks) {
+      BookmarkRepository.createBookmark({
+        url: b.url,
+        canonicalUrl: `${b.canonicalUrl}#copy_${Date.now().toString(36)}`,
+        title: b.title,
+        description: b.description || "",
+        iconUrl: b.iconUrl || undefined,
+        imageUrl: b.imageUrl || undefined,
+        domain: b.domain,
+        folderId: duplicated.id,
+        isFavorite: b.isFavorite,
+        tagNames: b.tags?.map((t) => t.name) || [],
+        userId: original.userId,
+      });
+    }
 
     return NextResponse.json({ success: true, folder: duplicated });
   } catch (error: any) {

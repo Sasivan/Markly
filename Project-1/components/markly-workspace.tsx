@@ -285,31 +285,59 @@ export function MarklyWorkspace({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Refresh data function
+  // Derived in-memory filtered bookmarks for 0ms view navigation without network flicker!
+  const filteredBookmarks = React.useMemo(() => {
+    let list = bookmarks.filter((b) => !b.isArchived);
+
+    if (activeFolderId) {
+      if (includeSubfolders) {
+        // Collect all descendant folder IDs
+        const getDescendants = (parentId: string): string[] => {
+          const children = folders.filter((f) => f.parentId === parentId).map((f) => f.id);
+          return [parentId, ...children.flatMap(getDescendants)];
+        };
+        const folderIds = new Set(getDescendants(activeFolderId));
+        list = list.filter((b) => b.folderId && folderIds.has(b.folderId));
+      } else {
+        list = list.filter((b) => b.folderId === activeFolderId);
+      }
+    } else if (activeView === "favorites") {
+      list = list.filter((b) => b.isFavorite);
+    } else if (activeView === "unsorted") {
+      list = list.filter((b) => !b.folderId);
+    } else if (activeView === "recent") {
+      list = [...list].sort((a, b) => {
+        const timeA = Math.max(a.lastClickedAt || 0, a.lastVisitedAt || 0, a.createdAt || 0);
+        const timeB = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0, b.createdAt || 0);
+        return timeB - timeA;
+      });
+    } else if (activeView === "archive") {
+      list = bookmarks.filter((b) => b.isArchived);
+    }
+
+    if (activeDomainFilter) {
+      list = list.filter((b) => b.domain?.toLowerCase() === activeDomainFilter.toLowerCase());
+    }
+
+    if (activeTagFilter) {
+      list = list.filter((b) => b.tags?.some((t) => t.name.toLowerCase() === activeTagFilter.toLowerCase()));
+    }
+
+    return list;
+  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter]);
+
+  // Refresh data function: always keeps full canonical bookmarks array
   const refreshData = React.useCallback(async () => {
     try {
-      const queryView = ["favorites", "recent", "unsorted", "archive", "trash"].includes(activeView) ? activeView : "all";
-      let url = `/api/bookmarks?view=${queryView}&includeSubfolders=${includeSubfolders}`;
+      let url = "/api/bookmarks?view=all";
       if (user?.id) {
         url += `&userId=${encodeURIComponent(user.id)}`;
       }
-      if (activeFolderId) {
-        url += `&folderId=${activeFolderId}`;
-      }
-      if (activeDomainFilter) {
-        url += `&domain=${encodeURIComponent(activeDomainFilter)}`;
-      }
-      if (activeTagFilter) {
-        url += `&tag=${encodeURIComponent(activeTagFilter)}`;
-      }
 
       const foldersUrl = user?.id ? `/api/folders?userId=${encodeURIComponent(user.id)}` : "/api/folders";
-      let statsUrl = `/api/stats?includeSubfolders=${includeSubfolders}`;
+      let statsUrl = "/api/stats";
       if (user?.id) {
-        statsUrl += `&userId=${encodeURIComponent(user.id)}`;
-      }
-      if (activeFolderId) {
-        statsUrl += `&folderId=${activeFolderId}`;
+        statsUrl += `?userId=${encodeURIComponent(user.id)}`;
       }
 
       const [foldersRes, bookmarksRes, statsRes] = await Promise.all([
@@ -331,11 +359,11 @@ export function MarklyWorkspace({
     } catch (e) {
       console.error("Failed to refresh data:", e);
     }
-  }, [user?.id, activeFolderId, activeView, includeSubfolders, activeDomainFilter, activeTagFilter]);
+  }, [user?.id]);
 
   React.useEffect(() => {
     refreshData();
-  }, [user?.id, activeFolderId, activeView, includeSubfolders, activeDomainFilter, activeTagFilter, refreshData]);
+  }, [user?.id, refreshData]);
 
   const handleBookmarkAdded = (newBookmark: BookmarkWithDetails) => {
     setBookmarks((prev) => [newBookmark, ...prev]);
@@ -415,6 +443,10 @@ export function MarklyWorkspace({
         folders={folders}
         initialUrl={prefillUrl}
         onBookmarkAdded={handleBookmarkAdded}
+        onFolderCreated={(newFolder) => {
+          setFolders((prev) => [...prev, newFolder]);
+          refreshData();
+        }}
       />
 
       {/* Import / Export & Health Check Modal */}
@@ -517,7 +549,7 @@ export function MarklyWorkspace({
             setActiveDomainFilter(null);
             setActiveTagFilter(null);
           }}
-          totalBookmarksCount={bookmarks.length}
+          totalBookmarksCount={filteredBookmarks.length}
         />
 
         {/* Dashboard, Home, Graph & Table Zone */}
@@ -836,7 +868,7 @@ export function MarklyWorkspace({
 
               {/* TanStack Table Section (Bottom Zone) */}
               <BookmarkTable
-                data={bookmarks}
+                data={filteredBookmarks}
                 folders={folders}
                 onRefreshData={refreshData}
                 onOpenAddModal={() => openAddModal()}

@@ -323,17 +323,19 @@ export class BookmarkRepository {
     icon: string;
     color: string;
     position: number;
-  }>, userId: string = DEFAULT_USER_ID): Folder {
+  }>): Folder {
     db.update(folders)
       .set({
         ...updates,
         updatedAt: Date.now(),
       })
-      .where(and(eq(folders.id, id), eq(folders.userId, userId)))
+      .where(eq(folders.id, id))
       .run();
 
     const updated = db.select().from(folders).where(eq(folders.id, id)).get()!;
-    SupabaseManager.syncFolder(updated, "upsert").catch(() => {});
+    if (updated) {
+      SupabaseManager.syncFolder(updated, "upsert").catch(() => {});
+    }
     return updated;
   }
 
@@ -341,14 +343,9 @@ export class BookmarkRepository {
    * Delete folder
    * mode: "move_up" (move bookmarks to parent folder) | "delete_all" (delete bookmarks and subfolders)
    */
-  static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId: string = DEFAULT_USER_ID) {
+  static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId?: string) {
     const targetFolder = db.select().from(folders).where(eq(folders.id, id)).get();
     if (!targetFolder) return;
-
-    // Verify ownership: allow if matches userId, or if folder belongs to default demo library
-    if (userId && userId !== DEFAULT_USER_ID && targetFolder.userId !== userId && targetFolder.userId !== DEFAULT_USER_ID) {
-      return;
-    }
 
     if (mode === "move_up") {
       // Re-parent subfolders to parent (or null if root)
@@ -655,7 +652,7 @@ export class BookmarkRepository {
       this.attachTagsToBookmark(id, data.tagNames, userId);
     }
 
-    const created = this.getBookmarks({ userId }).find((b) => b.id === id);
+    const created = this.getBookmarkById(id);
     if (created) {
       SupabaseManager.syncBookmark(created, "upsert").catch(() => {});
     }
@@ -746,7 +743,7 @@ export class BookmarkRepository {
       }
     }
 
-    const updated = this.getBookmarks({ userId }).find((b) => b.id === id);
+    const updated = this.getBookmarkById(id);
     if (updated) {
       SupabaseManager.syncBookmark(updated, "upsert").catch(() => {});
     }
@@ -755,9 +752,9 @@ export class BookmarkRepository {
   /**
    * Delete single bookmark
    */
-  static deleteBookmark(id: string, userId: string = DEFAULT_USER_ID) {
+  static deleteBookmark(id: string, userId?: string) {
     SupabaseManager.syncBookmark({ id }, "delete").catch(() => {});
-    db.delete(bookmarks).where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId))).run();
+    db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
   }
 
   /**
@@ -974,10 +971,59 @@ export class BookmarkRepository {
   }
 
   /**
-   * Get a single bookmark with tags by its ID
+   * Get a single bookmark with tags by its ID (across any user)
    */
   static getBookmarkById(bookmarkId: string): BookmarkWithDetails | undefined {
-    return this.getBookmarks({}).find((b) => b.id === bookmarkId);
+    const r = sqlite.prepare(`
+      SELECT 
+        b.id, b.user_id, b.folder_id, b.url, b.canonical_url, b.title, b.description,
+        b.icon_url, b.image_url, b.domain, b.is_favorite, b.is_archived, b.status,
+        b.visit_count, b.last_visited_at, b.last_clicked_at, b.created_at, b.search_text,
+        f.name as folder_name
+      FROM bookmarks b
+      LEFT JOIN folders f ON b.folder_id = f.id
+      WHERE b.id = ?
+    `).get(bookmarkId) as any;
+
+    if (!r) return undefined;
+
+    const tagRows = sqlite.prepare(`
+      SELECT t.id, t.user_id, t.name, t.color, t.created_at
+      FROM bookmark_tags bt
+      JOIN tags t ON bt.tag_id = t.id
+      WHERE bt.bookmark_id = ?
+    `).all(bookmarkId) as any[];
+
+    const tags: Tag[] = tagRows.map((tr) => ({
+      id: tr.id,
+      userId: tr.user_id,
+      name: tr.name,
+      color: tr.color,
+      createdAt: tr.created_at,
+    }));
+
+    return {
+      id: r.id,
+      userId: r.user_id,
+      folderId: r.folder_id,
+      url: r.url,
+      canonicalUrl: r.canonical_url,
+      title: r.title,
+      description: r.description,
+      iconUrl: r.icon_url,
+      imageUrl: r.image_url,
+      domain: r.domain,
+      isFavorite: Boolean(r.is_favorite),
+      isArchived: Boolean(r.is_archived),
+      status: r.status as "alive" | "dead" | "pending",
+      visitCount: r.visit_count || 0,
+      lastVisitedAt: r.last_visited_at,
+      lastClickedAt: r.last_clicked_at ?? r.last_visited_at ?? null,
+      createdAt: r.created_at,
+      searchText: r.search_text,
+      folderName: r.folder_name || (r.folder_id ? "Unknown Folder" : "Unsorted"),
+      tags,
+    };
   }
 
   /**
@@ -986,7 +1032,7 @@ export class BookmarkRepository {
   static recordVisit(bookmarkId: string): boolean {
     const now = Date.now();
     const info = sqlite
-      .prepare(`UPDATE bookmarks SET visit_count = visit_count + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ?`)
+      .prepare(`UPDATE bookmarks SET visit_count = COALESCE(visit_count, 0) + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ?`)
       .run(now, now, bookmarkId);
 
     if (info.changes > 0) {
@@ -995,7 +1041,9 @@ export class BookmarkRepository {
         if (bm) {
           SupabaseManager.syncBookmark(bm, "upsert").catch((e) => console.warn("Supabase recordVisit sync notice:", e));
         }
-      } catch {}
+      } catch (err) {
+        console.warn("recordVisit sync notice:", err);
+      }
     }
 
     return info.changes > 0;

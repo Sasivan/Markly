@@ -167,10 +167,11 @@ export function Sidebar({
           parentId: parentId || null,
           icon: icon || "📁",
           color: color || "#3b82f6",
+          userId: user?.id,
         }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.folder) {
         onRefreshData();
         onSelectFolder(data.folder.id);
       }
@@ -184,7 +185,7 @@ export function Sidebar({
       await fetch(`/api/folders/${folderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify({ name: newName, userId: user?.id }),
       });
       onRefreshData();
     } catch (err) {
@@ -197,7 +198,7 @@ export function Sidebar({
       await fetch(`/api/folders/${folderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ ...updates, userId: user?.id }),
       });
       onRefreshData();
     } catch (err) {
@@ -207,8 +208,11 @@ export function Sidebar({
 
   const handleDuplicateFolder = async (folderId: string) => {
     try {
-      await fetch(`/api/folders/${folderId}`, {
+      const q = user?.id ? `?userId=${encodeURIComponent(user.id)}` : "";
+      await fetch(`/api/folders/${folderId}${q}`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id }),
       });
       onRefreshData();
     } catch (err) {
@@ -242,6 +246,7 @@ export function Sidebar({
           folderId: draggedFolderId,
           targetFolderId,
           dropPosition: position,
+          userId: user?.id,
         }),
       });
       onRefreshData();

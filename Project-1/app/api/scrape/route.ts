@@ -15,6 +15,8 @@ const ScrapeSchema = z.object({
   tagNames: z.array(z.string()).optional(),
   saveImmediately: z.boolean().optional().default(true),
   forceDuplicate: z.boolean().optional().default(false),
+  customTitle: z.string().optional(),
+  customDescription: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { url: inputUrl, folderId, isFavorite, tagNames, saveImmediately, forceDuplicate } = parsed.data;
+    const { url: inputUrl, folderId, isFavorite, tagNames, saveImmediately, forceDuplicate, customTitle, customDescription } = parsed.data;
 
     // 3. URL Normalization
     let normResult;
@@ -149,8 +151,8 @@ export async function POST(req: Request) {
       bookmark = BookmarkRepository.createBookmark({
         url: fetchResult.finalUrl,
         canonicalUrl: metadata.canonicalUrl || canonicalUrl,
-        title: metadata.title || domain,
-        description: metadata.description || undefined,
+        title: customTitle?.trim() || metadata.title || domain,
+        description: customDescription?.trim() || metadata.description || undefined,
         iconUrl: metadata.iconUrl,
         imageUrl: metadata.imageUrl || undefined,
         domain,

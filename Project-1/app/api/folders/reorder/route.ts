@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { BookmarkRepository } from "@/server/db/repository";
+import { cookies } from "next/headers";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { sqlite } from "@/server/db/client";
 
 export async function POST(req: Request) {
@@ -41,8 +42,11 @@ export async function POST(req: Request) {
       }
     }
 
-    const updatedTree = BookmarkRepository.getFolderTree();
-    const allFolders = BookmarkRepository.getAllFolders();
+    const cookieStore = await cookies();
+    const userId = body.userId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+
+    const updatedTree = BookmarkRepository.getFolderTree(userId);
+    const allFolders = BookmarkRepository.getAllFolders(userId);
 
     return NextResponse.json({ success: true, tree: updatedTree, folders: allFolders });
   } catch (error: any) {

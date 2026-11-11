@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { sqlite } from "@/server/db/client";
 import { MarklyWorkspace } from "@/components/markly-workspace";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +13,19 @@ export default async function HomePage() {
     const userId = cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     if (userId && userId !== DEFAULT_USER_ID) {
-      BookmarkRepository.ensureUserStarterData(userId);
+      try {
+        const localCount = sqlite
+          .prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ?`)
+          .get(userId) as { count: number };
+        if (localCount.count === 0) {
+          const syncRes = await SupabaseManager.syncRemoteUserToLocal(userId);
+          if (syncRes.bookmarksCount === 0) {
+            BookmarkRepository.ensureUserStarterData(userId);
+          }
+        }
+      } catch (e) {
+        console.warn("SSR sync user notice:", e);
+      }
     }
 
     const folderTree = BookmarkRepository.getFolderTree(userId) || [];

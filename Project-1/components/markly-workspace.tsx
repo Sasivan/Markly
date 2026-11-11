@@ -165,6 +165,9 @@ export function MarklyWorkspace({
   const refreshData = React.useCallback(async () => {
     try {
       let url = `/api/bookmarks?view=${activeView === "home" || activeView === "collections" || activeView === "database" ? "all" : activeView}&includeSubfolders=${includeSubfolders}`;
+      if (user?.id) {
+        url += `&userId=${encodeURIComponent(user.id)}`;
+      }
       if (activeFolderId) {
         url += `&folderId=${activeFolderId}`;
       }
@@ -175,10 +178,19 @@ export function MarklyWorkspace({
         url += `&tag=${encodeURIComponent(activeTagFilter)}`;
       }
 
+      const foldersUrl = user?.id ? `/api/folders?userId=${encodeURIComponent(user.id)}` : "/api/folders";
+      let statsUrl = `/api/stats?includeSubfolders=${includeSubfolders}`;
+      if (user?.id) {
+        statsUrl += `&userId=${encodeURIComponent(user.id)}`;
+      }
+      if (activeFolderId) {
+        statsUrl += `&folderId=${activeFolderId}`;
+      }
+
       const [foldersRes, bookmarksRes, statsRes] = await Promise.all([
-        fetch("/api/folders").then((r) => r.json()),
+        fetch(foldersUrl).then((r) => r.json()),
         fetch(url).then((r) => r.json()),
-        fetch(`/api/stats${activeFolderId ? `?folderId=${activeFolderId}&includeSubfolders=${includeSubfolders}` : ""}`).then((r) => r.json()),
+        fetch(statsUrl).then((r) => r.json()),
       ]);
 
       if (foldersRes.success) {
@@ -194,7 +206,7 @@ export function MarklyWorkspace({
     } catch (e) {
       console.error("Failed to refresh data:", e);
     }
-  }, [activeFolderId, activeView, includeSubfolders, activeDomainFilter, activeTagFilter]);
+  }, [user?.id, activeFolderId, activeView, includeSubfolders, activeDomainFilter, activeTagFilter]);
 
   React.useEffect(() => {
     refreshData();

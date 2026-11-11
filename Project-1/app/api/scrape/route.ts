@@ -62,10 +62,11 @@ export async function POST(req: Request) {
 
     const { url, canonicalUrl, domain } = normResult;
 
-    // Extract current user and AI configuration from cookies
+    // Extract current user and AI configuration from payload or cookies
     const cookieStore = await cookies();
-    const userId = cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+    const userId = rawBody.userId || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
     let aiConfig =
+      rawBody.aiConfig ||
       cookieStore.get("markly_ai_config")?.value ||
       cookieStore.get("markly_gemini_api_key")?.value ||
       process.env.GEMINI_API_KEY;
@@ -88,19 +89,18 @@ export async function POST(req: Request) {
     }
 
     // 5. Safe Fetch HTML (with SSRF defense, 8s timeout, 2MB size cap, redirect inspector)
+    // If remote site fails or blocks bots, fallback gracefully so bookmark can always be saved
     let fetchResult;
     try {
       fetchResult = await safeFetchHtml(url);
     } catch (fetchErr: any) {
-      // If network fetch fails (e.g. invalid domain or private IP blocked), return error
-      return NextResponse.json(
-        {
-          success: false,
-          error: fetchErr.message || "Failed to fetch webpage",
-          isBlockedOrInvalid: true,
-        },
-        { status: 422 }
-      );
+      console.warn("safeFetchHtml notice, falling back to minimal metadata:", fetchErr.message);
+      fetchResult = {
+        html: `<html><head><title>${domain}</title></head><body></body></html>`,
+        finalUrl: url,
+        statusCode: 200,
+        contentType: "text/html",
+      };
     }
 
     // 6. Parse Metadata & Convert Icon to 64x64 WebP

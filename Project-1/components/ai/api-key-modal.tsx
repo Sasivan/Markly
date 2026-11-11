@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@/components/auth/auth-context";
 import {
   Dialog,
   DialogContent,
@@ -23,11 +24,11 @@ import {
   Globe,
   Bot,
   Zap,
-  HelpCircle,
-  ChevronDown,
 } from "lucide-react";
 
 export type ProviderType = "gemini" | "openrouter" | "grok" | "universal";
+
+const DEFAULT_GOOGLE_KEY = process.env.NEXT_PUBLIC_DEFAULT_GEMINI_KEY || "";
 
 interface ProviderPreset {
   id: ProviderType;
@@ -39,7 +40,6 @@ interface ProviderPreset {
   keyUrl: string;
   keyLabel: string;
   placeholder: string;
-  steps: string[];
 }
 
 const PROVIDERS: ProviderPreset[] = [
@@ -48,34 +48,32 @@ const PROVIDERS: ProviderPreset[] = [
     name: "Google Gemini",
     badge: "Free Tier Available",
     defaultBaseUrl: "https://generativelanguage.googleapis.com",
-    defaultModel: "gemini-1.5-flash",
+    defaultModel: "gemini-flash-latest",
     models: [
       {
-        id: "gemini-1.5-flash",
-        label: "gemini-1.5-flash (Recommended)",
-        desc: "Fast, accurate, 100% free tier available on Google AI Studio",
+        id: "gemini-flash-latest",
+        label: "gemini-flash-latest (Recommended)",
+        desc: "Fast, accurate, Google's latest active Flash model (Free Tier)",
       },
       {
-        id: "gemini-2.0-flash",
-        label: "gemini-2.0-flash (Next-Gen)",
-        desc: "Google's newest multimodal intelligence model",
+        id: "gemini-3.8-flash",
+        label: "gemini-3.8-flash (Latest General)",
+        desc: "Google's updated modern Flash model",
       },
       {
-        id: "gemini-1.5-pro",
-        label: "gemini-1.5-pro (High Reasoning)",
+        id: "gemini-3.8-flash-lite",
+        label: "gemini-3.8-flash-lite (Ultra Fast)",
+        desc: "Lightweight, ultra low-latency Flash model",
+      },
+      {
+        id: "gemini-2.5-pro",
+        label: "gemini-2.5-pro (High Reasoning)",
         desc: "Deep reasoning and extensive context window",
       },
     ],
     keyUrl: "https://aistudio.google.com/app/apikey",
     keyLabel: "Google AI Studio",
-    placeholder: "AIzaSy...",
-    steps: [
-      "Open Google AI Studio using the link above (sign in with your Google account).",
-      "Click 'Get API key' -> click '+ Create API key'.",
-      "Copy your key (starts with AIzaSy...) and paste it in the box below.",
-      "Keep model as 'gemini-1.5-flash' (Recommended & Free).",
-      "Click 'Test Connection' and then 'Save Settings'!",
-    ],
+    placeholder: "AIzaSy... or AQ.Ab8...",
   },
   {
     id: "openrouter",
@@ -108,13 +106,6 @@ const PROVIDERS: ProviderPreset[] = [
     keyUrl: "https://openrouter.ai/keys",
     keyLabel: "OpenRouter Keys",
     placeholder: "sk-or-v1-...",
-    steps: [
-      "Open openrouter.ai/keys and sign in or sign up.",
-      "Click 'Create Key', give it a name like 'Markly', and copy the key.",
-      "Paste your key (starts with sk-or-v1-...) below.",
-      "Select a free model from the dropdown (e.g. Llama 3.3 70B Free).",
-      "Click 'Test Connection' to verify, then save!",
-    ],
   },
   {
     id: "grok",
@@ -137,12 +128,6 @@ const PROVIDERS: ProviderPreset[] = [
     keyUrl: "https://console.x.ai",
     keyLabel: "console.x.ai",
     placeholder: "xai-...",
-    steps: [
-      "Open console.x.ai and sign in.",
-      "Go to API Keys -> Click '+ Create API Key'.",
-      "Copy your key (starts with xai-...) and paste it below.",
-      "Click 'Test Connection' and click 'Save Settings'!",
-    ],
   },
   {
     id: "universal",
@@ -170,12 +155,6 @@ const PROVIDERS: ProviderPreset[] = [
     keyUrl: "https://platform.openai.com/api-keys",
     keyLabel: "OpenAI / Custom",
     placeholder: "sk-...",
-    steps: [
-      "Enter your API Base URL (e.g. https://api.openai.com/v1, or http://localhost:11434/v1 for local Ollama).",
-      "Enter your API Key.",
-      "Choose or type your model name.",
-      "Click 'Test Connection' to confirm connectivity!",
-    ],
   },
 ];
 
@@ -185,12 +164,12 @@ interface ApiKeyModalProps {
 }
 
 export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
+  const { user } = useAuth();
   const [provider, setProvider] = React.useState<ProviderType>("gemini");
   const [apiKey, setApiKey] = React.useState("");
   const [baseUrl, setBaseUrl] = React.useState("https://generativelanguage.googleapis.com");
-  const [model, setModel] = React.useState("gemini-1.5-flash");
+  const [model, setModel] = React.useState("gemini-flash-latest");
   const [customModelInput, setCustomModelInput] = React.useState("");
-  const [showSteps, setShowSteps] = React.useState(true);
 
   const [showKey, setShowKey] = React.useState(false);
   const [isSaved, setIsSaved] = React.useState(false);
@@ -200,7 +179,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     message: string;
   } | null>(null);
 
-  // Load configuration from localStorage on open
+  // Load configuration from localStorage or prefill default key
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const storedConfig = localStorage.getItem("markly_ai_config");
@@ -214,7 +193,10 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
           setApiKey(parsed.apiKey || "");
           setBaseUrl(parsed.baseUrl || PROVIDERS.find((item) => item.id === p)?.defaultBaseUrl || "");
 
-          const storedModel = parsed.model || PROVIDERS.find((item) => item.id === p)?.defaultModel || "gemini-1.5-flash";
+          let storedModel = parsed.model || PROVIDERS.find((item) => item.id === p)?.defaultModel || "gemini-flash-latest";
+          if (storedModel === "gemini-1.5-flash" || storedModel === "gemini-1.5-pro") {
+            storedModel = "gemini-flash-latest";
+          }
           const preset = PROVIDERS.find((item) => item.id === p)!;
           const knownModel = preset.models.some((m) => m.id === storedModel);
           if (knownModel) {
@@ -232,14 +214,19 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         setProvider("gemini");
         setApiKey(legacyGeminiKey);
         setBaseUrl("https://generativelanguage.googleapis.com");
-        setModel("gemini-1.5-flash");
+        setModel("gemini-flash-latest");
         setIsSaved(true);
       } else {
-        setIsSaved(false);
+        // Pre-fill default working Gemini Flash key for the user
+        setProvider("gemini");
+        setApiKey(DEFAULT_GOOGLE_KEY);
+        setBaseUrl("https://generativelanguage.googleapis.com");
+        setModel("gemini-flash-latest");
+        setIsSaved(true);
       }
       setTestStatus(null);
     }
-  }, [open]);
+  }, [open, user?.email]);
 
   // Handle provider tab switch
   const handleSelectProvider = (newProvider: ProviderType) => {
@@ -317,7 +304,10 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     try {
       if (provider === "gemini") {
         // Sanitize model name (strip any models/ prefix)
-        const cleanModel = (effectiveModel || "gemini-1.5-flash").replace(/^models\//, "");
+        let cleanModel = (effectiveModel || "gemini-flash-latest").replace(/^models\//, "");
+        if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
+          cleanModel = "gemini-flash-latest";
+        }
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${trimmedKey}`,
           {
@@ -445,35 +435,6 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 );
               })}
             </div>
-          </div>
-
-          {/* Collapsible Step-by-Step Instructions */}
-          <div className="rounded-xl border border-indigo-100 dark:border-indigo-950/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 space-y-2 text-xs">
-            <button
-              type="button"
-              onClick={() => setShowSteps(!showSteps)}
-              className="flex items-center justify-between w-full font-semibold text-indigo-700 dark:text-indigo-300 cursor-pointer"
-            >
-              <div className="flex items-center gap-1.5">
-                <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
-                <span>How to get & fill details for {activePreset.name}:</span>
-              </div>
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${
-                  showSteps ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {showSteps && (
-              <ol className="list-decimal list-inside space-y-1 text-[11px] text-muted-foreground pt-1 border-t border-indigo-100 dark:border-indigo-900/40 leading-relaxed">
-                {activePreset.steps.map((st, i) => (
-                  <li key={i} className="pl-1">
-                    {st}
-                  </li>
-                ))}
-              </ol>
-            )}
           </div>
 
           {/* API Key Input */}

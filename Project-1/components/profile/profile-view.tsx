@@ -7,7 +7,6 @@ import {
   Shield,
   Key,
   CheckCircle2,
-  Copy,
   Check,
   ExternalLink,
   LogOut,
@@ -21,8 +20,14 @@ import {
   Globe,
   Database,
   Calendar,
+  MapPin,
+  Lock,
+  Eye,
+  EyeOff,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -42,12 +47,24 @@ export function ProfileView({
   const { user, signOut, openAuthModal } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
 
+  // Basic Details State
   const [displayName, setDisplayName] = React.useState("");
+  const [dob, setDob] = React.useState("");
+  const [bio, setBio] = React.useState("");
+  const [location, setLocation] = React.useState("");
   const [avatarUrl, setAvatarUrl] = React.useState("");
-  const [isEditingName, setIsEditingName] = React.useState(false);
-  const [isSavingName, setIsSavingName] = React.useState(false);
+
+  const [isEditingDetails, setIsEditingDetails] = React.useState(false);
+  const [isSavingDetails, setIsSavingDetails] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
-  const [copiedId, setCopiedId] = React.useState(false);
+
+  // Password Setup / Change State
+  const [showPasswordForm, setShowPasswordForm] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [showPasswordText, setShowPasswordText] = React.useState(false);
+  const [isSettingPassword, setIsSettingPassword] = React.useState(false);
+
   const [statusMessage, setStatusMessage] = React.useState<{
     type: "success" | "error";
     text: string;
@@ -70,46 +87,91 @@ export function ProfileView({
 
       setDisplayName(name);
       setAvatarUrl(pic);
+      setDob(user.user_metadata?.dob || "");
+      setBio(user.user_metadata?.bio || "");
+      setLocation(user.user_metadata?.location || "");
     }
   }, [user]);
 
-  // Copy User ID
-  const handleCopyId = () => {
-    if (!user?.id) return;
-    navigator.clipboard.writeText(user.id);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
-  };
-
-  // Update Profile Name in Supabase
+  // Update Profile Details in Supabase
   const handleSaveProfile = async () => {
     if (!displayName.trim() || !user) return;
-    setIsSavingName(true);
+    setIsSavingDetails(true);
     setStatusMessage(null);
 
     try {
       const { error } = await supabase.auth.updateUser({
         data: {
           display_name: displayName.trim(),
+          full_name: displayName.trim(),
+          dob: dob.trim(),
+          bio: bio.trim(),
+          location: location.trim(),
           avatar_url: avatarUrl.trim(),
         },
       });
 
       if (error) throw error;
 
-      setIsEditingName(false);
+      setIsEditingDetails(false);
       setStatusMessage({
         type: "success",
-        text: "Profile updated successfully!",
+        text: "Profile details updated successfully!",
       });
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTimeout(() => setStatusMessage(null), 3500);
     } catch (err: any) {
       setStatusMessage({
         type: "error",
         text: err.message || "Failed to update profile",
       });
     } finally {
-      setIsSavingName(false);
+      setIsSavingDetails(false);
+    }
+  };
+
+  // Set / Update Email Password
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setStatusMessage({
+        type: "error",
+        text: "Password must be at least 6 characters long.",
+      });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setStatusMessage({
+        type: "error",
+        text: "Passwords do not match.",
+      });
+      return;
+    }
+
+    setIsSettingPassword(true);
+    setStatusMessage(null);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setStatusMessage({
+        type: "success",
+        text: "Account password updated! You can now log in using either your email & password or Google/GitHub.",
+      });
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordForm(false);
+      setTimeout(() => setStatusMessage(null), 5000);
+    } catch (err: any) {
+      setStatusMessage({
+        type: "error",
+        text: err.message || "Failed to update password",
+      });
+    } finally {
+      setIsSettingPassword(false);
     }
   };
 
@@ -118,7 +180,7 @@ export function ProfileView({
     setStatusMessage(null);
     try {
       const redirectTo = `${window.location.origin}/`;
-      const { data, error } = await supabase.auth.linkIdentity({
+      const { error } = await supabase.auth.linkIdentity({
         provider,
         options: {
           redirectTo,
@@ -186,12 +248,6 @@ export function ProfileView({
     providers.includes("github") ||
     user?.app_metadata?.provider === "github";
 
-  const isEmailLinked =
-    user?.email &&
-    (providers.includes("email") ||
-      !isGoogleLinked ||
-      !isGithubLinked);
-
   if (!user) {
     return (
       <div className="max-w-3xl mx-auto py-12 px-4 text-center space-y-6">
@@ -234,7 +290,7 @@ export function ProfileView({
             <span>Account Profile</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Manage your personal profile, linked authentication accounts, and Supabase cloud sync.
+            Manage your personal profile details, linked authentication accounts, and Supabase cloud sync.
           </p>
         </div>
         {onNavigateHome && (
@@ -269,7 +325,6 @@ export function ProfileView({
 
       {/* Main Profile Header Card */}
       <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-6 shadow-xs relative overflow-hidden">
-        {/* Subtle decorative gradient top bar */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mt-1">
@@ -292,50 +347,9 @@ export function ProfileView({
 
             {/* Name & Basic Info */}
             <div className="space-y-1">
-              {isEditingName ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="h-8 px-2.5 text-sm font-semibold rounded-lg border border-slate-300 dark:border-neutral-700 bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                    placeholder="Your Name"
-                    autoFocus
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveProfile}
-                    disabled={isSavingName}
-                    className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    <span>Save</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditingName(false)}
-                    className="h-8 text-xs cursor-pointer"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                    {displayName}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingName(true)}
-                    className="p-1 rounded text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                    title="Edit Name"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                {displayName}
+              </h2>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1 font-mono">
                   <Mail className="h-3.5 w-3.5 text-blue-500" />
@@ -352,13 +366,13 @@ export function ProfileView({
 
           {/* Quick Stats Badges */}
           <div className="flex items-center gap-2 sm:self-center">
-            <div className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 text-center">
+            <div className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 text-center">
               <div className="text-xs font-bold text-slate-900 dark:text-white">
                 {totalBookmarks}
               </div>
               <div className="text-[10px] text-muted-foreground">Bookmarks</div>
             </div>
-            <div className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 text-center">
+            <div className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 text-center">
               <div className="text-xs font-bold text-slate-900 dark:text-white">
                 {totalFolders}
               </div>
@@ -368,88 +382,288 @@ export function ProfileView({
         </div>
       </div>
 
-      {/* Account Details & UID */}
+      {/* 1. Basic Details Card (Name, DOB, Location, Bio) - No UID */}
       <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <Key className="h-4 w-4 text-indigo-500" />
-          <span>Account Credentials & Identity</span>
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-            <div className="text-[11px] font-semibold text-muted-foreground">User ID (UID)</div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-slate-900 dark:text-neutral-200 truncate">
-                {user.id}
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyId}
-                className="h-7 px-2 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 hover:text-foreground text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
-                title="Copy User ID"
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <User className="h-4 w-4 text-blue-500" />
+              <span>Personal Details</span>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your profile information and details.
+            </p>
+          </div>
+          {!isEditingDetails ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditingDetails(true)}
+              className="text-xs h-7 px-3 cursor-pointer gap-1.5"
+            >
+              <Edit2 className="h-3 w-3" />
+              <span>Edit Details</span>
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleSaveProfile}
+                disabled={isSavingDetails}
+                className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1.5"
               >
-                {copiedId ? (
-                  <>
-                    <Check className="h-3 w-3 text-emerald-500" />
-                    <span>Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3 w-3" />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
+                <Save className="h-3 w-3" />
+                <span>{isSavingDetails ? "Saving..." : "Save Details"}</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingDetails(false)}
+                className="text-xs h-7 px-2.5 cursor-pointer"
+              >
+                Cancel
+              </Button>
             </div>
-          </div>
-
-          <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-            <div className="text-[11px] font-semibold text-muted-foreground">Email Status</div>
-            <div className="flex items-center gap-2 pt-0.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="text-xs font-semibold text-slate-900 dark:text-white">
-                {user.email_confirmed_at ? "Verified & Authenticated" : "Active Session"}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
+
+        {!isEditingDetails ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
+              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-blue-500" />
+                <span>Full Name</span>
+              </div>
+              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                {displayName || "Not set"}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
+              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Date of Birth (DOB)</span>
+              </div>
+              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                {dob ? (
+                  new Date(dob).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                ) : (
+                  <span className="text-muted-foreground font-normal">Not provided</span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
+              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-rose-500" />
+                <span>Location</span>
+              </div>
+              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                {location || <span className="text-muted-foreground font-normal">Not set</span>}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
+              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-purple-500" />
+                <span>Bio / About</span>
+              </div>
+              <div className="text-xs text-slate-800 dark:text-neutral-200 line-clamp-2">
+                {bio || <span className="text-muted-foreground font-normal">No bio added yet</span>}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  Full Name
+                </label>
+                <Input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your full name"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  Date of Birth (DOB)
+                </label>
+                <Input
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  Location
+                </label>
+                <Input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. San Francisco, CA"
+                  className="h-8 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  Avatar Picture URL (optional)
+                </label>
+                <Input
+                  type="url"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                Bio / About
+              </label>
+              <Input
+                type="text"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="A short sentence about you..."
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Linked Accounts Section (Email, Google, GitHub) */}
+      {/* 2. Connected Sign-in Methods & Password Management */}
       <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <LinkIcon className="h-4 w-4 text-blue-500" />
-            <span>Connected Sign-in Methods</span>
+            <LinkIcon className="h-4 w-4 text-indigo-500" />
+            <span>Connected Sign-in Methods & Password</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Link your Google or GitHub account to sign in seamlessly with a single click.
+            Log in via Google, GitHub, or Email & Password interchangeably for the same account.
           </p>
         </div>
 
-        <div className="space-y-2.5">
-          {/* 1. Email & Password */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Mail className="h-4 w-4" />
+        <div className="space-y-3">
+          {/* Email & Password Row */}
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <Mail className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Email & Password
+                  </div>
+                  <div className="text-[11px] text-muted-foreground font-mono">
+                    {user.email}
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-900 dark:text-white">
-                  Email & Password
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>Active</span>
                 </div>
-                <div className="text-[11px] text-muted-foreground font-mono">
-                  {user.email}
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPasswordForm(!showPasswordForm)}
+                  className="text-xs h-7 px-2.5 cursor-pointer border-slate-200 dark:border-neutral-700"
+                >
+                  <Lock className="h-3 w-3 mr-1 text-muted-foreground" />
+                  <span>{showPasswordForm ? "Close" : "Set / Change Password"}</span>
+                </Button>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
-              <CheckCircle2 className="h-3 w-3" />
-              <span>Connected</span>
-            </div>
+
+            {/* Set / Change Password Form */}
+            {showPasswordForm && (
+              <form
+                onSubmit={handleSetPassword}
+                className="mt-2 pt-3 border-t border-slate-200 dark:border-neutral-800 space-y-3 animate-in fade-in"
+              >
+                <p className="text-[11px] text-muted-foreground">
+                  Set a password for your email. Once set, you can sign in using either Google/GitHub OR this password!
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                      New Password (min 6 characters)
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type={showPasswordText ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-8 text-xs pr-8"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswordText(!showPasswordText)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPasswordText ? (
+                          <EyeOff className="h-3 w-3" />
+                        ) : (
+                          <Eye className="h-3 w-3" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                      Confirm New Password
+                    </label>
+                    <Input
+                      type={showPasswordText ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-8 text-xs"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    type="submit"
+                    disabled={isSettingPassword || !newPassword || newPassword !== confirmPassword}
+                    className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                  >
+                    {isSettingPassword ? "Saving Password..." : "Update Password"}
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
 
-          {/* 2. Google OAuth */}
+          {/* Google OAuth Row */}
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-lg bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 flex items-center justify-center">
@@ -477,9 +691,7 @@ export function ProfileView({
                   Google Account
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {isGoogleLinked
-                    ? "Signed in / Linked with Google"
-                    : "Not linked yet"}
+                  {isGoogleLinked ? "Connected with Google" : "Not connected yet"}
                 </div>
               </div>
             </div>
@@ -501,7 +713,7 @@ export function ProfileView({
             )}
           </div>
 
-          {/* 3. GitHub OAuth */}
+          {/* GitHub OAuth Row */}
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-lg bg-black text-white flex items-center justify-center">
@@ -514,9 +726,7 @@ export function ProfileView({
                   GitHub Account
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {isGithubLinked
-                    ? "Signed in / Linked with GitHub"
-                    : "Not linked yet"}
+                  {isGithubLinked ? "Connected with GitHub" : "Not connected yet"}
                 </div>
               </div>
             </div>
@@ -540,7 +750,7 @@ export function ProfileView({
         </div>
       </div>
 
-      {/* Cloud Database & Realtime Sync Card */}
+      {/* 3. Cloud Database & Realtime Sync Card */}
       <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div>

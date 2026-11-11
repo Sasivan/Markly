@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, AlertTriangle, Check, ExternalLink, Loader2, Star, Folder as FolderIcon, Tag as TagIcon } from "lucide-react";
 import confetti from "canvas-confetti";
 import type { Folder, BookmarkWithDetails } from "@/server/db/schema";
+import { useAuth } from "@/components/auth/auth-context";
 
 interface AddBookmarkModalProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function AddBookmarkModal({
   initialUrl = "",
   onBookmarkAdded,
 }: AddBookmarkModalProps) {
+  const { user } = useAuth();
   const [url, setUrl] = React.useState(initialUrl);
   const [selectedFolderId, setSelectedFolderId] = React.useState<string>("");
   const [isFavorite, setIsFavorite] = React.useState(false);
@@ -94,6 +96,7 @@ export function AddBookmarkModal({
           tagNames: parsedTags,
           saveImmediately: true,
           forceDuplicate: force,
+          userId: user?.id,
         }),
       });
 

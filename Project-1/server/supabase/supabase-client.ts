@@ -415,5 +415,139 @@ export class SupabaseManager {
       console.error("Supabase syncBookmark error:", e);
     }
   }
+
+  /**
+   * Synchronously pull remote user data from Supabase down into local SQLite cache.
+   * Guarantees zero race conditions on initial page load or fresh session.
+   */
+  static async syncRemoteUserToLocal(userId: string): Promise<{
+    success: boolean;
+    foldersCount: number;
+    bookmarksCount: number;
+    error?: string;
+  }> {
+    if (!userId || userId === "usr_default_markly") {
+      return { success: true, foldersCount: 0, bookmarksCount: 0 };
+    }
+
+    const client = this.getClient();
+    if (!client) {
+      return { success: false, foldersCount: 0, bookmarksCount: 0, error: "No Supabase client" };
+    }
+
+    try {
+      // 1. Fetch remote folders
+      const { data: remoteFolders, error: fErr } = await client
+        .from("folders")
+        .select("*")
+        .eq("user_id", userId);
+
+      let foldersCount = 0;
+      if (remoteFolders && remoteFolders.length > 0) {
+        foldersCount = remoteFolders.length;
+        const upsertFolder = sqlite.prepare(`
+          INSERT INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            parent_id = excluded.parent_id,
+            icon = excluded.icon,
+            color = excluded.color,
+            position = excluded.position,
+            updated_at = excluded.updated_at
+        `);
+
+        for (const f of remoteFolders) {
+          upsertFolder.run(
+            f.id,
+            userId,
+            f.parent_id || null,
+            f.name,
+            f.icon || "📁",
+            f.color || "gray",
+            f.position || 0,
+            f.created_at || Date.now(),
+            f.updated_at || Date.now()
+          );
+        }
+      }
+
+      // 2. Fetch remote bookmarks
+      const { data: remoteBookmarks, error: bErr } = await client
+        .from("bookmarks")
+        .select("*")
+        .eq("user_id", userId);
+
+      let bookmarksCount = 0;
+      if (remoteBookmarks && remoteBookmarks.length > 0) {
+        bookmarksCount = remoteBookmarks.length;
+        const upsertBm = sqlite.prepare(`
+          INSERT INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, image_url, domain, is_favorite, is_archived, status, visit_count, last_visited_at, last_clicked_at, created_at, search_text)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            url = excluded.url,
+            folder_id = excluded.folder_id,
+            is_favorite = excluded.is_favorite,
+            is_archived = excluded.is_archived,
+            status = excluded.status,
+            visit_count = excluded.visit_count,
+            last_visited_at = excluded.last_visited_at,
+            last_clicked_at = excluded.last_clicked_at
+        `);
+
+        for (const b of remoteBookmarks) {
+          upsertBm.run(
+            b.id,
+            userId,
+            b.folder_id || null,
+            b.url,
+            b.canonical_url || b.url,
+            b.title,
+            b.description || null,
+            b.icon_url || null,
+            b.image_url || null,
+            b.domain,
+            b.is_favorite ? 1 : 0,
+            b.is_archived ? 1 : 0,
+            b.status || "alive",
+            b.visit_count || 0,
+            b.last_visited_at || null,
+            b.last_clicked_at || null,
+            b.created_at || Date.now(),
+            b.search_text || null
+          );
+        }
+      }
+
+      // 3. Fetch tags & bookmark_tags
+      const { data: remoteTags } = await client
+        .from("tags")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (remoteTags && remoteTags.length > 0) {
+        const upsertTag = sqlite.prepare(`
+          INSERT INTO tags (id, user_id, name, color, created_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            color = excluded.color
+        `);
+        for (const t of remoteTags) {
+          upsertTag.run(t.id, userId, t.name, t.color || "#3b82f6", t.created_at || Date.now());
+        }
+      }
+
+      return {
+        success: true,
+        foldersCount,
+        bookmarksCount,
+      };
+    } catch (err: any) {
+      console.warn("syncRemoteUserToLocal warning:", err.message);
+      return { success: false, foldersCount: 0, bookmarksCount: 0, error: err.message };
+    }
+  }
 }
 

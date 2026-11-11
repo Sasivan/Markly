@@ -121,7 +121,7 @@ export async function suggestWithAi(
       config = {
         provider: "gemini",
         apiKey: configOrKey.trim(),
-        model: "gemini-1.5-flash",
+        model: "gemini-flash-latest",
       };
     }
   } else if (configOrKey && typeof configOrKey === "object") {
@@ -174,8 +174,12 @@ Respond strictly in valid JSON:
 
     // 1. Google Gemini Native API
     if (provider === "gemini") {
-      const rawModel = config.model?.trim() || "gemini-1.5-flash";
-      const cleanModel = rawModel.replace(/^models\//, "");
+      const rawModel = config.model?.trim() || "gemini-flash-latest";
+      let cleanModel = rawModel.replace(/^models\//, "");
+      // Remap deprecated Gemini 1.5 models to Gemini Flash Latest
+      if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
+        cleanModel = "gemini-flash-latest";
+      }
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
         {

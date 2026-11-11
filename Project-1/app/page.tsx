@@ -44,12 +44,19 @@ export default async function HomePage() {
       timeline: [],
     };
 
+    const initialView = (cookieStore.get("markly_active_view")?.value || "home") as any;
+    const initialFolderId = cookieStore.get("markly_active_folder_id")?.value || null;
+    const initialSidebarCollapsed = cookieStore.get("markly_sidebar_collapsed")?.value === "true";
+
     return (
       <MarklyWorkspace
         initialFolderTree={folderTree}
         initialFolders={allFolders}
         initialBookmarks={bookmarks}
         initialStats={stats}
+        initialView={initialView}
+        initialFolderId={initialFolderId}
+        initialSidebarCollapsed={initialSidebarCollapsed}
       />
     );
   } catch (error) {

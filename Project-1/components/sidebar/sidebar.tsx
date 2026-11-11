@@ -310,15 +310,18 @@ export function Sidebar({
   if (collapsed) {
     return (
       <aside className="w-12 flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none">
-        {/* Workspace Brand Header - identical h-12 container and toggle matching expanded sidebar */}
+        {/* Workspace Brand Header - clean M logo navigating to homepage on click */}
         <div className="h-12 border-b border-border flex items-center justify-center bg-[#fbfbfa] dark:bg-[#191919] flex-shrink-0">
           <button
             type="button"
-            onClick={() => setCollapsed(false)}
-            title="Expand Sidebar (Ctrl+\)"
-            className="h-7 w-7 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("home");
+            }}
+            title="Markly Home"
+            className="h-6 w-6 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white font-bold text-xs shadow-xs cursor-pointer transition-transform active:scale-95"
           >
-            <PanelLeftOpen className="h-4 w-4 text-white" />
+            M
           </button>
         </div>
 
@@ -435,8 +438,10 @@ export function Sidebar({
           >
             <Trash2 className="h-4 w-4 text-rose-500" />
           </button>
+        </div>
 
-          {/* User Account / Profile in Rail */}
+        {/* Pinned Bottom Left Profile Icon in Collapsed Rail */}
+        <div className="p-2 border-t border-border flex items-center justify-center flex-shrink-0 bg-[#fbfbfa] dark:bg-[#191919]">
           <button
             type="button"
             onClick={() => {
@@ -444,18 +449,24 @@ export function Sidebar({
               onSelectView("profile");
             }}
             title={user ? `Profile (${user.email})` : "Account Profile"}
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors mt-2 border-t border-border/60 pt-2 ${
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "profile" && !activeFolderId
                 ? "bg-blue-600 text-white shadow-xs"
                 : "text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800"
             }`}
           >
-            {user ? (
-              <div className="h-5 w-5 rounded-md bg-blue-600 text-white font-bold text-[9px] flex items-center justify-center">
+            {customAvatar || user?.user_metadata?.avatar_url ? (
+              <img
+                src={customAvatar || user?.user_metadata?.avatar_url}
+                alt="Profile"
+                className="h-6 w-6 rounded-full object-cover border border-border"
+              />
+            ) : user ? (
+              <div className="h-6 w-6 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
             ) : (
-              <User className="h-4 w-4 text-blue-500" />
+              <User className="h-4 w-4 text-slate-500 hover:text-blue-500" />
             )}
           </button>
         </div>
@@ -495,23 +506,23 @@ export function Sidebar({
         style={{ width: `${sidebarWidth}px` }}
         className="relative flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none"
       >
-        {/* Workspace Brand Header - clean, full width with collapse button */}
-        <div className="h-12 border-b border-border flex items-center justify-between px-3.5 bg-[#fbfbfa] dark:bg-[#191919]">
-          <div className="flex items-center gap-2.5 truncate">
-            <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0">
-              M
-            </div>
-            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate">
-              Markly
-            </span>
-          </div>
+        {/* Workspace Brand Header - clean, full width clicking logo or name navigates to Home */}
+        <div className="h-12 border-b border-border flex items-center px-3.5 bg-[#fbfbfa] dark:bg-[#191919]">
           <button
             type="button"
-            onClick={() => setCollapsed(true)}
-            title="Collapse Sidebar (Ctrl+\)"
-            className="h-7 w-7 rounded-md hover:bg-slate-200 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-white cursor-pointer transition-colors"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("home");
+            }}
+            title="Markly Home"
+            className="flex items-center gap-2.5 truncate cursor-pointer group text-left"
           >
-            <PanelLeftClose className="h-4 w-4" />
+            <div className="h-6 w-6 rounded-md bg-blue-600 group-hover:bg-blue-700 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0 transition-transform group-active:scale-95">
+              M
+            </div>
+            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate transition-colors">
+              Markly
+            </span>
           </button>
         </div>
 

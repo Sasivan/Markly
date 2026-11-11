@@ -123,14 +123,18 @@ export function AppHeader({
           <ArrowUpDown className="h-3.5 w-3.5" />
         </button>
 
-        {/* 3. Icon Search */}
+        {/* 3. Quick Search Trigger directly right of export icon */}
         <button
           type="button"
           onClick={onOpenSearch}
           title="Search Bookmarks (⌘K)"
-          className="h-8 w-8 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 flex items-center justify-center text-slate-700 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors shadow-2xs"
+          className="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-700 flex items-center gap-1.5 text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors shadow-2xs text-xs font-medium"
         >
-          <Search className="h-3.5 w-3.5" />
+          <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="hidden sm:inline text-xs text-muted-foreground">Search</span>
+          <kbd className="hidden md:inline-flex h-4 items-center gap-0.5 rounded border border-border bg-muted px-1 font-mono text-[9px] text-muted-foreground font-semibold">
+            ⌘K
+          </kbd>
         </button>
 
         {/* 4. API Key & AI Settings */}

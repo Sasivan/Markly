@@ -177,43 +177,53 @@ export function AddBookmarkModal({
     }
   }, [open]);
 
-  // Handle Quick Inline Folder Creation with full customization & parent selection
+  // Handle Quick Inline Folder Creation with full customization & parent selection (0ms instant)
   const handleCreateFolderInline = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newFolderName.trim()) return;
+    const folderName = newFolderName.trim();
+    if (!folderName) return;
 
-    setFolderSubmitting(true);
+    const tempFolderId = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const optimisticFolder: Folder = {
+      id: tempFolderId,
+      name: folderName,
+      parentId: newFolderParentId || null,
+      icon: newFolderIcon || "📁",
+      color: newFolderColor || "#3b82f6",
+      position: folders.length,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      userId: user?.id || "usr_default_markly",
+    };
+
+    // 0ms instant UI update: select immediately & close inline form
+    setSelectedFolderId(tempFolderId);
+    setIsCreatingFolder(false);
+    setNewFolderName("");
+    setNewFolderParentId("");
+    setShowIconLibrary(false);
+
+    if (onFolderCreated) {
+      onFolderCreated(optimisticFolder);
+    }
+
+    // Persist to server in background with the exact same ID
     try {
-      const res = await fetch("/api/folders", {
+      fetch("/api/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newFolderName.trim(),
-          parentId: newFolderParentId || null,
-          icon: newFolderIcon || "📁",
-          color: newFolderColor || "#3b82f6",
+          id: tempFolderId,
+          name: folderName,
+          parentId: optimisticFolder.parentId,
+          icon: optimisticFolder.icon,
+          color: optimisticFolder.color,
           userId: user?.id,
         }),
+      }).catch((err) => {
+        console.warn("Background folder save warning:", err);
       });
-
-      const data = await res.json();
-      if (data.success && data.folder) {
-        setSelectedFolderId(data.folder.id);
-        setIsCreatingFolder(false);
-        setNewFolderName("");
-        setNewFolderParentId("");
-        setShowIconLibrary(false);
-        if (onFolderCreated) {
-          onFolderCreated(data.folder);
-        }
-      } else {
-        setError(data.error || "Failed to create folder");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to create folder");
-    } finally {
-      setFolderSubmitting(false);
-    }
+    } catch {}
   };
 
   const handleAddTagChip = (tag: string) => {

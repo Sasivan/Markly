@@ -50,6 +50,7 @@ export async function POST(req: Request) {
     const userId = body.userId || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
 
     const folder = BookmarkRepository.createFolder({
+      id: body.id || undefined,
       name: body.name.trim(),
       parentId: body.parentId || null,
       icon: body.icon || "📁",

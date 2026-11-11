@@ -91,6 +91,9 @@ interface MarklyWorkspaceProps {
     tagDistribution: { name: string; color: string; count: number }[];
     timeline: { date: string; count: number }[];
   };
+  initialView?: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile";
+  initialFolderId?: string | null;
+  initialSidebarCollapsed?: boolean;
 }
 
 export function MarklyWorkspace({
@@ -98,55 +101,28 @@ export function MarklyWorkspace({
   initialFolders,
   initialBookmarks,
   initialStats,
+  initialView = "home",
+  initialFolderId = null,
+  initialSidebarCollapsed = false,
 }: MarklyWorkspaceProps) {
   const { user } = useAuth();
-  const [folderTree, setFolderTree] = React.useState<FolderTreeNode[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedUserId = localStorage.getItem("markly_user_id");
-      if (storedUserId && initialFolders.length > 0 && initialFolders[0].userId !== storedUserId) {
-        return [];
-      }
-    }
-    return initialFolderTree;
-  });
-  const [folders, setFolders] = React.useState<FolderType[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedUserId = localStorage.getItem("markly_user_id");
-      if (storedUserId && initialFolders.length > 0 && initialFolders[0].userId !== storedUserId) {
-        return [];
-      }
-    }
-    return initialFolders;
-  });
-  const [bookmarks, setBookmarks] = React.useState<BookmarkWithDetails[]>(() => {
-    if (typeof window !== "undefined") {
-      const storedUserId = localStorage.getItem("markly_user_id");
-      if (storedUserId && initialBookmarks.length > 0 && initialBookmarks[0].userId !== storedUserId) {
-        return [];
-      }
-    }
-    return initialBookmarks;
-  });
+  const [folderTree, setFolderTree] = React.useState<FolderTreeNode[]>(initialFolderTree);
+  const [folders, setFolders] = React.useState<FolderType[]>(initialFolders);
+  const [bookmarks, setBookmarks] = React.useState<BookmarkWithDetails[]>(initialBookmarks);
   const [stats, setStats] = React.useState(initialStats);
 
-  // Active filter state
-  const [activeFolderId, setActiveFolderId] = React.useState<string | null>(null);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile">("home");
+  // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
+  const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile">(
+    initialFolderId ? "all" : (initialView || "home")
+  );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
   const [includeSubfolders, setIncludeSubfolders] = React.useState(false); // Default false: show only sites in that specific folder
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
 
-  // Sidebar collapse state with localStorage persistence
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("markly_sidebar_collapsed");
-        if (stored !== null) return stored === "true";
-      } catch {}
-    }
-    return false;
-  });
+  // Sidebar collapse state initialized directly from SSR cookie to eliminate full-then-collapse glimpse!
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(Boolean(initialSidebarCollapsed));
 
   React.useEffect(() => {
     try {
@@ -162,6 +138,7 @@ export function MarklyWorkspace({
       const next = !prev;
       try {
         localStorage.setItem("markly_sidebar_collapsed", String(next));
+        document.cookie = `markly_sidebar_collapsed=${next}; path=/; max-age=2592000; SameSite=Lax`;
       } catch {}
       return next;
     });
@@ -295,11 +272,15 @@ export function MarklyWorkspace({
       if (activeFolderId) {
         sessionStorage.setItem("markly_active_folder_id", activeFolderId);
         sessionStorage.setItem("markly_active_view", "all");
+        document.cookie = `markly_active_folder_id=${activeFolderId}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `markly_active_view=all; path=/; max-age=2592000; SameSite=Lax`;
         url.searchParams.set("folderId", activeFolderId);
         url.searchParams.delete("view");
       } else {
         sessionStorage.removeItem("markly_active_folder_id");
         sessionStorage.setItem("markly_active_view", activeView);
+        document.cookie = `markly_active_folder_id=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `markly_active_view=${activeView}; path=/; max-age=2592000; SameSite=Lax`;
         url.searchParams.delete("folderId");
         if (activeView === "home") {
           url.searchParams.delete("view");
@@ -507,9 +488,9 @@ export function MarklyWorkspace({
   // 0ms Optimistic Folder Operations for instant tree & UI updates
   const handleCreateFolderOptimistic = React.useCallback(
     async (name: string, icon: string, color: string, parentId?: string | null) => {
-      const tempId = `fld_temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const folderId = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const optimisticFolder: FolderType = {
-        id: tempId,
+        id: folderId,
         userId: user?.id || "usr_default_markly",
         parentId: parentId || null,
         name: name.trim() || "New Folder",
@@ -520,19 +501,18 @@ export function MarklyWorkspace({
         updatedAt: Date.now(),
       };
 
-      // 1. Instantly update React state in 0ms
+      // 1. Instantly update React state in 0ms without disrupting current view
       const updatedFolders = [...folders, optimisticFolder];
       setFolders(updatedFolders);
       setFolderTree(buildTreeFromFolders(updatedFolders, bookmarks));
-      setActiveFolderId(tempId);
-      setActiveView("all");
 
-      // 2. Persist to SQLite in the background
+      // 2. Persist to SQLite in the background with the exact same ID
       try {
         const res = await fetch("/api/folders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            id: folderId,
             name: name.trim() || "New Folder",
             parentId: parentId || null,
             icon: icon || "📁",
@@ -543,30 +523,13 @@ export function MarklyWorkspace({
         const data = await res.json();
         if (data.success && data.folder) {
           const realFolder: FolderType = data.folder;
-          setFolders((prev) => prev.map((f) => (f.id === tempId ? realFolder : f)));
-          setFolderTree((prev) => {
-            const replaceNode = (nodes: FolderTreeNode[]): FolderTreeNode[] =>
-              nodes.map((n) => {
-                if (n.id === tempId) {
-                  return {
-                    ...realFolder,
-                    children: n.children,
-                    bookmarkCount: n.bookmarkCount,
-                    totalDescendantBookmarkCount: n.totalDescendantBookmarkCount,
-                  };
-                }
-                return { ...n, children: replaceNode(n.children) };
-              });
-            return replaceNode(prev);
-          });
-          setActiveFolderId((cur) => (cur === tempId ? realFolder.id : cur));
+          setFolders((prev) => prev.map((f) => (f.id === folderId ? realFolder : f)));
         }
       } catch (err) {
         console.error("Create folder error:", err);
-        refreshData();
       }
     },
-    [folders, bookmarks, user?.id, refreshData]
+    [folders, bookmarks, user?.id]
   );
 
   const handleDeleteFolderOptimistic = React.useCallback(

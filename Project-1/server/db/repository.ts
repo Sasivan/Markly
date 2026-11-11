@@ -280,6 +280,7 @@ export class BookmarkRepository {
    * Create folder
    */
   static createFolder(data: {
+    id?: string;
     name: string;
     parentId?: string | null;
     icon?: string;
@@ -287,7 +288,7 @@ export class BookmarkRepository {
     userId?: string;
   }): Folder {
     const userId = data.userId || DEFAULT_USER_ID;
-    const id = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const id = data.id || `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
 
     // Determine position: append to end of siblings

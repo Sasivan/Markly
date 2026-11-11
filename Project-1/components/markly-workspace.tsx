@@ -100,9 +100,33 @@ export function MarklyWorkspace({
   initialStats,
 }: MarklyWorkspaceProps) {
   const { user } = useAuth();
-  const [folderTree, setFolderTree] = React.useState(initialFolderTree);
-  const [folders, setFolders] = React.useState(initialFolders);
-  const [bookmarks, setBookmarks] = React.useState(initialBookmarks);
+  const [folderTree, setFolderTree] = React.useState<FolderTreeNode[]>(() => {
+    if (typeof window !== "undefined") {
+      const storedUserId = localStorage.getItem("markly_user_id");
+      if (storedUserId && initialFolders.length > 0 && initialFolders[0].userId !== storedUserId) {
+        return [];
+      }
+    }
+    return initialFolderTree;
+  });
+  const [folders, setFolders] = React.useState<FolderType[]>(() => {
+    if (typeof window !== "undefined") {
+      const storedUserId = localStorage.getItem("markly_user_id");
+      if (storedUserId && initialFolders.length > 0 && initialFolders[0].userId !== storedUserId) {
+        return [];
+      }
+    }
+    return initialFolders;
+  });
+  const [bookmarks, setBookmarks] = React.useState<BookmarkWithDetails[]>(() => {
+    if (typeof window !== "undefined") {
+      const storedUserId = localStorage.getItem("markly_user_id");
+      if (storedUserId && initialBookmarks.length > 0 && initialBookmarks[0].userId !== storedUserId) {
+        return [];
+      }
+    }
+    return initialBookmarks;
+  });
   const [stats, setStats] = React.useState(initialStats);
 
   // Active filter state
@@ -114,7 +138,15 @@ export function MarklyWorkspace({
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
 
   // Sidebar collapse state with localStorage persistence
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_sidebar_collapsed");
+        if (stored !== null) return stored === "true";
+      } catch {}
+    }
+    return false;
+  });
 
   React.useEffect(() => {
     try {
@@ -742,7 +774,7 @@ export function MarklyWorkspace({
         {/* Top Header without search bar (available in left panel) */}
         <AppHeader
           isSidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed((p) => !p)}
+          onToggleSidebar={toggleSidebarCollapse}
           onOpenAddModal={() => openAddModal()}
           onOpenImportExport={() => setImportExportOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}

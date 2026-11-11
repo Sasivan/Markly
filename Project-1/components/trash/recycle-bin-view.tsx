@@ -176,7 +176,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   return (
     <div className="flex-1 flex flex-col h-full bg-background overflow-y-auto">
       {/* Sticky Header Banner */}
-      <div className="border-b border-border bg-slate-50/70 dark:bg-neutral-900/60 backdrop-blur-md px-6 py-5 sticky top-0 z-10">
+      <div className="border-b border-border bg-slate-50/80 dark:bg-[#161616]/90 backdrop-blur-md px-6 py-5 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center flex-shrink-0 shadow-sm border border-rose-500/20">
@@ -198,7 +198,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
           {/* Retention Options & Empty Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Retention Selector */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-background border border-border text-xs shadow-2xs">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-card dark:bg-[#1a1a1a] border border-border text-xs shadow-2xs">
               <span className="text-[11px] font-medium text-muted-foreground px-2 flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Save for:</span>
@@ -252,7 +252,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
 
         {/* Empty Bin Confirmation Modal */}
         {showEmptyConfirm && (
-          <div className="max-w-5xl mx-auto mt-3 p-3.5 rounded-xl border border-rose-500/30 bg-rose-50 dark:bg-rose-950/40 text-xs space-y-2 animate-in fade-in">
+          <div className="max-w-5xl mx-auto mt-3 p-3.5 rounded-xl border border-rose-500/40 bg-rose-500/10 dark:bg-rose-950/40 text-xs space-y-2 animate-in fade-in">
             <div className="flex items-center gap-2 font-bold text-rose-700 dark:text-rose-300 text-sm">
               <AlertTriangle className="h-4 w-4" />
               <span>Permanently empty Recycle Bin?</span>
@@ -288,13 +288,13 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
         {/* Controls: Search & Filter Tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 w-fit text-xs font-semibold">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#1a1a1a] border border-border/50 w-fit text-xs font-semibold">
             <button
               type="button"
               onClick={() => setActiveTab("all")}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeTab === "all"
-                  ? "bg-white dark:bg-neutral-900 text-foreground shadow-2xs font-bold"
+                  ? "bg-white dark:bg-[#2a2a2a] text-foreground shadow-2xs font-bold border border-black/5 dark:border-white/10"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -305,7 +305,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               onClick={() => setActiveTab("folder")}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "folder"
-                  ? "bg-white dark:bg-neutral-900 text-foreground shadow-2xs font-bold"
+                  ? "bg-white dark:bg-[#2a2a2a] text-foreground shadow-2xs font-bold border border-black/5 dark:border-white/10"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -317,7 +317,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               onClick={() => setActiveTab("bookmark")}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "bookmark"
-                  ? "bg-white dark:bg-neutral-900 text-foreground shadow-2xs font-bold"
+                  ? "bg-white dark:bg-[#2a2a2a] text-foreground shadow-2xs font-bold border border-black/5 dark:border-white/10"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -334,7 +334,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               placeholder="Search deleted items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs h-8.5 rounded-xl bg-slate-50 dark:bg-neutral-900"
+              className="pl-8 text-xs h-8.5 rounded-xl bg-white dark:bg-[#1e1e1e] border-border text-foreground"
             />
           </div>
         </div>
@@ -347,8 +347,8 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
           </div>
         ) : filteredItems.length === 0 ? (
           /* Empty State */
-          <div className="py-20 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-center p-8 bg-slate-50/40 dark:bg-neutral-900/30">
-            <div className="h-14 w-14 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-3">
+          <div className="py-20 rounded-2xl border border-dashed border-border flex flex-col items-center justify-center text-center p-8 bg-card/40 dark:bg-[#161616]/40">
+            <div className="h-14 w-14 rounded-2xl bg-muted/60 dark:bg-[#222] text-muted-foreground flex items-center justify-center mb-3">
               <Trash2 className="h-7 w-7 stroke-1 text-slate-400 dark:text-neutral-500" />
             </div>
             <h3 className="font-bold text-base text-foreground">Recycle Bin is empty</h3>
@@ -359,7 +359,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               variant="outline"
               size="sm"
               onClick={() => onNavigateView("all")}
-              className="mt-4 text-xs font-semibold cursor-pointer"
+              className="mt-4 text-xs font-semibold cursor-pointer border-border dark:border-neutral-750"
             >
               Browse All Bookmarks
             </Button>
@@ -380,11 +380,11 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               return (
                 <div
                   key={item.id}
-                  className="group flex items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-card hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs"
+                  className="group flex items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-card dark:bg-[#181818] hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Item Icon */}
-                    <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0 border border-black/5 dark:border-white/5">
+                    <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-[#252525] flex items-center justify-center flex-shrink-0 border border-black/5 dark:border-white/5">
                       {isFolder ? (
                         <FolderIconRenderer icon={item.icon} color={item.color || "#3b82f6"} className="h-5 w-5" />
                       ) : (
@@ -433,8 +433,8 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
                       variant="outline"
                       className={`text-[10px] font-semibold px-2 py-0.5 border ${
                         isExpiringSoon
-                          ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5"
-                          : "border-slate-200 dark:border-neutral-800 text-muted-foreground"
+                          ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10"
+                          : "border-slate-200 dark:border-neutral-800 text-muted-foreground bg-slate-50 dark:bg-neutral-850/40"
                       }`}
                     >
                       <Clock className="h-3 w-3 mr-1" />
@@ -449,7 +449,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
                       size="sm"
                       disabled={isOperating}
                       onClick={() => handleRestore(item)}
-                      className="h-8 px-3 text-xs font-semibold cursor-pointer border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500 flex items-center gap-1"
+                      className="h-8 px-3 text-xs font-semibold cursor-pointer border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 dark:hover:bg-blue-500/20 hover:border-blue-500 flex items-center gap-1 shadow-2xs"
                       title="Restore back to active collections"
                     >
                       {isOperating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}

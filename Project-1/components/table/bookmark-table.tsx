@@ -19,6 +19,8 @@ import {
   LayoutGrid,
   List,
   Table as TableIcon,
+  Kanban,
+  Rows3,
   Star,
   ExternalLink,
   Copy,
@@ -74,7 +76,26 @@ export function BookmarkTable({
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-  const [viewMode, setViewMode] = React.useState<"table" | "cards" | "compact">("table");
+  
+  // 5 Notion-Inspired View Modes with persistent memory
+  const [viewMode, setViewModeState] = React.useState<"table" | "board" | "cards" | "list" | "compact">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_view_mode") as any;
+        if (stored && ["table", "board", "cards", "list", "compact"].includes(stored)) {
+          return stored;
+        }
+      } catch {}
+    }
+    return "table";
+  });
+
+  const setViewMode = React.useCallback((mode: "table" | "board" | "cards" | "list" | "compact") => {
+    setViewModeState(mode);
+    try {
+      localStorage.setItem("markly_table_view_mode", mode);
+    } catch {}
+  }, []);
 
   // Edit modal
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
@@ -88,6 +109,39 @@ export function BookmarkTable({
     if (statusFilter === "all") return data;
     return data.filter((item) => item.status === statusFilter);
   }, [data, statusFilter]);
+
+  // Notion-style Board / Kanban Columns
+  const kanbanColumns = React.useMemo(() => {
+    const folderMap = new Map<string, { id: string; name: string; icon: string; color: string; bookmarks: BookmarkWithDetails[] }>();
+
+    for (const f of folders) {
+      folderMap.set(f.id, {
+        id: f.id,
+        name: f.name,
+        icon: f.icon || "📁",
+        color: f.color || "#3b82f6",
+        bookmarks: [],
+      });
+    }
+
+    folderMap.set("unsorted", {
+      id: "unsorted",
+      name: "Unsorted (Inbox)",
+      icon: "📥",
+      color: "#64748b",
+      bookmarks: [],
+    });
+
+    for (const bm of filteredData) {
+      if (bm.folderId && folderMap.has(bm.folderId)) {
+        folderMap.get(bm.folderId)!.bookmarks.push(bm);
+      } else {
+        folderMap.get("unsorted")!.bookmarks.push(bm);
+      }
+    }
+
+    return Array.from(folderMap.values()).filter((c) => c.bookmarks.length > 0 || c.id === "unsorted");
+  }, [folders, filteredData]);
 
   // Actions
   const handleToggleFavorite = async (bookmark: BookmarkWithDetails) => {
@@ -577,34 +631,57 @@ export function BookmarkTable({
 
         {/* Right: View Toggles & Columns */}
         <div className="flex items-center gap-1.5 self-end sm:self-auto">
-          {/* View Mode Switcher */}
+          {/* View Mode Switcher (5 Notion-Inspired Space-Optimized Modes) */}
           <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border">
             <button
               type="button"
               onClick={() => setViewMode("table")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${viewMode === "table" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
-              title="Table View"
+              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                viewMode === "table" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Notion Table View (Spreadsheet)"
             >
               <TableIcon className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
+              onClick={() => setViewMode("board")}
+              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                viewMode === "board" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Notion Board View (Kanban Columns)"
+            >
+              <Kanban className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
               onClick={() => setViewMode("cards")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${viewMode === "cards" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
-              title="Card / Gallery View"
+              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                viewMode === "cards" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Notion Gallery View (Visual Cards)"
             >
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("compact")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${viewMode === "compact" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
-              title="Compact View"
+              onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                viewMode === "list" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Notion List View (Clean Document Rows)"
             >
               <List className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("compact")}
+              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                viewMode === "compact" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Ultra-Dense Mode (Maximum Space Optimization)"
+            >
+              <Rows3 className="h-3.5 w-3.5" />
             </button>
           </div>
 
@@ -694,13 +771,127 @@ export function BookmarkTable({
             </table>
           </div>
         </div>
+      ) : viewMode === "board" ? (
+        /* Notion-Style Kanban Board View */
+        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 items-start min-h-[460px]">
+          {kanbanColumns.map((col) => (
+            <div
+              key={col.id}
+              className="w-72 flex-shrink-0 rounded-xl border border-border bg-card/60 dark:bg-[#161616]/90 flex flex-col max-h-[75vh] shadow-xs"
+            >
+              {/* Column Header */}
+              <div className="p-3 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2 truncate">
+                  <FolderIconRenderer icon={col.icon} color={col.color} className="h-4 w-4 flex-shrink-0" />
+                  <span className="font-bold text-xs text-foreground truncate">{col.name}</span>
+                </div>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+                  {col.bookmarks.length}
+                </Badge>
+              </div>
+
+              {/* Column Cards Container */}
+              <div className="p-2 space-y-2 overflow-y-auto flex-1">
+                {col.bookmarks.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-[11px] border border-dashed border-border/60 rounded-lg">
+                    No items in this collection
+                  </div>
+                ) : (
+                  col.bookmarks.map((bm) => (
+                    <div
+                      key={bm.id}
+                      className="group p-2.5 rounded-lg border border-border/80 bg-background hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs space-y-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <BookmarkIcon
+                            src={bm.iconUrl}
+                            domain={bm.domain}
+                            alt={bm.title}
+                            className="h-4 w-4 rounded object-contain flex-shrink-0"
+                          />
+                          <a
+                            href={bm.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => recordVisit(bm)}
+                            className="font-semibold text-xs text-foreground truncate hover:underline"
+                          >
+                            {bm.title}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFavorite(bm)}
+                          className="cursor-pointer text-muted-foreground/30 hover:text-amber-500 flex-shrink-0"
+                        >
+                          <Star className={`h-3.5 w-3.5 ${bm.isFavorite ? "text-amber-500 fill-amber-500" : ""}`} />
+                        </button>
+                      </div>
+
+                      {bm.description && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{bm.description}</p>
+                      )}
+
+                      {/* Tags in Kanban */}
+                      {bm.tags && bm.tags.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                          {bm.tags.slice(0, 2).map((t) => (
+                            <span
+                              key={t.id}
+                              className="px-1.5 py-0.2 rounded text-[9px] font-medium"
+                              style={{ backgroundColor: `${t.color}15`, color: t.color }}
+                            >
+                              #{t.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                        <span className="truncate max-w-[120px] font-mono">{bm.domain}</span>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(bm.url, bm.id)}
+                            className="hover:text-foreground cursor-pointer p-0.5"
+                            title="Copy Link"
+                          >
+                            {copiedId === bm.id ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingBookmark(bm)}
+                            className="hover:text-foreground cursor-pointer p-0.5"
+                            title="Edit"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                          <a
+                            href={bm.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => recordVisit(bm)}
+                            className="hover:text-foreground inline-flex items-center p-0.5"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : viewMode === "cards" ? (
-        /* Card / Gallery View */
+        /* Notion Gallery / Card View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredData.map((bm) => (
             <div
               key={bm.id}
-              className="rounded-lg border border-border bg-card p-3.5 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group"
+              className="rounded-xl border border-border bg-card p-3.5 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group"
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
@@ -766,6 +957,14 @@ export function BookmarkTable({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => handleCopyLink(bm.url, bm.id)}
+                    className="hover:text-foreground cursor-pointer"
+                    title="Copy Link"
+                  >
+                    {copiedId === bm.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setEditingBookmark(bm)}
                     className="hover:text-foreground cursor-pointer"
                     title="Edit"
@@ -786,32 +985,28 @@ export function BookmarkTable({
             </div>
           ))}
         </div>
-      ) : (
-        /* Compact List View */
-        <div className="rounded-lg border border-border bg-card shadow-xs divide-y divide-border">
+      ) : viewMode === "list" ? (
+        /* Notion-Style Document List View */
+        <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden shadow-xs">
           {filteredData.map((bm) => (
             <div
               key={bm.id}
-              className="flex items-center justify-between px-3.5 py-1.5 hover:bg-muted/20 text-xs group"
+              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/20 text-xs group transition-colors"
             >
-              <div className="flex items-center gap-2.5 truncate max-w-xl">
+              <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
                 <button
                   type="button"
                   onClick={() => handleToggleFavorite(bm)}
-                  className="cursor-pointer"
+                  className="cursor-pointer flex-shrink-0"
                 >
-                  {bm.isFavorite ? (
-                    <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                  ) : (
-                    <Star className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground" />
-                  )}
+                  <Star className={`h-4 w-4 ${bm.isFavorite ? "text-amber-500 fill-amber-500" : "text-muted-foreground/25 group-hover:text-muted-foreground"}`} />
                 </button>
 
                 <BookmarkIcon
                   src={bm.iconUrl}
                   alt={bm.title}
                   domain={bm.domain}
-                  className="h-4 w-4 rounded object-contain"
+                  className="h-4.5 w-4.5 rounded object-contain flex-shrink-0"
                 />
 
                 <a
@@ -819,24 +1014,130 @@ export function BookmarkTable({
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => recordVisit(bm)}
-                  className="font-medium hover:underline text-foreground truncate"
+                  className="font-semibold text-xs text-foreground hover:underline truncate"
                 >
                   {bm.title}
                 </a>
+
+                <span className="text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40 font-mono hidden md:inline truncate">
+                  {bm.domain}
+                </span>
+
+                {bm.tags && bm.tags.length > 0 && (
+                  <div className="hidden lg:flex items-center gap-1">
+                    {bm.tags.slice(0, 3).map((t) => (
+                      <span
+                        key={t.id}
+                        className="text-[10px] px-1.5 py-0.2 rounded font-medium"
+                        style={{ backgroundColor: `${t.color}15`, color: t.color }}
+                      >
+                        #{t.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-3 text-muted-foreground text-[11px]">
-                <span className="hidden sm:inline-flex items-center gap-1 font-medium">
+              <div className="flex items-center gap-3 text-muted-foreground text-[11px] flex-shrink-0">
+                <span className="inline-flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-400">
                   <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3.5 w-3.5" />
-                  <span>{getParentFolderInfo(bm).name}</span>
+                  <span className="truncate max-w-[110px] hidden sm:inline">{getParentFolderInfo(bm).name}</span>
                 </span>
-                <span className="font-mono">{bm.visitCount} visits</span>
+
+                <span className="font-mono hidden sm:inline">{bm.visitCount} visits</span>
+
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyLink(bm.url, bm.id)}
+                    className="p-1 hover:text-foreground rounded cursor-pointer"
+                    title="Copy URL"
+                  >
+                    {copiedId === bm.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingBookmark(bm)}
+                    className="p-1 hover:text-foreground rounded cursor-pointer"
+                    title="Edit"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <a
+                    href={bm.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => recordVisit(bm)}
+                    className="p-1 hover:text-foreground rounded"
+                    title="Open website"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Notion Ultra-Dense / Space-Optimized Mode */
+        <div className="rounded-lg border border-border bg-card shadow-xs divide-y divide-border/50 text-[11px]">
+          {filteredData.map((bm) => (
+            <div
+              key={bm.id}
+              className="flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors"
+            >
+              <div className="flex items-center gap-2 truncate min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => handleToggleFavorite(bm)}
+                  className="cursor-pointer flex-shrink-0"
+                >
+                  <Star className={`h-3 w-3 ${bm.isFavorite ? "text-amber-500 fill-amber-500" : "text-muted-foreground/20 group-hover:text-muted-foreground"}`} />
+                </button>
+
+                <BookmarkIcon
+                  src={bm.iconUrl}
+                  alt={bm.title}
+                  domain={bm.domain}
+                  className="h-3.5 w-3.5 rounded object-contain flex-shrink-0"
+                />
+
                 <a
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => recordVisit(bm)}
-                  className="hover:text-foreground"
+                  className="font-medium hover:underline text-foreground truncate max-w-sm sm:max-w-md"
+                >
+                  {bm.title}
+                </a>
+
+                <span className="text-[10px] text-muted-foreground font-mono truncate hidden md:inline">
+                  {bm.domain}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground text-[10px] flex-shrink-0">
+                <span className="hidden sm:inline-flex items-center gap-1">
+                  <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3 w-3" />
+                  <span className="truncate max-w-[90px]">{getParentFolderInfo(bm).name}</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyLink(bm.url, bm.id)}
+                  className="p-0.5 hover:text-foreground cursor-pointer opacity-0 group-hover:opacity-100"
+                  title="Copy Link"
+                >
+                  {copiedId === bm.id ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                </button>
+
+                <a
+                  href={bm.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => recordVisit(bm)}
+                  className="hover:text-foreground p-0.5 inline-flex items-center"
                 >
                   <ExternalLink className="h-3 w-3" />
                 </a>

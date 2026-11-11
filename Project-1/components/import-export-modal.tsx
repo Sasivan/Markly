@@ -70,7 +70,7 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-5">
+      <DialogContent className="max-w-md p-5 max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">Import, Export & Health Check</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">

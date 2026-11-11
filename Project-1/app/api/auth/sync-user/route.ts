@@ -17,15 +17,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: "Offline local mode" });
     }
 
-    // 0. Load tombstoned IDs for this user to permanently prevent resurrected folders/bookmarks
+    // 0. Load ALL tombstoned IDs across local database to permanently prevent resurrected folders/bookmarks
     const tombstonedFolders = sqlite
-      .prepare(`SELECT id FROM deleted_folders WHERE user_id = ?`)
-      .all(userId) as { id: string }[];
+      .prepare(`SELECT id FROM deleted_folders`)
+      .all() as { id: string }[];
     const tombstoneFolderSet = new Set(tombstonedFolders.map((t) => t.id));
 
     const tombstonedBookmarks = sqlite
-      .prepare(`SELECT id FROM deleted_bookmarks WHERE user_id = ?`)
-      .all(userId) as { id: string }[];
+      .prepare(`SELECT id FROM deleted_bookmarks`)
+      .all() as { id: string }[];
     const tombstoneBmSet = new Set(tombstonedBookmarks.map((t) => t.id));
 
     // 1. Fetch remote folders for this user
@@ -129,11 +129,17 @@ export async function POST(req: Request) {
       BookmarkRepository.ensureUserStarterData(userId);
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       foldersCount: remoteFolders?.length || 0,
       bookmarksCount: remoteBookmarks?.length || 0,
     });
+    res.cookies.set("markly_user_id", userId, {
+      path: "/",
+      maxAge: 2592000, // 30 days
+      sameSite: "lax",
+    });
+    return res;
   } catch (error: any) {
     console.error("Sync user error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

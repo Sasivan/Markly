@@ -70,7 +70,7 @@ export function AddFolderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-6">
+      <DialogContent className="max-w-md p-5 max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div

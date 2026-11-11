@@ -466,13 +466,13 @@ export class SupabaseManager {
     try {
       // Get tombstoned deleted folder and bookmark ids to permanently prevent resurrection
       const tombstonedFolders = sqlite
-        .prepare(`SELECT id FROM deleted_folders WHERE user_id = ?`)
-        .all(userId) as { id: string }[];
+        .prepare(`SELECT id FROM deleted_folders`)
+        .all() as { id: string }[];
       const tombstoneFolderSet = new Set(tombstonedFolders.map((t) => t.id));
 
       const tombstonedBookmarks = sqlite
-        .prepare(`SELECT id FROM deleted_bookmarks WHERE user_id = ?`)
-        .all(userId) as { id: string }[];
+        .prepare(`SELECT id FROM deleted_bookmarks`)
+        .all() as { id: string }[];
       const tombstoneBmSet = new Set(tombstonedBookmarks.map((t) => t.id));
 
       // 1. Fetch remote folders

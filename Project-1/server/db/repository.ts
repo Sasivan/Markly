@@ -356,6 +356,11 @@ export class BookmarkRepository {
       sqlite.prepare(`
         INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
       `).run(id, effectiveUserId, Date.now());
+      if (userId && userId !== effectiveUserId) {
+        sqlite.prepare(`
+          INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
+        `).run(id, userId, Date.now());
+      }
     } catch (e) {
       console.warn("Tombstone insert warning:", e);
     }
@@ -405,6 +410,11 @@ export class BookmarkRepository {
           sqlite.prepare(`
             INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
           `).run(f.id, effectiveUserId, Date.now());
+          if (userId && userId !== effectiveUserId) {
+            sqlite.prepare(`
+              INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
+            `).run(f.id, userId, Date.now());
+          }
           SupabaseManager.syncFolder({ id: f.id, userId: effectiveUserId }, "delete", { mode: "delete_all" }).catch(() => {});
         }
       }

@@ -237,21 +237,21 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-hidden border border-slate-200 dark:border-neutral-800 shadow-2xl rounded-2xl bg-white dark:bg-[#151515]">
+      <DialogContent className="max-w-md p-0 max-h-[85vh] flex flex-col overflow-hidden border border-slate-200 dark:border-neutral-800 shadow-2xl rounded-2xl bg-white dark:bg-[#151515]">
         {/* Header */}
-        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 p-6 text-white text-center relative overflow-hidden">
-          <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-2.5 border border-white/20 shadow-xs">
-            <Sparkles className="h-5 w-5 text-amber-300" />
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 p-5 text-white text-center relative overflow-hidden flex-shrink-0">
+          <div className="h-9 w-9 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-2 border border-white/20 shadow-xs">
+            <Sparkles className="h-4.5 w-4.5 text-amber-300" />
           </div>
-          <DialogTitle className="text-xl font-bold tracking-tight text-center text-white">
+          <DialogTitle className="text-lg font-bold tracking-tight text-center text-white">
             Google Gemini AI Settings
           </DialogTitle>
-          <DialogDescription className="text-xs text-white/80 mt-1 max-w-sm mx-auto text-center">
+          <DialogDescription className="text-xs text-white/80 mt-0.5 max-w-sm mx-auto text-center">
             Connect your personal Google Gemini API key to unlock automated tag extraction, category classification, and smart bookmark suggestions.
           </DialogDescription>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {/* Status Indicator */}
           <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900/60 text-xs">
             <div className="flex items-center gap-2">

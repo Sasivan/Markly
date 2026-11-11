@@ -76,7 +76,13 @@ export function Sidebar({
       if (onToggleCollapse) {
         onToggleCollapse();
       } else {
-        setInternalCollapsed(val);
+        setInternalCollapsed((prev) => {
+          const next = typeof val === "function" ? val(prev) : val;
+          try {
+            localStorage.setItem("markly_sidebar_collapsed", String(next));
+          } catch {}
+          return next;
+        });
       }
     },
     [onToggleCollapse]
@@ -304,11 +310,16 @@ export function Sidebar({
   if (collapsed) {
     return (
       <aside className="w-12 flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none">
-        {/* Workspace Brand Header - identical h-12 container and h-6 w-6 icon matching expanded sidebar */}
+        {/* Workspace Brand Header - identical h-12 container and toggle matching expanded sidebar */}
         <div className="h-12 border-b border-border flex items-center justify-center bg-[#fbfbfa] dark:bg-[#191919] flex-shrink-0">
-          <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
-            M
-          </div>
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            title="Expand Sidebar (Ctrl+\)"
+            className="h-7 w-7 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+          >
+            <PanelLeftOpen className="h-4 w-4 text-white" />
+          </button>
         </div>
 
         {/* Collapsed Nav Rail */}
@@ -484,14 +495,24 @@ export function Sidebar({
         style={{ width: `${sidebarWidth}px` }}
         className="relative flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none"
       >
-        {/* Workspace Brand Header - clean, full width */}
-        <div className="h-12 border-b border-border flex items-center px-3.5 gap-2.5 bg-[#fbfbfa] dark:bg-[#191919]">
-          <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0">
-            M
+        {/* Workspace Brand Header - clean, full width with collapse button */}
+        <div className="h-12 border-b border-border flex items-center justify-between px-3.5 bg-[#fbfbfa] dark:bg-[#191919]">
+          <div className="flex items-center gap-2.5 truncate">
+            <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0">
+              M
+            </div>
+            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate">
+              Markly
+            </span>
           </div>
-          <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white truncate">
-            Markly
-          </span>
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Collapse Sidebar (Ctrl+\)"
+            className="h-7 w-7 rounded-md hover:bg-slate-200 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-white cursor-pointer transition-colors"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Modern Homepage Section */}

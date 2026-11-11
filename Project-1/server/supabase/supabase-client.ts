@@ -464,6 +464,17 @@ export class SupabaseManager {
     }
 
     try {
+      // Get tombstoned deleted folder and bookmark ids to permanently prevent resurrection
+      const tombstonedFolders = sqlite
+        .prepare(`SELECT id FROM deleted_folders WHERE user_id = ?`)
+        .all(userId) as { id: string }[];
+      const tombstoneFolderSet = new Set(tombstonedFolders.map((t) => t.id));
+
+      const tombstonedBookmarks = sqlite
+        .prepare(`SELECT id FROM deleted_bookmarks WHERE user_id = ?`)
+        .all(userId) as { id: string }[];
+      const tombstoneBmSet = new Set(tombstonedBookmarks.map((t) => t.id));
+
       // 1. Fetch remote folders
       const { data: remoteFolders, error: fErr } = await client
         .from("folders")
@@ -472,7 +483,6 @@ export class SupabaseManager {
 
       let foldersCount = 0;
       if (remoteFolders && remoteFolders.length > 0) {
-        foldersCount = remoteFolders.length;
         const upsertFolder = sqlite.prepare(`
           INSERT INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -486,6 +496,15 @@ export class SupabaseManager {
         `);
 
         for (const f of remoteFolders) {
+          if (tombstoneFolderSet.has(f.id)) {
+            // Permanently deleted! Prune from Supabase immediately and never insert into SQLite
+            try {
+              client.from("folders").delete().eq("id", f.id).then(() => {});
+            } catch {}
+            continue;
+          }
+
+          foldersCount++;
           upsertFolder.run(
             f.id,
             userId,
@@ -508,7 +527,6 @@ export class SupabaseManager {
 
       let bookmarksCount = 0;
       if (remoteBookmarks && remoteBookmarks.length > 0) {
-        bookmarksCount = remoteBookmarks.length;
         const upsertBm = sqlite.prepare(`
           INSERT INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, image_url, domain, is_favorite, is_archived, status, visit_count, last_visited_at, last_clicked_at, created_at, search_text)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -525,6 +543,15 @@ export class SupabaseManager {
         `);
 
         for (const b of remoteBookmarks) {
+          if (tombstoneBmSet.has(b.id)) {
+            // Permanently deleted! Prune from Supabase immediately and never insert into SQLite
+            try {
+              client.from("bookmarks").delete().eq("id", b.id).then(() => {});
+            } catch {}
+            continue;
+          }
+
+          bookmarksCount++;
           upsertBm.run(
             b.id,
             userId,

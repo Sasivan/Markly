@@ -441,6 +441,7 @@ export function MarklyWorkspace({
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
         folders={folders}
+        folderTree={folderTree}
         initialUrl={prefillUrl}
         onBookmarkAdded={handleBookmarkAdded}
         onFolderCreated={(newFolder) => {

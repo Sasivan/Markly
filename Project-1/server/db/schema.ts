@@ -83,6 +83,19 @@ export const bookmarkTags = sqliteTable(
   ]
 );
 
+// Tombstone tables to prevent resurrection of deleted entities during remote sync
+export const deletedFolders = sqliteTable("deleted_folders", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  deletedAt: integer("deleted_at").notNull(),
+});
+
+export const deletedBookmarks = sqliteTable("deleted_bookmarks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  deletedAt: integer("deleted_at").notNull(),
+});
+
 // Drizzle Relations
 export const foldersRelations = relations(folders, ({ one, many }) => ({
   parent: one(folders, {

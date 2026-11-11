@@ -309,6 +309,10 @@ export class BookmarkRepository {
       updatedAt: now,
     }).run();
 
+    try {
+      sqlite.prepare(`DELETE FROM deleted_folders WHERE id = ?`).run(id);
+    } catch {}
+
     const created = db.select().from(folders).where(eq(folders.id, id)).get()!;
     SupabaseManager.syncFolder(created, "upsert").catch(() => {});
     return created;
@@ -345,7 +349,26 @@ export class BookmarkRepository {
    */
   static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId?: string) {
     const targetFolder = db.select().from(folders).where(eq(folders.id, id)).get();
-    if (!targetFolder) return;
+    const effectiveUserId = targetFolder?.userId || userId || DEFAULT_USER_ID;
+
+    // 1. Immediately insert tombstone so remote sync NEVER resurrects this folder
+    try {
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
+      `).run(id, effectiveUserId, Date.now());
+    } catch (e) {
+      console.warn("Tombstone insert warning:", e);
+    }
+
+    if (!targetFolder) {
+      // Even if already deleted locally, ensure Supabase deletion
+      await SupabaseManager.syncFolder(
+        { id, userId: effectiveUserId },
+        "delete",
+        { mode }
+      );
+      return;
+    }
 
     if (mode === "move_up") {
       // Re-parent subfolders to parent (or null if root)
@@ -365,14 +388,20 @@ export class BookmarkRepository {
 
       // Sync folder deletion to Supabase with parent re-parenting
       await SupabaseManager.syncFolder(
-        { id: targetFolder.id },
+        { id: targetFolder.id, userId: effectiveUserId },
         "delete",
         { mode: "move_up", newParentId: targetFolder.parentId }
       );
     } else {
       // Delete all descendants and their bookmarks
-      const allIds = this.getDescendantFolderIds(id, targetFolder.userId);
+      const allIds = this.getDescendantFolderIds(id, effectiveUserId);
       for (const fId of allIds) {
+        try {
+          sqlite.prepare(`
+            INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
+          `).run(fId, effectiveUserId, Date.now());
+        } catch {}
+
         sqlite.prepare(`
           DELETE FROM bookmark_tags WHERE bookmark_id IN (
             SELECT id FROM bookmarks WHERE folder_id = ?
@@ -385,7 +414,7 @@ export class BookmarkRepository {
       const reversedIds = [...allIds].reverse();
       for (const fId of reversedIds) {
         db.delete(folders).where(eq(folders.id, fId)).run();
-        await SupabaseManager.syncFolder({ id: fId }, "delete", { mode: "delete_all" });
+        await SupabaseManager.syncFolder({ id: fId, userId: effectiveUserId }, "delete", { mode: "delete_all" });
       }
     }
   }
@@ -647,6 +676,10 @@ export class BookmarkRepository {
       searchText,
     }).run();
 
+    try {
+      sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(id);
+    } catch {}
+
     // Attach tags
     if (data.tagNames && data.tagNames.length > 0) {
       this.attachTagsToBookmark(id, data.tagNames, userId);
@@ -753,6 +786,13 @@ export class BookmarkRepository {
    * Delete single bookmark
    */
   static deleteBookmark(id: string, userId?: string) {
+    try {
+      const b = db.select({ userId: bookmarks.userId }).from(bookmarks).where(eq(bookmarks.id, id)).get();
+      const uId = b?.userId || userId || DEFAULT_USER_ID;
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
+      `).run(id, uId, Date.now());
+    } catch {}
     SupabaseManager.syncBookmark({ id }, "delete").catch(() => {});
     db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
   }

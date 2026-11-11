@@ -17,6 +17,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: "Offline local mode" });
     }
 
+    // 0. Load tombstoned IDs for this user to permanently prevent resurrected folders/bookmarks
+    const tombstonedFolders = sqlite
+      .prepare(`SELECT id FROM deleted_folders WHERE user_id = ?`)
+      .all(userId) as { id: string }[];
+    const tombstoneFolderSet = new Set(tombstonedFolders.map((t) => t.id));
+
+    const tombstonedBookmarks = sqlite
+      .prepare(`SELECT id FROM deleted_bookmarks WHERE user_id = ?`)
+      .all(userId) as { id: string }[];
+    const tombstoneBmSet = new Set(tombstonedBookmarks.map((t) => t.id));
+
     // 1. Fetch remote folders for this user
     const { data: remoteFolders } = await client
       .from("folders")
@@ -37,6 +48,14 @@ export async function POST(req: Request) {
       `);
 
       for (const f of remoteFolders) {
+        if (tombstoneFolderSet.has(f.id)) {
+          // Permanently deleted! Delete from Supabase and skip insertion into SQLite
+          try {
+            client.from("folders").delete().eq("id", f.id).then(() => {});
+          } catch {}
+          continue;
+        }
+
         upsertFolder.run(
           f.id,
           userId,
@@ -74,6 +93,14 @@ export async function POST(req: Request) {
       `);
 
       for (const b of remoteBookmarks) {
+        if (tombstoneBmSet.has(b.id)) {
+          // Permanently deleted! Delete from Supabase and skip insertion into SQLite
+          try {
+            client.from("bookmarks").delete().eq("id", b.id).then(() => {});
+          } catch {}
+          continue;
+        }
+
         upsertBm.run(
           b.id,
           userId,

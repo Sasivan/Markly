@@ -131,6 +131,18 @@ export function initDbSchema() {
         value TEXT NOT NULL,
         updated_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS deleted_folders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS deleted_bookmarks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL
+      );
     `);
   } catch (schemaErr) {
     console.warn("Schema initialization warning:", schemaErr);

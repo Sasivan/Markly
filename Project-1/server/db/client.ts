@@ -143,6 +143,24 @@ export function initDbSchema() {
         user_id TEXT NOT NULL,
         deleted_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS recycle_bin (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        item_type TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        original_folder_id TEXT,
+        original_folder_name TEXT,
+        icon TEXT,
+        color TEXT,
+        item_data TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL,
+        retention_days INTEGER NOT NULL DEFAULT 30
+      );
+
+      CREATE INDEX IF NOT EXISTS recycle_bin_user_idx ON recycle_bin(user_id);
+      CREATE INDEX IF NOT EXISTS recycle_bin_deleted_at_idx ON recycle_bin(deleted_at);
     `);
   } catch (schemaErr) {
     console.warn("Schema initialization warning:", schemaErr);

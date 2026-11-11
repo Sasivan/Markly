@@ -47,14 +47,30 @@ export async function parseHtmlMetadata(html: string, pageUrl: string, domain: s
   const description = rawDesc.replace(/\s+/g, " ").trim();
 
   // 3. Image URL Extraction
-  const ogImage = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content");
+  const rawImageCandidate =
+    $('meta[property="og:image"]').attr("content") ||
+    $('meta[name="og:image"]').attr("content") ||
+    $('meta[property="og:image:url"]').attr("content") ||
+    $('meta[property="og:image:secure_url"]').attr("content") ||
+    $('meta[name="twitter:image"]').attr("content") ||
+    $('meta[property="twitter:image"]').attr("content") ||
+    $('meta[name="twitter:image:src"]').attr("content") ||
+    $('meta[itemprop="image"]').attr("content") ||
+    $('link[rel="image_src"]').attr("href") ||
+    null;
+
   let imageUrl: string | null = null;
-  if (ogImage) {
+  if (rawImageCandidate) {
     try {
-      imageUrl = new URL(ogImage, pageUrl).toString();
+      imageUrl = new URL(rawImageCandidate, pageUrl).toString();
     } catch {
       imageUrl = null;
     }
+  }
+
+  // Fallback: If no Open Graph image found, provide high-resolution website snapshot
+  if (!imageUrl && pageUrl.startsWith("http")) {
+    imageUrl = `https://image.thum.io/get/width/1200/crop/800/${pageUrl}`;
   }
 
   // 4. Site Name

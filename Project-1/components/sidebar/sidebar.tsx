@@ -22,6 +22,7 @@ import {
   Database,
   User,
   LogOut,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,14 +37,18 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile";
   totalBookmarksCount: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onCreateFolder?: (name: string, icon: string, color: string, parentId?: string | null) => Promise<void>;
+  onDeleteFolder?: (folderId: string, mode: "move_up" | "delete_all") => Promise<void>;
+  onRenameFolder?: (folderId: string, newName: string) => Promise<void>;
+  onCustomizeFolder?: (folderId: string, updates: { name: string; icon: string; color: string }) => Promise<void>;
 }
 
 export function Sidebar({
@@ -58,6 +63,10 @@ export function Sidebar({
   onOpenSearch,
   isCollapsed: controlledCollapsed,
   onToggleCollapse,
+  onCreateFolder,
+  onDeleteFolder,
+  onRenameFolder,
+  onCustomizeFolder,
 }: SidebarProps) {
   const { user, signOut, openAuthModal } = useAuth();
   const [internalCollapsed, setInternalCollapsed] = React.useState(false);
@@ -75,8 +84,27 @@ export function Sidebar({
   const [sidebarWidth, setSidebarWidth] = React.useState(260);
   const [isResizing, setIsResizing] = React.useState(false);
 
-  // VS Code style section collapse & global tree expand/collapse
+  // VS Code style section collapse & global tree expand/collapse with persistence
   const [isFoldersSectionOpen, setIsFoldersSectionOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("markly_folders_section_open");
+      if (stored !== null) {
+        setIsFoldersSectionOpen(stored === "true");
+      }
+    } catch {}
+  }, []);
+
+  const toggleFoldersSection = React.useCallback(() => {
+    setIsFoldersSectionOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("markly_folders_section_open", String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
   const [globalForceExpanded, setGlobalForceExpanded] = React.useState<boolean | null>(null);
   const [isAllFoldersExpanded, setIsAllFoldersExpanded] = React.useState(true);
 
@@ -156,9 +184,13 @@ export function Sidebar({
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Folder Actions
+  // Folder Actions (with 0ms Optimistic Strategy)
   const handleConfirmCreateFolder = async (name: string, icon: string, color: string, parentId?: string | null) => {
     try {
+      if (onCreateFolder) {
+        await onCreateFolder(name, icon, color, parentId);
+        return;
+      }
       const res = await fetch("/api/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,6 +214,10 @@ export function Sidebar({
 
   const handleRenameFolder = async (folderId: string, newName: string) => {
     try {
+      if (onRenameFolder) {
+        await onRenameFolder(folderId, newName);
+        return;
+      }
       await fetch(`/api/folders/${folderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -195,6 +231,10 @@ export function Sidebar({
 
   const handleCustomizeSave = async (folderId: string, updates: { name: string; icon: string; color: string }) => {
     try {
+      if (onCustomizeFolder) {
+        await onCustomizeFolder(folderId, updates);
+        return;
+      }
       await fetch(`/api/folders/${folderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -222,6 +262,10 @@ export function Sidebar({
 
   const handleConfirmDelete = async (folderId: string, mode: "move_up" | "delete_all") => {
     try {
+      if (onDeleteFolder) {
+        await onDeleteFolder(folderId, mode);
+        return;
+      }
       const q = new URLSearchParams({ mode });
       if (user?.id) q.set("userId", user.id);
       await fetch(`/api/folders/${folderId}?${q.toString()}`, {
@@ -362,6 +406,23 @@ export function Sidebar({
             }`}
           >
             <Inbox className="h-4 w-4 text-violet-500" />
+          </button>
+
+          {/* Recycle Bin Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("trash");
+            }}
+            title="Recycle Bin (Trash)"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "trash"
+                ? "bg-rose-600 text-white shadow-xs"
+                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-rose-500"
+            }`}
+          >
+            <Trash2 className="h-4 w-4 text-rose-500" />
           </button>
 
           {/* User Account / Profile in Rail */}
@@ -613,6 +674,23 @@ export function Sidebar({
             <Archive className="h-4 w-4 text-slate-400 flex-shrink-0" />
             <span className="truncate">Archive</span>
           </button>
+
+          {/* Recycle Bin (Trash) */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("trash");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "trash"
+                ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 font-semibold shadow-2xs"
+                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+            }`}
+          >
+            <Trash2 className="h-4 w-4 text-rose-500 flex-shrink-0" />
+            <span className="truncate">Recycle Bin</span>
+          </button>
         </div>
 
         {/* Folders Section Header (VS Code Style) */}
@@ -626,7 +704,7 @@ export function Sidebar({
           <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             <button
               type="button"
-              onClick={() => setIsFoldersSectionOpen(!isFoldersSectionOpen)}
+              onClick={toggleFoldersSection}
               className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors"
               title={isFoldersSectionOpen ? "Collapse Folders Section" : "Expand Folders Section"}
             >

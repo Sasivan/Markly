@@ -88,26 +88,28 @@ export function EditBookmarkModal({
       });
 
       const data = await res.json();
-      if (data.success && data.scraped) {
-        if (data.scraped.ogImage) {
-          setImageUrl(data.scraped.ogImage);
+      const meta = data.scraped || data.metadata;
+      if (data.success && meta) {
+        const newImg = meta.ogImage || meta.imageUrl;
+        if (newImg) {
+          setImageUrl(newImg);
         }
-        if (data.scraped.title && (!title || title === bookmark.title)) {
-          setTitle(data.scraped.title);
+        if (meta.title) {
+          setTitle(meta.title);
         }
-        if (data.scraped.description && !description) {
-          setDescription(data.scraped.description);
+        if (meta.description) {
+          setDescription(meta.description);
         }
         setScrapeNotice({
           type: "success",
-          text: data.scraped.ogImage
+          text: newImg
             ? "Successfully re-scraped preview image & metadata!"
-            : "Re-scraped page metadata (no OG image found on site).",
+            : "Re-scraped page metadata.",
         });
       } else {
         setScrapeNotice({
           type: "error",
-          text: data.error || "Failed to re-scrape site.",
+          text: data.error || data.message || "Failed to re-scrape site.",
         });
       }
     } catch (err: any) {

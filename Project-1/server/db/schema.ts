@@ -96,6 +96,29 @@ export const deletedBookmarks = sqliteTable("deleted_bookmarks", {
   deletedAt: integer("deleted_at").notNull(),
 });
 
+// PC-style Recycle Bin with configurable 1/7/15/30-day retention
+export const recycleBin = sqliteTable(
+  "recycle_bin",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    itemType: text("item_type", { enum: ["folder", "bookmark"] }).notNull(),
+    itemId: text("item_id").notNull(),
+    title: text("title").notNull(),
+    originalFolderId: text("original_folder_id"),
+    originalFolderName: text("original_folder_name"),
+    icon: text("icon"),
+    color: text("color"),
+    itemData: text("item_data").notNull(),
+    deletedAt: integer("deleted_at").notNull(),
+    retentionDays: integer("retention_days").notNull().default(30),
+  },
+  (table) => [
+    index("recycle_bin_user_idx").on(table.userId),
+    index("recycle_bin_deleted_at_idx").on(table.deletedAt),
+  ]
+);
+
 // Drizzle Relations
 export const foldersRelations = relations(folders, ({ one, many }) => ({
   parent: one(folders, {
@@ -154,4 +177,6 @@ export type FolderTreeNode = Folder & {
   bookmarkCount: number;
   totalDescendantBookmarkCount: number;
 };
+
+export type RecycleBinItem = typeof recycleBin.$inferSelect;
 

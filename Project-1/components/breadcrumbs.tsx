@@ -1,18 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2 } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
 interface BreadcrumbsProps {
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile";
   folders: Folder[];
   includeSubfolders: boolean;
   onToggleIncludeSubfolders: (val: boolean) => void;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "graph" | "insights" | "database" | "profile") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile") => void;
   totalBookmarksCount: number;
 }
 
@@ -117,6 +117,10 @@ export function Breadcrumbs({
               ) : activeView === "profile" ? (
                 <>
                   <User className="h-3.5 w-3.5 text-blue-500" /> Account Profile
+                </>
+              ) : activeView === "trash" ? (
+                <>
+                  <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Recycle Bin
                 </>
               ) : (
                 "All Bookmarks"

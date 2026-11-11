@@ -370,53 +370,96 @@ export class BookmarkRepository {
       return;
     }
 
-    if (mode === "move_up") {
-      // Re-parent subfolders to parent (or null if root)
-      db.update(folders)
-        .set({ parentId: targetFolder.parentId, updatedAt: Date.now() })
-        .where(eq(folders.parentId, id))
-        .run();
+    const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
 
-      // Re-parent bookmarks to parent (or null for Unsorted/Inbox)
-      db.update(bookmarks)
-        .set({ folderId: targetFolder.parentId })
-        .where(eq(bookmarks.folderId, id))
-        .run();
+    if (mode === "delete_all") {
+      // Get all descendant folders (including sub-subfolders)
+      const descendantIds = this.getDescendantFolderIds(id, effectiveUserId);
+      const allFolderIdsToDelete = [id, ...descendantIds];
 
-      // Delete folder itself from SQLite
-      db.delete(folders).where(eq(folders.id, id)).run();
+      // 2. ALWAYS keep inside bookmarks safe in "Unknown" (Unsorted/Inbox: folderId = NULL)
+      const placeholders = allFolderIdsToDelete.map(() => "?").join(",");
+      sqlite.prepare(`
+        UPDATE bookmarks SET folder_id = NULL WHERE folder_id IN (${placeholders})
+      `).run(...allFolderIdsToDelete);
 
-      // Sync folder deletion to Supabase with parent re-parenting
-      await SupabaseManager.syncFolder(
-        { id: targetFolder.id, userId: effectiveUserId },
-        "delete",
-        { mode: "move_up", newParentId: targetFolder.parentId }
-      );
-    } else {
-      // Delete all descendants and their bookmarks
-      const allIds = this.getDescendantFolderIds(id, effectiveUserId);
-      for (const fId of allIds) {
-        try {
+      // 3. Save each folder to Recycle Bin and record tombstones
+      for (const fId of allFolderIdsToDelete) {
+        const f = db.select().from(folders).where(eq(folders.id, fId)).get();
+        if (f) {
+          sqlite.prepare(`
+            INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+            VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            `rb_fld_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            effectiveUserId,
+            f.id,
+            f.name,
+            f.parentId,
+            f.icon,
+            f.color,
+            JSON.stringify(f),
+            Date.now(),
+            retentionDays
+          );
           sqlite.prepare(`
             INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-          `).run(fId, effectiveUserId, Date.now());
-        } catch {}
-
-        sqlite.prepare(`
-          DELETE FROM bookmark_tags WHERE bookmark_id IN (
-            SELECT id FROM bookmarks WHERE folder_id = ?
-          )
-        `).run(fId);
-        db.delete(bookmarks).where(eq(bookmarks.folderId, fId)).run();
+          `).run(f.id, effectiveUserId, Date.now());
+          SupabaseManager.syncFolder({ id: f.id, userId: effectiveUserId }, "delete", { mode: "delete_all" }).catch(() => {});
+        }
       }
 
-      // Delete folders in reverse order (deepest child folders first, root last)
-      const reversedIds = [...allIds].reverse();
-      for (const fId of reversedIds) {
-        db.delete(folders).where(eq(folders.id, fId)).run();
-        await SupabaseManager.syncFolder({ id: fId, userId: effectiveUserId }, "delete", { mode: "delete_all" });
-      }
+      // 4. Delete folders from SQLite
+      sqlite.prepare(`
+        DELETE FROM folders WHERE id IN (${placeholders})
+      `).run(...allFolderIdsToDelete);
+
+      return;
     }
+
+    // mode === "move_up"
+    // 2. ALWAYS keep inside bookmarks safe in "Unknown" (Unsorted/Inbox: folderId = NULL)
+    db.update(bookmarks)
+      .set({ folderId: null })
+      .where(eq(bookmarks.folderId, id))
+      .run();
+
+    // 3. Re-parent direct subfolders to parent (or null if root)
+    db.update(folders)
+      .set({ parentId: targetFolder.parentId, updatedAt: Date.now() })
+      .where(eq(folders.parentId, id))
+      .run();
+
+    // 4. Save folder to Recycle Bin (preserving original metadata and state)
+    try {
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+        VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        `rb_fld_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        effectiveUserId,
+        id,
+        targetFolder.name,
+        targetFolder.parentId,
+        targetFolder.icon,
+        targetFolder.color,
+        JSON.stringify(targetFolder),
+        Date.now(),
+        retentionDays
+      );
+    } catch (rbErr) {
+      console.warn("Recycle bin insert folder warning:", rbErr);
+    }
+
+    // 5. Delete folder itself from SQLite
+    db.delete(folders).where(eq(folders.id, id)).run();
+
+    // 6. Sync folder deletion to Supabase with parent re-parenting
+    await SupabaseManager.syncFolder(
+      { id: targetFolder.id, userId: effectiveUserId },
+      "delete",
+      { mode: "move_up", newParentId: targetFolder.parentId }
+    );
   }
 
   /**
@@ -785,16 +828,271 @@ export class BookmarkRepository {
   /**
    * Delete single bookmark
    */
+  /**
+   * Delete single bookmark and move to Recycle Bin
+   */
   static deleteBookmark(id: string, userId?: string) {
     try {
-      const b = db.select({ userId: bookmarks.userId }).from(bookmarks).where(eq(bookmarks.id, id)).get();
-      const uId = b?.userId || userId || DEFAULT_USER_ID;
+      const b = db.select().from(bookmarks).where(eq(bookmarks.id, id)).get();
+      if (!b) return;
+      const effectiveUserId = b.userId || userId || DEFAULT_USER_ID;
+
+      // Fetch attached tags
+      const tagRows = sqlite.prepare(`
+        SELECT t.id, t.name, t.color
+        FROM bookmark_tags bt
+        JOIN tags t ON bt.tag_id = t.id
+        WHERE bt.bookmark_id = ?
+      `).all(id);
+
+      const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
+
+      // 1. Move to Recycle Bin with full restore snapshot
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+        VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        `rb_bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        effectiveUserId,
+        id,
+        b.title,
+        b.folderId,
+        b.iconUrl,
+        null,
+        JSON.stringify({ ...b, tags: tagRows }),
+        Date.now(),
+        retentionDays
+      );
+
+      // 2. Record tombstone
       sqlite.prepare(`
         INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
-      `).run(id, uId, Date.now());
+      `).run(id, effectiveUserId, Date.now());
+
+      // 3. Remove from active bookmarks
+      SupabaseManager.syncBookmark({ id }, "delete").catch(() => {});
+      db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
+    } catch (e) {
+      console.error("deleteBookmark error:", e);
+    }
+  }
+
+  /**
+   * Get retention setting in days (1, 7, 15, or 30 days - default 30)
+   */
+  static getRecycleBinRetentionDays(userId: string = DEFAULT_USER_ID): number {
+    try {
+      const row = sqlite
+        .prepare(`SELECT value FROM app_settings WHERE key = 'recycle_bin_retention_days'`)
+        .get() as { value: string } | undefined;
+      if (row?.value) {
+        const parsed = parseInt(row.value, 10);
+        if ([1, 7, 15, 30].includes(parsed)) return parsed;
+      }
     } catch {}
-    SupabaseManager.syncBookmark({ id }, "delete").catch(() => {});
-    db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
+    return 30;
+  }
+
+  /**
+   * Set retention setting in days (1, 7, 15, 30)
+   */
+  static setRecycleBinRetentionDays(days: number): void {
+    const validDays = [1, 7, 15, 30].includes(days) ? days : 30;
+    try {
+      sqlite
+        .prepare(`
+          INSERT INTO app_settings (key, value, updated_at)
+          VALUES ('recycle_bin_retention_days', ?, ?)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        `)
+        .run(String(validDays), Date.now());
+    } catch (e) {
+      console.warn("Failed to update recycle bin retention:", e);
+    }
+  }
+
+  /**
+   * Fetch all recycle bin items for a user, purging any expired items
+   */
+  static getRecycleBinItems(userId: string = DEFAULT_USER_ID): any[] {
+    try {
+      // 1. Purge expired items automatically
+      const retentionDays = this.getRecycleBinRetentionDays(userId);
+      const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+      const cutoff = Date.now() - retentionMs;
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ? AND deleted_at < ?`).run(userId, cutoff);
+
+      // 2. Query active recycle bin items
+      const rows = sqlite
+        .prepare(`SELECT * FROM recycle_bin WHERE user_id = ? ORDER BY deleted_at DESC`)
+        .all(userId) as any[];
+
+      const now = Date.now();
+      return rows.map((r) => {
+        const itemRetentionMs = (r.retention_days || retentionDays) * 24 * 60 * 60 * 1000;
+        const expiresAt = r.deleted_at + itemRetentionMs;
+        const remainingMs = Math.max(0, expiresAt - now);
+        const expiresInDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+        const expiresInHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+
+        return {
+          id: r.id,
+          userId: r.user_id,
+          itemType: r.item_type,
+          itemId: r.item_id,
+          title: r.title,
+          originalFolderId: r.original_folder_id,
+          originalFolderName: r.original_folder_name,
+          icon: r.icon,
+          color: r.color,
+          itemData: r.item_data,
+          deletedAt: r.deleted_at,
+          retentionDays: r.retention_days,
+          expiresInDays,
+          expiresInHours,
+        };
+      });
+    } catch (e) {
+      console.error("getRecycleBinItems error:", e);
+      return [];
+    }
+  }
+
+  /**
+   * Restore an item from Recycle Bin
+   */
+  static async restoreRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
+    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ?`).get(id) as any;
+    if (!item) return { success: false, error: "Item not found in Recycle Bin" };
+
+    const data = JSON.parse(item.item_data);
+
+    if (item.item_type === "folder") {
+      // Check if parent still exists
+      let parentId = data.parentId || null;
+      if (parentId) {
+        const parentExists = db.select({ id: folders.id }).from(folders).where(eq(folders.id, parentId)).get();
+        if (!parentExists) parentId = null;
+      }
+
+      // Re-insert into folders
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        data.id,
+        item.user_id,
+        parentId,
+        data.name,
+        data.icon || "📁",
+        data.color || "gray",
+        data.position || 0,
+        data.createdAt || Date.now(),
+        Date.now()
+      );
+
+      // Remove from tombstones
+      sqlite.prepare(`DELETE FROM deleted_folders WHERE id = ?`).run(data.id);
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
+
+      // Sync restore to Supabase
+      const restored = db.select().from(folders).where(eq(folders.id, data.id)).get();
+      if (restored) {
+        await SupabaseManager.syncFolder(restored, "upsert");
+      }
+      return { success: true, item: restored, type: "folder" };
+    } else {
+      // Bookmark restore: check if original folder exists, otherwise restore to Unsorted (Inbox)
+      let folderId = data.folderId || null;
+      if (folderId) {
+        const folderExists = db.select({ id: folders.id }).from(folders).where(eq(folders.id, folderId)).get();
+        if (!folderExists) folderId = null;
+      }
+
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, image_url, domain, is_favorite, is_archived, status, visit_count, last_visited_at, last_clicked_at, created_at, search_text)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        data.id,
+        item.user_id,
+        folderId,
+        data.url,
+        data.canonicalUrl || data.url,
+        data.title,
+        data.description || null,
+        data.iconUrl || null,
+        data.imageUrl || null,
+        data.domain,
+        data.isFavorite ? 1 : 0,
+        data.isArchived ? 1 : 0,
+        data.status || "alive",
+        data.visitCount || 0,
+        data.lastVisitedAt || null,
+        data.lastClickedAt || null,
+        data.createdAt || Date.now(),
+        data.searchText || null
+      );
+
+      // Restore tags if present
+      if (Array.isArray(data.tags)) {
+        for (const t of data.tags) {
+          sqlite.prepare(`
+            INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(t.id, item.user_id, t.name, t.color || "#3b82f6", Date.now());
+
+          sqlite.prepare(`
+            INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id)
+            VALUES (?, ?)
+          `).run(data.id, t.id);
+        }
+      }
+
+      // Remove from tombstones
+      sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(data.id);
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
+
+      const restored = this.getBookmarkById(data.id);
+      if (restored) {
+        await SupabaseManager.syncBookmark(restored, "upsert");
+      }
+      return { success: true, item: restored, type: "bookmark" };
+    }
+  }
+
+  /**
+   * Permanently delete a single item from Recycle Bin
+   */
+  static permanentlyDeleteRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
+    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ?`).get(id) as any;
+    if (!item) return;
+
+    if (item.item_type === "folder") {
+      sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
+      SupabaseManager.syncFolder({ id: item.item_id, userId: item.user_id }, "delete", { mode: "delete_all" }).catch(() => {});
+    } else {
+      sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
+      SupabaseManager.syncBookmark({ id: item.item_id }, "delete").catch(() => {});
+    }
+
+    sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
+  }
+
+  /**
+   * Empty entire recycle bin
+   */
+  static emptyRecycleBin(userId: string = DEFAULT_USER_ID) {
+    const items = sqlite.prepare(`SELECT * FROM recycle_bin WHERE user_id = ?`).all(userId) as any[];
+    for (const item of items) {
+      if (item.item_type === "folder") {
+        sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
+        SupabaseManager.syncFolder({ id: item.item_id, userId: item.user_id }, "delete", { mode: "delete_all" }).catch(() => {});
+      } else {
+        sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
+        SupabaseManager.syncBookmark({ id: item.item_id }, "delete").catch(() => {});
+      }
+    }
+    sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ?`).run(userId);
   }
 
   /**
@@ -844,10 +1142,9 @@ export class BookmarkRepository {
 
   static bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {
     if (ids.length === 0) return;
-    const placeholders = ids.map(() => "?").join(",");
-    sqlite.prepare(`
-      DELETE FROM bookmarks WHERE user_id = ? AND id IN (${placeholders})
-    `).run(userId, ...ids);
+    for (const id of ids) {
+      this.deleteBookmark(id, userId);
+    }
   }
 
   /**

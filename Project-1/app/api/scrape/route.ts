@@ -78,16 +78,18 @@ export async function POST(req: Request) {
       } catch {}
     }
 
-    // 4. Duplicate Detection Check
-    const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, userId);
-    if (existingBookmark && !forceDuplicate) {
-      return NextResponse.json({
-        success: true,
-        isDuplicate: true,
-        existingBookmark,
-        folderName: existingBookmark.folderName,
-        message: `Already saved in folder "${existingBookmark.folderName}"`,
-      });
+    // 4. Duplicate Detection Check (only when actively saving a new bookmark)
+    if (saveImmediately) {
+      const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, userId);
+      if (existingBookmark && !forceDuplicate) {
+        return NextResponse.json({
+          success: true,
+          isDuplicate: true,
+          existingBookmark,
+          folderName: existingBookmark.folderName,
+          message: `Already saved in folder "${existingBookmark.folderName}"`,
+        });
+      }
     }
 
     // 5. Safe Fetch HTML (with SSRF defense, 8s timeout, 2MB size cap, redirect inspector)
@@ -167,6 +169,10 @@ export async function POST(req: Request) {
       success: true,
       isDuplicate: false,
       metadata,
+      scraped: {
+        ...metadata,
+        ogImage: metadata.imageUrl,
+      },
       bookmark,
     });
   } catch (error: any) {

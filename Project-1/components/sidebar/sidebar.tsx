@@ -339,12 +339,19 @@ export function Sidebar({
             <Inbox className="h-4 w-4 text-violet-500" />
           </button>
 
-          {/* User Account / Sign In in Rail */}
+          {/* User Account / Profile in Rail */}
           <button
             type="button"
-            onClick={() => openAuthModal(user ? "login" : "login")}
-            title={user ? `Signed in as ${user.email}` : "Sign In / Sign Up"}
-            className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800 mt-2 border-t border-border/60 pt-2"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("profile");
+            }}
+            title={user ? `Profile (${user.email})` : "Account Profile"}
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors mt-2 border-t border-border/60 pt-2 ${
+              activeView === "profile" && !activeFolderId
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800"
+            }`}
           >
             {user ? (
               <div className="h-5 w-5 rounded-md bg-blue-600 text-white font-bold text-[9px] flex items-center justify-center">
@@ -459,6 +466,23 @@ export function Sidebar({
             <Compass className="h-4 w-4 text-blue-500 flex-shrink-0" />
             <span className="truncate">Quick Access</span>
             <span className="ml-auto text-[11px] font-mono text-muted-foreground">{totalBookmarksCount}</span>
+          </button>
+
+          {/* Account Profile */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("profile");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "profile" && !activeFolderId
+                ? "bg-blue-600 text-white font-semibold shadow-xs"
+                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+            }`}
+          >
+            <User className={`h-4 w-4 ${activeView === "profile" && !activeFolderId ? "text-white" : "text-blue-500"} flex-shrink-0`} />
+            <span className="truncate">Profile & Account</span>
           </button>
 
           {/* Folder Collections */}
@@ -691,15 +715,19 @@ export function Sidebar({
           ) : (
             <button
               type="button"
-              onClick={() => openAuthModal("login")}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 font-medium cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors shadow-2xs"
+              onClick={() => {
+                onSelectFolder(null);
+                onSelectView("profile");
+              }}
+              title="View Account Profile"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 font-medium cursor-pointer hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors shadow-2xs"
             >
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span className="text-xs font-bold">Sign In / Sign Up</span>
+                <User className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-semibold">Account Profile</span>
               </div>
-              <span className="text-[10px] bg-blue-200/60 dark:bg-blue-900/60 px-1.5 py-0.5 rounded font-mono font-semibold">
-                Supabase
+              <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-mono font-semibold">
+                Guest
               </span>
             </button>
           )}

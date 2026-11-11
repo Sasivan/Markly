@@ -91,11 +91,20 @@ export function suggestFolderAndTags(input: SuggestInput): SuggestOutput {
  * Helper to clean and parse JSON from AI outputs (stripping markdown fences)
  */
 function parseAiJson(rawText: string): any {
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/i, "");
+  try {
+    let cleaned = rawText.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/i, "");
+    }
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+    return JSON.parse(cleaned.trim());
+  } catch {
+    return {};
   }
-  return JSON.parse(cleaned.trim());
 }
 
 /**
@@ -180,31 +189,40 @@ Respond strictly in valid JSON:
       if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
         cleanModel = "gemini-flash-latest";
       }
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: 0.2,
-            },
-          }),
+      
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.2,
+              },
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => "");
+          console.warn(`Gemini API call failed (${res.status}):`, errorText);
+          return suggestFolderAndTags(input);
         }
-      );
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        console.warn(`Gemini API call failed (${res.status}):`, errorText);
-        return suggestFolderAndTags(input);
+        const data = await res.json();
+        rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } finally {
+        clearTimeout(timer);
       }
-
-      const data = await res.json();
-      rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } else {
-      // 2. OpenAI-Compatible Providers: OpenRouter, Grok, OpenAI, Universal / Local
+      // 2. OpenAI-Compatible Providers: OpenRouter, Grok, OpenAI, Universal / Local / CodeCraft
       let baseUrl = config.baseUrl?.trim();
       let model = config.model?.trim();
 
@@ -218,44 +236,54 @@ Respond strictly in valid JSON:
         baseUrl = baseUrl || "https://api.openai.com/v1";
         model = model || "gpt-4o-mini";
       } else {
-        // Universal / Custom
+        // Universal / Custom (CodeCraft, Ollama, etc.)
         baseUrl = baseUrl || "https://api.openai.com/v1";
         model = model || "gpt-4o-mini";
       }
 
-      const cleanUrl = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
-      const res = await fetch(cleanUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": "https://markly.app",
-          "X-Title": "Markly",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a bookmark organization assistant. Respond strictly in valid JSON with keys: \"suggestedFolderName\", \"suggestedTags\", and \"summary\".",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          temperature: 0.2,
-        }),
-      });
+      const cleanBase = baseUrl.replace(/\/+$/, "");
+      const cleanUrl = cleanBase.endsWith("/chat/completions") ? cleanBase : `${cleanBase}/chat/completions`;
 
-      if (!res.ok) {
-        console.warn(`${provider} API call failed with status:`, res.status);
-        return suggestFolderAndTags(input);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4500);
+
+      try {
+        const res = await fetch(cleanUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+            "HTTP-Referer": "https://markly.app",
+            "X-Title": "Markly",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a bookmark organization assistant. Respond strictly in valid JSON with keys: \"suggestedFolderName\", \"suggestedTags\", and \"summary\".",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            temperature: 0.2,
+          }),
+        });
+
+        if (!res.ok) {
+          console.warn(`${provider} API call failed with status:`, res.status);
+          return suggestFolderAndTags(input);
+        }
+
+        const data = await res.json();
+        rawText = data.choices?.[0]?.message?.content || "";
+      } finally {
+        clearTimeout(timer);
       }
-
-      const data = await res.json();
-      rawText = data.choices?.[0]?.message?.content || "";
     }
 
     if (!rawText) {

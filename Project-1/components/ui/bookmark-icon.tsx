@@ -106,42 +106,53 @@ export function BookmarkIcon({
   domain = "",
   className = "h-5 w-5 rounded object-contain flex-shrink-0",
 }: BookmarkIconProps) {
-  const defaultFallback = React.useMemo(() => getInterestingDefaultIcon(domain, alt), [domain, alt]);
-  const [hasError, setHasError] = React.useState(false);
-  const [currentSrc, setCurrentSrc] = React.useState<string | null>(src || null);
+  const cleanDomain = React.useMemo(() => {
+    return (domain || "")
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0]
+      .split(":")[0]
+      .trim();
+  }, [domain]);
+
+  const googleFavicon = cleanDomain
+    ? `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=64`
+    : null;
+
+  const defaultFallback = React.useMemo(
+    () => getInterestingDefaultIcon(cleanDomain, alt),
+    [cleanDomain, alt]
+  );
+
+  // Stage 0: Custom / scraped icon
+  // Stage 1: Google Favicon CDN
+  // Stage 2: Themed SVG default fallback
+  const [stage, setStage] = React.useState<number>(
+    src && !src.startsWith("/icons/avatar-") ? 0 : googleFavicon ? 1 : 2
+  );
 
   React.useEffect(() => {
-    setCurrentSrc(src || null);
-    setHasError(false);
-  }, [src]);
+    setStage(src && !src.startsWith("/icons/avatar-") ? 0 : googleFavicon ? 1 : 2);
+  }, [src, googleFavicon]);
 
-  // If we have a valid src and no error, render image
-  if (currentSrc && !hasError) {
-    return (
-      <img
-        src={currentSrc}
-        alt={alt}
-        className={className}
-        onError={() => {
-          // If custom icon fails, fallback to interesting default icon
-          if (currentSrc !== defaultFallback) {
-            setCurrentSrc(defaultFallback);
-          } else {
-            setHasError(true);
-          }
-        }}
-      />
-    );
-  }
+  const activeSrc =
+    stage === 0 && src
+      ? src
+      : stage === 1 && googleFavicon
+      ? googleFavicon
+      : defaultFallback;
 
-  // If no src or error, render interesting default SVG image backup
   return (
     <img
-      src={defaultFallback}
-      alt={alt || domain || "Default Icon"}
+      src={activeSrc}
+      alt={alt || cleanDomain || "Icon"}
       className={className}
+      loading="lazy"
       onError={() => {
-        setHasError(true);
+        setStage((prev) => {
+          if (prev === 0 && googleFavicon) return 1;
+          return 2;
+        });
       }}
     />
   );

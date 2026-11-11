@@ -102,10 +102,6 @@ export function AddBookmarkModal({
 
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to scrape link");
-      }
-
       // Check if duplicate was detected
       if (data.isDuplicate) {
         setDuplicateWarning({
@@ -116,7 +112,35 @@ export function AddBookmarkModal({
         return;
       }
 
-      setScrapedData(data.metadata);
+      let finalBookmark = data.bookmark;
+
+      if (!res.ok || !data.success || !finalBookmark) {
+        // High-reliability fallback: save directly to database
+        const fbRes = await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: trimmed,
+            folderId: selectedFolderId || null,
+            isFavorite,
+            tagNames: parsedTags,
+            userId: user?.id,
+          }),
+        });
+        const fbData = await fbRes.json();
+        if (fbData.success && fbData.bookmark) {
+          finalBookmark = fbData.bookmark;
+        } else {
+          throw new Error(data.error || "Could not save bookmark.");
+        }
+      }
+
+      setScrapedData(data.metadata || {
+        title: finalBookmark.title,
+        domain: finalBookmark.domain,
+        description: finalBookmark.description || "",
+        iconUrl: finalBookmark.iconUrl || `https://www.google.com/s2/favicons?domain=${finalBookmark.domain}&sz=64`,
+      });
 
       try {
         confetti({
@@ -127,15 +151,41 @@ export function AddBookmarkModal({
         });
       } catch {}
 
-      if (data.bookmark && onBookmarkAdded) {
-        onBookmarkAdded(data.bookmark);
+      if (finalBookmark && onBookmarkAdded) {
+        onBookmarkAdded(finalBookmark);
       }
 
       // Briefly display success card before closing
       setTimeout(() => {
         onOpenChange(false);
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
+      // Last-chance direct save
+      try {
+        const parsedTags = tagsInput
+          .split(",")
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean);
+
+        const fbRes = await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: trimmed,
+            folderId: selectedFolderId || null,
+            isFavorite,
+            tagNames: parsedTags,
+            userId: user?.id,
+          }),
+        });
+        const fbData = await fbRes.json();
+        if (fbData.success && fbData.bookmark) {
+          if (onBookmarkAdded) onBookmarkAdded(fbData.bookmark);
+          onOpenChange(false);
+          return;
+        }
+      } catch {}
+
       setError(err.message || "Could not bookmark URL. Please check the address.");
     } finally {
       setLoading(false);

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  
+  <!-- Rounded Base Plate -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)" filter="url(#shadow)" />
+  
+  <!-- Subtle border highlight -->
+  <rect x="9" y="9" width="110" height="110" rx="27" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.25" />
+  
+  <!-- Markly 'M' Logo with Bookmark geometry -->
+  <path d="M34 88 V40 L52 64 L76 40 V88" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Golden Bookmark Star Accent -->
+  <circle cx="94" cy="34" r="8" fill="#fbbf24" stroke="#ffffff" stroke-width="2" />
+</svg>
+

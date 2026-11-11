@@ -9,7 +9,12 @@ export const metadata: Metadata = {
   title: "Markly — Notion-Style Bookmark Manager & Visual Analytics",
   description: "A fast, Notion-style bookmark manager with visual analytics, unlimited folder nesting, and intelligent scraping.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 

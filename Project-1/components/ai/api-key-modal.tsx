@@ -46,7 +46,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: "gemini",
     name: "Google Gemini",
-    badge: "Free Tier Available",
+    badge: "Official & Fast (Free Tier)",
     defaultBaseUrl: "https://generativelanguage.googleapis.com",
     defaultModel: "gemini-flash-latest",
     models: [
@@ -70,10 +70,42 @@ const PROVIDERS: ProviderPreset[] = [
         label: "gemini-2.5-pro (High Reasoning)",
         desc: "Deep reasoning and extensive context window",
       },
+      {
+        id: "custom",
+        label: "Custom Gemini Model...",
+        desc: "Type custom model name",
+      },
     ],
     keyUrl: "https://aistudio.google.com/app/apikey",
     keyLabel: "Google AI Studio",
     placeholder: "AIzaSy... or AQ.Ab8...",
+  },
+  {
+    id: "grok",
+    name: "Grok (xAI)",
+    badge: "Fast & Smart",
+    defaultBaseUrl: "https://api.x.ai/v1",
+    defaultModel: "grok-beta",
+    models: [
+      {
+        id: "grok-beta",
+        label: "grok-beta (Fast & Direct)",
+        desc: "xAI's flagship conversational and classification model",
+      },
+      {
+        id: "grok-2",
+        label: "grok-2 (High Precision)",
+        desc: "Advanced Grok 2 reasoning model",
+      },
+      {
+        id: "custom",
+        label: "Custom Grok Model...",
+        desc: "Type custom model name",
+      },
+    ],
+    keyUrl: "https://console.x.ai",
+    keyLabel: "console.x.ai",
+    placeholder: "xai-...",
   },
   {
     id: "openrouter",
@@ -108,34 +140,17 @@ const PROVIDERS: ProviderPreset[] = [
     placeholder: "sk-or-v1-...",
   },
   {
-    id: "grok",
-    name: "Grok (xAI)",
-    badge: "Fast & Smart",
-    defaultBaseUrl: "https://api.x.ai/v1",
-    defaultModel: "grok-beta",
-    models: [
-      {
-        id: "grok-beta",
-        label: "grok-beta (Fast & Direct)",
-        desc: "xAI's flagship conversational and classification model",
-      },
-      {
-        id: "grok-2",
-        label: "grok-2 (High Precision)",
-        desc: "Advanced Grok 2 reasoning model",
-      },
-    ],
-    keyUrl: "https://console.x.ai",
-    keyLabel: "console.x.ai",
-    placeholder: "xai-...",
-  },
-  {
     id: "universal",
-    name: "Universal (OpenAI)",
-    badge: "Ollama / DeepSeek / Any API",
+    name: "Custom / Universal (CodeCraft, Ollama, OpenAI)",
+    badge: "Any API / Local",
     defaultBaseUrl: "https://api.openai.com/v1",
     defaultModel: "gpt-4o-mini",
     models: [
+      {
+        id: "custom",
+        label: "Custom Model (e.g. codecraft-model, llama3, deepseek-chat)",
+        desc: "Enter your model name below",
+      },
       {
         id: "gpt-4o-mini",
         label: "gpt-4o-mini (OpenAI Default)",
@@ -146,15 +161,10 @@ const PROVIDERS: ProviderPreset[] = [
         label: "deepseek-chat (DeepSeek V3)",
         desc: "Use with https://api.deepseek.com/v1",
       },
-      {
-        id: "custom",
-        label: "Custom Model / Local Ollama...",
-        desc: "Enter custom model name (e.g. llama3, mistral)",
-      },
     ],
     keyUrl: "https://platform.openai.com/api-keys",
-    keyLabel: "OpenAI / Custom",
-    placeholder: "sk-...",
+    keyLabel: "API Provider",
+    placeholder: "sk-... or custom key",
   },
 ];
 
@@ -216,36 +226,40 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         setBaseUrl("https://generativelanguage.googleapis.com");
         setModel("gemini-flash-latest");
         setIsSaved(true);
-      } else {
-        // Pre-fill default working Gemini Flash key for the user
+      } else if (DEFAULT_GOOGLE_KEY) {
         setProvider("gemini");
         setApiKey(DEFAULT_GOOGLE_KEY);
         setBaseUrl("https://generativelanguage.googleapis.com");
         setModel("gemini-flash-latest");
         setIsSaved(true);
+      } else {
+        setIsSaved(false);
       }
       setTestStatus(null);
     }
   }, [open, user?.email]);
 
-  // Handle provider tab switch
+  // Handle provider switch in single unified page
   const handleSelectProvider = (newProvider: ProviderType) => {
     setProvider(newProvider);
     const preset = PROVIDERS.find((p) => p.id === newProvider)!;
     setBaseUrl(preset.defaultBaseUrl);
     setModel(preset.defaultModel);
-    setCustomModelInput("");
+    setCustomModelInput(newProvider === "universal" ? "codecraft-model" : "");
     setTestStatus(null);
   };
 
-  const activePreset = PROVIDERS.find((p) => p.id === provider)!;
-  const effectiveModel = model === "custom" ? customModelInput.trim() || activePreset.defaultModel : model;
+  const activePreset = PROVIDERS.find((p) => p.id === provider) || PROVIDERS[0];
+  const effectiveModel =
+    model === "custom"
+      ? customModelInput.trim() || activePreset.defaultModel
+      : model;
 
-  // Save config
-  const handleSave = () => {
+  // Save config and close popup
+  const handleSave = (closeImmediately: boolean = true) => {
     const trimmedKey = apiKey.trim();
     if (typeof window !== "undefined") {
-      if (trimmedKey) {
+      if (trimmedKey || provider === "universal") {
         const config = {
           provider,
           apiKey: trimmedKey,
@@ -263,8 +277,14 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         setIsSaved(true);
         setTestStatus({
           success: true,
-          message: `${activePreset.name} (${effectiveModel}) connected and saved successfully!`,
+          message: `${activePreset.name} (${effectiveModel}) configured and saved successfully!`,
         });
+
+        if (closeImmediately) {
+          setTimeout(() => {
+            onOpenChange(false);
+          }, 350);
+        }
       } else {
         handleClear();
       }
@@ -290,7 +310,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
   // Live Test Key against active provider
   const handleTestKey = async () => {
     const trimmedKey = apiKey.trim();
-    if (!trimmedKey) {
+    if (!trimmedKey && provider !== "universal") {
       setTestStatus({
         success: false,
         message: "Please enter an API key first.",
@@ -325,7 +345,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             success: true,
             message: `Verified! Google Gemini API key is valid and connected to ${cleanModel}.`,
           });
-          handleSave();
+          handleSave(false);
         } else {
           const errMsg = data.error?.message || "Invalid Gemini key or quota exceeded.";
           setTestStatus({
@@ -334,9 +354,11 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
           });
         }
       } else {
-        // OpenAI-Compatible Providers (OpenRouter, Grok, Universal)
+        // OpenAI-Compatible Providers (OpenRouter, Grok, Universal, CodeCraft, Ollama)
         const cleanBase = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
-        const res = await fetch(`${cleanBase}/chat/completions`, {
+        const cleanUrl = cleanBase.endsWith("/chat/completions") ? cleanBase : `${cleanBase}/chat/completions`;
+
+        const res = await fetch(cleanUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -357,7 +379,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             success: true,
             message: `Verified! ${activePreset.name} (${effectiveModel}) is active and responding.`,
           });
-          handleSave();
+          handleSave(false);
         } else {
           setTestStatus({
             success: false,
@@ -384,10 +406,10 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             <Sparkles className="h-6 w-6 text-yellow-300" />
           </div>
           <DialogTitle className="text-xl font-bold tracking-tight text-center text-white">
-            Universal AI & API Key Settings
+            Universal AI Configuration
           </DialogTitle>
           <DialogDescription className="text-xs text-white/80 mt-1 max-w-sm mx-auto text-center">
-            Connect Google Gemini, OpenRouter, Grok, or any custom API for smart folder suggestions and auto-tagging.
+            One single hub to connect Google Gemini, Grok, OpenRouter, or custom APIs like CodeCraft.
           </DialogDescription>
         </div>
 
@@ -409,50 +431,66 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             </span>
           </div>
 
-          {/* Provider Selector Tabs */}
+          {/* 1. Single Universal Provider Selector Dropdown (No 4 Tabs!) */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1.5">
               <Bot className="h-3.5 w-3.5 text-indigo-500" />
-              <span>Choose AI Provider</span>
+              <span>Select AI Platform</span>
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-100 dark:bg-neutral-900 p-1.5 rounded-xl border border-slate-200 dark:border-neutral-800">
-              {PROVIDERS.map((p) => {
-                const isSelected = provider === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleSelectProvider(p.id)}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all flex flex-col items-center justify-center gap-0.5 ${
-                      isSelected
-                        ? "bg-white dark:bg-neutral-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-bold"
-                        : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
-                    }`}
-                  >
-                    <span>{p.name.split(" ")[0]}</span>
-                    <span className="text-[9px] opacity-70 font-normal truncate max-w-[75px]">{p.badge}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              value={provider}
+              onChange={(e) => handleSelectProvider(e.target.value as ProviderType)}
+              className="w-full h-10 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-indigo-500 font-semibold"
+            >
+              {PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.badge})
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* API Key Input */}
+          {/* 2. Custom Base URL (Required for Universal / CodeCraft / Local AI) */}
+          {provider === "universal" ? (
+            <div className="space-y-1 pt-1">
+              <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5 text-blue-500" />
+                <span>API Base URL (Required for Custom / CodeCraft)</span>
+              </label>
+              <input
+                type="text"
+                value={baseUrl}
+                onChange={(e) => {
+                  setBaseUrl(e.target.value);
+                  setIsSaved(false);
+                }}
+                placeholder="e.g. https://api.codecraft.com/v1 or http://localhost:11434/v1"
+                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Enter your CodeCraft, Ollama, DeepSeek, or any OpenAI-compatible API base endpoint.
+              </p>
+            </div>
+          ) : null}
+
+          {/* 3. API Key Input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1.5">
                 <KeyRound className="h-3.5 w-3.5 text-indigo-500" />
                 <span>{activePreset.name} API Key</span>
               </label>
-              <a
-                href={activePreset.keyUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5"
-              >
-                <span>Get key from {activePreset.keyLabel}</span>
-                <ExternalLink className="h-2.5 w-2.5" />
-              </a>
+              {provider !== "universal" && (
+                <a
+                  href={activePreset.keyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5"
+                >
+                  <span>Get key from {activePreset.keyLabel}</span>
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              )}
             </div>
 
             <div className="relative">
@@ -480,32 +518,47 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             </div>
           </div>
 
-          {/* Model Selection Dropdown (No typing needed!) */}
+          {/* 4. Model Selection Input / Dropdown */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
               <Zap className="h-3 w-3 text-amber-500" />
-              <span>Select Model</span>
+              <span>Model Name</span>
             </label>
-            <select
-              value={model}
-              onChange={(e) => {
-                setModel(e.target.value);
-                setIsSaved(false);
-              }}
-              className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-indigo-500 font-medium"
-            >
-              {activePreset.models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
 
-            {model === "custom" && (
+            {provider === "universal" ? (
+              <input
+                type="text"
+                placeholder="e.g. codecraft-model, deepseek-chat, llama3, gpt-4o-mini"
+                value={customModelInput || (model === "custom" ? "" : model)}
+                onChange={(e) => {
+                  setCustomModelInput(e.target.value);
+                  setModel("custom");
+                  setIsSaved(false);
+                }}
+                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
+              />
+            ) : (
+              <select
+                value={model}
+                onChange={(e) => {
+                  setModel(e.target.value);
+                  setIsSaved(false);
+                }}
+                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-indigo-500 font-medium"
+              >
+                {activePreset.models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {provider !== "universal" && model === "custom" && (
               <div className="pt-1.5">
                 <input
                   type="text"
-                  placeholder="Type custom model name (e.g. mistralai/mistral-large)..."
+                  placeholder="Type custom model identifier..."
                   value={customModelInput}
                   onChange={(e) => {
                     setCustomModelInput(e.target.value);
@@ -516,26 +569,6 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
               </div>
             )}
           </div>
-
-          {/* Custom Base URL (Only visible for Universal or OpenRouter) */}
-          {provider !== "gemini" && (
-            <div className="space-y-1 pt-1">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                <Globe className="h-3 w-3 text-blue-500" />
-                <span>API Base URL</span>
-              </label>
-              <input
-                type="text"
-                value={baseUrl}
-                onChange={(e) => {
-                  setBaseUrl(e.target.value);
-                  setIsSaved(false);
-                }}
-                placeholder="https://..."
-                className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white font-mono"
-              />
-            </div>
-          )}
 
           {/* Test Status Feedback */}
           {testStatus && (
@@ -555,7 +588,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             </div>
           )}
 
-          {/* Actions */}
+          {/* Actions: Save Settings, Test Connection, Remove */}
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-neutral-800">
             {apiKey ? (
               <button
@@ -577,7 +610,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleTestKey}
-                disabled={!apiKey.trim() || isTesting}
+                disabled={(!apiKey.trim() && provider !== "universal") || isTesting}
                 className="h-8 text-xs cursor-pointer gap-1.5"
               >
                 {isTesting ? (
@@ -591,9 +624,9 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
               <Button
                 type="button"
                 size="sm"
-                onClick={handleSave}
-                disabled={!apiKey.trim()}
-                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                onClick={() => handleSave(true)}
+                disabled={!apiKey.trim() && provider !== "universal"}
+                className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-xs"
               >
                 Save Settings
               </Button>

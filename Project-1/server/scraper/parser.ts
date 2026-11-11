@@ -188,17 +188,9 @@ export async function parseHtmlMetadata(html: string, pageUrl: string, domain: s
     }
   }
 
-  // Stage 6: Fallback to SVG letter avatar or default globe image if all candidate downloads failed
+  // Stage 6: Fallback to high-resolution Google Favicon CDN if all candidate downloads failed
   if (!resolvedIconUrl) {
-    try {
-      resolvedIconUrl = generateSvgAvatar(domain);
-    } catch {
-      resolvedIconUrl = "/icons/default-globe.svg";
-    }
-  }
-
-  if (!resolvedIconUrl) {
-    resolvedIconUrl = "/icons/default-globe.svg";
+    resolvedIconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   }
 
   return {

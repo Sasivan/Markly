@@ -130,22 +130,10 @@ export function Breadcrumbs({
             </span>
           </>
         )}
-
-        {/* Search right after breadcrumb items as ONE icon */}
-        {onOpenSearch && (
-          <button
-            type="button"
-            onClick={onOpenSearch}
-            title="Search all pages & bookmarks (⌘K)"
-            className="h-6 w-6 rounded-md hover:bg-slate-200/80 dark:hover:bg-neutral-800 text-slate-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 flex items-center justify-center cursor-pointer transition-colors ml-1.5 flex-shrink-0"
-          >
-            <Search className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
 
-      {/* Right: Subfolder filter toggle & count */}
-      <div className="flex items-center gap-3 flex-shrink-0">
+      {/* Right: Subfolder filter toggle, item count & search icon at edge of screen */}
+      <div className="flex items-center gap-2 flex-shrink-0">
         {activeFolderId && (
           <div className="flex items-center p-0.5 rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-100 dark:bg-neutral-900 text-xs">
             <button
@@ -178,6 +166,18 @@ export function Breadcrumbs({
         <span className="text-[11px] text-slate-700 dark:text-neutral-300 bg-slate-100 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 px-2 py-0.5 rounded-md font-mono font-semibold">
           {totalBookmarksCount} {totalBookmarksCount === 1 ? "item" : "items"}
         </span>
+
+        {/* Search icon rightmost at the edge of screen */}
+        {onOpenSearch && (
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            title="Search all pages & bookmarks (⌘K)"
+            className="h-7 w-7 rounded-md hover:bg-slate-200/80 dark:hover:bg-neutral-800 text-slate-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 flex items-center justify-center cursor-pointer transition-colors border border-transparent hover:border-slate-300 dark:hover:border-neutral-700 ml-0.5"
+          >
+            <Search className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

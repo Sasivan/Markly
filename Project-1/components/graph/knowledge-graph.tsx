@@ -122,6 +122,16 @@ export function KnowledgeGraph({
       if (folderId) params.append("folderId", folderId);
       if (domain) params.append("domain", domain);
 
+      if (typeof window !== "undefined") {
+        const storedUid = localStorage.getItem("markly_user_id");
+        if (storedUid) {
+          params.append("userId", storedUid);
+        } else {
+          const cookieMatch = document.cookie.match(/markly_user_id=([^;]+)/);
+          if (cookieMatch) params.append("userId", cookieMatch[1]);
+        }
+      }
+
       const res = await fetch(`/api/graph?${params.toString()}`);
       const data = await res.json();
       if (data.success && data.graph) {
@@ -150,6 +160,18 @@ export function KnowledgeGraph({
 
   React.useEffect(() => {
     fetchGraphData();
+  }, [fetchGraphData]);
+
+  React.useEffect(() => {
+    const handleSync = () => {
+      fetchGraphData();
+    };
+    window.addEventListener("markly-recycle-bin-updated", handleSync);
+    window.addEventListener("markly-workspace-updated", handleSync);
+    return () => {
+      window.removeEventListener("markly-recycle-bin-updated", handleSync);
+      window.removeEventListener("markly-workspace-updated", handleSync);
+    };
   }, [fetchGraphData]);
 
   // 2. Physics Simulation Loop & Canvas Rendering

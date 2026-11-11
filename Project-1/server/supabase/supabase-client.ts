@@ -257,10 +257,24 @@ export class SupabaseManager {
       }
 
       // 1. Fetch all local SQLite data
-      const folders = sqlite.prepare(`SELECT * FROM folders`).all() as any[];
-      const bookmarks = sqlite.prepare(`SELECT * FROM bookmarks`).all() as any[];
+      const folders = sqlite.prepare(`SELECT * FROM folders WHERE id NOT IN (SELECT id FROM deleted_folders)`).all() as any[];
+      const bookmarks = sqlite.prepare(`SELECT * FROM bookmarks WHERE id NOT IN (SELECT id FROM deleted_bookmarks)`).all() as any[];
       const tags = sqlite.prepare(`SELECT * FROM tags`).all() as any[];
       const bookmarkTags = sqlite.prepare(`SELECT * FROM bookmark_tags`).all() as any[];
+
+      // 1b. Purge any tombstoned items from Supabase
+      try {
+        const tombstonedBms = sqlite.prepare(`SELECT id FROM deleted_bookmarks`).all() as { id: string }[];
+        if (tombstonedBms.length > 0) {
+          await client.from("bookmarks").delete().in("id", tombstonedBms.map((t) => t.id));
+        }
+        const tombstonedFlds = sqlite.prepare(`SELECT id FROM deleted_folders`).all() as { id: string }[];
+        if (tombstonedFlds.length > 0) {
+          await client.from("folders").delete().in("id", tombstonedFlds.map((t) => t.id));
+        }
+      } catch (e) {
+        console.warn("Supabase tombstone purge warning:", e);
+      }
 
       // 2. Upsert Folders
       if (folders.length > 0) {

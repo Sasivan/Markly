@@ -405,18 +405,30 @@ export function MarklyWorkspace({
     return list;
   }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter]);
 
+  const getEffectiveUserId = React.useCallback(() => {
+    if (user?.id) return user.id;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("markly_user_id");
+      if (stored) return stored;
+      const match = document.cookie.match(/markly_user_id=([^;]+)/);
+      if (match) return match[1];
+    }
+    return null;
+  }, [user?.id]);
+
   // Refresh data function: always keeps full canonical bookmarks array
   const refreshData = React.useCallback(async () => {
     try {
+      const effectiveId = getEffectiveUserId();
       let url = "/api/bookmarks?view=all";
-      if (user?.id) {
-        url += `&userId=${encodeURIComponent(user.id)}`;
+      if (effectiveId) {
+        url += `&userId=${encodeURIComponent(effectiveId)}`;
       }
 
-      const foldersUrl = user?.id ? `/api/folders?userId=${encodeURIComponent(user.id)}` : "/api/folders";
+      const foldersUrl = effectiveId ? `/api/folders?userId=${encodeURIComponent(effectiveId)}` : "/api/folders";
       let statsUrl = "/api/stats";
-      if (user?.id) {
-        statsUrl += `?userId=${encodeURIComponent(user.id)}`;
+      if (effectiveId) {
+        statsUrl += `?userId=${encodeURIComponent(effectiveId)}`;
       }
 
       const [foldersRes, bookmarksRes, statsRes] = await Promise.all([
@@ -438,14 +450,30 @@ export function MarklyWorkspace({
     } catch (e) {
       console.error("Failed to refresh data:", e);
     }
-  }, [user?.id]);
+  }, [getEffectiveUserId]);
 
   React.useEffect(() => {
     refreshData();
-  }, [user?.id, refreshData]);
+  }, [getEffectiveUserId, refreshData]);
+
+  // Sync all open tabs & views on any CRUD operation
+  React.useEffect(() => {
+    const handleSync = () => {
+      refreshData();
+    };
+    window.addEventListener("markly-workspace-updated", handleSync);
+    window.addEventListener("markly-recycle-bin-updated", handleSync);
+    return () => {
+      window.removeEventListener("markly-workspace-updated", handleSync);
+      window.removeEventListener("markly-recycle-bin-updated", handleSync);
+    };
+  }, [refreshData]);
 
   const handleBookmarkAdded = (newBookmark: BookmarkWithDetails) => {
     setBookmarks((prev) => [newBookmark, ...prev]);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+    }
     refreshData();
   };
 
@@ -615,25 +643,15 @@ export function MarklyWorkspace({
     [folders, bookmarks, user?.id, refreshData]
   );
 
-  const getEffectiveUserId = React.useCallback(() => {
-    if (user?.id) return user.id;
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("markly_user_id");
-      if (stored) return stored;
-      const match = document.cookie.match(/markly_user_id=([^;]+)/);
-      if (match) return match[1];
-    }
-    return null;
-  }, [user?.id]);
-
   const handleDeleteBookmarkOptimistic = React.useCallback(
     async (id: string) => {
       // 1. Immediately drop from state in 0ms (instantly removes from Quick Access, Recently Visited, and Table)
       setBookmarks((prev) => prev.filter((b) => b.id !== id));
 
-      // 2. Notify Recycle Bin to refresh in real time
+      // 2. Notify Recycle Bin & all views to refresh in real time
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       }
 
       // 3. Await delete on server
@@ -657,9 +675,10 @@ export function MarklyWorkspace({
       // 1. Immediately drop from state in 0ms
       setBookmarks((prev) => prev.filter((b) => !idSet.has(b.id)));
 
-      // 2. Notify Recycle Bin to refresh in real time
+      // 2. Notify Recycle Bin & all views to refresh in real time
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       }
 
       // 3. Await bulk delete on server

@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     const depth = parseInt(searchParams.get("depth") || "1", 10);
 
     const cookieStore = await cookies();
-    const userId = cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
 
     const graphData = BookmarkRepository.getGraphData({
       mode,

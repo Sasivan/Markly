@@ -69,40 +69,29 @@ export class BookmarkRepository {
         createdAt: Date.now(),
       }).run();
 
-      const existingCount = sqlite
-        .prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ?`)
-        .get(userId) as { count: number };
+      // Ensure the default folder named "Folder" exists for the user
+      let folderRow = sqlite
+        .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Folder'`)
+        .get(userId) as { id: string } | undefined;
 
-      if (existingCount.count === 0) {
-        // 1. Create a minimal starter folder named "Folder"
-        const folderId = `fld_${Date.now().toString(36)}`;
+      if (!folderRow) {
+        const folderId = `fld_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
         sqlite.prepare(`
           INSERT OR IGNORE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
-          VALUES (?, ?, NULL, ?, ?, ?, 0, ?, ?)
-        `).run(
-          folderId,
-          userId,
-          "Folder",
-          "📁",
-          "#3b82f6",
-          Date.now(),
-          Date.now()
-        );
+          VALUES (?, ?, NULL, 'Folder', '📁', '#3b82f6', 0, ?, ?)
+        `).run(folderId, userId, Date.now(), Date.now());
+        folderRow = { id: folderId };
+      }
 
-        // 2. Insert 3 minimal, clean starter bookmarks
+      const inFolderCount = sqlite
+        .prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ? AND folder_id = ? AND id NOT IN (SELECT id FROM deleted_bookmarks)`)
+        .get(userId, folderRow.id) as { count: number };
+
+      if (inFolderCount.count === 0) {
+        // 2. Insert 3 minimal, clean starter bookmarks inside Folder
         const starterBookmarks = [
           {
-            id: `bm_start_1_${Date.now().toString(36)}`,
-            url: "https://github.com/Sasivan/Markly",
-            canonicalUrl: "https://github.com/Sasivan/Markly",
-            title: "Markly Workspace & Documentation",
-            domain: "github.com",
-            description: "Markly project repository, visual analytics, and feature documentation.",
-            iconUrl: "https://github.githubassets.com/favicons/favicon.svg",
-            tags: ["markly", "docs"],
-          },
-          {
-            id: `bm_start_2_${Date.now().toString(36)}`,
+            id: `bm_fld_gh_${userId.substring(0, 6)}_${Date.now().toString(36)}`,
             url: "https://github.com",
             canonicalUrl: "https://github.com",
             title: "GitHub: Let's build from here",
@@ -112,7 +101,7 @@ export class BookmarkRepository {
             tags: ["developer", "tools"],
           },
           {
-            id: `bm_start_3_${Date.now().toString(36)}`,
+            id: `bm_fld_gg_${userId.substring(0, 6)}_${Date.now().toString(36)}`,
             url: "https://www.google.com",
             canonicalUrl: "https://google.com",
             title: "Google Search",
@@ -120,6 +109,16 @@ export class BookmarkRepository {
             description: "Search the world's information, including webpages, images, videos and more.",
             iconUrl: "https://www.google.com/favicon.ico",
             tags: ["search", "tools"],
+          },
+          {
+            id: `bm_fld_nxt_${userId.substring(0, 6)}_${Date.now().toString(36)}`,
+            url: "https://nextjs.org",
+            canonicalUrl: "https://nextjs.org",
+            title: "Next.js by Vercel - The React Framework",
+            domain: "nextjs.org",
+            description: "Used by some of the world's largest companies to build full-stack React web applications.",
+            iconUrl: "https://nextjs.org/favicon.ico",
+            tags: ["framework", "react"],
           },
         ];
 
@@ -133,7 +132,7 @@ export class BookmarkRepository {
           insertBm.run(
             b.id,
             userId,
-            folderId,
+            folderRow.id,
             b.url,
             b.canonicalUrl,
             b.title,
@@ -731,10 +730,22 @@ export class BookmarkRepository {
       (data.tagNames || []).join(" "),
     ].join(" ").toLowerCase();
 
+    // Verify folderId exists to strictly prevent "FOREIGN KEY constraint failed"
+    let validFolderId: string | null = null;
+    if (data.folderId && typeof data.folderId === "string") {
+      const cleanFid = data.folderId.trim();
+      if (cleanFid !== "" && cleanFid !== "null" && cleanFid !== "undefined") {
+        const found = sqlite.prepare(`SELECT id FROM folders WHERE id = ?`).get(cleanFid) as { id: string } | undefined;
+        if (found) {
+          validFolderId = found.id;
+        }
+      }
+    }
+
     db.insert(bookmarks).values({
       id,
       userId,
-      folderId: data.folderId || null,
+      folderId: validFolderId,
       url: data.url,
       canonicalUrl,
       title: data.title,
@@ -835,6 +846,20 @@ export class BookmarkRepository {
         bmUpdates.domain = u.hostname.replace(/^www\./, "");
         bmUpdates.canonicalUrl = `${u.origin}${u.pathname}`.replace(/\/$/, "");
       } catch {}
+    }
+
+    if (bmUpdates.folderId !== undefined) {
+      if (bmUpdates.folderId && typeof bmUpdates.folderId === "string") {
+        const cleanFid = bmUpdates.folderId.trim();
+        if (cleanFid !== "" && cleanFid !== "null" && cleanFid !== "undefined") {
+          const found = sqlite.prepare(`SELECT id FROM folders WHERE id = ?`).get(cleanFid) as { id: string } | undefined;
+          bmUpdates.folderId = found ? found.id : null;
+        } else {
+          bmUpdates.folderId = null;
+        }
+      } else {
+        bmUpdates.folderId = null;
+      }
     }
 
     if (Object.keys(bmUpdates).length > 0) {
@@ -1505,7 +1530,7 @@ export class BookmarkRepository {
     const userId = options.userId || DEFAULT_USER_ID;
     const depth = options.depth || 1;
 
-    const flatFolders = db.select().from(folders).where(eq(folders.userId, userId)).all();
+    const flatFolders = this.getAllFolders(userId);
     const allBookmarks = this.getBookmarks({ userId });
 
     interface GraphNode {

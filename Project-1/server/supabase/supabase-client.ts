@@ -11,68 +11,19 @@ export interface SupabaseConfig {
 
 export class SupabaseManager {
   private static cachedClient: SupabaseClient | null = null;
-  private static cachedConfig: SupabaseConfig | null = null;
 
   /**
-   * Get stored Supabase configuration
+   * Get Supabase configuration from environment variables only.
+   * Never reads from database or any client-controlled source.
    */
   static getConfig(): SupabaseConfig | null {
-    if (this.cachedConfig) return this.cachedConfig;
-
-    try {
-      const row = sqlite
-        .prepare(`SELECT value FROM app_settings WHERE key = 'supabase_config'`)
-        .get() as { value: string } | undefined;
-
-      if (row?.value) {
-        this.cachedConfig = JSON.parse(row.value);
-        if (!this.cachedConfig?.serviceRoleKey) {
-          const envServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-          if (envServiceKey && this.cachedConfig) {
-            this.cachedConfig.serviceRoleKey = envServiceKey;
-          }
-        }
-        return this.cachedConfig;
-      }
-    } catch (e) {
-      console.error("Error reading supabase config:", e);
-    }
-
-    // Fallback to process.env if available
     const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
     const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
     const envServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
     if (envUrl && envKey) {
       return { url: envUrl, anonKey: envKey, serviceRoleKey: envServiceKey };
     }
-
     return null;
-  }
-
-  /**
-   * Save Supabase configuration to SQLite
-   */
-  static saveConfig(config: SupabaseConfig): void {
-    const json = JSON.stringify(config);
-    const now = Date.now();
-    sqlite
-      .prepare(
-        `INSERT INTO app_settings (key, value, updated_at) VALUES ('supabase_config', ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-      )
-      .run(json, now);
-
-    this.cachedConfig = config;
-    this.cachedClient = null; // Reset client
-  }
-
-  /**
-   * Clear configuration
-   */
-  static clearConfig(): void {
-    sqlite.prepare(`DELETE FROM app_settings WHERE key = 'supabase_config'`).run();
-    this.cachedConfig = null;
-    this.cachedClient = null;
   }
 
   /**

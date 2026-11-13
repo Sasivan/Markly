@@ -7,7 +7,6 @@ export const users = sqliteTable("users", {
   username: text("username").unique(),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
-  geminiApiKey: text("gemini_api_key"),
   lastLoginAt: integer("last_login_at"),
   createdAt: integer("created_at").notNull(),
 });

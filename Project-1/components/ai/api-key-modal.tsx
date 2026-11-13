@@ -76,7 +76,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     message: string;
   } | null>(null);
 
-  // Load configuration from database per user on modal open
+  // Load configuration from browser localStorage on modal open
   React.useEffect(() => {
     if (open) {
       setTestStatus(null);
@@ -85,30 +85,16 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
       setApiKey("");
       setIsSaved(false);
 
-      if (user?.id) {
-        fetch(`/api/user/ai-config?userId=${encodeURIComponent(user.id)}`)
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.success && data.apiKey) {
-              setApiKey(data.apiKey);
-              setIsSaved(true);
-            } else if (
-              user?.email === "sasivan177@gmail.com" ||
-              user?.user_metadata?.username === "sasivan"
-            ) {
-              setIsSaved(true);
-            } else {
-              setApiKey("");
-              setIsSaved(false);
-            }
-          })
-          .catch(() => {
-            setApiKey("");
-            setIsSaved(false);
-          });
+      if (typeof window !== "undefined") {
+        const userScopedKey = user?.id ? `markly_gemini_api_key_${user.id}` : "markly_gemini_api_key";
+        const savedKey = localStorage.getItem(userScopedKey) || localStorage.getItem("markly_gemini_api_key");
+        if (savedKey) {
+          setApiKey(savedKey);
+          setIsSaved(true);
+        }
       }
     }
-  }, [open, user?.id, user?.email]);
+  }, [open, user?.id]);
 
   const effectiveModel = React.useMemo(() => {
     if (model === "custom") {
@@ -117,37 +103,20 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     return model || "gemini-flash-latest";
   }, [model, customModelInput]);
 
-  // Save config to database per user & browser session
+  // Save config to browser localStorage ONLY (never stored server-side)
   const handleSave = (closeImmediately: boolean = true) => {
     const trimmedKey = apiKey.trim();
 
-    // Persist to user record in database
-    if (user?.id) {
-      fetch("/api/user/ai-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, apiKey: trimmedKey || null }),
-      }).catch((e) => console.warn("Save API key to DB notice:", e));
-    }
-
     if (typeof window !== "undefined") {
       if (trimmedKey) {
-        const config = {
-          provider: "gemini",
-          apiKey: trimmedKey,
-          model: effectiveModel,
-        };
-
-        const serialized = JSON.stringify(config);
         const userScopedKey = user?.id ? `markly_gemini_api_key_${user.id}` : "markly_gemini_api_key";
         localStorage.setItem(userScopedKey, trimmedKey);
-
-        document.cookie = `markly_gemini_api_key=${encodeURIComponent(trimmedKey)}; path=/; max-age=31536000; SameSite=Lax`;
+        localStorage.setItem("markly_gemini_api_key", trimmedKey);
 
         setIsSaved(true);
         setTestStatus({
           success: true,
-          message: `Google Gemini (${effectiveModel}) configured and saved for your account!`,
+          message: `Google Gemini (${effectiveModel}) configured and saved in your browser!`,
         });
 
         if (closeImmediately) {
@@ -162,22 +131,13 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     }
   };
 
-  // Clear config
+  // Clear config from browser localStorage
   const handleClear = () => {
-    if (user?.id) {
-      fetch("/api/user/ai-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, apiKey: null }),
-      }).catch((e) => console.warn("Clear API key in DB notice:", e));
-    }
-
     if (typeof window !== "undefined") {
       localStorage.removeItem("markly_gemini_api_key");
       if (user?.id) {
         localStorage.removeItem(`markly_gemini_api_key_${user.id}`);
       }
-      document.cookie = "markly_gemini_api_key=; path=/; max-age=0";
       setApiKey("");
       setIsSaved(false);
       setTestStatus({
@@ -264,7 +224,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             <div className="flex items-center gap-2">
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
-                  isSaved || user?.email === "sasivan177@gmail.com"
+                  isSaved
                     ? "bg-emerald-500 animate-pulse"
                     : "bg-amber-500"
                 }`}
@@ -272,22 +232,13 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
               <span className="font-medium text-slate-700 dark:text-neutral-300">
                 {isSaved
                   ? "Google Gemini AI Active"
-                  : user?.email === "sasivan177@gmail.com"
-                  ? "Developer Default Key Active"
                   : "Offline Engine (Heuristic)"}
               </span>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-neutral-800 text-muted-foreground truncate max-w-44">
-              {isSaved ? effectiveModel : user?.email === "sasivan177@gmail.com" ? "developer key" : "free taxonomy"}
+              {isSaved ? effectiveModel : "free taxonomy"}
             </span>
           </div>
-
-          {user?.email === "sasivan177@gmail.com" && (
-            <div className="p-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[11px] flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
-              <span>Signed in as Developer (sasivan177@gmail.com). Server default Gemini key is active.</span>
-            </div>
-          )}
 
           {/* API Key Input */}
           <div className="space-y-1.5">
@@ -436,17 +387,4 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
       </DialogContent>
     </Dialog>
   );
-}
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  if (match) {
-    try {
-      return decodeURIComponent(match[2]);
-    } catch {
-      return match[2];
-    }
-  }
-  return null;
 }

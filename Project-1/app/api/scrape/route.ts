@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { z } from "zod";
 import { normalizeUrl } from "@/server/scraper/url";
 import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
-import { BookmarkRepository } from "@/server/db/repository";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { suggestWithAi, suggestFolderAndTags } from "@/server/ai/suggest";
 
 const ScrapeSchema = z.object({
@@ -23,8 +22,8 @@ const ScrapeSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    // 1. Rate Limiting Check
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
+    // 1. Rate Limiting Check — use first IP from trusted header only
+    const ip = req.headers.get("x-real-ip") || "127.0.0.1";
     const rateLimit = checkRateLimit(ip, 30, 60 * 1000);
 
     if (!rateLimit.allowed) {
@@ -77,32 +76,13 @@ export async function POST(req: Request) {
 
     const { url, canonicalUrl, domain } = normResult;
 
-    // Extract current user and AI configuration from payload or cookies
-    const cookieStore = await cookies();
-    const userId = rawBody.userId || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
-    const userEmail = rawBody.userEmail || cookieStore.get("markly_user_email")?.value;
+    // Stage 1: userId comes from body only (will be replaced with session in Stage 2)
+    // NOTE: This is intentionally not reading from cookies — the cookie path was removed
+    // as a security fix. Full session-based auth will replace this in Stage 2.
+    const userId = (typeof rawBody.userId === "string" && rawBody.userId.trim()) || DEFAULT_USER_ID;
 
-    let isDeveloperOwner =
-      userEmail === "sasivan177@gmail.com" ||
-      userId === "84055f37-6af8-4e8b-aaea-dcd1628af4db";
-
-    if (!isDeveloperOwner && userId) {
-      try {
-        const u = BookmarkRepository.getUserById(userId);
-        if (u?.email === "sasivan177@gmail.com" || u?.username === "sasivan") {
-          isDeveloperOwner = true;
-        }
-      } catch {}
-    }
-
-    let aiConfig =
-      rawBody.aiConfig ||
-      cookieStore.get("markly_ai_config")?.value ||
-      cookieStore.get("markly_gemini_api_key")?.value;
-
-    if (!aiConfig && isDeveloperOwner) {
-      aiConfig = process.env.GEMINI_API_KEY;
-    }
+    // AI config from x-ai-config header ONLY — never from cookies or env
+    let aiConfig = req.headers.get("x-ai-config") || req.headers.get("x-gemini-api-key") || undefined;
     if (typeof aiConfig === "string" && aiConfig.startsWith("%7B")) {
       try {
         aiConfig = decodeURIComponent(aiConfig);
@@ -124,12 +104,11 @@ export async function POST(req: Request) {
     }
 
     // 5. Safe Fetch HTML (with SSRF defense, 8s timeout, 2MB size cap, redirect inspector)
-    // If remote site fails or blocks bots, fallback gracefully so bookmark can always be saved
     let fetchResult;
     try {
       fetchResult = await safeFetchHtml(url);
     } catch (fetchErr: any) {
-      console.warn("safeFetchHtml notice, falling back to minimal metadata:", fetchErr.message);
+      console.warn("safeFetchHtml notice, falling back to minimal metadata");
       fetchResult = {
         html: `<html><head><title>${domain}</title></head><body></body></html>`,
         finalUrl: url,
@@ -138,7 +117,7 @@ export async function POST(req: Request) {
       };
     }
 
-    // 6. Parse Metadata & Convert Icon to 64x64 WebP
+    // 6. Parse Metadata
     const metadata = await parseHtmlMetadata(fetchResult.html, fetchResult.finalUrl, domain);
 
     // 7. Persist to Database if requested
@@ -147,7 +126,6 @@ export async function POST(req: Request) {
       let finalFolderId = folderId || null;
       let finalTags = tagNames && tagNames.length > 0 ? tagNames : [];
 
-      // If folder or tags are not specified, run AI Suggestion Engine (capped at 2500ms timeout)
       if (!finalFolderId || finalTags.length === 0) {
         try {
           const userFolders = BookmarkRepository.getAllFolders(userId);
@@ -209,11 +187,10 @@ export async function POST(req: Request) {
       bookmark,
     });
   } catch (error: any) {
-    console.error("POST /api/scrape unexpected error:", error);
+    console.error("POST /api/scrape unexpected error");
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
 }
-

@@ -1,3 +1,7 @@
+## Security rules — apply to every task
+
+Identity comes ONLY from a verified Supabase session on the server (`supabase.auth.getUser()`). Never read `userId`, `email`, `role` or `isAdmin` from query params, body, cookies or headers. Every read/update/delete by id must also filter by the session user's id. No new API route without an auth check, zod validation, an ownership check, generic error messages, and tests for 401 and cross-user access. Never use the service-role key or `auth.admin.*` in a browser-reachable route unless the caller is verified and the action is limited to their own account. Never hardcode emails, user IDs or keys. Never put secrets in cookies, API responses or logs. Never add temporary or developer-only bypasses; if a feature seems to need an exception, stop and ask.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

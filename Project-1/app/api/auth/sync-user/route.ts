@@ -17,26 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: "Offline local mode" });
     }
 
-    // Record login timestamp & run dormant account cleanup (>60 days inactive)
+    // Record login timestamp (cleanup removed in Stage 1 security lockdown)
     BookmarkRepository.recordUserLogin(userId);
-
-    // Sync auth user profile metadata into local SQLite users table
-    try {
-      const { data: supaUser } = await client.auth.admin.getUserById(userId);
-      if (supaUser?.user) {
-        const u = supaUser.user;
-        const uName = u.user_metadata?.username || u.user_metadata?.preferred_username || null;
-        BookmarkRepository.ensureUser(
-          u.id,
-          u.email,
-          u.user_metadata?.display_name || u.user_metadata?.full_name || u.user_metadata?.name,
-          u.user_metadata?.avatar_url || u.user_metadata?.picture,
-          uName
-        );
-      }
-    } catch (uErr) {
-      console.warn("User meta sync warning:", uErr);
-    }
 
     // 0. Load ALL tombstoned IDs across local database to permanently prevent resurrected folders/bookmarks
     const tombstonedFolders = sqlite
@@ -70,7 +52,6 @@ export async function POST(req: Request) {
 
       for (const f of remoteFolders) {
         if (tombstoneFolderSet.has(f.id)) {
-          // Permanently deleted! Delete from Supabase and skip insertion into SQLite
           try {
             client.from("folders").delete().eq("id", f.id).then(() => {});
           } catch {}
@@ -115,7 +96,6 @@ export async function POST(req: Request) {
 
       for (const b of remoteBookmarks) {
         if (tombstoneBmSet.has(b.id)) {
-          // Permanently deleted! Delete from Supabase and skip insertion into SQLite
           try {
             client.from("bookmarks").delete().eq("id", b.id).then(() => {});
           } catch {}
@@ -150,20 +130,14 @@ export async function POST(req: Request) {
       BookmarkRepository.ensureUserStarterData(userId);
     }
 
-    const res = NextResponse.json({
+    // NOTE: No longer sets markly_user_id cookie — Supabase session handles auth
+    return NextResponse.json({
       success: true,
       foldersCount: remoteFolders?.length || 0,
       bookmarksCount: remoteBookmarks?.length || 0,
     });
-    res.cookies.set("markly_user_id", userId, {
-      path: "/",
-      maxAge: 2592000, // 30 days
-      sameSite: "lax",
-    });
-    return res;
   } catch (error: any) {
-    console.error("Sync user error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Sync user error");
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-

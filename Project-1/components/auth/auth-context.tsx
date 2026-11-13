@@ -187,27 +187,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: pass,
       });
 
-      // Handle "Email not confirmed" automatically via admin API auto-healing
-      if (error && error.message.toLowerCase().includes("email not confirmed")) {
-        try {
-          const confirmRes = await fetch("/api/auth/confirm-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailToUse }),
-          });
-          const confirmData = await confirmRes.json();
-          if (confirmData.success) {
-            // Immediate retry now that email is confirmed!
-            const retry = await supabase.auth.signInWithPassword({
-              email: emailToUse,
-              password: pass,
-            });
-            data = retry.data;
-            error = retry.error;
-          }
-        } catch {}
-      }
-
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
           return {
@@ -288,15 +267,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // Auto-confirm newly registered user immediately so they can log in seamlessly
-        try {
-          await fetch("/api/auth/confirm-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: cleanEmail, userId: data.user.id }),
-          });
-        } catch {}
-
         setUser(data.user);
         setSession(data.session);
         persistUserSession(data.user.id);

@@ -266,22 +266,6 @@ export function ProfileView({
 
     try {
       if (user) {
-        // If username was updated, sync credentials through update-credentials API
-        if (cleanUsername && cleanUsername !== currentUsername) {
-          const credRes = await fetch("/api/auth/update-credentials", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: user.id,
-              username: cleanUsername,
-            }),
-          });
-          const credData = await credRes.json();
-          if (!credData.success) {
-            throw new Error(credData.error || "Failed to update username");
-          }
-        }
-
         const { error } = await supabase.auth.updateUser({
           data: {
             display_name: displayName.trim(),
@@ -356,31 +340,19 @@ export function ProfileView({
     setStatusMessage(null);
 
     try {
-      const res = await fetch("/api/auth/update-credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          username: username.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || "Failed to update username");
-      }
-
       if (user) {
-        await supabase.auth.updateUser({
+        const { error } = await supabase.auth.updateUser({
           data: {
-            username: data.username,
+            username: clean,
           },
-        }).catch(() => {});
+        });
+        if (error) throw error;
       }
 
       setIsEditingUsername(false);
       setStatusMessage({
         type: "success",
-        text: `Username set to @${data.username}! You can now log in using @${data.username} or your email.`,
+        text: `Username set to @${clean}! You can now log in using @${clean} or your email.`,
       });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
@@ -423,24 +395,8 @@ export function ProfileView({
     setStatusMessage(null);
 
     try {
-      const res = await fetch("/api/auth/update-credentials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          password: newPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.error || "Failed to update password");
-      }
-
-      // Also sync password directly to active client session if available
-      try {
-        await supabase.auth.updateUser({ password: newPassword });
-      } catch {}
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
 
       setStatusMessage({
         type: "success",

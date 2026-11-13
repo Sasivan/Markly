@@ -138,6 +138,7 @@ export function ProfileView({
         await supabase.auth.updateUser({
           data: {
             avatar_url: newUrl,
+            picture: newUrl,
           },
         });
       }
@@ -229,6 +230,14 @@ export function ProfileView({
       const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || "Failed to update username");
+      }
+
+      if (user) {
+        await supabase.auth.updateUser({
+          data: {
+            username: data.username,
+          },
+        }).catch(() => {});
       }
 
       setIsEditingUsername(false);
@@ -701,41 +710,6 @@ export function ProfileView({
                   placeholder="e.g. San Francisco, CA"
                   className="h-8 text-xs"
                 />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
-                    Avatar Picture URL
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsAvatarModalOpen(true)}
-                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    <span>DiceBear / Upload</span>
-                  </button>
-                </div>
-                <div className="flex gap-1.5">
-                  <Input
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="h-8 text-xs font-mono"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsAvatarModalOpen(true)}
-                    className="h-8 px-2.5 text-xs flex-shrink-0 cursor-pointer gap-1"
-                    title="Open DiceBear and Upload modal"
-                  >
-                    <Camera className="h-3.5 w-3.5 text-blue-500" />
-                  </Button>
-                </div>
               </div>
             </div>
 

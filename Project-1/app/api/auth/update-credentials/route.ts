@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         if (data?.users) {
           const match = data.users.find((u) => {
             if (u.id === userId) return false;
-            const uName = (u.user_metadata?.username || u.user_metadata?.preferred_username || "").toLowerCase();
+            const uName = (u.user_metadata?.username || "").toLowerCase();
             return uName === cleanUser;
           });
           if (match) {

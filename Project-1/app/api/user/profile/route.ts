@@ -15,12 +15,13 @@ export async function POST(req: Request) {
       // Check if user exists in SQLite
       const existing = sqlite.prepare("SELECT id FROM users WHERE id = ?").get(userId);
       if (existing) {
-        sqlite.prepare(`
-          UPDATE users
-          SET display_name = COALESCE(?, display_name),
-              avatar_url = COALESCE(?, avatar_url)
-          WHERE id = ?
-        `).run(displayName || null, avatarUrl || null, userId);
+        if (avatarUrl !== undefined && displayName !== undefined) {
+          sqlite.prepare("UPDATE users SET display_name = ?, avatar_url = ? WHERE id = ?").run(displayName, avatarUrl, userId);
+        } else if (avatarUrl !== undefined) {
+          sqlite.prepare("UPDATE users SET avatar_url = ? WHERE id = ?").run(avatarUrl, userId);
+        } else if (displayName !== undefined) {
+          sqlite.prepare("UPDATE users SET display_name = ? WHERE id = ?").run(displayName, userId);
+        }
       } else {
         sqlite.prepare(`
           INSERT INTO users (id, email, display_name, avatar_url, created_at)

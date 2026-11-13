@@ -68,6 +68,8 @@ export function AuthModal() {
         const res = await signInWithPassword(emailOrUser.trim(), password);
         if (!res.success) {
           setErrorMessage(res.error || "Failed to log in.");
+        } else {
+          closeAuthModal();
         }
       } else {
         const res = await signUpWithEmail(signupEmail.trim(), password, signupUsername.trim(), displayName.trim());

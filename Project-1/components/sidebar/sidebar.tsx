@@ -24,6 +24,7 @@ import {
   LogOut,
   Trash2,
   Globe,
+  Edit2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -464,23 +465,6 @@ export function Sidebar({
             <Layers className="h-4 w-4 text-purple-500" />
           </button>
 
-          {/* Inbox Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("unsorted");
-            }}
-            title="Inbox / Needs Organization"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "unsorted"
-                ? "bg-violet-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-violet-500"
-            }`}
-          >
-            <Inbox className="h-4 w-4 text-violet-500" />
-          </button>
-
           {/* Recycle Bin Option */}
           <button
             type="button"
@@ -725,41 +709,6 @@ export function Sidebar({
             <span className="truncate">Favorites</span>
           </button>
 
-          {/* Inbox / Needs Organization */}
-          {(() => {
-            const unsortedFolder = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_"));
-            const unsortedName = unsortedFolder?.name || "Inbox / Needs Organization";
-
-            return (
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectFolder(null);
-                  onSelectView("unsorted");
-                }}
-                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
-                  activeView === "unsorted"
-                    ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
-                    : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  {unsortedFolder ? (
-                    <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-4 w-4 flex-shrink-0" />
-                  ) : (
-                    <Inbox className="h-4 w-4 text-violet-500 flex-shrink-0" />
-                  )}
-                  <span className="truncate">{unsortedName}</span>
-                </div>
-                {unsortedCount !== undefined && unsortedCount > 0 && (
-                  <span className="text-[10px] text-muted-foreground/70 font-mono">
-                    {unsortedCount}
-                  </span>
-                )}
-              </button>
-            );
-          })()}
-
           {/* Archive */}
           <button
             type="button"
@@ -858,29 +807,51 @@ export function Sidebar({
           {/* Recursive Folder Tree Items */}
           {isFoldersSectionOpen && (
             <div className="space-y-0.5 mt-1">
-              {/* Permanent System Folder: Unsorted (Inbox) */}
-              <div
-                onClick={() => {
-                  onSelectFolder(null);
-                  onSelectView("unsorted");
-                }}
-                className={`flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-md cursor-pointer transition-all text-xs ${
-                  activeView === "unsorted" && !activeFolderId
-                    ? "bg-accent font-semibold text-foreground"
-                    : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-                }`}
-                title="Permanent system folder for uncategorized bookmarks"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="h-4 w-4 rounded flex items-center justify-center text-xs">📥</span>
-                  <span className="truncate font-medium">Unsorted</span>
-                </div>
-                {unsortedCount !== undefined && unsortedCount > 0 && (
-                  <span className="text-[10px] text-muted-foreground/70 font-mono">
-                    {unsortedCount}
-                  </span>
-                )}
-              </div>
+              {/* Permanent System Folder: Unsorted (linked to customizable permanent folder) */}
+              {(() => {
+                const unsortedFolder = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_"));
+                const unsortedName = unsortedFolder?.name || "Unsorted";
+                const unsortedIcon = unsortedFolder?.icon || "📥";
+                const unsortedColor = unsortedFolder?.color || "#8b5cf6";
+
+                return (
+                  <div
+                    onClick={() => {
+                      onSelectFolder(null);
+                      onSelectView("unsorted");
+                    }}
+                    className={`group flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-md cursor-pointer transition-all text-xs ${
+                      activeView === "unsorted" && !activeFolderId
+                        ? "bg-accent font-semibold text-foreground"
+                        : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+                    }`}
+                    title="Permanent system folder for uncategorized bookmarks"
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <FolderIconRenderer icon={unsortedIcon} color={unsortedColor} className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate font-medium">{unsortedName}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {unsortedCount !== undefined && unsortedCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground/70 font-mono">
+                          {unsortedCount}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (unsortedFolder) setCustomizeFolder(unsortedFolder);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-neutral-700 text-muted-foreground hover:text-foreground cursor-pointer transition-opacity"
+                        title="Edit Unsorted Name & Icon"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {folderTree.map((node) => (
                 <FolderTreeNodeComponent

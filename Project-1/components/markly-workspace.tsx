@@ -694,6 +694,67 @@ export function MarklyWorkspace({
     [folders, bookmarks, user?.id, refreshData]
   );
 
+  const handleSaveCollectionOptimistic = React.useCallback(
+    async (
+      folderId: string,
+      updates: { name: string; icon: string; color: string; parentId?: string | null }
+    ) => {
+      // 1. Optimistically update folders state
+      const updated = folders.map((f) =>
+        f.id === folderId
+          ? {
+              ...f,
+              name: updates.name,
+              icon: updates.icon,
+              color: updates.color,
+              parentId: updates.parentId !== undefined ? updates.parentId : f.parentId,
+              parent_id: updates.parentId !== undefined ? updates.parentId : (f as any).parent_id,
+              updatedAt: Date.now(),
+            }
+          : f
+      );
+      setFolders(updated);
+      setFolderTree(buildTreeFromFolders(updated, bookmarks));
+
+      // 2. Persist to API
+      try {
+        const existing = folders.find((f) => f.id === folderId);
+        if (updates.parentId !== undefined && updates.parentId !== existing?.parentId) {
+          await fetch("/api/folders/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              folderId,
+              targetFolderId: updates.parentId,
+              dropPosition: updates.parentId ? "inside" : "root",
+              userId: user?.id,
+            }),
+          });
+        }
+
+        await fetch(`/api/folders/${folderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: updates.name,
+            icon: updates.icon,
+            color: updates.color,
+            parentId: updates.parentId,
+            userId: user?.id,
+          }),
+        });
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+      } catch (err) {
+        console.error("Save collection error:", err);
+        refreshData();
+      }
+    },
+    [folders, bookmarks, user?.id, refreshData]
+  );
+
   const handleDeleteBookmarkOptimistic = React.useCallback(
     async (id: string) => {
       // 1. Immediately drop from state in 0ms (instantly removes from Quick Access, Recently Visited, and Table)
@@ -1247,6 +1308,7 @@ export function MarklyWorkspace({
               onCustomizeFolder={(f) => setPanelCustomizeFolder(f)}
               onMoveFolder={(f) => setPanelMoveFolder(f)}
               onDeleteFolder={(f) => setPanelDeleteFolder(f)}
+              onSaveCollection={handleSaveCollectionOptimistic}
               unsortedCount={bookmarks.filter((b) => !b.isArchived && !b.folderId).length}
               onSelectView={(v) => {
                 setActiveView(v);

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2. Check local SQLite users by username OR by email
+    // 2. Check local SQLite users by username OR by email (ignore internal dummy emails)
     let localUser = BookmarkRepository.getUserByUsername(lowerId);
     if (!localUser) {
       try {
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       } catch {}
     }
 
-    if (localUser?.email) {
+    if (localUser?.email && !localUser.email.endsWith("@markly.app") && !localUser.email.endsWith("@markly.internal")) {
       return NextResponse.json({
         success: true,
         email: localUser.email,
@@ -49,21 +49,47 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. Check Supabase Auth users via Admin API
+    // 3. Check Supabase Auth users via Admin API with prioritized matching
     try {
       const client = SupabaseManager.getClient();
       if (client) {
         const { data } = await client.auth.admin.listUsers({ page: 1, perPage: 1000 });
         if (data?.users) {
-          const match = data.users.find((u) => {
-            const uName = (u.user_metadata?.username || u.user_metadata?.preferred_username || "").toLowerCase();
-            const uEmail = (u.email || "").toLowerCase();
-            const uPrefix = uEmail.split("@")[0];
-            return uName === lowerId || uEmail === lowerId || uPrefix === lowerId;
-          });
+          const usersList = data.users;
+
+          // Priority 1: Explicitly chosen Markly username
+          let match = usersList.find(
+            (u) => (u.user_metadata?.username || "").toLowerCase() === lowerId
+          );
+
+          // Priority 2: Real registered email
+          if (!match) {
+            match = usersList.find((u) => (u.email || "").toLowerCase() === lowerId);
+          }
+
+          // Priority 3: Display Name / Full Name
+          if (!match) {
+            match = usersList.find(
+              (u) => (u.user_metadata?.display_name || u.user_metadata?.full_name || "").toLowerCase() === lowerId
+            );
+          }
+
+          // Priority 4: Email prefix (e.g. user part before @)
+          if (!match) {
+            match = usersList.find(
+              (u) => (u.email || "").split("@")[0].toLowerCase() === lowerId
+            );
+          }
+
+          // Priority 5: Fallback to OAuth preferred_username
+          if (!match) {
+            match = usersList.find(
+              (u) => (u.user_metadata?.preferred_username || "").toLowerCase() === lowerId
+            );
+          }
 
           if (match?.email) {
-            // Also ensure local user cache is updated with this username
+            // Also ensure local user cache is updated with this real email and username
             BookmarkRepository.ensureUser(
               match.id,
               match.email,
@@ -71,6 +97,11 @@ export async function POST(req: Request) {
               match.user_metadata?.avatar_url,
               lowerId
             );
+
+            // Directly update SQLite email if it was a dummy email
+            try {
+              BookmarkRepository.updateUserProfile(match.id, { email: match.email, username: lowerId });
+            } catch {}
 
             return NextResponse.json({
               success: true,

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -17,25 +20,25 @@ export async function POST(req: Request) {
 
     switch (action) {
       case "move":
-        BookmarkRepository.bulkUpdate(ids, { folderId: folderId ?? null });
+        await BookmarkRepository.bulkUpdate(ids, { folderId: folderId ?? null }, userId);
         break;
 
       case "favorite":
-        BookmarkRepository.bulkUpdate(ids, { isFavorite: Boolean(isFavorite) });
+        await BookmarkRepository.bulkUpdate(ids, { isFavorite: Boolean(isFavorite) }, userId);
         break;
 
       case "archive":
-        BookmarkRepository.bulkUpdate(ids, { isArchived: Boolean(isArchived) });
+        await BookmarkRepository.bulkUpdate(ids, { isArchived: Boolean(isArchived) }, userId);
         break;
 
       case "status":
-        BookmarkRepository.bulkUpdate(ids, { status });
+        await BookmarkRepository.bulkUpdate(ids, { status }, userId);
         break;
 
       case "tag":
         if (Array.isArray(tagNames)) {
           for (const id of ids) {
-            BookmarkRepository.attachTagsToBookmark(id, tagNames);
+            BookmarkRepository.attachTagsToBookmark(id, tagNames, userId);
           }
         }
         break;

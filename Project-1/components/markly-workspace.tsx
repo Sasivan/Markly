@@ -416,39 +416,33 @@ export function MarklyWorkspace({
     return null;
   }, [user?.id]);
 
-  // Refresh data function: always keeps full canonical bookmarks array
+  // Safety check: if activeFolderId points to a folder that does not exist in folders list, reset it!
+  React.useEffect(() => {
+    if (activeFolderId && folders.length > 0 && !folders.some((f) => f.id === activeFolderId)) {
+      setActiveFolderId(null);
+      setActiveView("collections");
+    }
+  }, [activeFolderId, folders]);
+
+  // Refresh data function: single unified bootstrap request for 0ms atomic state hydration
   const refreshData = React.useCallback(async () => {
     try {
       const effectiveId = getEffectiveUserId();
-      let url = "/api/bookmarks?view=all";
-      if (effectiveId) {
-        url += `&userId=${encodeURIComponent(effectiveId)}`;
-      }
+      const url = effectiveId
+        ? `/api/workspace/bootstrap?userId=${encodeURIComponent(effectiveId)}`
+        : "/api/workspace/bootstrap";
 
-      const foldersUrl = effectiveId ? `/api/folders?userId=${encodeURIComponent(effectiveId)}` : "/api/folders";
-      let statsUrl = "/api/stats";
-      if (effectiveId) {
-        statsUrl += `?userId=${encodeURIComponent(effectiveId)}`;
-      }
+      const res = await fetch(url);
+      const data = await res.json();
 
-      const [foldersRes, bookmarksRes, statsRes] = await Promise.all([
-        fetch(foldersUrl).then((r) => r.json()),
-        fetch(url).then((r) => r.json()),
-        fetch(statsUrl).then((r) => r.json()),
-      ]);
-
-      if (foldersRes.success) {
-        setFolderTree(foldersRes.tree);
-        setFolders(foldersRes.folders);
-      }
-      if (bookmarksRes.success) {
-        setBookmarks(bookmarksRes.bookmarks);
-      }
-      if (statsRes.success) {
-        setStats(statsRes.stats);
+      if (data.success) {
+        setFolderTree(data.tree);
+        setFolders(data.folders);
+        setBookmarks(data.bookmarks);
+        setStats(data.stats);
       }
     } catch (e) {
-      console.error("Failed to refresh data:", e);
+      console.error("Failed to refresh workspace bootstrap:", e);
     }
   }, [getEffectiveUserId]);
 
@@ -568,7 +562,6 @@ export function MarklyWorkspace({
         return [pId, ...kids.flatMap(getDescendants)];
       };
       const toDeleteIds = new Set(getDescendants(folderId));
-      const targetFolder = folders.find((f) => f.id === folderId);
 
       // 1. Instantly delete bookmarks inside this folder and descendant folders
       const remainingBookmarks = bookmarks.filter((b) => !b.folderId || !toDeleteIds.has(b.folderId));
@@ -582,23 +575,32 @@ export function MarklyWorkspace({
       if (activeFolderId && toDeleteIds.has(activeFolderId)) {
         setActiveFolderId(null);
         setActiveView("collections");
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("folderId");
+          url.searchParams.set("view", "collections");
+          window.history.replaceState({ view: "collections", folderId: null }, "", url.pathname + url.search);
+        } catch {}
       }
 
-      // 3. Notify any open views that recycle bin was updated in real time
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
-      }
-
-      // 4. Persist deletion to SQLite and Supabase in background
+      // 3. Persist deletion to SQLite and Supabase in background
       try {
+        const effectiveId = getEffectiveUserId();
         const q = new URLSearchParams({ mode: "delete_all" });
-        if (user?.id) q.set("userId", user.id);
+        if (effectiveId) q.set("userId", effectiveId);
         await fetch(`/api/folders/${folderId}?${q.toString()}`, { method: "DELETE" });
+
+        // 4. Notify any open views that recycle bin was updated only AFTER server has committed deletion
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-recycle-bin-updated"));
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
       } catch (err) {
         console.error("Delete folder error:", err);
+        refreshData();
       }
     },
-    [folders, bookmarks, activeFolderId, user?.id]
+    [folders, bookmarks, activeFolderId, getEffectiveUserId, refreshData]
   );
 
   const handleRenameFolderOptimistic = React.useCallback(
@@ -761,6 +763,87 @@ export function MarklyWorkspace({
         }
       } catch (err) {
         console.error("Bulk delete error:", err);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
+  const handleBulkMoveBookmarksOptimistic = React.useCallback(
+    async (ids: string[], folderId: string | null) => {
+      const idSet = new Set(ids);
+      // 1. Instantly update React state in 0ms
+      setBookmarks((prev) =>
+        prev.map((b) => (idSet.has(b.id) ? { ...b, folderId } : b))
+      );
+
+      // 2. Persist to API with effective userId
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "move", ids, folderId, userId: effectiveId }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+      } catch (err) {
+        console.error("Bulk move error:", err);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
+  const handleBulkFavoriteBookmarksOptimistic = React.useCallback(
+    async (ids: string[], isFavorite: boolean) => {
+      const idSet = new Set(ids);
+      // 1. Instantly update React state in 0ms
+      setBookmarks((prev) =>
+        prev.map((b) => (idSet.has(b.id) ? { ...b, isFavorite } : b))
+      );
+
+      // 2. Persist to API with effective userId
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "favorite", ids, isFavorite, userId: effectiveId }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+      } catch (err) {
+        console.error("Bulk favorite error:", err);
+        refreshData();
+      }
+    },
+    [getEffectiveUserId, refreshData]
+  );
+
+  const handleBulkArchiveBookmarksOptimistic = React.useCallback(
+    async (ids: string[], isArchived: boolean) => {
+      const idSet = new Set(ids);
+      // 1. Instantly update React state in 0ms
+      setBookmarks((prev) =>
+        prev.map((b) => (idSet.has(b.id) ? { ...b, isArchived } : b))
+      );
+
+      // 2. Persist to API with effective userId
+      try {
+        const effectiveId = getEffectiveUserId();
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "archive", ids, isArchived, userId: effectiveId }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+      } catch (err) {
+        console.error("Bulk archive error:", err);
         refreshData();
       }
     },
@@ -1251,6 +1334,9 @@ export function MarklyWorkspace({
                 onSearchChange={setGlobalSearch}
                 onDeleteBookmark={handleDeleteBookmarkOptimistic}
                 onBulkDeleteBookmarks={handleBulkDeleteBookmarksOptimistic}
+                onBulkMoveBookmarks={handleBulkMoveBookmarksOptimistic}
+                onBulkFavoriteBookmarks={handleBulkFavoriteBookmarksOptimistic}
+                onBulkArchiveBookmarks={handleBulkArchiveBookmarksOptimistic}
                 onToggleFavorite={handleToggleFavoriteOptimistic}
                 onToggleArchive={handleToggleArchiveOptimistic}
                 onMoveBookmark={handleMoveBookmarkOptimistic}

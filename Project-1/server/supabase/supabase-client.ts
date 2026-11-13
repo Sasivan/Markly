@@ -466,6 +466,7 @@ export class SupabaseManager {
   }
 
   private static lastSyncMap = new Map<string, number>();
+  private static inFlightSyncMap = new Map<string, Promise<{ success: boolean; synced: boolean; foldersCount: number; bookmarksCount: number }>>();
 
   /**
    * Reset sync cache timestamp for a user (or all users) on mutation
@@ -480,10 +481,13 @@ export class SupabaseManager {
 
   /**
    * Ensure user's local SQLite cache is coherent with Supabase cloud.
-   * If cache is fresh (within maxAgeMs), returns immediately.
-   * If never synced on this lambda instance or older than maxAgeMs, syncs from Supabase.
+   * Deduplicates concurrent in-flight sync promises to prevent race conditions.
+   * If cache is fresh (within maxAgeMs), returns immediately (0ms).
    */
-  static async ensureUserSynced(userId: string, maxAgeMs: number = 3000): Promise<{ success: boolean; synced: boolean; foldersCount: number; bookmarksCount: number }> {
+  static async ensureUserSynced(
+    userId: string,
+    maxAgeMs: number = 4000
+  ): Promise<{ success: boolean; synced: boolean; foldersCount: number; bookmarksCount: number }> {
     if (!userId || userId === "usr_default_markly") {
       return { success: true, synced: false, foldersCount: 0, bookmarksCount: 0 };
     }
@@ -492,14 +496,33 @@ export class SupabaseManager {
       return { success: false, synced: false, foldersCount: 0, bookmarksCount: 0 };
     }
 
+    // If a sync for this user is already in flight, reuse the same promise (coalescing)
+    if (this.inFlightSyncMap.has(userId)) {
+      return await this.inFlightSyncMap.get(userId)!;
+    }
+
     const lastSync = this.lastSyncMap.get(userId) || 0;
     const now = Date.now();
     const userRow = sqlite.prepare(`SELECT id FROM users WHERE id = ?`).get(userId);
 
     if (!userRow || now - lastSync > maxAgeMs) {
-      this.lastSyncMap.set(userId, now);
-      const res = await this.syncRemoteUserToLocal(userId);
-      return { success: res.success, synced: true, foldersCount: res.foldersCount, bookmarksCount: res.bookmarksCount };
+      const syncPromise = (async () => {
+        try {
+          this.lastSyncMap.set(userId, Date.now());
+          const res = await this.syncRemoteUserToLocal(userId);
+          return {
+            success: res.success,
+            synced: true,
+            foldersCount: res.foldersCount,
+            bookmarksCount: res.bookmarksCount,
+          };
+        } finally {
+          this.inFlightSyncMap.delete(userId);
+        }
+      })();
+
+      this.inFlightSyncMap.set(userId, syncPromise);
+      return await syncPromise;
     }
 
     return { success: true, synced: false, foldersCount: 0, bookmarksCount: 0 };
@@ -507,8 +530,8 @@ export class SupabaseManager {
 
   /**
    * Synchronously pull remote user data from Supabase down into local SQLite cache.
-   * Runs concurrent queries, disables FK checks during batch hydration, sanitizes
-   * dangling parent/folder pointers, and prunes orphaned local data.
+   * Runs concurrent queries, wraps SQLite writes in a high-speed single transaction,
+   * handles cloud recycle bin hydration for both folders & bookmarks, and prunes stale local data.
    */
   static async syncRemoteUserToLocal(userId: string): Promise<{
     success: boolean;
@@ -557,38 +580,65 @@ export class SupabaseManager {
       const remoteBookmarks = bookmarksRes.data || [];
       const remoteTags = tagsRes.data || [];
 
-      // Temporarily disable foreign keys during bulk hydration
-      try {
-        sqlite.pragma("foreign_keys = OFF");
-      } catch {}
-
-      const validFolderIds = new Set<string>();
       let foldersCount = 0;
+      let bookmarksCount = 0;
 
-      // 1. Process Folders
-      if (remoteFolders.length > 0) {
-        const upsertFolder = sqlite.prepare(`
-          INSERT INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            name = excluded.name,
-            parent_id = excluded.parent_id,
-            icon = excluded.icon,
-            color = excluded.color,
-            position = excluded.position,
-            updated_at = excluded.updated_at
-        `);
+      // Execute all local database updates within a single high-performance transaction
+      const runTransaction = sqlite.transaction(() => {
+        try {
+          sqlite.pragma("foreign_keys = OFF");
+        } catch {}
 
-        for (const f of remoteFolders) {
-          if (tombstoneFolderSet.has(f.id)) {
-            // Tombstoned locally: prune from Supabase in background
-            client.from("folders").delete().eq("id", f.id).then(() => {});
-            continue;
-          }
+        const validFolderIds = new Set<string>();
 
-          validFolderIds.add(f.id);
-          foldersCount++;
-          try {
+        // 1. Process Folders
+        if (remoteFolders.length > 0) {
+          const upsertFolder = sqlite.prepare(`
+            INSERT INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name,
+              parent_id = excluded.parent_id,
+              icon = excluded.icon,
+              color = excluded.color,
+              position = excluded.position,
+              updated_at = excluded.updated_at
+          `);
+
+          const upsertFolderToRecycleBin = sqlite.prepare(`
+            INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+            VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, 30)
+          `);
+
+          for (const f of remoteFolders) {
+            // Check if folder is soft-deleted in cloud
+            const isTrashFolder = f.parent_id === "__TRASH__" || f.name.startsWith("__TRASH__:");
+            if (isTrashFolder) {
+              const cleanTitle = f.name.replace(/^__TRASH__:\s*/, "");
+              upsertFolderToRecycleBin.run(
+                `rb_fld_${f.id}`,
+                userId,
+                f.id,
+                cleanTitle,
+                null,
+                f.icon || "📁",
+                f.color || "gray",
+                JSON.stringify({ ...f, name: cleanTitle }),
+                f.updated_at || Date.now()
+              );
+              sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(f.id, userId, Date.now());
+              sqlite.prepare(`DELETE FROM folders WHERE id = ?`).run(f.id);
+              continue;
+            }
+
+            if (tombstoneFolderSet.has(f.id)) {
+              // Tombstoned locally: prune from Supabase in background
+              client.from("folders").delete().eq("id", f.id).then(() => {});
+              continue;
+            }
+
+            validFolderIds.add(f.id);
+            foldersCount++;
             upsertFolder.run(
               f.id,
               userId,
@@ -600,67 +650,78 @@ export class SupabaseManager {
               f.created_at || Date.now(),
               f.updated_at || Date.now()
             );
-          } catch (fErr) {
-            console.warn(`Sync folder error for ${f.id}:`, fErr);
           }
-        }
 
-        // Reconcile deleted folders: prune any local folder for this user not in Supabase
-        try {
-          const activeRemoteFolderIds = new Set(remoteFolders.map((f) => f.id));
+          // Reconcile deleted folders: prune any local active folder for this user not active in Supabase
+          const activeRemoteFolderIds = new Set(
+            remoteFolders
+              .filter((f) => f.parent_id !== "__TRASH__" && !f.name.startsWith("__TRASH__:") && !tombstoneFolderSet.has(f.id))
+              .map((f) => f.id)
+          );
           const localFolders = sqlite.prepare(`SELECT id FROM folders WHERE user_id = ?`).all(userId) as { id: string }[];
           for (const lf of localFolders) {
             if (!activeRemoteFolderIds.has(lf.id)) {
               sqlite.prepare(`DELETE FROM folders WHERE id = ?`).run(lf.id);
             }
           }
-        } catch {}
-      }
+        }
 
-      // 2. Process Bookmarks
-      let bookmarksCount = 0;
-      if (remoteBookmarks.length > 0) {
-        const upsertBm = sqlite.prepare(`
-          INSERT INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, image_url, domain, is_favorite, is_archived, status, visit_count, last_visited_at, last_clicked_at, created_at, search_text)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            title = excluded.title,
-            url = excluded.url,
-            folder_id = excluded.folder_id,
-            canonical_url = excluded.canonical_url,
-            description = excluded.description,
-            icon_url = excluded.icon_url,
-            image_url = excluded.image_url,
-            domain = excluded.domain,
-            is_favorite = excluded.is_favorite,
-            is_archived = excluded.is_archived,
-            status = excluded.status,
-            visit_count = excluded.visit_count,
-            last_visited_at = excluded.last_visited_at,
-            last_clicked_at = excluded.last_clicked_at
-        `);
+        // 2. Process Bookmarks
+        if (remoteBookmarks.length > 0) {
+          const upsertBm = sqlite.prepare(`
+            INSERT INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, image_url, domain, is_favorite, is_archived, status, visit_count, last_visited_at, last_clicked_at, created_at, search_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              title = excluded.title,
+              url = excluded.url,
+              folder_id = excluded.folder_id,
+              canonical_url = excluded.canonical_url,
+              description = excluded.description,
+              icon_url = excluded.icon_url,
+              image_url = excluded.image_url,
+              domain = excluded.domain,
+              is_favorite = excluded.is_favorite,
+              is_archived = excluded.is_archived,
+              status = excluded.status,
+              visit_count = excluded.visit_count,
+              last_visited_at = excluded.last_visited_at,
+              last_clicked_at = excluded.last_clicked_at
+          `);
 
-        for (const b of remoteBookmarks) {
-          if (tombstoneBmSet.has(b.id)) {
-            // Tombstoned locally: prune from Supabase in background
-            client.from("bookmarks").delete().eq("id", b.id).then(() => {});
-            continue;
-          }
+          const upsertBmToRecycleBin = sqlite.prepare(`
+            INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+            VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, 30)
+          `);
 
-          if (b.status === "trash") {
-            // In trash: mirror in deleted_bookmarks so active queries don't surface it
-            try {
+          for (const b of remoteBookmarks) {
+            if (b.status === "trash") {
+              // Hydrate cloud trash into local recycle_bin
+              upsertBmToRecycleBin.run(
+                `rb_bm_${b.id}`,
+                userId,
+                b.id,
+                b.title || "Untitled",
+                b.folder_id,
+                b.icon_url,
+                null,
+                JSON.stringify(b),
+                b.last_clicked_at || b.created_at || Date.now()
+              );
               sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(b.id, userId, Date.now());
               sqlite.prepare(`DELETE FROM bookmarks WHERE id = ?`).run(b.id);
-            } catch {}
-            continue;
-          }
+              continue;
+            }
 
-          // Sanitize dangling folder_id to null if the folder doesn't exist
-          const folderId = b.folder_id && validFolderIds.has(b.folder_id) ? b.folder_id : null;
+            if (tombstoneBmSet.has(b.id)) {
+              // Tombstoned locally: prune from Supabase in background
+              client.from("bookmarks").delete().eq("id", b.id).then(() => {});
+              continue;
+            }
 
-          bookmarksCount++;
-          try {
+            // Sanitize dangling folder_id to null if the folder doesn't exist
+            const folderId = b.folder_id && validFolderIds.has(b.folder_id) ? b.folder_id : null;
+
+            bookmarksCount++;
             upsertBm.run(
               b.id,
               userId,
@@ -681,38 +742,39 @@ export class SupabaseManager {
               b.created_at || Date.now(),
               b.search_text || null
             );
-          } catch (bmErr) {
-            console.warn(`Sync bookmark error for ${b.id}:`, bmErr);
           }
-        }
 
-        // Reconcile deleted bookmarks: prune any local bookmark for this user that was deleted in Supabase
-        try {
-          const activeRemoteBmIds = new Set(remoteBookmarks.map((b) => b.id));
+          // Reconcile deleted bookmarks: prune any local bookmark for this user that was deleted or trashed in Supabase
+          const activeRemoteBmIds = new Set(
+            remoteBookmarks.filter((b) => b.status !== "trash" && !tombstoneBmSet.has(b.id)).map((b) => b.id)
+          );
           const localBms = sqlite.prepare(`SELECT id FROM bookmarks WHERE user_id = ?`).all(userId) as { id: string }[];
           for (const lbm of localBms) {
             if (!activeRemoteBmIds.has(lbm.id)) {
               sqlite.prepare(`DELETE FROM bookmarks WHERE id = ?`).run(lbm.id);
             }
           }
-        } catch {}
-      }
-
-      // 3. Process Tags
-      if (remoteTags.length > 0) {
-        const upsertTag = sqlite.prepare(`
-          INSERT INTO tags (id, user_id, name, color, created_at)
-          VALUES (?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            name = excluded.name,
-            color = excluded.color
-        `);
-        for (const t of remoteTags) {
-          try {
-            upsertTag.run(t.id, userId, t.name, t.color || "#3b82f6", t.created_at || Date.now());
-          } catch {}
         }
-      }
+
+        // 3. Process Tags
+        if (remoteTags.length > 0) {
+          const upsertTag = sqlite.prepare(`
+            INSERT INTO tags (id, user_id, name, color, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name,
+              color = excluded.color
+          `);
+          for (const t of remoteTags) {
+            try {
+              upsertTag.run(t.id, userId, t.name, t.color || "#3b82f6", t.created_at || Date.now());
+            } catch {}
+          }
+        }
+      });
+
+      // Run transaction
+      runTransaction();
 
       return {
         success: true,

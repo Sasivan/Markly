@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const success = BookmarkRepository.recordVisit(id);
+    const success = await BookmarkRepository.recordVisit(id);
     const updated = BookmarkRepository.getBookmarkById(id);
     return NextResponse.json({
       success,

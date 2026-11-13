@@ -48,8 +48,6 @@ export async function GET(req: Request) {
       userId,
     });
 
-    SupabaseManager.invalidateUserSyncCache(userId);
-
     return NextResponse.json({ success: true, count: bookmarks.length, bookmarks });
   } catch (error) {
     console.error("GET /api/bookmarks error:", error);

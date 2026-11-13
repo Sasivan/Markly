@@ -55,6 +55,9 @@ interface BookmarkTableProps {
   onSearchChange?: (val: string) => void;
   onDeleteBookmark?: (id: string, title?: string) => void;
   onBulkDeleteBookmarks?: (ids: string[]) => void;
+  onBulkMoveBookmarks?: (ids: string[], folderId: string | null) => void;
+  onBulkFavoriteBookmarks?: (ids: string[], isFavorite: boolean) => void;
+  onBulkArchiveBookmarks?: (ids: string[], isArchived: boolean) => void;
   onToggleFavorite?: (bookmark: BookmarkWithDetails) => void;
   onToggleArchive?: (bookmark: BookmarkWithDetails) => void;
   onMoveBookmark?: (bookmarkId: string, folderId: string | null) => void;
@@ -70,6 +73,9 @@ export function BookmarkTable({
   onSearchChange,
   onDeleteBookmark,
   onBulkDeleteBookmarks,
+  onBulkMoveBookmarks,
+  onBulkFavoriteBookmarks,
+  onBulkArchiveBookmarks,
   onToggleFavorite,
   onToggleArchive,
   onMoveBookmark,
@@ -242,47 +248,73 @@ export function BookmarkTable({
 
   // Bulk Actions
   const selectedIds = React.useMemo(() => {
-    const indices = Object.keys(rowSelection).map(Number);
-    return indices.map((idx) => filteredData[idx]?.id).filter(Boolean);
-  }, [rowSelection, filteredData]);
+    return Object.keys(rowSelection).filter(Boolean);
+  }, [rowSelection]);
 
   const handleBulkMove = async (folderId: string | null) => {
-    await fetch("/api/bookmarks/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "move", ids: selectedIds, folderId }),
-    });
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-    }
+    const ids = [...selectedIds];
     setRowSelection({});
-    onRefreshData();
+    if (onBulkMoveBookmarks) {
+      onBulkMoveBookmarks(ids, folderId);
+    } else {
+      try {
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "move", ids, folderId }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+        onRefreshData();
+      } catch (e) {
+        console.error("Bulk move error:", e);
+      }
+    }
   };
 
   const handleBulkFavorite = async (isFavorite: boolean) => {
-    await fetch("/api/bookmarks/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "favorite", ids: selectedIds, isFavorite }),
-    });
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-    }
+    const ids = [...selectedIds];
     setRowSelection({});
-    onRefreshData();
+    if (onBulkFavoriteBookmarks) {
+      onBulkFavoriteBookmarks(ids, isFavorite);
+    } else {
+      try {
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "favorite", ids, isFavorite }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+        onRefreshData();
+      } catch (e) {
+        console.error("Bulk favorite error:", e);
+      }
+    }
   };
 
   const handleBulkArchive = async (isArchived: boolean) => {
-    await fetch("/api/bookmarks/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "archive", ids: selectedIds, isArchived }),
-    });
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-    }
+    const ids = [...selectedIds];
     setRowSelection({});
-    onRefreshData();
+    if (onBulkArchiveBookmarks) {
+      onBulkArchiveBookmarks(ids, isArchived);
+    } else {
+      try {
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "archive", ids, isArchived }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+        onRefreshData();
+      } catch (e) {
+        console.error("Bulk archive error:", e);
+      }
+    }
   };
 
   const handleBulkDelete = () => {
@@ -342,9 +374,8 @@ export function BookmarkTable({
       bm.lastVisitedAt = now;
       bm.lastClickedAt = now;
       fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true }).catch(() => {});
-      setTimeout(onRefreshData, 300);
     },
-    [onRecordVisit, onRefreshData]
+    [onRecordVisit]
   );
 
   // TanStack Table Column Definitions
@@ -600,6 +631,7 @@ export function BookmarkTable({
   const table = useReactTable({
     data: filteredData,
     columns,
+    getRowId: (row) => row.id,
     state: {
       sorting,
       globalFilter,

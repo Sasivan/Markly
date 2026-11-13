@@ -406,7 +406,7 @@ export class BookmarkRepository {
         INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
         VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        `rb_bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        `rb_bm_${bm.id}`,
         effectiveUserId,
         bm.id,
         bm.title,
@@ -429,18 +429,18 @@ export class BookmarkRepository {
       }
     }
 
-    // 4. Batch delete all inside bookmarks from Supabase (awaited!)
+    // 4. Soft-delete all inside bookmarks in Supabase (status = 'trash')
     const client = SupabaseManager.getClient();
     if (client && bmsInside.length > 0) {
       try {
         const bmIds = bmsInside.map((b) => b.id);
-        await client.from("bookmarks").delete().in("id", bmIds);
+        await client.from("bookmarks").update({ status: "trash" }).in("id", bmIds);
       } catch (err) {
-        console.warn("Supabase batch delete bookmarks error:", err);
+        console.warn("Supabase batch soft-delete bookmarks error:", err);
       }
     }
 
-    // 5. Delete the bookmarks from SQLite
+    // 5. Delete the bookmarks from SQLite active table
     sqlite.prepare(`
       DELETE FROM bookmarks WHERE folder_id IN (${placeholders})
     `).run(...allFolderIdsToDelete);
@@ -454,7 +454,7 @@ export class BookmarkRepository {
           INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
           VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          `rb_fld_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          `rb_fld_${f.id}`,
           effectiveUserId,
           f.id,
           f.name,
@@ -475,23 +475,24 @@ export class BookmarkRepository {
             INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
           `).run(f.id, userId, Date.now());
         }
+
+        // Soft-delete in Supabase so every lambda knows it is in trash
+        if (client) {
+          try {
+            await client.from("folders").update({ parent_id: "__TRASH__", name: `__TRASH__:${f.name}` }).eq("id", f.id);
+          } catch (sfErr) {
+            console.warn("Supabase folder soft-delete notice:", sfErr);
+          }
+        }
       }
     }
 
-    // 7. Batch delete all folders from Supabase (awaited!)
-    if (client && allFolderIdsToDelete.length > 0) {
-      try {
-        await client.from("folders").delete().in("id", allFolderIdsToDelete);
-      } catch (err) {
-        console.warn("Supabase batch delete folders error:", err);
-      }
-    }
-
-    // 8. Delete folders from SQLite
+    // 7. Delete folders from local SQLite active table
     sqlite.prepare(`
       DELETE FROM folders WHERE id IN (${placeholders})
     `).run(...allFolderIdsToDelete);
 
+    SupabaseManager.invalidateUserSyncCache(effectiveUserId);
     return;
   }
 
@@ -896,6 +897,7 @@ export class BookmarkRepository {
       const effectiveUserId = b?.userId || userId || DEFAULT_USER_ID;
 
       const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
+      const client = SupabaseManager.getClient();
 
       if (b) {
         // Fetch attached tags
@@ -911,7 +913,7 @@ export class BookmarkRepository {
           INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
           VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          `rb_bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          `rb_bm_${id}`,
           effectiveUserId,
           id,
           b.title,
@@ -922,6 +924,28 @@ export class BookmarkRepository {
           Date.now(),
           retentionDays
         );
+      } else if (client) {
+        // Hydrate from Supabase if not present in this lambda's local SQLite
+        try {
+          const { data: remoteB } = await client.from("bookmarks").select("*").eq("id", id).single();
+          if (remoteB) {
+            sqlite.prepare(`
+              INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+              VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              `rb_bm_${remoteB.id}`,
+              remoteB.user_id || effectiveUserId,
+              id,
+              remoteB.title || "Untitled",
+              remoteB.folder_id,
+              remoteB.icon_url,
+              null,
+              JSON.stringify(remoteB),
+              Date.now(),
+              retentionDays
+            );
+          }
+        } catch {}
       }
 
       // 2. Record tombstone
@@ -939,7 +963,6 @@ export class BookmarkRepository {
       db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
 
       // 4. Soft-delete in Supabase by setting status = 'trash' (shared across all lambdas!)
-      const client = SupabaseManager.getClient();
       if (client) {
         try {
           await client.from("bookmarks").update({ status: "trash" }).eq("id", id);
@@ -998,49 +1021,66 @@ export class BookmarkRepository {
       const cutoff = Date.now() - retentionMs;
       sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ? AND deleted_at < ?`).run(userId, cutoff);
 
-      // 2. Query active recycle bin items
-      let rows = sqlite
-        .prepare(`SELECT * FROM recycle_bin WHERE user_id = ? ORDER BY deleted_at DESC`)
-        .all(userId) as any[];
-
-      // 3. Multi-instance cloud reconciliation: hydrate any soft-deleted bookmarks from Supabase
-      if (rows.length === 0 && userId !== DEFAULT_USER_ID) {
+      // 2. Multi-instance cloud reconciliation: always hydrate soft-deleted bookmarks & folders from Supabase
+      if (userId && userId !== DEFAULT_USER_ID) {
         try {
           const client = SupabaseManager.getClient();
           if (client) {
-            const { data: trashBms } = await client
-              .from("bookmarks")
-              .select("*")
-              .eq("user_id", userId)
-              .eq("status", "trash");
+            const [trashBmsRes, trashFoldersRes] = await Promise.all([
+              client.from("bookmarks").select("*").eq("user_id", userId).eq("status", "trash"),
+              client.from("folders").select("*").eq("user_id", userId).or("parent_id.eq.__TRASH__,name.like.__TRASH__:%"),
+            ]);
 
-            if (trashBms && trashBms.length > 0) {
-              for (const b of trashBms) {
+            if (trashBmsRes.data && trashBmsRes.data.length > 0) {
+              for (const b of trashBmsRes.data) {
                 sqlite.prepare(`
-                  INSERT OR IGNORE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+                  INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
                   VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(
                   `rb_bm_${b.id}`,
                   userId,
                   b.id,
-                  b.title,
+                  b.title || "Untitled",
                   b.folder_id,
                   b.icon_url,
                   null,
                   JSON.stringify(b),
-                  b.created_at || Date.now(),
+                  b.last_clicked_at || b.created_at || Date.now(),
                   retentionDays
                 );
               }
-              rows = sqlite
-                .prepare(`SELECT * FROM recycle_bin WHERE user_id = ? ORDER BY deleted_at DESC`)
-                .all(userId) as any[];
+            }
+
+            if (trashFoldersRes.data && trashFoldersRes.data.length > 0) {
+              for (const f of trashFoldersRes.data) {
+                const cleanTitle = f.name.replace(/^__TRASH__:\s*/, "");
+                sqlite.prepare(`
+                  INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+                  VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(
+                  `rb_fld_${f.id}`,
+                  userId,
+                  f.id,
+                  cleanTitle,
+                  null,
+                  f.icon || "📁",
+                  f.color || "gray",
+                  JSON.stringify({ ...f, name: cleanTitle }),
+                  f.updated_at || Date.now(),
+                  retentionDays
+                );
+              }
             }
           }
         } catch (cloudErr) {
           console.warn("Recycle bin cloud hydration notice:", cloudErr);
         }
       }
+
+      // 3. Query all recycle bin items for this user
+      const rows = sqlite
+        .prepare(`SELECT * FROM recycle_bin WHERE user_id = ? ORDER BY deleted_at DESC`)
+        .all(userId) as any[];
 
       const now = Date.now();
       return rows.map((r) => {
@@ -1081,6 +1121,7 @@ export class BookmarkRepository {
     if (!item) return { success: false, error: "Item not found in Recycle Bin" };
 
     const data = JSON.parse(item.item_data);
+    const client = SupabaseManager.getClient();
 
     if (item.item_type === "folder") {
       // Check if parent still exists
@@ -1126,7 +1167,7 @@ export class BookmarkRepository {
               b.domain,
               b.is_favorite || b.isFavorite ? 1 : 0,
               b.is_archived || b.isArchived ? 1 : 0,
-              b.status || "alive",
+              "alive",
               b.visit_count || b.visitCount || 0,
               b.last_visited_at || b.lastVisitedAt || null,
               b.last_clicked_at || b.lastClickedAt || null,
@@ -1135,10 +1176,6 @@ export class BookmarkRepository {
             );
             sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(b.id);
             sqlite.prepare(`DELETE FROM recycle_bin WHERE item_id = ? AND item_type = 'bookmark'`).run(b.id);
-            const restoredBm = this.getBookmarkById(b.id);
-            if (restoredBm) {
-              SupabaseManager.syncBookmark(restoredBm, "upsert").catch(() => {});
-            }
           } catch (bmRestoreErr) {
             console.warn("Restore folder child bookmark error:", bmRestoreErr);
           }
@@ -1150,10 +1187,20 @@ export class BookmarkRepository {
       sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
 
       // Sync restore to Supabase
-      const restored = db.select().from(folders).where(eq(folders.id, data.id)).get();
-      if (restored) {
-        await SupabaseManager.syncFolder(restored, "upsert");
+      if (client) {
+        try {
+          await client.from("folders").update({ name: data.name, parent_id: parentId }).eq("id", data.id);
+          if (Array.isArray(data.bookmarks) && data.bookmarks.length > 0) {
+            const bIds = data.bookmarks.map((b: any) => b.id);
+            await client.from("bookmarks").update({ status: "alive" }).in("id", bIds);
+          }
+        } catch (sfErr) {
+          console.warn("Supabase folder restore notice:", sfErr);
+        }
       }
+
+      const restored = db.select().from(folders).where(eq(folders.id, data.id)).get();
+      SupabaseManager.invalidateUserSyncCache(item.user_id);
       return { success: true, item: restored, type: "folder" };
     } else {
       // Bookmark restore: check if original folder exists, otherwise restore to Unsorted (Inbox)
@@ -1179,7 +1226,7 @@ export class BookmarkRepository {
         data.domain,
         data.isFavorite ? 1 : 0,
         data.isArchived ? 1 : 0,
-        data.status || "alive",
+        "alive",
         data.visitCount || 0,
         data.lastVisitedAt || null,
         data.lastClickedAt || null,
@@ -1206,10 +1253,13 @@ export class BookmarkRepository {
       sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(data.id);
       sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
 
-      const restored = this.getBookmarkById(data.id);
-      if (restored) {
-        await SupabaseManager.syncBookmark({ ...restored, status: "alive" }, "upsert");
+      if (client) {
+        try {
+          await client.from("bookmarks").update({ status: "alive", folder_id: folderId }).eq("id", data.id);
+        } catch {}
       }
+
+      const restored = this.getBookmarkById(data.id);
       SupabaseManager.invalidateUserSyncCache(item.user_id);
       return { success: true, item: restored, type: "bookmark" };
     }
@@ -1267,12 +1317,9 @@ export class BookmarkRepository {
 
     if (client) {
       try {
-        if (bmIds.length > 0) {
-          await client.from("bookmarks").delete().in("id", bmIds);
-        }
-        if (folderIds.length > 0) {
-          await client.from("folders").delete().in("id", folderIds);
-        }
+        await client.from("bookmarks").delete().eq("user_id", userId).eq("status", "trash");
+        await client.from("folders").delete().eq("user_id", userId).eq("parent_id", "__TRASH__");
+        await client.from("folders").delete().eq("user_id", userId).like("name", "__TRASH__:%");
       } catch {}
     }
 
@@ -1283,7 +1330,7 @@ export class BookmarkRepository {
   /**
    * Bulk actions on bookmarks
    */
-  static bulkUpdate(ids: string[], updates: Partial<{
+  static async bulkUpdate(ids: string[], updates: Partial<{
     folderId: string | null;
     isFavorite: boolean;
     isArchived: boolean;
@@ -1324,13 +1371,22 @@ export class BookmarkRepository {
 
     sqlite.prepare(query).run(...params);
 
-    // Sync updated rows to Supabase in background
-    for (const bId of ids) {
-      const b = this.getBookmarkById(bId);
-      if (b) {
-        SupabaseManager.syncBookmark(b, "upsert").catch(() => {});
+    // Direct atomic batch update to Supabase
+    const client = SupabaseManager.getClient();
+    if (client) {
+      try {
+        const supaPayload: any = {};
+        if (updates.folderId !== undefined) supaPayload.folder_id = updates.folderId;
+        if (updates.isFavorite !== undefined) supaPayload.is_favorite = updates.isFavorite;
+        if (updates.isArchived !== undefined) supaPayload.is_archived = updates.isArchived;
+        if (updates.status !== undefined) supaPayload.status = updates.status;
+
+        await client.from("bookmarks").update(supaPayload).in("id", ids);
+      } catch (err) {
+        console.warn("bulkUpdate Supabase error:", err);
       }
     }
+
     SupabaseManager.invalidateUserSyncCache(userId);
   }
 
@@ -1561,21 +1617,34 @@ export class BookmarkRepository {
   /**
    * Record a bookmark visit (increments visitCount, sets lastVisitedAt and lastClickedAt)
    */
-  static recordVisit(bookmarkId: string): boolean {
+  static async recordVisit(bookmarkId: string): Promise<boolean> {
     const now = Date.now();
     const info = sqlite
       .prepare(`UPDATE bookmarks SET visit_count = COALESCE(visit_count, 0) + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ?`)
       .run(now, now, bookmarkId);
 
-    if (info.changes > 0) {
+    const countRow = sqlite.prepare(`SELECT visit_count FROM bookmarks WHERE id = ?`).get(bookmarkId) as { visit_count: number } | undefined;
+    const currentCount = countRow?.visit_count ?? 1;
+
+    const client = SupabaseManager.getClient();
+    if (client) {
       try {
-        const bm = this.getBookmarkById(bookmarkId);
-        if (bm) {
-          SupabaseManager.syncBookmark(bm, "upsert").catch((e) => console.warn("Supabase recordVisit sync notice:", e));
-        }
+        await client
+          .from("bookmarks")
+          .update({
+            visit_count: currentCount,
+            last_visited_at: now,
+            last_clicked_at: now,
+          })
+          .eq("id", bookmarkId);
       } catch (err) {
-        console.warn("recordVisit sync notice:", err);
+        console.warn("recordVisit Supabase update notice:", err);
       }
+    }
+
+    const bm = this.getBookmarkById(bookmarkId);
+    if (bm?.userId) {
+      SupabaseManager.invalidateUserSyncCache(bm.userId);
     }
 
     return info.changes > 0;

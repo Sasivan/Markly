@@ -14,16 +14,11 @@ export default async function HomePage() {
 
     if (userId && userId !== DEFAULT_USER_ID) {
       try {
-        const userRow = sqlite
-          .prepare(`SELECT id FROM users WHERE id = ?`)
-          .get(userId);
-        if (!userRow) {
-          const syncRes = await SupabaseManager.syncRemoteUserToLocal(userId);
-          if (syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
-            BookmarkRepository.ensureUserStarterData(userId);
-          } else {
-            BookmarkRepository.ensureUser(userId);
-          }
+        const syncRes = await SupabaseManager.ensureUserSynced(userId);
+        if (syncRes.synced && syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
+          BookmarkRepository.ensureUserStarterData(userId);
+        } else {
+          BookmarkRepository.ensureUser(userId);
         }
       } catch (e) {
         console.warn("SSR sync user notice:", e);

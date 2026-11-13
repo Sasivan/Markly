@@ -21,6 +21,7 @@ export class BookmarkRepository {
           createdAt: Date.now(),
         }).run();
       }
+      this.ensureUserStarterData(DEFAULT_USER_ID);
     } catch (e) {
       console.warn("ensureDefaultUser notice:", e);
     }
@@ -48,118 +49,166 @@ export class BookmarkRepository {
   }
 
   /**
-   * Ensure user has a clean, minimal starter library (1 folder, 3 essential bookmarks)
+   * Ensure user has universal starter library: 1 root folder ("Folder") with 2 subfolders ("Development" & "Resources"), each containing 3 bookmarks.
    */
   static ensureUserStarterData(userId: string) {
     try {
-      if (!userId || userId === DEFAULT_USER_ID) return;
+      if (!userId) return;
 
       // Ensure user record exists in local DB
-      const user = db.select().from(users).where(eq(users.id, userId)).get();
-      if (user) {
-        // User already initialized in DB! Never re-create starter data if user deleted it.
+      sqlite.prepare(`
+        INSERT OR IGNORE INTO users (id, email, display_name, avatar_url, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        userId,
+        userId === DEFAULT_USER_ID ? "demo@markly.app" : `${userId}@markly.app`,
+        userId === DEFAULT_USER_ID ? "Markly Explorer" : "Markly User",
+        `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+        Date.now()
+      );
+
+      // Check if user already has active folders
+      const existingFolders = sqlite
+        .prepare(`SELECT id, name FROM folders WHERE user_id = ? AND (parent_id IS NULL OR parent_id != '__TRASH__') AND name NOT LIKE '__TRASH__:%' AND id NOT IN (SELECT id FROM deleted_folders)`)
+        .all(userId) as { id: string; name: string }[];
+
+      if (existingFolders.length > 0) {
         return;
       }
 
-      db.insert(users).values({
-        id: userId,
-        email: `${userId}@markly.app`,
-        displayName: "Markly User",
-        avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
-        createdAt: Date.now(),
-      }).run();
+      const now = Date.now();
+      const prefix = userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 8);
+      const rootFolderId = `fld_root_${prefix}`;
+      const subFolder1Id = `fld_dev_${prefix}`;
+      const subFolder2Id = `fld_res_${prefix}`;
 
-      // Ensure the default folder named "Folder" exists for the user with a deterministic ID
-      const deterministicFolderId = `fld_folder_${userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 8)}`;
-      let folderRow = sqlite
-        .prepare(`SELECT id FROM folders WHERE user_id = ? AND (name = 'Folder' OR id = ?)`)
-        .get(userId, deterministicFolderId) as { id: string } | undefined;
+      // 1. Parent Root Folder ("Folder")
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+        VALUES (?, ?, NULL, 'Folder', '📁', '#3b82f6', 0, ?, ?)
+      `).run(rootFolderId, userId, now, now);
 
-      if (!folderRow) {
-        sqlite.prepare(`
-          INSERT OR IGNORE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
-          VALUES (?, ?, NULL, 'Folder', '📁', '#3b82f6', 0, ?, ?)
-        `).run(deterministicFolderId, userId, Date.now(), Date.now());
-        folderRow = { id: deterministicFolderId };
+      // 2. Subfolder 1 ("Development")
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+        VALUES (?, ?, ?, 'Development', '💻', '#6366f1', 0, ?, ?)
+      `).run(subFolder1Id, userId, rootFolderId, now + 1, now + 1);
+
+      // 3. Subfolder 2 ("Resources")
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+        VALUES (?, ?, ?, 'Resources', '🎨', '#10b981', 1, ?, ?)
+      `).run(subFolder2Id, userId, rootFolderId, now + 2, now + 2);
+
+      const devBookmarks = [
+        {
+          id: `bm_gh_${subFolder1Id}`,
+          url: "https://github.com",
+          canonicalUrl: "https://github.com",
+          title: "GitHub: Let's build from here",
+          domain: "github.com",
+          description: "GitHub is where over 100 million developers shape the future of software.",
+          iconUrl: "https://github.githubassets.com/favicons/favicon.svg",
+          tags: ["developer", "tools"],
+        },
+        {
+          id: `bm_nxt_${subFolder1Id}`,
+          url: "https://nextjs.org",
+          canonicalUrl: "https://nextjs.org",
+          title: "Next.js by Vercel - The React Framework",
+          domain: "nextjs.org",
+          description: "Used by some of the world's largest companies to build full-stack React web applications.",
+          iconUrl: "https://nextjs.org/favicon.ico",
+          tags: ["framework", "react"],
+        },
+        {
+          id: `bm_gg_${subFolder1Id}`,
+          url: "https://www.google.com",
+          canonicalUrl: "https://google.com",
+          title: "Google Search",
+          domain: "google.com",
+          description: "Search the world's information, including webpages, images, videos and more.",
+          iconUrl: "https://www.google.com/favicon.ico",
+          tags: ["search", "tools"],
+        },
+      ];
+
+      const resBookmarks = [
+        {
+          id: `bm_mdn_${subFolder2Id}`,
+          url: "https://developer.mozilla.org",
+          canonicalUrl: "https://developer.mozilla.org",
+          title: "MDN Web Docs",
+          domain: "developer.mozilla.org",
+          description: "Resources for developers, by developers. Documenting web standards.",
+          iconUrl: "https://developer.mozilla.org/favicon-48x48.png",
+          tags: ["docs", "web"],
+        },
+        {
+          id: `bm_tw_${subFolder2Id}`,
+          url: "https://tailwindcss.com",
+          canonicalUrl: "https://tailwindcss.com",
+          title: "Tailwind CSS - Rapidly build modern websites",
+          domain: "tailwindcss.com",
+          description: "A utility-first CSS framework packed with classes that can be composed directly in markup.",
+          iconUrl: "https://tailwindcss.com/favicons/favicon-32x32.png",
+          tags: ["design", "css"],
+        },
+        {
+          id: `bm_vc_${subFolder2Id}`,
+          url: "https://vercel.com",
+          canonicalUrl: "https://vercel.com",
+          title: "Vercel: Build and deploy the web",
+          domain: "vercel.com",
+          description: "Vercel provides developer tools and cloud infrastructure to build and deploy web apps.",
+          iconUrl: "https://vercel.com/favicon.ico",
+          tags: ["cloud", "deploy"],
+        },
+      ];
+
+      const insertBm = sqlite.prepare(`
+        INSERT OR REPLACE INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, domain, is_favorite, is_archived, status, visit_count, created_at, search_text)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'alive', 1, ?, ?)
+      `);
+
+      for (const b of devBookmarks) {
+        insertBm.run(b.id, userId, subFolder1Id, b.url, b.canonicalUrl, b.title, b.description, b.iconUrl, b.domain, now, `${b.title} ${b.description} ${b.domain}`.toLowerCase());
+        for (const tName of b.tags) {
+          const existingTag = sqlite.prepare(`SELECT id FROM tags WHERE user_id = ? AND name = ?`).get(userId, tName) as { id: string } | undefined;
+          const tagId = existingTag ? existingTag.id : `tag_${tName}_${prefix}`;
+          if (!existingTag) {
+            sqlite.prepare(`INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, '#3b82f6', ?)`).run(tagId, userId, tName, now);
+          }
+          sqlite.prepare(`INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)`).run(b.id, tagId);
+        }
       }
 
-      const inFolderCount = sqlite
-        .prepare(`SELECT COUNT(*) as count FROM bookmarks WHERE user_id = ? AND folder_id = ? AND id NOT IN (SELECT id FROM deleted_bookmarks)`)
-        .get(userId, folderRow.id) as { count: number };
-
-      if (inFolderCount.count === 0) {
-        // 2. Insert 3 minimal, clean starter bookmarks inside Folder with deterministic IDs
-        const starterBookmarks = [
-          {
-            id: `bm_gh_${folderRow.id}`,
-            url: "https://github.com",
-            canonicalUrl: "https://github.com",
-            title: "GitHub: Let's build from here",
-            domain: "github.com",
-            description: "GitHub is where over 100 million developers shape the future of software.",
-            iconUrl: "https://github.githubassets.com/favicons/favicon.svg",
-            tags: ["developer", "tools"],
-          },
-          {
-            id: `bm_gg_${folderRow.id}`,
-            url: "https://www.google.com",
-            canonicalUrl: "https://google.com",
-            title: "Google Search",
-            domain: "google.com",
-            description: "Search the world's information, including webpages, images, videos and more.",
-            iconUrl: "https://www.google.com/favicon.ico",
-            tags: ["search", "tools"],
-          },
-          {
-            id: `bm_nxt_${folderRow.id}`,
-            url: "https://nextjs.org",
-            canonicalUrl: "https://nextjs.org",
-            title: "Next.js by Vercel - The React Framework",
-            domain: "nextjs.org",
-            description: "Used by some of the world's largest companies to build full-stack React web applications.",
-            iconUrl: "https://nextjs.org/favicon.ico",
-            tags: ["framework", "react"],
-          },
-        ];
-
-        const insertBm = sqlite.prepare(`
-          INSERT OR IGNORE INTO bookmarks (id, user_id, folder_id, url, canonical_url, title, description, icon_url, domain, is_favorite, is_archived, status, visit_count, created_at, search_text)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'alive', 1, ?, ?)
-        `);
-
-        for (const b of starterBookmarks) {
-          const now = Date.now();
-          insertBm.run(
-            b.id,
-            userId,
-            folderRow.id,
-            b.url,
-            b.canonicalUrl,
-            b.title,
-            b.description,
-            b.iconUrl,
-            b.domain,
-            now,
-            `${b.title} ${b.description} ${b.domain}`.toLowerCase()
-          );
-
-          // Add tags
-          for (const tName of b.tags) {
-            const tagId = `tag_${tName}`;
-            sqlite.prepare(`
-              INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at)
-              VALUES (?, ?, ?, '#3b82f6', ?)
-            `).run(tagId, userId, tName, now);
-
-            sqlite.prepare(`
-              INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id)
-              VALUES (?, ?)
-            `).run(b.id, tagId);
+      for (const b of resBookmarks) {
+        insertBm.run(b.id, userId, subFolder2Id, b.url, b.canonicalUrl, b.title, b.description, b.iconUrl, b.domain, now + 5, `${b.title} ${b.description} ${b.domain}`.toLowerCase());
+        for (const tName of b.tags) {
+          const existingTag = sqlite.prepare(`SELECT id FROM tags WHERE user_id = ? AND name = ?`).get(userId, tName) as { id: string } | undefined;
+          const tagId = existingTag ? existingTag.id : `tag_${tName}_${prefix}`;
+          if (!existingTag) {
+            sqlite.prepare(`INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, '#10b981', ?)`).run(tagId, userId, tName, now);
           }
+          sqlite.prepare(`INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)`).run(b.id, tagId);
         }
+      }
 
-        // Push starter data to Supabase in the background
-        SupabaseManager.syncLocalToSupabase().catch(() => {});
+      // Also sync to Supabase cloud DB directly
+      const client = SupabaseManager.getClient();
+      if (client) {
+        Promise.all([
+          client.from("folders").upsert([
+            { id: rootFolderId, user_id: userId, parent_id: null, name: "Folder", icon: "📁", color: "#3b82f6", position: 0, created_at: now, updated_at: now },
+            { id: subFolder1Id, user_id: userId, parent_id: rootFolderId, name: "Development", icon: "💻", color: "#6366f1", position: 0, created_at: now + 1, updated_at: now + 1 },
+            { id: subFolder2Id, user_id: userId, parent_id: rootFolderId, name: "Resources", icon: "🎨", color: "#10b981", position: 1, created_at: now + 2, updated_at: now + 2 },
+          ]),
+          client.from("bookmarks").upsert([
+            ...devBookmarks.map(b => ({ id: b.id, user_id: userId, folder_id: subFolder1Id, url: b.url, canonical_url: b.canonicalUrl, title: b.title, description: b.description, icon_url: b.iconUrl, domain: b.domain, is_favorite: true, is_archived: false, status: "alive", visit_count: 1, created_at: now, search_text: `${b.title} ${b.description} ${b.domain}`.toLowerCase() })),
+            ...resBookmarks.map(b => ({ id: b.id, user_id: userId, folder_id: subFolder2Id, url: b.url, canonical_url: b.canonicalUrl, title: b.title, description: b.description, icon_url: b.iconUrl, domain: b.domain, is_favorite: true, is_archived: false, status: "alive", visit_count: 1, created_at: now + 5, search_text: `${b.title} ${b.description} ${b.domain}`.toLowerCase() })),
+          ]),
+        ]).catch(() => {});
       }
     } catch (e) {
       console.warn("ensureUserStarterData notice:", e);
@@ -527,7 +576,8 @@ export class BookmarkRepository {
 
     // Folder filtering
     if (options.folderId !== undefined && options.folderId !== null && options.folderId !== "") {
-      if (options.includeSubfolders) {
+      const hasChildren = sqlite.prepare("SELECT 1 FROM folders WHERE parent_id = ?").get(options.folderId);
+      if (options.includeSubfolders || hasChildren) {
         const folderIds = this.getDescendantFolderIds(options.folderId, userId);
         if (folderIds.length > 0) {
           const placeholders = folderIds.map(() => "?").join(",");

@@ -117,7 +117,7 @@ export function MarklyWorkspace({
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
-  const [includeSubfolders, setIncludeSubfolders] = React.useState(false); // Default false: show only sites in that specific folder
+  const [includeSubfolders, setIncludeSubfolders] = React.useState(true); // Default true: include subfolders for smooth navigation
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
 
@@ -369,7 +369,8 @@ export function MarklyWorkspace({
     let list = bookmarks.filter((b) => !b.isArchived);
 
     if (activeFolderId) {
-      if (includeSubfolders) {
+      const hasChildren = folders.some((f) => f.parentId === activeFolderId);
+      if (includeSubfolders || hasChildren) {
         // Collect all descendant folder IDs
         const getDescendants = (parentId: string): string[] => {
           const children = folders.filter((f) => f.parentId === parentId).map((f) => f.id);

@@ -72,13 +72,13 @@ export function GlobalHomepageAnalytics({
     // Collect root folders (folders without parentId)
     const rootNodes = folderTree.length > 0
       ? folderTree
-      : folders.filter((f) => !f.parentId).map((f) => ({ id: f.id, name: f.name, children: [] }));
+      : folders.filter((f) => !(f.parentId ?? (f as any).parent_id)).map((f) => ({ id: f.id, name: f.name, children: [] }));
 
     // Helper to get all descendant IDs recursively
     const getDescendants = (nodeId: string): string[] => {
       const ids: string[] = [nodeId];
       const findChildren = (parentId: string) => {
-        const directChildren = folders.filter((f) => f.parentId === parentId);
+        const directChildren = folders.filter((f) => (f.parentId ?? (f as any).parent_id) === parentId);
         for (const child of directChildren) {
           ids.push(child.id);
           findChildren(child.id);
@@ -180,12 +180,12 @@ export function GlobalHomepageAnalytics({
     const list: { category: string; count: number }[] = [];
 
     // Calculate real counts for root/parent folders
-    const rootFolders = folders.filter((f) => !f.parentId);
+    const rootFolders = folders.filter((f) => !(f.parentId ?? (f as any).parent_id));
     for (const rf of rootFolders) {
       // Find all subfolder IDs
       const subIds: string[] = [rf.id];
       const traverse = (pId: string) => {
-        for (const child of folders.filter((x) => x.parentId === pId)) {
+        for (const child of folders.filter((x) => (x.parentId ?? (x as any).parent_id) === pId)) {
           subIds.push(child.id);
           traverse(child.id);
         }

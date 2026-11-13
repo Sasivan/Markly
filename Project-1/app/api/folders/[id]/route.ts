@@ -18,7 +18,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    const updated = BookmarkRepository.updateFolder(id, {
+    const updated = await BookmarkRepository.updateFolder(id, {
       name: body.name?.trim(),
       parentId: body.parentId !== undefined ? body.parentId : undefined,
       icon: body.icon,

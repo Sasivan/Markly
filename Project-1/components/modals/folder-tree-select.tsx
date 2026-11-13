@@ -54,8 +54,9 @@ export function FolderTreeSelect({
     const roots: FolderTreeNode[] = [];
     folders.forEach((f) => {
       const node = map.get(f.id)!;
-      if (f.parentId && map.has(f.parentId)) {
-        map.get(f.parentId)!.children.push(node);
+      const pid = f.parentId ?? (f as any).parent_id;
+      if (pid && map.has(pid)) {
+        map.get(pid)!.children.push(node);
       } else {
         roots.push(node);
       }

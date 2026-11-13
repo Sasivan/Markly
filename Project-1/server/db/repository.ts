@@ -219,14 +219,40 @@ export class BookmarkRepository {
    * Get all folders for user, ordered by position
    */
   static getAllFolders(userId: string = DEFAULT_USER_ID): Folder[] {
-    return sqlite.prepare(`
-      SELECT * FROM folders
+    const rows = sqlite.prepare(`
+      SELECT 
+        id,
+        user_id,
+        parent_id,
+        name,
+        icon,
+        color,
+        position,
+        created_at,
+        updated_at
+      FROM folders
       WHERE user_id = ?
         AND (parent_id IS NULL OR parent_id != '__TRASH__')
         AND name NOT LIKE '__TRASH__:%'
         AND id NOT IN (SELECT id FROM deleted_folders)
       ORDER BY position ASC, name ASC
-    `).all(userId) as Folder[];
+    `).all(userId) as any[];
+
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      parentId: r.parent_id !== undefined ? r.parent_id : null,
+      name: r.name,
+      icon: r.icon,
+      color: r.color,
+      position: r.position,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      user_id: r.user_id,
+      parent_id: r.parent_id !== undefined ? r.parent_id : null,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    })) as Folder[];
   }
 
   /**
@@ -292,19 +318,23 @@ export class BookmarkRepository {
     // Map into tree node structure
     const nodeMap = new Map<string, FolderTreeNode>();
     for (const f of allFolders) {
+      const parentId = (f as any).parentId ?? (f as any).parent_id ?? null;
       nodeMap.set(f.id, {
         ...f,
+        parentId,
+        parent_id: parentId,
         children: [],
         bookmarkCount: countsMap.get(f.id) || 0,
         totalDescendantBookmarkCount: countsMap.get(f.id) || 0,
-      });
+      } as FolderTreeNode);
     }
 
     const roots: FolderTreeNode[] = [];
 
     for (const node of nodeMap.values()) {
-      if (node.parentId && nodeMap.has(node.parentId)) {
-        nodeMap.get(node.parentId)!.children.push(node);
+      const pid = (node as any).parentId ?? (node as any).parent_id ?? null;
+      if (pid && nodeMap.has(pid)) {
+        nodeMap.get(pid)!.children.push(node);
       } else {
         roots.push(node);
       }
@@ -374,13 +404,13 @@ export class BookmarkRepository {
   /**
    * Update folder (name, icon, color, position, parentId)
    */
-  static updateFolder(id: string, updates: Partial<{
+  static async updateFolder(id: string, updates: Partial<{
     name: string;
     parentId: string | null;
     icon: string;
     color: string;
     position: number;
-  }>): Folder {
+  }>): Promise<Folder> {
     db.update(folders)
       .set({
         ...updates,
@@ -391,8 +421,12 @@ export class BookmarkRepository {
 
     const updated = db.select().from(folders).where(eq(folders.id, id)).get()!;
     if (updated) {
-      SupabaseManager.syncFolder(updated, "upsert").catch(() => {});
-      SupabaseManager.invalidateUserSyncCache(updated.userId);
+      try {
+        await SupabaseManager.syncFolder(updated, "upsert");
+        SupabaseManager.invalidateUserSyncCache(updated.userId);
+      } catch (syncErr) {
+        console.warn("Supabase updateFolder sync notice:", syncErr);
+      }
     }
     return updated;
   }

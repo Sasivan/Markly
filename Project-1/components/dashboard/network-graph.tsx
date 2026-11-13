@@ -42,9 +42,10 @@ export function NetworkGraph({
       });
 
       // Link subfolder to parent folder
-      if (f.parentId) {
+      const pid = f.parentId ?? (f as any).parent_id;
+      if (pid) {
         links.push({
-          source: `f_${f.parentId}`,
+          source: `f_${pid}`,
           target: `f_${f.id}`,
           color: "#94a3b8",
         });

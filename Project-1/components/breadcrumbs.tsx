@@ -39,7 +39,7 @@ export function Breadcrumbs({
       const found = folders.find((f) => f.id === currentId);
       if (found) {
         path.unshift(found);
-        currentId = found.parentId;
+        currentId = found.parentId ?? (found as any).parent_id ?? null;
       } else {
         break;
       }

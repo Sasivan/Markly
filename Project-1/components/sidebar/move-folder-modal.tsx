@@ -30,7 +30,7 @@ export function MoveFolderModal({
   // Initialize selected parent whenever folder changes
   React.useEffect(() => {
     if (folder) {
-      setSelectedParentId(folder.parentId || null);
+      setSelectedParentId(folder.parentId ?? (folder as any).parent_id ?? null);
       setSearchQuery("");
       // Expand all nodes by default
       const allIds = new Set<string>();
@@ -52,7 +52,8 @@ export function MoveFolderModal({
   forbiddenIds.add(folder.id);
   const markDescendants = (parentId: string) => {
     for (const f of folders) {
-      if (f.parentId === parentId && !forbiddenIds.has(f.id)) {
+      const pid = f.parentId ?? (f as any).parent_id ?? null;
+      if (pid === parentId && !forbiddenIds.has(f.id)) {
         forbiddenIds.add(f.id);
         markDescendants(f.id);
       }
@@ -72,7 +73,8 @@ export function MoveFolderModal({
 
   const handleConfirm = async () => {
     if (!folder) return;
-    if (selectedParentId === folder.parentId) {
+    const currentPid = folder.parentId ?? (folder as any).parent_id ?? null;
+    if (selectedParentId === currentPid) {
       onClose();
       return;
     }

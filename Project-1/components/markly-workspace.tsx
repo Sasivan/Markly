@@ -44,18 +44,22 @@ function buildTreeFromFolders(allFolders: FolderType[], bookmarksList: BookmarkW
 
   const nodeMap = new Map<string, FolderTreeNode>();
   for (const f of allFolders) {
+    const parentId = f.parentId ?? (f as any).parent_id ?? null;
     nodeMap.set(f.id, {
       ...f,
+      parentId,
+      parent_id: parentId,
       children: [],
       bookmarkCount: countsMap.get(f.id) || 0,
       totalDescendantBookmarkCount: countsMap.get(f.id) || 0,
-    });
+    } as FolderTreeNode);
   }
 
   const roots: FolderTreeNode[] = [];
   for (const node of nodeMap.values()) {
-    if (node.parentId && nodeMap.has(node.parentId)) {
-      nodeMap.get(node.parentId)!.children.push(node);
+    const pid = node.parentId ?? (node as any).parent_id;
+    if (pid && nodeMap.has(pid)) {
+      nodeMap.get(pid)!.children.push(node);
     } else {
       roots.push(node);
     }
@@ -369,11 +373,11 @@ export function MarklyWorkspace({
     let list = bookmarks.filter((b) => !b.isArchived);
 
     if (activeFolderId) {
-      const hasChildren = folders.some((f) => f.parentId === activeFolderId);
+      const hasChildren = folders.some((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId);
       if (includeSubfolders || hasChildren) {
         // Collect all descendant folder IDs
         const getDescendants = (parentId: string): string[] => {
-          const children = folders.filter((f) => f.parentId === parentId).map((f) => f.id);
+          const children = folders.filter((f) => (f.parentId ?? (f as any).parent_id) === parentId).map((f) => f.id);
           return [parentId, ...children.flatMap(getDescendants)];
         };
         const folderIds = new Set(getDescendants(activeFolderId));
@@ -1289,10 +1293,10 @@ export function MarklyWorkspace({
               </div>
 
               {/* Subfolders Navigation Bar (if current folder has subfolders) */}
-              {activeFolderId && folders.some((f) => f.parentId === activeFolderId) && (
+              {activeFolderId && folders.some((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId) && (
                 <ChildSubfoldersBar
                   currentFolder={folders.find((f) => f.id === activeFolderId)!}
-                  childFolders={folders.filter((f) => f.parentId === activeFolderId)}
+                  childFolders={folders.filter((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId)}
                   bookmarksCountMap={bookmarks.reduce<Record<string, number>>((acc, bm) => {
                     if (bm.folderId) acc[bm.folderId] = (acc[bm.folderId] || 0) + 1;
                     return acc;

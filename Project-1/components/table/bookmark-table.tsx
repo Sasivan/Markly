@@ -342,8 +342,9 @@ export function BookmarkTable({
       if (!currentFolder) return { name: bm.folderName || "Unsorted", icon: "📁", color: "#64748b" };
 
       // If current folder has a parent folder, return the parent folder!
-      if (currentFolder.parentId) {
-        const parentFolder = folders.find((f) => f.id === currentFolder.parentId);
+      const pid = currentFolder.parentId ?? (currentFolder as any).parent_id;
+      if (pid) {
+        const parentFolder = folders.find((f) => f.id === pid);
         if (parentFolder) {
           return {
             name: parentFolder.name,

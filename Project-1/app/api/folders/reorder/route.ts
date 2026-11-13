@@ -29,12 +29,12 @@ export async function POST(req: Request) {
 
     if (dropPosition === "root" || targetFolderId === null || targetFolderId === "root" || targetFolderId === "__ROOT__") {
       // Move folder to top root level
-      BookmarkRepository.updateFolder(folderId, {
+      await BookmarkRepository.updateFolder(folderId, {
         parentId: null,
       });
     } else if (dropPosition === "inside") {
       // Nest folder under targetFolderId
-      BookmarkRepository.updateFolder(folderId, {
+      await BookmarkRepository.updateFolder(folderId, {
         parentId: targetFolderId,
       });
     } else if (targetFolderId) {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
           WHERE (parent_id = ? OR (? IS NULL AND parent_id IS NULL)) AND position >= ?
         `).run(target.parent_id, target.parent_id, newPos);
 
-        BookmarkRepository.updateFolder(folderId, {
+        await BookmarkRepository.updateFolder(folderId, {
           parentId: target.parent_id,
           position: newPos,
         });

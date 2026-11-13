@@ -328,8 +328,9 @@ export function WorkspaceHome({
     if (!bm.folderId) return "Unsorted";
     const current = folders.find((f) => f.id === bm.folderId);
     if (!current) return bm.folderName || "Unsorted";
-    if (current.parentId) {
-      const parent = folders.find((f) => f.id === current.parentId);
+    const pid = current.parentId ?? (current as any).parent_id;
+    if (pid) {
+      const parent = folders.find((f) => f.id === pid);
       if (parent) return parent.name;
     }
     return current.name;

@@ -309,7 +309,7 @@ export function Sidebar({
 
     // Cyclic check: cannot drop folder into itself or its own subfolder
     const getDescendants = (parentId: string): string[] => {
-      const children = folders.filter((f) => f.parentId === parentId).map((f) => f.id);
+      const children = folders.filter((f) => (f.parentId ?? (f as any).parent_id) === parentId).map((f) => f.id);
       return [parentId, ...children.flatMap(getDescendants)];
     };
     if (targetFolderId !== "root" && getDescendants(draggedFolderId).includes(targetFolderId)) {

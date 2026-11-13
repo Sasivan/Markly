@@ -23,6 +23,7 @@ import {
   User,
   LogOut,
   Trash2,
+  Globe,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -354,21 +355,21 @@ export function Sidebar({
             <Search className="h-4 w-4" />
           </button>
 
-          {/* All Bookmarks / Quick Access Option */}
+          {/* All Sites Option */}
           <button
             type="button"
             onClick={() => {
               onSelectFolder(null);
               onSelectView("all");
             }}
-            title="All Bookmarks / Quick Access"
+            title="All Sites"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "all" && !activeFolderId
                 ? "bg-blue-600 text-white shadow-xs"
                 : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
             }`}
           >
-            <Compass className="h-4 w-4" />
+            <Globe className="h-4 w-4" />
           </button>
 
           {/* Folder Collections Option */}
@@ -568,7 +569,7 @@ export function Sidebar({
             <kbd className="ml-auto text-[10px] bg-slate-100 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 px-1.5 py-0.2 rounded font-mono text-muted-foreground">⌘K</kbd>
           </button>
 
-          {/* Quick Access / All Sites */}
+          {/* All Sites */}
           <button
             type="button"
             onClick={() => {
@@ -581,8 +582,8 @@ export function Sidebar({
                 : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
             }`}
           >
-            <Compass className="h-4 w-4 text-blue-500 flex-shrink-0" />
-            <span className="truncate">Quick Access</span>
+            <Globe className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span className="truncate">All Sites</span>
             <span className="ml-auto text-[11px] font-mono text-muted-foreground">{totalBookmarksCount}</span>
           </button>
 

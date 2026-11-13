@@ -626,7 +626,6 @@ export class SupabaseManager {
                 JSON.stringify({ ...f, name: cleanTitle }),
                 f.updated_at || Date.now()
               );
-              sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(f.id, userId, Date.now());
               sqlite.prepare(`DELETE FROM folders WHERE id = ?`).run(f.id);
               continue;
             }
@@ -707,7 +706,6 @@ export class SupabaseManager {
                 JSON.stringify(b),
                 b.last_clicked_at || b.created_at || Date.now()
               );
-              sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(b.id, userId, Date.now());
               sqlite.prepare(`DELETE FROM bookmarks WHERE id = ?`).run(b.id);
               continue;
             }

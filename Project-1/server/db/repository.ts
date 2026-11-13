@@ -170,11 +170,14 @@ export class BookmarkRepository {
    * Get all folders for user, ordered by position
    */
   static getAllFolders(userId: string = DEFAULT_USER_ID): Folder[] {
-    return db.select()
-      .from(folders)
-      .where(eq(folders.userId, userId))
-      .orderBy(asc(folders.position), asc(folders.name))
-      .all();
+    return sqlite.prepare(`
+      SELECT * FROM folders
+      WHERE user_id = ?
+        AND (parent_id IS NULL OR parent_id != '__TRASH__')
+        AND name NOT LIKE '__TRASH__:%'
+        AND id NOT IN (SELECT id FROM deleted_folders)
+      ORDER BY position ASC, name ASC
+    `).all(userId) as Folder[];
   }
 
   /**
@@ -349,23 +352,9 @@ export class BookmarkRepository {
    * Delete folder
    * mode: "move_up" (move bookmarks to parent folder) | "delete_all" (delete bookmarks and subfolders)
    */
-  static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "move_up", userId?: string) {
+  static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "delete_all", userId?: string) {
     const targetFolder = db.select().from(folders).where(eq(folders.id, id)).get();
     const effectiveUserId = targetFolder?.userId || userId || DEFAULT_USER_ID;
-
-    // 1. Immediately insert tombstone so remote sync NEVER resurrects this folder
-    try {
-      sqlite.prepare(`
-        INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-      `).run(id, effectiveUserId, Date.now());
-      if (userId && userId !== effectiveUserId) {
-        sqlite.prepare(`
-          INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-        `).run(id, userId, Date.now());
-      }
-    } catch (e) {
-      console.warn("Tombstone insert warning:", e);
-    }
 
     if (!targetFolder) {
       // Even if already deleted locally, ensure Supabase deletion
@@ -417,16 +406,6 @@ export class BookmarkRepository {
         Date.now(),
         retentionDays
       );
-
-      sqlite.prepare(`
-        INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
-      `).run(bm.id, effectiveUserId, Date.now());
-
-      if (userId && userId !== effectiveUserId) {
-        sqlite.prepare(`
-          INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
-        `).run(bm.id, userId, Date.now());
-      }
     }
 
     // 4. Soft-delete all inside bookmarks in Supabase (status = 'trash')
@@ -465,16 +444,6 @@ export class BookmarkRepository {
           Date.now(),
           retentionDays
         );
-
-        sqlite.prepare(`
-          INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-        `).run(f.id, effectiveUserId, Date.now());
-
-        if (userId && userId !== effectiveUserId) {
-          sqlite.prepare(`
-            INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)
-          `).run(f.id, userId, Date.now());
-        }
 
         // Soft-delete in Supabase so every lambda knows it is in trash
         if (client) {
@@ -536,6 +505,7 @@ export class BookmarkRepository {
       FROM bookmarks b
       LEFT JOIN folders f ON b.folder_id = f.id
       WHERE b.user_id = ?
+        AND (b.status IS NULL OR b.status != 'trash')
         AND b.id NOT IN (SELECT id FROM deleted_bookmarks)
     `;
 
@@ -948,18 +918,7 @@ export class BookmarkRepository {
         } catch {}
       }
 
-      // 2. Record tombstone
-      sqlite.prepare(`
-        INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
-      `).run(id, effectiveUserId, Date.now());
-
-      if (userId && userId !== effectiveUserId) {
-        sqlite.prepare(`
-          INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)
-        `).run(id, userId, Date.now());
-      }
-
-      // 3. Remove from active SQLite bookmarks FIRST (guarantees local deletion even if Supabase is slow)
+      // 2. Remove from active SQLite bookmarks FIRST (guarantees local deletion even if Supabase is slow)
       db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
 
       // 4. Soft-delete in Supabase by setting status = 'trash' (shared across all lambdas!)
@@ -1269,31 +1228,32 @@ export class BookmarkRepository {
    * Permanently delete a single item from Recycle Bin
    */
   static async permanentlyDeleteRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
-    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ?`).get(id) as any;
-    if (!item) return;
-
+    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ? OR item_id = ?`).get(id, id) as any;
     const client = SupabaseManager.getClient();
+    const isFolder = item ? item.item_type === "folder" : id.startsWith("rb_fld_");
+    const rawId = item?.item_id || id.replace(/^rb_(bm|fld)_/, "");
+    const effectiveUserId = item?.user_id || userId;
 
-    if (item.item_type === "folder") {
-      sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
-      sqlite.prepare(`DELETE FROM recycle_bin WHERE original_folder_id = ?`).run(item.item_id);
+    if (isFolder) {
+      sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(rawId, effectiveUserId, Date.now());
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE original_folder_id = ? OR id = ? OR item_id = ?`).run(rawId, id, rawId);
       if (client) {
         try {
-          await client.from("folders").delete().eq("id", item.item_id);
-          await client.from("bookmarks").delete().eq("folder_id", item.item_id);
+          await client.from("folders").delete().eq("id", rawId);
+          await client.from("bookmarks").delete().eq("folder_id", rawId);
         } catch {}
       }
     } else {
-      sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(item.item_id, item.user_id, Date.now());
+      sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(rawId, effectiveUserId, Date.now());
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ? OR item_id = ?`).run(id, rawId);
       if (client) {
         try {
-          await client.from("bookmarks").delete().eq("id", item.item_id);
+          await client.from("bookmarks").delete().eq("id", rawId);
         } catch {}
       }
     }
 
-    sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
-    SupabaseManager.invalidateUserSyncCache(item.user_id);
+    SupabaseManager.invalidateUserSyncCache(effectiveUserId);
   }
 
   /**

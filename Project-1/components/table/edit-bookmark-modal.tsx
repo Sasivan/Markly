@@ -20,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
+import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 
 interface EditBookmarkModalProps {
   bookmark: BookmarkWithDetails | null;
@@ -360,23 +361,16 @@ export function EditBookmarkModal({
           </div>
 
           {/* Folder & Tags Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div className="space-y-1.5">
               <label className="font-semibold text-slate-800 dark:text-neutral-200 flex items-center gap-1">
-                <FolderIcon className="h-3 w-3 text-slate-400" /> Folder
+                <FolderIcon className="h-3 w-3 text-slate-400" /> Folder Location
               </label>
-              <select
-                value={folderId}
-                onChange={(e) => setFolderId(e.target.value)}
-                className="w-full h-8 text-xs rounded-md border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="">📥 Unsorted (Inbox)</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
+              <FolderTreeSelect
+                folders={folders}
+                selectedFolderId={folderId}
+                onSelectFolder={setFolderId}
+              />
             </div>
 
             <div className="space-y-1.5">

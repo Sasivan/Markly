@@ -22,6 +22,7 @@ import {
   Ghost,
   History,
   Trash2,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -373,8 +374,8 @@ export function WorkspaceHome({
               }}
               className="text-xs h-8.5 px-3 rounded-lg border-slate-300 dark:border-neutral-700 cursor-pointer flex items-center gap-1.5"
             >
-              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Browse All ({totalCount})</span>
+              <Globe className="h-3.5 w-3.5 text-blue-500" />
+              <span>Browse All Sites ({totalCount})</span>
             </Button>
           </div>
         </div>
@@ -455,7 +456,7 @@ export function WorkspaceHome({
               <Compass className="h-3.5 w-3.5" />
             </div>
             <h2 className="text-sm font-bold text-slate-900 dark:text-white">Quick Access</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">Most visited & frequent</span>
+            <span className="text-[10px] text-muted-foreground font-mono">Frequent & daily drivers (top 6)</span>
           </div>
           <button
             type="button"
@@ -465,7 +466,7 @@ export function WorkspaceHome({
             }}
             className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
           >
-            <span>View all</span>
+            <span>View All Sites</span>
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>

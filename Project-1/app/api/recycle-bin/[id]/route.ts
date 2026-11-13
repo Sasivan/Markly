@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // POST /api/recycle-bin/[id] - Restore item from recycle bin
 export async function POST(
   req: Request,

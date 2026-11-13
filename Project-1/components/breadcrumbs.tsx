@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2, Search } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2, Search, Globe } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -125,7 +125,9 @@ export function Breadcrumbs({
                   <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Recycle Bin
                 </>
               ) : (
-                "All Bookmarks"
+                <>
+                  <Globe className="h-3.5 w-3.5 text-blue-500" /> All Sites
+                </>
               )}
             </span>
           </>

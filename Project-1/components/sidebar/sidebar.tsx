@@ -705,7 +705,9 @@ export function Sidebar({
           >
             <Folder className="h-4 w-4 text-indigo-500 flex-shrink-0" />
             <span className="truncate">Folder Collections</span>
-            <span className="ml-auto text-[11px] font-mono text-muted-foreground">{folders.length}</span>
+            <span className="ml-auto text-[11px] font-mono text-muted-foreground">
+              {folders.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_")).length}
+            </span>
           </button>
 
           {/* Obsidian-Style Interactive Knowledge Graph */}

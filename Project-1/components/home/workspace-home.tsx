@@ -82,6 +82,22 @@ export function WorkspaceHome({
       console.error("Visit error:", e);
     }
   };
+  // Accurate synchronized metrics across workspace
+  const folderCollectionsCount = React.useMemo(
+    () => folders.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_")).length,
+    [folders]
+  );
+
+  const totalFavoritesCount = React.useMemo(
+    () => bookmarks.filter((b) => b.isFavorite && !b.isArchived).length,
+    [bookmarks]
+  );
+
+  const totalVisitedCount = React.useMemo(
+    () => bookmarks.filter((b) => !b.isArchived && Boolean(b.lastClickedAt || b.lastVisitedAt)).length,
+    [bookmarks]
+  );
+
   // 1. Quick Access: High-frequency daily drivers & pinned bookmarks
   const quickAccessList = React.useMemo(() => {
     const unarchived = bookmarks.filter((b) => !b.isArchived);
@@ -96,7 +112,7 @@ export function WorkspaceHome({
     return [...unarchived].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   }, [bookmarks]);
 
-  // 3. Recently Visited: Strict chronological timeline of actual visits
+  // 2. Recently Visited: Strict chronological timeline of actual visits
   const recentlyVisited = React.useMemo(() => {
     return [...bookmarks]
       .filter((b) => !b.isArchived && Boolean(b.lastClickedAt || b.lastVisitedAt))
@@ -108,17 +124,22 @@ export function WorkspaceHome({
       .slice(0, 6);
   }, [bookmarks]);
 
-  // 4. Favorites
+  // 3. Favorites (Top 6)
   const favorites = React.useMemo(() => {
     return bookmarks.filter((b) => b.isFavorite && !b.isArchived).slice(0, 6);
   }, [bookmarks]);
 
-  // 5. Inbox / Needs Organization (no folder or no tags)
-  const unorganized = React.useMemo(() => {
-    return bookmarks
-      .filter((b) => !b.isArchived && (!b.folderId || !b.tags || b.tags.length === 0))
-      .slice(0, 6);
+  // 4. Unsorted / Inbox: Strictly unarchived bookmarks without any folder
+  const unsortedBookmarks = React.useMemo(() => {
+    return bookmarks.filter(
+      (b) =>
+        !b.isArchived &&
+        (!b.folderId || b.folderId === "__UNSORTED__" || b.folderId.startsWith("fld_unsorted_"))
+    );
   }, [bookmarks]);
+
+  const totalUnsortedCount = unsortedBookmarks.length;
+  const unorganized = React.useMemo(() => unsortedBookmarks.slice(0, 6), [unsortedBookmarks]);
 
   // 6. Topic & Tags Cloud
   const topTags = React.useMemo(() => {
@@ -384,7 +405,7 @@ export function WorkspaceHome({
               <FolderIcon className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-900 dark:text-white">{folders.length}</div>
+              <div className="text-base font-bold text-slate-900 dark:text-white">{folderCollectionsCount}</div>
               <div className="text-[11px] text-muted-foreground">Folder Collections</div>
             </div>
           </div>
@@ -404,7 +425,7 @@ export function WorkspaceHome({
               <Star className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-900 dark:text-white">{favorites.length}</div>
+              <div className="text-base font-bold text-slate-900 dark:text-white">{totalFavoritesCount}</div>
               <div className="text-[11px] text-muted-foreground">Starred Favorites</div>
             </div>
           </div>
@@ -544,6 +565,11 @@ export function WorkspaceHome({
                 <History className="h-3.5 w-3.5" />
               </div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recently Visited</h2>
+              {totalVisitedCount > 0 && (
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {totalVisitedCount} {totalVisitedCount === 1 ? "site" : "sites"}
+                </span>
+              )}
             </div>
             <button
               type="button"
@@ -637,6 +663,11 @@ export function WorkspaceHome({
                 <Star className="h-3.5 w-3.5 fill-amber-500" />
               </div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white">Starred Favorites</h2>
+              {totalFavoritesCount > 0 && (
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {totalFavoritesCount} {totalFavoritesCount === 1 ? "site" : "sites"}
+                </span>
+              )}
             </div>
             <button
               type="button"
@@ -712,15 +743,17 @@ export function WorkspaceHome({
         </section>
       </div>
 
-      {/* 5. Inbox / Needs Organization Section */}
+      {/* 5. Inbox / Unsorted Sites Section */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-5 w-5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
               <Inbox className="h-3.5 w-3.5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Inbox / Needs Organization</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">Unsorted or missing tags</span>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Inbox / Unsorted Sites</h2>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} Unsorted`}
+            </span>
           </div>
           <button
             type="button"
@@ -730,16 +763,16 @@ export function WorkspaceHome({
             }}
             className="text-xs text-rose-600 dark:text-rose-400 hover:underline cursor-pointer font-medium"
           >
-            Open Inbox View →
+            Open Inbox ({totalUnsortedCount}) →
           </button>
         </div>
 
-        {unorganized.length === 0 ? (
+        {totalUnsortedCount === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900/40 p-6 text-center space-y-1.5">
             <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto" />
             <div className="text-xs font-semibold text-slate-900 dark:text-white">Inbox Zero!</div>
             <p className="text-[11px] text-muted-foreground">
-              All bookmarks in your workspace are properly filed into folders and tagged.
+              All bookmarks in your workspace are filed into folder collections.
             </p>
           </div>
         ) : (
@@ -760,7 +793,7 @@ export function WorkspaceHome({
                       className="h-5 w-5 rounded object-contain flex-shrink-0"
                     />
                     <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                      {!bm.folderId ? "No Folder" : "No Tags"}
+                      Unfiled Site
                     </span>
                   </div>
                   <div className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-1 block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">

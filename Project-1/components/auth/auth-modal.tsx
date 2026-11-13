@@ -5,7 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
-import { Sparkles, AlertCircle, RefreshCw, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Sparkles, AlertCircle, RefreshCw, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Loader2, Eye, EyeOff } from "lucide-react";
 
 export function AuthModal() {
   const {
@@ -23,6 +23,7 @@ export function AuthModal() {
   const [signupUsername, setSignupUsername] = React.useState("");
   const [signupEmail, setSignupEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [displayName, setDisplayName] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -416,14 +417,24 @@ export function AuthModal() {
               <div className="relative">
                 <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                  className="pl-8 pr-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
               </div>
             </div>
 

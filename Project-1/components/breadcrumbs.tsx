@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2, Search, Globe } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Sparkles, Database, User, Trash2, Search, Globe, FolderTree } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -137,32 +137,26 @@ export function Breadcrumbs({
       {/* Right: Subfolder filter toggle, item count & search icon at edge of screen */}
       <div className="flex items-center gap-2 flex-shrink-0">
         {activeFolderId && (
-          <div className="flex items-center p-0.5 rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-100 dark:bg-neutral-900 text-xs">
-            <button
-              type="button"
-              onClick={() => onToggleIncludeSubfolders(false)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-all ${
-                !includeSubfolders
-                  ? "bg-white dark:bg-[#2a2a2a] text-slate-900 dark:text-white shadow-2xs font-semibold"
-                  : "text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200"
-              }`}
-            >
-              <span>📁</span>
-              <span>This Folder Only</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleIncludeSubfolders(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-all ${
-                includeSubfolders
-                  ? "bg-white dark:bg-[#2a2a2a] text-slate-900 dark:text-white shadow-2xs font-semibold"
-                  : "text-slate-500 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200"
-              }`}
-            >
-              <span>📁</span>
-              <span>Include Subfolders</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onToggleIncludeSubfolders(!includeSubfolders)}
+            title={
+              includeSubfolders
+                ? "Subfolders included: showing all bookmarks in this folder and its subfolders (Click to show this folder only)"
+                : "This folder only: showing direct bookmarks only (Click to include subfolders)"
+            }
+            className={`h-7 w-7 rounded-md flex items-center justify-center cursor-pointer transition-all border ${
+              includeSubfolders
+                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 shadow-2xs"
+                : "bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 border-slate-200 dark:border-neutral-700 hover:text-foreground hover:bg-slate-200 dark:hover:bg-neutral-700"
+            }`}
+          >
+            {includeSubfolders ? (
+              <FolderTree className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            ) : (
+              <FolderIcon className="h-3.5 w-3.5" />
+            )}
+          </button>
         )}
 
         <span className="text-[11px] text-slate-700 dark:text-neutral-300 bg-slate-100 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 px-2 py-0.5 rounded-md font-mono font-semibold">

@@ -23,6 +23,11 @@ import { VisualDashboard } from "@/components/dashboard/visual-dashboard";
 import { WorkspaceHome } from "@/components/home/workspace-home";
 import { FolderCollectionsView } from "@/components/collections/folder-collections-view";
 import { ChildSubfoldersBar } from "@/components/collections/child-subfolders-bar";
+import { FolderPagePanel } from "@/components/folders/folder-page-panel";
+import { AddFolderModal } from "@/components/sidebar/add-folder-modal";
+import { FolderCustomizeModal } from "@/components/sidebar/folder-customize-modal";
+import { DeleteFolderModal } from "@/components/sidebar/delete-folder-modal";
+import { MoveFolderModal } from "@/components/sidebar/move-folder-modal";
 import { EditBookmarkModal } from "@/components/table/edit-bookmark-modal";
 import { ApiKeyModal } from "@/components/ai/api-key-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
@@ -167,6 +172,13 @@ export function MarklyWorkspace({
   const [importExportOpen, setImportExportOpen] = React.useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = React.useState(false);
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
+
+  // Folder Page Panel modals state
+  const [panelAddFolderModalOpen, setPanelAddFolderModalOpen] = React.useState(false);
+  const [panelAddFolderParentId, setPanelAddFolderParentId] = React.useState<string | null>(null);
+  const [panelCustomizeFolder, setPanelCustomizeFolder] = React.useState<FolderType | null>(null);
+  const [panelDeleteFolder, setPanelDeleteFolder] = React.useState<FolderType | null>(null);
+  const [panelMoveFolder, setPanelMoveFolder] = React.useState<FolderType | null>(null);
 
   // Hydration ref to avoid overwriting URL query params on initial mount
   const isHydratedRef = React.useRef(false);
@@ -373,8 +385,7 @@ export function MarklyWorkspace({
     let list = bookmarks.filter((b) => !b.isArchived);
 
     if (activeFolderId) {
-      const hasChildren = folders.some((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId);
-      if (includeSubfolders || hasChildren) {
+      if (includeSubfolders) {
         // Collect all descendant folder IDs
         const getDescendants = (parentId: string): string[] => {
           const children = folders.filter((f) => (f.parentId ?? (f as any).parent_id) === parentId).map((f) => f.id);
@@ -650,6 +661,39 @@ export function MarklyWorkspace({
     [folders, bookmarks, user?.id, refreshData]
   );
 
+  const handleMoveFolderOptimistic = React.useCallback(
+    async (folderId: string, newParentId: string | null) => {
+      const updated = folders.map((f) =>
+        f.id === folderId
+          ? { ...f, parentId: newParentId, parent_id: newParentId, updatedAt: Date.now() }
+          : f
+      );
+      setFolders(updated);
+      setFolderTree(buildTreeFromFolders(updated, bookmarks));
+
+      try {
+        await fetch("/api/folders/reorder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            folderId,
+            targetFolderId: newParentId,
+            dropPosition: newParentId ? "inside" : "root",
+            userId: user?.id,
+          }),
+        });
+        refreshData();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+      } catch (err) {
+        console.error("Move folder error:", err);
+        refreshData();
+      }
+    },
+    [folders, bookmarks, user?.id, refreshData]
+  );
+
   const handleDeleteBookmarkOptimistic = React.useCallback(
     async (id: string) => {
       // 1. Immediately drop from state in 0ms (instantly removes from Quick Access, Recently Visited, and Table)
@@ -867,10 +911,9 @@ export function MarklyWorkspace({
         folders={folders}
         bookmarks={bookmarks}
         onSelectFolder={(id) => {
-          const isParent = id ? folders.some((f) => f.parentId === id) : false;
           setActiveFolderId(id);
           setActiveView("all");
-          setIncludeSubfolders(isParent);
+          setIncludeSubfolders(true);
           setActiveDomain(null);
           setActiveDomainFilter(null);
           setActiveTagFilter(null);
@@ -934,6 +977,41 @@ export function MarklyWorkspace({
         }}
       />
 
+      {/* Folder Page Panel Modals */}
+      <AddFolderModal
+        parentId={panelAddFolderParentId}
+        parentFolder={panelAddFolderParentId ? folders.find((f) => f.id === panelAddFolderParentId) : null}
+        open={panelAddFolderModalOpen}
+        onOpenChange={setPanelAddFolderModalOpen}
+        onConfirm={handleCreateFolderOptimistic}
+      />
+
+      <DeleteFolderModal
+        folder={panelDeleteFolder}
+        open={Boolean(panelDeleteFolder)}
+        onOpenChange={(open) => !open && setPanelDeleteFolder(null)}
+        onConfirmDelete={handleDeleteFolderOptimistic}
+      />
+
+      <FolderCustomizeModal
+        folder={panelCustomizeFolder}
+        open={Boolean(panelCustomizeFolder)}
+        onOpenChange={(open) => !open && setPanelCustomizeFolder(null)}
+        onSave={async (folderId, updates) => {
+          await handleCustomizeFolderOptimistic(folderId, updates);
+          setPanelCustomizeFolder(null);
+        }}
+      />
+
+      <MoveFolderModal
+        folder={panelMoveFolder}
+        isOpen={Boolean(panelMoveFolder)}
+        onClose={() => setPanelMoveFolder(null)}
+        folders={folders}
+        folderTree={folderTree}
+        onMoveFolder={handleMoveFolderOptimistic}
+      />
+
       {/* Sidebar with recursive folder tree & drag-and-drop */}
       <Sidebar
         folderTree={folderTree}
@@ -948,10 +1026,9 @@ export function MarklyWorkspace({
         onRenameFolder={handleRenameFolderOptimistic}
         onCustomizeFolder={handleCustomizeFolderOptimistic}
         onSelectFolder={(id) => {
-          const isParent = id ? folders.some((f) => f.parentId === id) : false;
           setActiveFolderId(id);
           setActiveView("all");
-          setIncludeSubfolders(isParent);
+          setIncludeSubfolders(true);
           setActiveDomain(null);
           setActiveDomainFilter(null);
           setActiveTagFilter(null);
@@ -1168,144 +1245,120 @@ export function MarklyWorkspace({
             />
           ) : (
             <>
-              {/* Back to Parent / Collections Banner inside Folder View */}
-              {activeFolderId && (
-                <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card/80 backdrop-blur-xs shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const cur = folders.find((f) => f.id === activeFolderId);
-                        if (cur?.parentId) {
-                          setActiveFolderId(cur.parentId);
-                        } else {
-                          setActiveFolderId(null);
-                          setActiveView("collections");
-                        }
-                      }}
-                      className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer hover:bg-accent text-foreground border-border shadow-xs group"
-                      title={
-                        folders.find((f) => f.id === activeFolderId)?.parentId
-                          ? "Go back to parent folder"
-                          : "Go back to Collections"
+              {/* Dedicated Folder Page Options & Navigation Panel */}
+              {activeFolderId && (() => {
+                const cur = folders.find((f) => f.id === activeFolderId);
+                if (!cur) return null;
+
+                const childFolders = folders.filter((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId);
+                const directBookmarksCount = bookmarks.filter((b) => !b.isArchived && b.folderId === activeFolderId).length;
+
+                const getDescendants = (parentId: string): string[] => {
+                  const kids = folders.filter((f) => (f.parentId ?? (f as any).parent_id) === parentId).map((f) => f.id);
+                  return [parentId, ...kids.flatMap(getDescendants)];
+                };
+                const descendantIds = new Set(getDescendants(activeFolderId));
+                const totalDescendantBookmarksCount = bookmarks.filter((b) => !b.isArchived && b.folderId && descendantIds.has(b.folderId)).length;
+
+                const bookmarksCountMap = bookmarks.reduce<Record<string, number>>((acc, bm) => {
+                  if (bm.folderId) acc[bm.folderId] = (acc[bm.folderId] || 0) + 1;
+                  return acc;
+                }, {});
+
+                return (
+                  <FolderPagePanel
+                    currentFolder={cur}
+                    folders={folders}
+                    directBookmarksCount={directBookmarksCount}
+                    totalDescendantBookmarksCount={totalDescendantBookmarksCount}
+                    childFolders={childFolders}
+                    bookmarksCountMap={bookmarksCountMap}
+                    includeSubfolders={includeSubfolders}
+                    onToggleIncludeSubfolders={setIncludeSubfolders}
+                    onSelectFolder={(fId) => {
+                      if (fId) {
+                        setActiveFolderId(fId);
+                        setIncludeSubfolders(true);
+                      } else {
+                        setActiveFolderId(null);
+                        setActiveView("collections");
                       }
-                    >
-                      <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
-                      <span>
-                        {(() => {
-                          const cur = folders.find((f) => f.id === activeFolderId);
-                          if (cur?.parentId) {
-                            const parent = folders.find((f) => f.id === cur.parentId);
-                            return `Back to ${parent?.name || "Parent Folder"}`;
-                          }
-                          return "Back to Collections";
-                        })()}
-                      </span>
-                    </Button>
+                    }}
+                    onNavigateHome={() => {
+                      setActiveFolderId(null);
+                      setActiveView("home");
+                    }}
+                    onNewSubfolder={(parentId) => {
+                      setPanelAddFolderParentId(parentId);
+                      setPanelAddFolderModalOpen(true);
+                    }}
+                    onRenameFolder={handleRenameFolderOptimistic}
+                    onCustomizeFolder={(folder) => setPanelCustomizeFolder(folder)}
+                    onMoveFolder={(folder) => setPanelMoveFolder(folder)}
+                    onDeleteFolder={(folder) => setPanelDeleteFolder(folder)}
+                  />
+                );
+              })()}
 
-                    <div className="h-4 w-px bg-border/80" />
-
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">Inside Folder:</span>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-foreground bg-accent/60">
-                        <span>{folders.find((f) => f.id === activeFolderId)?.icon || "📁"}</span>
-                        <span>{folders.find((f) => f.id === activeFolderId)?.name || "Folder"}</span>
-                      </span>
+              {/* Stats KPI Cards (only shown on general views to avoid clutter inside folders) */}
+              {!activeFolderId && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
+                      <span>Total Bookmarks</span>
+                      <BookmarkIcon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-2xl font-bold tracking-tight">{stats.totalBookmarks}</span>
+                      <span className="text-[10px] text-emerald-600 font-medium">live sync</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setActiveFolderId(null);
-                        setActiveView("home");
-                      }}
-                      className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1.5 hover:bg-accent"
-                      title="Return to Workspace Homepage"
-                    >
-                      <Home className="h-3.5 w-3.5" />
-                      <span>Workspace Home</span>
-                    </Button>
+                  <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
+                      <span>Folders</span>
+                      <FolderTree className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-2xl font-bold tracking-tight">{stats.totalFolders}</span>
+                      <span className="text-[10px] text-muted-foreground">nested tree</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
+                      <span>Added This Week</span>
+                      <Clock className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-2xl font-bold tracking-tight">{stats.addedThisWeek}</span>
+                      <span className="text-[10px] text-muted-foreground">activity</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
+                      <span>Top Domain</span>
+                      <Globe className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-1 truncate">
+                      <span className="text-sm font-semibold truncate">{stats.topDomain}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
+                    <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
+                      <span>Link Health</span>
+                      <Activity className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {Math.round(((stats.totalBookmarks - stats.deadLinks) / Math.max(stats.totalBookmarks, 1)) * 100)}%
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">{stats.deadLinks} dead link</span>
+                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* Stats KPI Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
-                  <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
-                    <span>Total Bookmarks</span>
-                    <BookmarkIcon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold tracking-tight">{stats.totalBookmarks}</span>
-                    <span className="text-[10px] text-emerald-600 font-medium">live sync</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
-                  <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
-                    <span>Folders</span>
-                    <FolderTree className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold tracking-tight">{stats.totalFolders}</span>
-                    <span className="text-[10px] text-muted-foreground">nested tree</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
-                  <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
-                    <span>Added This Week</span>
-                    <Clock className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold tracking-tight">{stats.addedThisWeek}</span>
-                    <span className="text-[10px] text-muted-foreground">activity</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
-                  <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
-                    <span>Top Domain</span>
-                    <Globe className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1 truncate">
-                    <span className="text-sm font-semibold truncate">{stats.topDomain}</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs">
-                  <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
-                    <span>Link Health</span>
-                    <Activity className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {Math.round(((stats.totalBookmarks - stats.deadLinks) / Math.max(stats.totalBookmarks, 1)) * 100)}%
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">{stats.deadLinks} dead link</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Subfolders Navigation Bar (if current folder has subfolders) */}
-              {activeFolderId && folders.some((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId) && (
-                <ChildSubfoldersBar
-                  currentFolder={folders.find((f) => f.id === activeFolderId)!}
-                  childFolders={folders.filter((f) => (f.parentId ?? (f as any).parent_id) === activeFolderId)}
-                  bookmarksCountMap={bookmarks.reduce<Record<string, number>>((acc, bm) => {
-                    if (bm.folderId) acc[bm.folderId] = (acc[bm.folderId] || 0) + 1;
-                    return acc;
-                  }, {})}
-                  onSelectFolder={(childId, isParent) => {
-                    setActiveFolderId(childId);
-                    setIncludeSubfolders(Boolean(isParent));
-                  }}
-                />
               )}
 
               {/* Visual Intelligence Dashboard (Top Zone with Contextual Folder Analytics) */}

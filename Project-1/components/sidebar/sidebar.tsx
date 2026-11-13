@@ -860,18 +860,18 @@ export function Sidebar({
                 />
               ))}
 
-              {/* Drop to Root Level Target */}
+              {/* Drop to Root Level Target (clean invisible drop area, highlights only when dragging) */}
               <div
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
-                className={`py-1 px-2 rounded-md border border-dashed text-center text-[10px] transition-all mt-2 ${
+                className={`transition-all rounded ${
                   isRootDragOver
-                    ? "border-blue-500 bg-blue-500/15 text-blue-600 font-semibold"
-                    : "border-border/40 text-muted-foreground/60 hover:border-border hover:text-muted-foreground"
+                    ? "h-6 my-1 border-2 border-dashed border-blue-500 bg-blue-500/15 flex items-center justify-center text-[10px] text-blue-600 font-semibold"
+                    : "h-2"
                 }`}
               >
-                Drag folder here to move to Root Level
+                {isRootDragOver ? "Drop for Root Level" : null}
               </div>
             </div>
           )}

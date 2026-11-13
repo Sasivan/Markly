@@ -12,6 +12,8 @@ const ScrapeSchema = z.object({
   url: z.string().min(1, "URL is required"),
   folderId: z.string().nullable().optional(),
   isFavorite: z.boolean().optional().default(false),
+  isArchived: z.boolean().optional().default(false),
+  status: z.enum(["alive", "dead", "pending"]).optional().default("alive"),
   tagNames: z.array(z.string()).optional(),
   saveImmediately: z.boolean().optional().default(true),
   forceDuplicate: z.boolean().optional().default(false),
@@ -49,7 +51,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const { url: inputUrl, folderId, isFavorite, tagNames, saveImmediately, forceDuplicate, customTitle, customDescription } = parsed.data;
+    const {
+      url: inputUrl,
+      folderId,
+      isFavorite,
+      isArchived,
+      status,
+      tagNames,
+      saveImmediately,
+      forceDuplicate,
+      customTitle,
+      customDescription,
+    } = parsed.data;
 
     // 3. URL Normalization
     let normResult;
@@ -178,6 +191,8 @@ export async function POST(req: Request) {
         domain,
         folderId: finalFolderId,
         isFavorite,
+        isArchived,
+        status: status || "alive",
         tagNames: finalTags,
         userId,
       });

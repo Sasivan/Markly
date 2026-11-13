@@ -465,6 +465,57 @@ export function Sidebar({
             <Layers className="h-4 w-4 text-purple-500" />
           </button>
 
+          {/* Recently Visited Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("recent");
+            }}
+            title="Recently Visited"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "recent" && !activeFolderId
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-blue-500"
+            }`}
+          >
+            <History className="h-4 w-4 text-blue-500" />
+          </button>
+
+          {/* Favorites Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("favorites");
+            }}
+            title="Favorites"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "favorites" && !activeFolderId
+                ? "bg-amber-500 text-white shadow-xs"
+                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-amber-500"
+            }`}
+          >
+            <Star className="h-4 w-4 text-amber-500" />
+          </button>
+
+          {/* Archive Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("archive");
+            }}
+            title="Archive"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "archive" && !activeFolderId
+                ? "bg-purple-600 text-white shadow-xs"
+                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-purple-400"
+            }`}
+          >
+            <Archive className="h-4 w-4 text-purple-400" />
+          </button>
+
           {/* Recycle Bin Option */}
           <button
             type="button"
@@ -481,6 +532,57 @@ export function Sidebar({
           >
             <Trash2 className="h-4 w-4 text-rose-500" />
           </button>
+
+          {/* Divider between Views and Folders */}
+          <div className="w-5 h-px bg-border my-1 flex-shrink-0" />
+
+          {/* Unsorted Folder in Rail */}
+          {(() => {
+            const unsortedFld = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_"));
+            const uName = unsortedFld?.name || "Unsorted";
+            const uIcon = unsortedFld?.icon || "📥";
+            const uColor = unsortedFld?.color || "#8b5cf6";
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectFolder(null);
+                  onSelectView("unsorted");
+                }}
+                title={uName}
+                className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+                  activeView === "unsorted" && !activeFolderId
+                    ? "bg-violet-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800"
+                }`}
+              >
+                <FolderIconRenderer icon={uIcon} color={uColor} className="h-4 w-4" />
+              </button>
+            );
+          })()}
+
+          {/* Root Folders in Rail */}
+          {folderTree.map((rootNode) => {
+            const isSelected = activeFolderId === rootNode.id;
+            return (
+              <button
+                key={`rail-${rootNode.id}`}
+                type="button"
+                onClick={() => {
+                  onSelectFolder(rootNode.id);
+                  onSelectView("all");
+                }}
+                title={`${rootNode.name} (${rootNode.totalDescendantBookmarkCount || rootNode.bookmarkCount || 0} sites)`}
+                className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-all ${
+                  isSelected
+                    ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/40 shadow-xs"
+                    : "hover:bg-slate-200 dark:hover:bg-neutral-800"
+                }`}
+              >
+                <FolderIconRenderer icon={rootNode.icon} color={rootNode.color} className="h-4 w-4" />
+              </button>
+            );
+          })}
         </div>
 
         {/* Pinned Bottom Left Profile Icon in Collapsed Rail */}

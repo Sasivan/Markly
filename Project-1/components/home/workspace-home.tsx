@@ -635,7 +635,7 @@ export function WorkspaceHome({
               type="button"
               onClick={() => {
                 onSelectFolder(null);
-                onSelectView("all");
+                onSelectView("recent");
               }}
               className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium"
             >

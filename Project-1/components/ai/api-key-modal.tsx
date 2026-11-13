@@ -76,49 +76,39 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     message: string;
   } | null>(null);
 
-  // Load configuration from localStorage / cookies on modal open
+  // Load configuration from database per user on modal open
   React.useEffect(() => {
-    if (open && typeof window !== "undefined") {
-      const storedKey =
-        localStorage.getItem("markly_gemini_api_key") ||
-        getCookie("markly_gemini_api_key") ||
-        "";
-
-      const storedConfig =
-        localStorage.getItem("markly_ai_config") ||
-        getCookie("markly_ai_config") ||
-        "";
-
-      if (storedKey) {
-        setApiKey(storedKey);
-        setIsSaved(true);
-      } else {
-        setApiKey("");
-        setIsSaved(false);
-      }
-
-      if (storedConfig) {
-        try {
-          const parsed = JSON.parse(storedConfig);
-          if (parsed.model) {
-            let m = parsed.model.replace(/^models\//, "");
-            if (m === "gemini-1.5-flash" || m === "gemini-1.5-pro") {
-              m = "gemini-flash-latest";
-            }
-            const known = GEMINI_MODELS.some((item) => item.id === m);
-            if (known) {
-              setModel(m);
-            } else {
-              setModel("custom");
-              setCustomModelInput(m);
-            }
-          }
-        } catch {}
-      }
-
+    if (open) {
       setTestStatus(null);
+
+      // Clean default state
+      setApiKey("");
+      setIsSaved(false);
+
+      if (user?.id) {
+        fetch(`/api/user/ai-config?userId=${encodeURIComponent(user.id)}`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success && data.apiKey) {
+              setApiKey(data.apiKey);
+              setIsSaved(true);
+            } else if (
+              user?.email === "sasivan177@gmail.com" ||
+              user?.user_metadata?.username === "sasivan"
+            ) {
+              setIsSaved(true);
+            } else {
+              setApiKey("");
+              setIsSaved(false);
+            }
+          })
+          .catch(() => {
+            setApiKey("");
+            setIsSaved(false);
+          });
+      }
     }
-  }, [open, user?.email]);
+  }, [open, user?.id, user?.email]);
 
   const effectiveModel = React.useMemo(() => {
     if (model === "custom") {
@@ -127,9 +117,19 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     return model || "gemini-flash-latest";
   }, [model, customModelInput]);
 
-  // Save config to localStorage & cookies (persists for 1 year across all sessions)
+  // Save config to database per user & browser session
   const handleSave = (closeImmediately: boolean = true) => {
     const trimmedKey = apiKey.trim();
+
+    // Persist to user record in database
+    if (user?.id) {
+      fetch("/api/user/ai-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, apiKey: trimmedKey || null }),
+      }).catch((e) => console.warn("Save API key to DB notice:", e));
+    }
+
     if (typeof window !== "undefined") {
       if (trimmedKey) {
         const config = {
@@ -139,17 +139,15 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
         };
 
         const serialized = JSON.stringify(config);
-        localStorage.setItem("markly_ai_config", serialized);
-        localStorage.setItem("markly_gemini_api_key", trimmedKey);
+        const userScopedKey = user?.id ? `markly_gemini_api_key_${user.id}` : "markly_gemini_api_key";
+        localStorage.setItem(userScopedKey, trimmedKey);
 
-        // 1-year persistent cookie for SSR and API routes
-        document.cookie = `markly_ai_config=${encodeURIComponent(serialized)}; path=/; max-age=31536000; SameSite=Lax`;
         document.cookie = `markly_gemini_api_key=${encodeURIComponent(trimmedKey)}; path=/; max-age=31536000; SameSite=Lax`;
 
         setIsSaved(true);
         setTestStatus({
           success: true,
-          message: `Google Gemini (${effectiveModel}) configured and saved for all sessions!`,
+          message: `Google Gemini (${effectiveModel}) configured and saved for your account!`,
         });
 
         if (closeImmediately) {
@@ -166,10 +164,19 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
 
   // Clear config
   const handleClear = () => {
+    if (user?.id) {
+      fetch("/api/user/ai-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, apiKey: null }),
+      }).catch((e) => console.warn("Clear API key in DB notice:", e));
+    }
+
     if (typeof window !== "undefined") {
-      localStorage.removeItem("markly_ai_config");
       localStorage.removeItem("markly_gemini_api_key");
-      document.cookie = "markly_ai_config=; path=/; max-age=0";
+      if (user?.id) {
+        localStorage.removeItem(`markly_gemini_api_key_${user.id}`);
+      }
       document.cookie = "markly_gemini_api_key=; path=/; max-age=0";
       setApiKey("");
       setIsSaved(false);

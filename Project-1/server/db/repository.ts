@@ -82,6 +82,85 @@ export class BookmarkRepository {
   }
 
   /**
+   * Record user login timestamp and run dormant account cleanup
+   */
+  static recordUserLogin(userId: string) {
+    try {
+      if (!userId) return;
+      sqlite.prepare(`
+        UPDATE users
+        SET last_login_at = ?
+        WHERE id = ?
+      `).run(Date.now(), userId);
+
+      // Periodically clean up accounts with no login for > 60 days
+      BookmarkRepository.cleanupInactiveUsers(60);
+    } catch (e) {
+      console.warn("recordUserLogin notice:", e);
+    }
+  }
+
+  /**
+   * Delete accounts and their data that have not logged in for 60+ days
+   * (Excludes system account usr_default_markly and developer sasivan177@gmail.com)
+   */
+  static cleanupInactiveUsers(retentionDays = 60) {
+    try {
+      const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+      const inactiveUsers = sqlite.prepare(`
+        SELECT id, email, username FROM users
+        WHERE id != 'usr_default_markly'
+          AND LOWER(COALESCE(email, '')) NOT IN ('sasivan177@gmail.com')
+          AND LOWER(COALESCE(username, '')) NOT IN ('sasivan')
+          AND (
+            (last_login_at IS NOT NULL AND last_login_at < ?)
+            OR (last_login_at IS NULL AND created_at < ?)
+          )
+      `).all(cutoff, cutoff) as any[];
+
+      for (const u of inactiveUsers) {
+        console.log(`[Account Cleanup] Deleting inactive account (>60d dormant): ${u.email || u.id}`);
+        sqlite.prepare("DELETE FROM bookmarks WHERE user_id = ?").run(u.id);
+        sqlite.prepare("DELETE FROM folders WHERE user_id = ?").run(u.id);
+        sqlite.prepare("DELETE FROM tags WHERE user_id = ?").run(u.id);
+        sqlite.prepare("DELETE FROM recycle_bin WHERE user_id = ?").run(u.id);
+        sqlite.prepare("DELETE FROM users WHERE id = ?").run(u.id);
+      }
+    } catch (e) {
+      console.warn("cleanupInactiveUsers notice:", e);
+    }
+  }
+
+  /**
+   * Get user API key stored in database
+   */
+  static getUserApiKey(userId: string): string | null {
+    try {
+      if (!userId) return null;
+      const row = sqlite.prepare("SELECT gemini_api_key, email, username FROM users WHERE id = ?").get(userId) as any;
+      if (row?.gemini_api_key) return row.gemini_api_key;
+      if (row?.email === "sasivan177@gmail.com" || row?.username === "sasivan" || userId === "84055f37-6af8-4e8b-aaea-dcd1628af4db") {
+        return process.env.GEMINI_API_KEY || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Set user API key in database
+   */
+  static setUserApiKey(userId: string, apiKey: string | null) {
+    try {
+      if (!userId) return;
+      sqlite.prepare("UPDATE users SET gemini_api_key = ? WHERE id = ?").run(apiKey || null, userId);
+    } catch (e) {
+      console.warn("setUserApiKey error:", e);
+    }
+  }
+
+  /**
    * Check if username is taken (case-insensitive)
    */
   static isUsernameTaken(username: string, excludeUserId?: string): boolean {
@@ -912,6 +991,8 @@ export class BookmarkRepository {
     domain: string;
     folderId?: string | null;
     isFavorite?: boolean;
+    isArchived?: boolean;
+    status?: "alive" | "dead" | "pending";
     tagNames?: string[];
     userId?: string;
   }): BookmarkWithDetails {
@@ -957,8 +1038,8 @@ export class BookmarkRepository {
       imageUrl: data.imageUrl || null,
       domain: data.domain,
       isFavorite: data.isFavorite ? true : false,
-      isArchived: false,
-      status: "alive",
+      isArchived: data.isArchived ? true : false,
+      status: data.status || "alive",
       visitCount: 0,
       lastVisitedAt: null,
       lastClickedAt: null,

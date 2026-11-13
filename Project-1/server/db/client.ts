@@ -62,6 +62,8 @@ export function initDbSchema() {
         username TEXT UNIQUE,
         display_name TEXT,
         avatar_url TEXT,
+        gemini_api_key TEXT,
+        last_login_at INTEGER,
         created_at INTEGER NOT NULL
       );
 
@@ -165,12 +167,18 @@ export function initDbSchema() {
       CREATE INDEX IF NOT EXISTS recycle_bin_deleted_at_idx ON recycle_bin(deleted_at);
     `);
 
-    // Ensure username column exists in users table
+    // Ensure dynamic columns exist in users table
     try {
       const userCols = sqlite.prepare("PRAGMA table_info(users)").all() as any[];
       if (!userCols.some((c) => c.name === "username")) {
         sqlite.exec("ALTER TABLE users ADD COLUMN username TEXT;");
         sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users(username);");
+      }
+      if (!userCols.some((c) => c.name === "gemini_api_key")) {
+        sqlite.exec("ALTER TABLE users ADD COLUMN gemini_api_key TEXT;");
+      }
+      if (!userCols.some((c) => c.name === "last_login_at")) {
+        sqlite.exec("ALTER TABLE users ADD COLUMN last_login_at INTEGER;");
       }
     } catch {}
   } catch (schemaErr) {

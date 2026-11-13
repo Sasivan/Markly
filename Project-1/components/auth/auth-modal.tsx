@@ -32,6 +32,7 @@ export function AuthModal() {
     setMode(authModalMode);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setPassword("");
   }, [authModalMode, isAuthModalOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,6 +132,7 @@ export function AuthModal() {
                 type="button"
                 onClick={() => {
                   setMode("login");
+                  setPassword("");
                   setErrorMessage(null);
                 }}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all ${
@@ -145,6 +147,7 @@ export function AuthModal() {
                 type="button"
                 onClick={() => {
                   setMode("signup");
+                  setPassword("");
                   setErrorMessage(null);
                 }}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all ${
@@ -309,6 +312,7 @@ export function AuthModal() {
                 <Input
                   type="password"
                   placeholder="••••••••"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"

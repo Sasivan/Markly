@@ -17,6 +17,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: "Offline local mode" });
     }
 
+    // Record login timestamp & run dormant account cleanup (>60 days inactive)
+    BookmarkRepository.recordUserLogin(userId);
+
     // Sync auth user profile metadata into local SQLite users table
     try {
       const { data: supaUser } = await client.auth.admin.getUserById(userId);

@@ -278,6 +278,8 @@ export function AddBookmarkModal({
           url: trimmed,
           folderId: selectedFolderId || null,
           isFavorite,
+          isArchived: bookmarkStatus === "archived",
+          status: bookmarkStatus,
           tagNames: parsedTags,
           saveImmediately: true,
           forceDuplicate: force,
@@ -312,6 +314,8 @@ export function AddBookmarkModal({
             description: customDescription.trim() || undefined,
             folderId: selectedFolderId || null,
             isFavorite,
+            isArchived: bookmarkStatus === "archived",
+            status: bookmarkStatus,
             tagNames: parsedTags,
             userId: user?.id,
           }),
@@ -369,6 +373,8 @@ export function AddBookmarkModal({
             description: customDescription.trim() || undefined,
             folderId: selectedFolderId || null,
             isFavorite,
+            isArchived: bookmarkStatus === "archived",
+            status: bookmarkStatus,
             tagNames: parsedTags,
             userId: user?.id,
           }),
@@ -685,20 +691,28 @@ export function AddBookmarkModal({
                     className="text-xs h-8"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-amber-500" />
-                    <span>Bookmark Priority / Status</span>
-                  </label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-amber-500" />
+                      <span>Reading Status & Lifecycle</span>
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      {bookmarkStatus === "alive" && "Normal active bookmark in library"}
+                      {bookmarkStatus === "pending" && "Queued in Read Later reading list"}
+                      {bookmarkStatus === "archived" && "Directly filed to Archive"}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setBookmarkStatus("alive")}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors ${
                         bookmarkStatus === "alive"
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold"
                           : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
                       }`}
+                      title="Normal active bookmark"
                     >
                       ✓ Active
                     </button>
@@ -707,9 +721,10 @@ export function AddBookmarkModal({
                       onClick={() => setBookmarkStatus("pending")}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors ${
                         bookmarkStatus === "pending"
-                          ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-semibold"
                           : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
                       }`}
+                      title="Queue in Read Later / pending review"
                     >
                       ⏳ Read Later
                     </button>
@@ -718,11 +733,12 @@ export function AddBookmarkModal({
                       onClick={() => setBookmarkStatus("archived")}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors ${
                         bookmarkStatus === "archived"
-                          ? "border-slate-500 bg-slate-100 text-slate-800 dark:bg-neutral-800 dark:text-neutral-200"
+                          ? "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-semibold"
                           : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
                       }`}
+                      title="Directly save into Archive"
                     >
-                      📦 Archived
+                      📦 Archive
                     </button>
                   </div>
                 </div>

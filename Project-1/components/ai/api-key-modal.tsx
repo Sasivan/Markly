@@ -257,17 +257,30 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
             <div className="flex items-center gap-2">
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
-                  isSaved ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  isSaved || user?.email === "sasivan177@gmail.com"
+                    ? "bg-emerald-500 animate-pulse"
+                    : "bg-amber-500"
                 }`}
               />
               <span className="font-medium text-slate-700 dark:text-neutral-300">
-                {isSaved ? "Google Gemini AI Active" : "Offline Engine (Heuristic)"}
+                {isSaved
+                  ? "Google Gemini AI Active"
+                  : user?.email === "sasivan177@gmail.com"
+                  ? "Developer Default Key Active"
+                  : "Offline Engine (Heuristic)"}
               </span>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-neutral-800 text-muted-foreground truncate max-w-44">
-              {isSaved ? effectiveModel : "free taxonomy"}
+              {isSaved ? effectiveModel : user?.email === "sasivan177@gmail.com" ? "developer key" : "free taxonomy"}
             </span>
           </div>
+
+          {user?.email === "sasivan177@gmail.com" && (
+            <div className="p-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[11px] flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+              <span>Signed in as Developer (sasivan177@gmail.com). Server default Gemini key is active.</span>
+            </div>
+          )}
 
           {/* API Key Input */}
           <div className="space-y-1.5">

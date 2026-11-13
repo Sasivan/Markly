@@ -67,6 +67,21 @@ export class BookmarkRepository {
   }
 
   /**
+   * Get user by ID
+   */
+  static getUserById(id: string) {
+    try {
+      if (!id) return null;
+      return sqlite.prepare(`
+        SELECT * FROM users WHERE id = ?
+      `).get(id.trim()) as any;
+    } catch (e) {
+      console.warn("getUserById error:", e);
+      return null;
+    }
+  }
+
+  /**
    * Check if username is taken (case-insensitive)
    */
   static isUsernameTaken(username: string, excludeUserId?: string): boolean {

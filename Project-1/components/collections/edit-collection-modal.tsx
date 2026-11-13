@@ -93,18 +93,21 @@ export function EditCollectionModal({
     }
   }, [folder, isPermanent, open]);
 
-  if (!folder) return null;
-
   // Filter out current folder and its descendants from destination options to prevent cycles
+  // (Always call hooks at top level before any early return)
   const eligibleTargetFolders = React.useMemo(() => {
-    if (!folder) return folders;
+    if (!folder || !folders) return [];
 
     const descendantIds = new Set<string>();
     const getDescendants = (pId: string) => {
       descendantIds.add(pId);
       folders
         .filter((f) => (f.parentId ?? (f as any).parent_id) === pId)
-        .forEach((kid) => getDescendants(kid.id));
+        .forEach((kid) => {
+          if (!descendantIds.has(kid.id)) {
+            getDescendants(kid.id);
+          }
+        });
     };
     getDescendants(folder.id);
 
@@ -115,6 +118,8 @@ export function EditCollectionModal({
         !f.id.startsWith("fld_unsorted_")
     );
   }, [folders, folder]);
+
+  if (!folder) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,7 +236,6 @@ export function EditCollectionModal({
               <div className="space-y-2">
                 <FolderTreeSelect
                   folders={eligibleTargetFolders}
-                  folderTree={folderTree}
                   selectedFolderId={parentId || ""}
                   onSelectFolder={(id) => setParentId(id ? id : null)}
                   className="w-full text-xs"

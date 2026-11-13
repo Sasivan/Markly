@@ -134,14 +134,17 @@ export function FolderTreeSelect({
   }, [folders, selectedFolderId]);
 
   const selectedBreadcrumb = React.useMemo(() => {
-    if (!selectedFolder || !selectedFolder.parentId) return null;
+    const pId = selectedFolder?.parentId ?? (selectedFolder as any)?.parent_id;
+    if (!selectedFolder || !pId) return null;
     const parentNames: string[] = [];
-    let currentParentId: string | null = selectedFolder.parentId;
-    while (currentParentId) {
+    const visited = new Set<string>();
+    let currentParentId: string | null = pId;
+    while (currentParentId && !visited.has(currentParentId)) {
+      visited.add(currentParentId);
       const parent = folders.find((f) => f.id === currentParentId);
       if (parent) {
         parentNames.unshift(parent.name);
-        currentParentId = parent.parentId;
+        currentParentId = parent.parentId ?? (parent as any).parent_id ?? null;
       } else {
         break;
       }

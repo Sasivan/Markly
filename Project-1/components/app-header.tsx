@@ -73,7 +73,7 @@ export function AppHeader({
     all: "Quick Access",
     collections: "Folder Collections",
     favorites: "Starred Favorites",
-    recent: "Recently Added",
+    recent: "Recently Visited",
     unsorted: "Inbox / Needs Organization",
     archive: "Archived Bookmarks",
     graph: "Knowledge Graph",

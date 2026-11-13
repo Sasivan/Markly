@@ -67,11 +67,29 @@ export async function POST(req: Request) {
     // Extract current user and AI configuration from payload or cookies
     const cookieStore = await cookies();
     const userId = rawBody.userId || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
+    const userEmail = rawBody.userEmail || cookieStore.get("markly_user_email")?.value;
+
+    let isDeveloperOwner =
+      userEmail === "sasivan177@gmail.com" ||
+      userId === "84055f37-6af8-4e8b-aaea-dcd1628af4db";
+
+    if (!isDeveloperOwner && userId) {
+      try {
+        const u = BookmarkRepository.getUserById(userId);
+        if (u?.email === "sasivan177@gmail.com" || u?.username === "sasivan") {
+          isDeveloperOwner = true;
+        }
+      } catch {}
+    }
+
     let aiConfig =
       rawBody.aiConfig ||
       cookieStore.get("markly_ai_config")?.value ||
-      cookieStore.get("markly_gemini_api_key")?.value ||
-      process.env.GEMINI_API_KEY;
+      cookieStore.get("markly_gemini_api_key")?.value;
+
+    if (!aiConfig && isDeveloperOwner) {
+      aiConfig = process.env.GEMINI_API_KEY;
+    }
     if (typeof aiConfig === "string" && aiConfig.startsWith("%7B")) {
       try {
         aiConfig = decodeURIComponent(aiConfig);

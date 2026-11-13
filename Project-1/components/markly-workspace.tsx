@@ -129,6 +129,7 @@ export function MarklyWorkspace({
   const [includeSubfolders, setIncludeSubfolders] = React.useState(true); // Default true: include subfolders for smooth navigation
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
+  const [recentBoundary, setRecentBoundary] = React.useState<"top20" | "today" | "7d" | "30d" | "all">("top20");
 
   // Sidebar collapse state initialized directly from SSR cookie to eliminate full-then-collapse glimpse!
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(Boolean(initialSidebarCollapsed));
@@ -401,11 +402,39 @@ export function MarklyWorkspace({
     } else if (activeView === "unsorted") {
       list = list.filter((b) => !b.folderId);
     } else if (activeView === "recent") {
-      list = [...list].sort((a, b) => {
-        const timeA = Math.max(a.lastClickedAt || 0, a.lastVisitedAt || 0, a.createdAt || 0);
-        const timeB = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0, b.createdAt || 0);
+      // STRICT RECENCY RULE:
+      // Only bookmarks that have an actual recorded visit timestamp qualify as "Recently Visited".
+      // Exclude any sites with no visit history.
+      const visitedOnly = list.filter((b) => {
+        const lastVisit = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0);
+        return lastVisit > 0;
+      });
+
+      // Apply boundary filter
+      const now = Date.now();
+      let boundedList = visitedOnly;
+      if (recentBoundary === "today") {
+        boundedList = visitedOnly.filter(
+          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 24 * 60 * 60 * 1000
+        );
+      } else if (recentBoundary === "7d") {
+        boundedList = visitedOnly.filter(
+          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 7 * 24 * 60 * 60 * 1000
+        );
+      } else if (recentBoundary === "30d") {
+        boundedList = visitedOnly.filter(
+          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 30 * 24 * 60 * 60 * 1000
+        );
+      }
+
+      // Sort strictly by actual visit timestamp descending
+      const sorted = [...boundedList].sort((a, b) => {
+        const timeA = Math.max(a.lastClickedAt || 0, a.lastVisitedAt || 0);
+        const timeB = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0);
         return timeB - timeA;
       });
+
+      list = recentBoundary === "top20" ? sorted.slice(0, 20) : sorted;
     } else if (activeView === "archive") {
       list = bookmarks.filter((b) => b.isArchived);
     }
@@ -419,7 +448,7 @@ export function MarklyWorkspace({
     }
 
     return list;
-  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter]);
+  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, recentBoundary]);
 
   const getEffectiveUserId = React.useCallback(() => {
     if (user?.id) return user.id;
@@ -1461,6 +1490,52 @@ export function MarklyWorkspace({
                 onSelectTag={setActiveTagFilter}
                 onOpenDomainInsights={(dom) => setActiveDomain(dom)}
               />
+
+              {/* Recently Visited Time Boundary Control Bar */}
+              {activeView === "recent" && !activeFolderId && (
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>Recently Visited Sites</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-neutral-800 text-muted-foreground">
+                          {filteredBookmarks.length} {filteredBookmarks.length === 1 ? "site" : "sites"}
+                        </span>
+                      </h2>
+                      <p className="text-[11px] text-muted-foreground">
+                        Tracked strictly by actual clicks and visits. Unvisited sites are excluded.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Predefined Recency Boundary Selector */}
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto text-xs">
+                    {[
+                      { id: "top20", label: "Top 20" },
+                      { id: "today", label: "Past 24h" },
+                      { id: "7d", label: "Past 7 Days" },
+                      { id: "30d", label: "Past 30 Days" },
+                      { id: "all", label: "All Visited" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setRecentBoundary(tab.id as any)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                          recentBoundary === tab.id
+                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold"
+                            : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* TanStack Table Section (Bottom Zone) */}
               <BookmarkTable

@@ -136,18 +136,7 @@ export async function suggestWithAi(
     config = configOrKey;
   }
 
-  // Fallback to GEMINI_API_KEY environment variable if no user config passed
-  if (!config?.apiKey) {
-    const envKey = process.env.GEMINI_API_KEY;
-    if (envKey) {
-      config = {
-        provider: "gemini",
-        apiKey: envKey,
-      };
-    }
-  }
-
-  // If still no API key, use instant offline heuristic classification engine
+  // If no API key provided, use instant offline heuristic classification engine
   if (!config || !config.apiKey?.trim()) {
     return suggestFolderAndTags(input);
   }

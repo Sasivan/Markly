@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Folder, Star, Archive, Trash2, Download, X, Search, ChevronRight, ChevronDown } from "lucide-react";
+import { Folder, Star, Archive, ArchiveRestore, Trash2, Download, X, Search, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { Folder as FolderType } from "@/server/db/schema";
@@ -15,6 +15,7 @@ interface BulkActionBarProps {
   onBulkArchive: (isArchived: boolean) => void;
   onBulkDelete: () => void;
   onBulkExport: (format: "json" | "csv") => void;
+  isArchiveView?: boolean;
 }
 
 export function BulkActionBar({
@@ -26,6 +27,7 @@ export function BulkActionBar({
   onBulkArchive,
   onBulkDelete,
   onBulkExport,
+  isArchiveView = false,
 }: BulkActionBarProps) {
   const [moveDropdownOpen, setMoveDropdownOpen] = React.useState(false);
   const [folderSearch, setFolderSearch] = React.useState("");
@@ -221,16 +223,28 @@ export function BulkActionBar({
           <span>Favorite</span>
         </Button>
 
-        {/* Archive */}
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-xs h-7 gap-1"
-          onClick={() => onBulkArchive(true)}
-        >
-          <Archive className="h-3 w-3 text-purple-500" />
-          <span>Archive</span>
-        </Button>
+        {/* Archive / Unarchive */}
+        {isArchiveView ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 gap-1"
+            onClick={() => onBulkArchive(false)}
+          >
+            <ArchiveRestore className="h-3 w-3 text-blue-500" />
+            <span>Unarchive</span>
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 gap-1"
+            onClick={() => onBulkArchive(true)}
+          >
+            <Archive className="h-3 w-3 text-purple-500" />
+            <span>Archive</span>
+          </Button>
+        )}
 
         {/* Export JSON */}
         <Button

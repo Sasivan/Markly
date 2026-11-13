@@ -122,39 +122,152 @@ export function FolderCollectionsView({
 
       {/* Grid of Collection Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Permanent Unsorted (Inbox) Collection Card */}
-        <div
-          onClick={() => onSelectView?.("unsorted")}
-          className="rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-900/60 bg-violet-50/20 dark:bg-violet-950/20 p-4 shadow-xs hover:border-violet-500 dark:hover:border-violet-600 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl shadow-2xs bg-violet-500/15">
-                <Inbox className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+        {/* Permanent Unsorted (Inbox) Collection Card with Customization */}
+        {(() => {
+          const unsortedFolder: Folder = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_")) || {
+            id: "__UNSORTED__",
+            userId: "",
+            parentId: null,
+            name: "Inbox / Needs Organization",
+            icon: "📥",
+            color: "#8b5cf6",
+            position: -9999,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          const isRenaming = editingFolderId === unsortedFolder.id;
+
+          return (
+            <div
+              key={unsortedFolder.id}
+              onClick={() => {
+                if (!isRenaming) onSelectView?.("unsorted");
+              }}
+              className="rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-900/60 bg-violet-50/20 dark:bg-violet-950/20 p-4 shadow-xs hover:border-violet-500 dark:hover:border-violet-600 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between relative"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center text-xl shadow-2xs"
+                    style={{ backgroundColor: `${unsortedFolder.color}20` }}
+                  >
+                    <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-5 w-5" />
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300">
+                      {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
+                    </Badge>
+
+                    {/* 3-Dot Options Menu Trigger */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === unsortedFolder.id ? null : unsortedFolder.id);
+                        }}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-500 hover:text-foreground cursor-pointer transition-colors"
+                        title="Unsorted options"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openMenuId === unsortedFolder.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-[#1f1f1f] p-1.5 shadow-2xl z-50 text-xs space-y-0.5 animate-in zoom-in-95"
+                        >
+                          {onRenameFolder && (
+                            <button
+                              type="button"
+                              onClick={() => handleStartRename(unsortedFolder)}
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-left transition-colors"
+                            >
+                              <Edit2 className="h-3.5 w-3.5 text-blue-500" />
+                              <span>Rename Collection</span>
+                            </button>
+                          )}
+
+                          {onCustomizeFolder && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                onCustomizeFolder(unsortedFolder);
+                              }}
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-left transition-colors"
+                            >
+                              <Palette className="h-3.5 w-3.5 text-purple-500" />
+                              <span>Customize Icon & Color</span>
+                            </button>
+                          )}
+
+                          <div className="pt-1 mt-1 border-t border-slate-100 dark:border-neutral-800 px-2 py-1 text-[10px] text-muted-foreground flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span>Permanent System Folder</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  {isRenaming ? (
+                    <div className="flex items-center gap-1.5 mt-1" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveRename(unsortedFolder.id);
+                          if (e.key === "Escape") setEditingFolderId(null);
+                        }}
+                        className="text-sm font-bold bg-slate-100 dark:bg-neutral-800 px-2 py-1 rounded border border-indigo-400 focus:outline-none flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveRename(unsortedFolder.id)}
+                        className="p-1.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 cursor-pointer"
+                        title="Save rename"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingFolderId(null)}
+                        className="p-1.5 rounded bg-slate-200 dark:bg-neutral-700 text-slate-700 dark:text-neutral-200 hover:bg-slate-300 cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                        {unsortedFolder.name}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Permanent system folder for all uncategorized bookmarks
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
-              <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300">
-                {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
-              </Badge>
-            </div>
 
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                Inbox / Needs Organization
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Permanent system folder for all uncategorized bookmarks
-              </p>
+              <div className="pt-3 mt-4 border-t border-violet-100 dark:border-violet-900/40 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400 font-semibold">
+                <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  Open Unsorted Collection
+                  <ArrowRight className="h-3 w-3" />
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">permanent</span>
+              </div>
             </div>
-          </div>
-
-          <div className="pt-3 mt-4 border-t border-violet-100 dark:border-violet-900/40 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400 font-semibold">
-            <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-              Open Unsorted Collection
-              <ArrowRight className="h-3 w-3" />
-            </span>
-            <Inbox className="h-3.5 w-3.5 text-muted-foreground" />
-          </div>
-        </div>
+          );
+        })()}
 
         {/* User Folders */}
         {folderTree.map((rootNode) => {

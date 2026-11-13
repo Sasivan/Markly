@@ -62,3 +62,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ available: false, error: error.message || "Failed to check username" }, { status: 500 });
   }
 }
+

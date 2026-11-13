@@ -44,6 +44,15 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Prevent deletion of permanent system folder
+    if (id === "__UNSORTED__" || id.startsWith("fld_unsorted_")) {
+      return NextResponse.json(
+        { success: false, error: "The Unsorted system folder is permanent and cannot be deleted." },
+        { status: 400 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const mode = (searchParams.get("mode") || "move_up") as "move_up" | "delete_all";
 

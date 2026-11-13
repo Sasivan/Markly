@@ -23,6 +23,7 @@ import {
   History,
   Trash2,
   Globe,
+  Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ interface WorkspaceHomeProps {
   onRefreshData?: () => void;
   onRecordVisit?: (bm: BookmarkWithDetails) => void;
   onDeleteBookmark?: (id: string, title?: string) => void;
+  onToggleArchive?: (bm: BookmarkWithDetails) => void;
 }
 
 export function WorkspaceHome({
@@ -61,6 +63,7 @@ export function WorkspaceHome({
   onRefreshData,
   onRecordVisit,
   onDeleteBookmark,
+  onToggleArchive,
 }: WorkspaceHomeProps) {
   // Realtime visit handler
   const handleSiteVisit = async (bm: BookmarkWithDetails) => {
@@ -504,6 +507,20 @@ export function WorkspaceHome({
               </div>
 
               <div className="flex items-center gap-1">
+                {onToggleArchive && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggleArchive(bm);
+                    }}
+                    className="h-7 w-7 rounded-md bg-slate-100 hover:bg-purple-50 dark:bg-neutral-800 dark:hover:bg-purple-950/50 flex items-center justify-center text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                    title="Archive bookmark"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {onDeleteBookmark && (
                   <button
                     type="button"
@@ -752,15 +769,28 @@ export function WorkspaceHome({
                     </div>
                   </div>
 
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => handleSiteVisit(bm)}
-                    className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-amber-600 transition-colors flex-shrink-0"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {onToggleArchive && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleArchive(bm)}
+                        className="h-6 w-6 rounded bg-slate-100 hover:bg-purple-50 dark:bg-neutral-800 dark:hover:bg-purple-950/50 flex items-center justify-center text-slate-400 hover:text-purple-600 transition-colors cursor-pointer"
+                        title="Archive bookmark"
+                      >
+                        <Archive className="h-3 w-3" />
+                      </button>
+                    )}
+                    <a
+                      href={bm.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => handleSiteVisit(bm)}
+                      className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-amber-600 transition-colors"
+                      title="Launch site"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
                 </div>
               ))
             )}

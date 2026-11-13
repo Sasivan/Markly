@@ -33,6 +33,7 @@ import { DeleteFolderModal } from "./delete-folder-modal";
 import { FolderCustomizeModal } from "./folder-customize-modal";
 import { AddFolderModal } from "./add-folder-modal";
 import { MoveFolderModal } from "./move-folder-modal";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { Folder as FolderType, FolderTreeNode } from "@/server/db/schema";
 
 interface SidebarProps {
@@ -725,28 +726,39 @@ export function Sidebar({
           </button>
 
           {/* Inbox / Needs Organization */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("unsorted");
-            }}
-            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
-              activeView === "unsorted"
-                ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
-            }`}
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <Inbox className="h-4 w-4 text-violet-500 flex-shrink-0" />
-              <span className="truncate">Inbox / Needs Organization</span>
-            </div>
-            {unsortedCount !== undefined && unsortedCount > 0 && (
-              <span className="text-[10px] text-muted-foreground/70 font-mono">
-                {unsortedCount}
-              </span>
-            )}
-          </button>
+          {(() => {
+            const unsortedFolder = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_"));
+            const unsortedName = unsortedFolder?.name || "Inbox / Needs Organization";
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectFolder(null);
+                  onSelectView("unsorted");
+                }}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+                  activeView === "unsorted"
+                    ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
+                    : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  {unsortedFolder ? (
+                    <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-4 w-4 flex-shrink-0" />
+                  ) : (
+                    <Inbox className="h-4 w-4 text-violet-500 flex-shrink-0" />
+                  )}
+                  <span className="truncate">{unsortedName}</span>
+                </div>
+                {unsortedCount !== undefined && unsortedCount > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70 font-mono">
+                    {unsortedCount}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
 
           {/* Archive */}
           <button

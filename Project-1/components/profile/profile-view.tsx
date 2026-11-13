@@ -65,6 +65,14 @@ export function ProfileView({
   const [isSavingDetails, setIsSavingDetails] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
 
+  // Compute default avatar for removal / reset
+  const defaultAvatar = React.useMemo(() => {
+    if (user) {
+      return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.email || user.id)}`;
+    }
+    return "https://api.dicebear.com/7.x/bottts/svg?seed=markly_guest";
+  }, [user]);
+
   // Password Setup / Change State
   const [showPasswordForm, setShowPasswordForm] = React.useState(false);
   const [newPassword, setNewPassword] = React.useState("");
@@ -239,7 +247,7 @@ export function ProfileView({
     }
   };
 
-  // Set / Update Email Password
+  // Set / Update Email Password (works for OAuth & Email users via Admin API)
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
@@ -257,19 +265,35 @@ export function ProfileView({
       return;
     }
 
+    if (!user?.id) {
+      setStatusMessage({
+        type: "error",
+        text: "Please sign in to set or change your account password.",
+      });
+      return;
+    }
+
     setIsSettingPassword(true);
     setStatusMessage(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const res = await fetch("/api/auth/update-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          password: newPassword,
+        }),
       });
 
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to update password");
+      }
 
       setStatusMessage({
         type: "success",
-        text: "Account password updated! You can now log in using either your email & password or Google/GitHub.",
+        text: "Account password updated successfully! You can now log in using either your username & password or Google/GitHub.",
       });
       setNewPassword("");
       setConfirmPassword("");
@@ -476,6 +500,29 @@ export function ProfileView({
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{isGuest ? "Active Session" : `Joined ${createdDate}`}</span>
                 </span>
+              </div>
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarModalOpen(true)}
+                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                >
+                  <Camera className="h-3 w-3" />
+                  <span>Change Avatar</span>
+                </button>
+                {avatarUrl !== defaultAvatar && (
+                  <>
+                    <span className="text-muted-foreground text-[10px]">•</span>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyAvatar(defaultAvatar)}
+                      className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      title="Reset avatar to default"
+                    >
+                      <span>Remove / Reset Avatar</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -776,6 +823,14 @@ export function ProfileView({
                     >
                       {isSavingUsername ? "Saving..." : "Save Username"}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsEditingUsername(false)}
+                      className="text-xs h-8 px-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               )}
@@ -871,6 +926,18 @@ export function ProfileView({
                   </div>
 
                   <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setShowPasswordForm(false);
+                        setNewPassword("");
+                        setConfirmPassword("");
+                      }}
+                      className="text-xs h-7 px-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </Button>
                     <Button
                       type="submit"
                       disabled={isSettingPassword || !newPassword || newPassword !== confirmPassword}
@@ -1041,6 +1108,7 @@ export function ProfileView({
         open={isAvatarModalOpen}
         onOpenChange={setIsAvatarModalOpen}
         currentAvatarUrl={avatarUrl}
+        defaultAvatarUrl={defaultAvatar}
         onSelectAvatar={handleApplyAvatar}
       />
     </div>

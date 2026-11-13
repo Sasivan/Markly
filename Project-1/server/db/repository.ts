@@ -166,7 +166,10 @@ export class BookmarkRepository {
         VALUES (?, ?, ?, 'Resources', '🎨', '#10b981', 1, ?, ?)
       `).run(subFolder2Id, userId, rootFolderId, now + 2, now + 2);
 
-      const devBookmarks = [
+      // 4. Ensure Unsorted system folder exists with persistent custom properties
+    this.ensureUnsortedFolder(userId);
+
+    const devBookmarks = [
         {
           id: `bm_gh_${subFolder1Id}`,
           url: "https://github.com",
@@ -282,9 +285,59 @@ export class BookmarkRepository {
   }
 
   /**
+   * Ensure permanent customizable Unsorted system folder exists with unique ID
+   */
+  static ensureUnsortedFolder(userId: string = DEFAULT_USER_ID): Folder {
+    try {
+      const unsortedId = `fld_unsorted_${userId}`;
+      const now = Date.now();
+      let row = sqlite.prepare(`
+        SELECT * FROM folders WHERE id = ? OR (user_id = ? AND id = '__UNSORTED__')
+      `).get(unsortedId, userId) as any;
+
+      if (!row) {
+        sqlite.prepare(`
+          INSERT OR IGNORE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+          VALUES (?, ?, NULL, 'Inbox / Needs Organization', '📥', '#8b5cf6', -9999, ?, ?)
+        `).run(unsortedId, userId, now, now);
+        row = sqlite.prepare(`SELECT * FROM folders WHERE id = ?`).get(unsortedId) as any;
+      }
+
+      if (row) {
+        return {
+          id: row.id,
+          userId: row.user_id,
+          parentId: row.parent_id ?? null,
+          name: row.name,
+          icon: row.icon,
+          color: row.color,
+          position: row.position,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        } as Folder;
+      }
+    } catch (e) {
+      console.warn("ensureUnsortedFolder notice:", e);
+    }
+
+    return {
+      id: `fld_unsorted_${userId}`,
+      userId,
+      parentId: null,
+      name: "Inbox / Needs Organization",
+      icon: "📥",
+      color: "#8b5cf6",
+      position: -9999,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as Folder;
+  }
+
+  /**
    * Get all folders for user, ordered by position
    */
   static getAllFolders(userId: string = DEFAULT_USER_ID): Folder[] {
+    this.ensureUnsortedFolder(userId);
     const rows = sqlite.prepare(`
       SELECT 
         id,
@@ -398,6 +451,10 @@ export class BookmarkRepository {
     const roots: FolderTreeNode[] = [];
 
     for (const node of nodeMap.values()) {
+      // Exclude permanent Unsorted system folder from standard tree roots
+      if (node.id === "__UNSORTED__" || node.id.startsWith("fld_unsorted_")) {
+        continue;
+      }
       const pid = (node as any).parentId ?? (node as any).parent_id ?? null;
       if (pid && nodeMap.has(pid)) {
         nodeMap.get(pid)!.children.push(node);
@@ -667,7 +724,7 @@ export class BookmarkRepository {
     } else if (options.view === "recent") {
       query += ` AND b.is_archived = 0`;
     } else if (options.view === "unsorted") {
-      query += ` AND b.folder_id IS NULL AND b.is_archived = 0`;
+      query += ` AND (b.folder_id IS NULL OR b.folder_id = '' OR b.folder_id = '__UNSORTED__' OR b.folder_id LIKE 'fld_unsorted_%') AND b.is_archived = 0`;
     } else if (options.view === "archive") {
       query += ` AND b.is_archived = 1`;
     } else if (options.includeArchived) {
@@ -679,20 +736,25 @@ export class BookmarkRepository {
 
     // Folder filtering
     if (options.folderId !== undefined && options.folderId !== null && options.folderId !== "") {
-      const hasChildren = sqlite.prepare("SELECT 1 FROM folders WHERE parent_id = ?").get(options.folderId);
-      if (options.includeSubfolders || hasChildren) {
-        const folderIds = this.getDescendantFolderIds(options.folderId, userId);
-        if (folderIds.length > 0) {
-          const placeholders = folderIds.map(() => "?").join(",");
-          query += ` AND b.folder_id IN (${placeholders})`;
-          params.push(...folderIds);
+      if (options.folderId === "__UNSORTED__" || options.folderId.startsWith("fld_unsorted_")) {
+        query += ` AND (b.folder_id = ? OR b.folder_id = '__UNSORTED__' OR b.folder_id IS NULL OR b.folder_id = '')`;
+        params.push(options.folderId);
+      } else {
+        const hasChildren = sqlite.prepare("SELECT 1 FROM folders WHERE parent_id = ?").get(options.folderId);
+        if (options.includeSubfolders || hasChildren) {
+          const folderIds = this.getDescendantFolderIds(options.folderId, userId);
+          if (folderIds.length > 0) {
+            const placeholders = folderIds.map(() => "?").join(",");
+            query += ` AND b.folder_id IN (${placeholders})`;
+            params.push(...folderIds);
+          } else {
+            query += ` AND b.folder_id = ?`;
+            params.push(options.folderId);
+          }
         } else {
           query += ` AND b.folder_id = ?`;
           params.push(options.folderId);
         }
-      } else {
-        query += ` AND b.folder_id = ?`;
-        params.push(options.folderId);
       }
     }
 

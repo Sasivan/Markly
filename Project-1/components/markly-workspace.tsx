@@ -1214,6 +1214,7 @@ export function MarklyWorkspace({
               onRecordVisit={handleBookmarkVisit}
               onEditBookmark={(bm) => setEditingBookmark(bm)}
               onToggleFavorite={handleToggleFavoriteOptimistic}
+              onToggleArchive={handleToggleArchiveOptimistic}
               onRefreshData={refreshData}
               onDeleteBookmark={handleDeleteBookmarkOptimistic}
             />

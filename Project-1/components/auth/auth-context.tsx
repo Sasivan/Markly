@@ -159,9 +159,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       let emailToUse = cleanInput;
+      const isActualEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanInput);
 
-      // If user typed a username (no @), resolve to their registered email first
-      if (!cleanInput.includes("@")) {
+      // If user typed a username (or @handle), resolve to their registered email first
+      if (!isActualEmail) {
         try {
           const res = await fetch("/api/auth/resolve-identifier", {
             method: "POST",
@@ -177,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           emailToUse = resolveData.email;
         } catch {
-          emailToUse = `${cleanInput.toLowerCase()}@markly.internal`;
+          emailToUse = cleanInput.startsWith("@") ? cleanInput.slice(1) : cleanInput;
         }
       }
 

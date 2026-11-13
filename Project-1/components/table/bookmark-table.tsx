@@ -28,6 +28,7 @@ import {
   Trash2,
   MoreHorizontal,
   Archive,
+  ArchiveRestore,
   ArrowUpDown,
   Check,
   Activity,
@@ -243,6 +244,27 @@ export function BookmarkTable({
       onRefreshData();
     } catch (e) {
       console.error("Save edit error:", e);
+    }
+  };
+
+  const handleToggleArchive = async (bm: BookmarkWithDetails) => {
+    if (onToggleArchive) {
+      onToggleArchive(bm);
+      return;
+    }
+    const nextArchived = !bm.isArchived;
+    try {
+      await fetch(`/api/bookmarks/${bm.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: nextArchived }),
+      });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      }
+      onRefreshData();
+    } catch (e) {
+      console.error("Toggle archive error:", e);
     }
   };
 
@@ -600,7 +622,7 @@ export function BookmarkTable({
               <button
                 type="button"
                 onClick={() => handleCopyLink(bm.url, bm.id)}
-                className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground"
+                className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
                 title="Copy Link"
               >
                 {copiedId === bm.id ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
@@ -608,15 +630,34 @@ export function BookmarkTable({
               <button
                 type="button"
                 onClick={() => setEditingBookmark(bm)}
-                className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground"
+                className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
                 title="Edit Details"
               >
                 <Edit2 className="h-3 w-3" />
               </button>
+              {bm.isArchived ? (
+                <button
+                  type="button"
+                  onClick={() => handleToggleArchive(bm)}
+                  className="h-6 w-6 rounded flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-500 hover:text-blue-600 cursor-pointer"
+                  title={`Unarchive back to ${getParentFolderInfo(bm).name}`}
+                >
+                  <ArchiveRestore className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleToggleArchive(bm)}
+                  className="h-6 w-6 rounded flex items-center justify-center hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-400 hover:text-purple-600 cursor-pointer"
+                  title="Archive site"
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => handleDelete(bm.id, bm.title)}
-                className="h-6 w-6 rounded flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                className="h-6 w-6 rounded flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
                 title="Delete"
               >
                 <Trash2 className="h-3 w-3" />
@@ -675,6 +716,7 @@ export function BookmarkTable({
         onBulkArchive={handleBulkArchive}
         onBulkDelete={handleBulkDelete}
         onBulkExport={handleBulkExport}
+        isArchiveView={filteredData.length > 0 && filteredData.every((b) => b.isArchived)}
       />
 
       {/* Table Controls Header: Search, View Toggle, Status Filter, Column Visibility */}
@@ -947,6 +989,14 @@ export function BookmarkTable({
                           >
                             <Edit2 className="h-3 w-3" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleArchive(bm)}
+                            className={`cursor-pointer p-0.5 ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
+                            title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
+                          >
+                            {bm.isArchived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
+                          </button>
                           <a
                             href={bm.url}
                             target="_blank"
@@ -1054,6 +1104,14 @@ export function BookmarkTable({
                   >
                     <Edit2 className="h-3.5 w-3.5" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleArchive(bm)}
+                    className={`cursor-pointer ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
+                    title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
+                  >
+                    {bm.isArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                  </button>
                   <a
                     href={bm.url}
                     target="_blank"
@@ -1146,6 +1204,14 @@ export function BookmarkTable({
                   >
                     <Edit2 className="h-3.5 w-3.5" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleArchive(bm)}
+                    className={`p-1 rounded cursor-pointer ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
+                    title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
+                  >
+                    {bm.isArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
+                  </button>
                   <a
                     href={bm.url}
                     target="_blank"
@@ -1213,6 +1279,15 @@ export function BookmarkTable({
                   title="Copy Link"
                 >
                   {copiedId === bm.id ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleArchive(bm)}
+                  className={`p-0.5 cursor-pointer opacity-0 group-hover:opacity-100 ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
+                  title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
+                >
+                  {bm.isArchived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
                 </button>
 
                 <a

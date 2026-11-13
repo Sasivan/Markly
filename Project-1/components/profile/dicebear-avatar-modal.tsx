@@ -20,12 +20,15 @@ import {
   Bot,
   User,
   Palette,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 
 interface DicebearAvatarModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentAvatarUrl: string;
+  defaultAvatarUrl?: string;
   onSelectAvatar: (url: string) => void;
 }
 
@@ -55,6 +58,7 @@ export function DicebearAvatarModal({
   open,
   onOpenChange,
   currentAvatarUrl,
+  defaultAvatarUrl,
   onSelectAvatar,
 }: DicebearAvatarModalProps) {
   const [activeTab, setActiveTab] = React.useState<"dicebear" | "upload">("dicebear");
@@ -62,6 +66,13 @@ export function DicebearAvatarModal({
   const [seed, setSeed] = React.useState<string>("Markly");
   const [customUploadUrl, setCustomUploadUrl] = React.useState<string>("");
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const fallbackDefault = defaultAvatarUrl || "https://api.dicebear.com/7.x/bottts/svg?seed=Markly";
+
+  const handleResetToDefault = () => {
+    onSelectAvatar(fallbackDefault);
+    onOpenChange(false);
+  };
 
   // Parse existing DiceBear avatar if applicable
   React.useEffect(() => {
@@ -333,25 +344,39 @@ export function DicebearAvatarModal({
         )}
 
         {/* Dialog Actions */}
-        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-neutral-800">
+        <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-neutral-800">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-xs h-8 px-3 cursor-pointer"
+            onClick={handleResetToDefault}
+            className="text-xs h-8 px-2.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer flex items-center gap-1.5"
+            title="Remove custom avatar and reset to default"
           >
-            Cancel
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Remove / Reset</span>
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleApply}
-            className="text-xs h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1.5"
-          >
-            <Check className="h-3.5 w-3.5" />
-            <span>Apply Avatar</span>
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="text-xs h-8 px-3 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleApply}
+              className="text-xs h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1.5"
+            >
+              <Check className="h-3.5 w-3.5" />
+              <span>Apply Avatar</span>
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

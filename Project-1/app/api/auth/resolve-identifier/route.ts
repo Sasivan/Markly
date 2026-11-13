@@ -13,24 +13,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Please enter your username or email." }, { status: 400 });
     }
 
-    // 1. If identifier is an email (contains @), return directly
-    if (identifier.includes("@")) {
+    // Clean input: remove leading @ if user typed @handle
+    const raw = identifier.trim();
+    const cleanId = raw.startsWith("@") ? raw.slice(1).trim() : raw;
+    const lowerId = cleanId.toLowerCase();
+
+    // 1. If identifier is an actual email (has valid user@domain.tld structure)
+    const isActualEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanId);
+    if (isActualEmail) {
+      // Check if user exists in local SQLite or Supabase
+      const localUser = BookmarkRepository.getUserByUsername(lowerId);
       return NextResponse.json({
         success: true,
-        email: identifier.toLowerCase(),
+        email: lowerId,
+        username: localUser?.username || lowerId.split("@")[0],
         isEmail: true,
       });
     }
 
-    const lowerId = identifier.toLowerCase();
+    // 2. Check local SQLite users by username OR by email
+    let localUser = BookmarkRepository.getUserByUsername(lowerId);
+    if (!localUser) {
+      try {
+        const byEmail = BookmarkRepository.getUserByUsername(cleanId);
+        if (byEmail) localUser = byEmail;
+      } catch {}
+    }
 
-    // 2. Check local SQLite users
-    const localUser = BookmarkRepository.getUserByUsername(lowerId);
     if (localUser?.email) {
       return NextResponse.json({
         success: true,
         email: localUser.email,
-        username: localUser.username,
+        username: localUser.username || lowerId,
         isEmail: false,
       });
     }
@@ -43,7 +57,9 @@ export async function POST(req: Request) {
         if (data?.users) {
           const match = data.users.find((u) => {
             const uName = (u.user_metadata?.username || u.user_metadata?.preferred_username || "").toLowerCase();
-            return uName === lowerId;
+            const uEmail = (u.email || "").toLowerCase();
+            const uPrefix = uEmail.split("@")[0];
+            return uName === lowerId || uEmail === lowerId || uPrefix === lowerId;
           });
 
           if (match?.email) {
@@ -82,3 +98,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

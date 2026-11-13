@@ -62,7 +62,10 @@ export async function POST(req: Request) {
     if (client) {
       const userUpdates: any = {};
       if (updates.email) userUpdates.email = updates.email;
-      if (password && password.length >= 6) userUpdates.password = password;
+      if (password && password.length >= 6) {
+        userUpdates.password = password;
+        userUpdates.email_confirm = true; // Guarantees password login is active immediately without waiting for re-verification
+      }
 
       if (updates.username) {
         // Fetch existing metadata first so we don't overwrite other fields
@@ -76,6 +79,7 @@ export async function POST(req: Request) {
       if (Object.keys(userUpdates).length > 0) {
         const { error: supaErr } = await client.auth.admin.updateUserById(userId, userUpdates);
         if (supaErr) {
+          console.warn("Supabase admin updateUserById error:", supaErr);
           return NextResponse.json({ success: false, error: supaErr.message }, { status: 400 });
         }
       }
@@ -98,3 +102,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

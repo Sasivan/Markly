@@ -37,12 +37,15 @@ export function FolderTreeSelect({
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Build tree if folderTree not provided
+  // Build tree if folderTree not provided (guarantee Unsorted is never duplicated in tree)
   const computedTree = React.useMemo(() => {
-    if (folderTree && folderTree.length > 0) return folderTree;
+    const cleanFolders = folders.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"));
+    if (folderTree && folderTree.length > 0) {
+      return folderTree.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"));
+    }
 
     const map = new Map<string, FolderTreeNode>();
-    folders.forEach((f) => {
+    cleanFolders.forEach((f) => {
       map.set(f.id, {
         ...f,
         children: [],
@@ -52,7 +55,7 @@ export function FolderTreeSelect({
     });
 
     const roots: FolderTreeNode[] = [];
-    folders.forEach((f) => {
+    cleanFolders.forEach((f) => {
       const node = map.get(f.id)!;
       const pid = f.parentId ?? (f as any).parent_id;
       if (pid && map.has(pid)) {
@@ -132,6 +135,17 @@ export function FolderTreeSelect({
     if (!selectedFolderId) return null;
     return folders.find((f) => f.id === selectedFolderId) || null;
   }, [folders, selectedFolderId]);
+
+  const unsortedFolder = React.useMemo(() => {
+    return folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_")) || null;
+  }, [folders]);
+
+  const isUnsortedSelected = Boolean(
+    !selectedFolderId ||
+    selectedFolderId === "__UNSORTED__" ||
+    selectedFolderId.startsWith("fld_unsorted_") ||
+    (selectedFolder && (selectedFolder.id === "__UNSORTED__" || selectedFolder.id.startsWith("fld_unsorted_")))
+  );
 
   const selectedBreadcrumb = React.useMemo(() => {
     const pId = selectedFolder?.parentId ?? (selectedFolder as any)?.parent_id;
@@ -257,7 +271,7 @@ export function FolderTreeSelect({
         } ${isOpen ? "ring-2 ring-blue-500/40 border-blue-500" : ""}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {selectedFolder ? (
+          {!isUnsortedSelected && selectedFolder ? (
             <>
               <div
                 className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0"
@@ -282,9 +296,21 @@ export function FolderTreeSelect({
             </>
           ) : (
             <>
-              <span className="text-base leading-none">📥</span>
-              <span className="font-semibold text-slate-800 dark:text-neutral-200">
-                Unsorted (Inbox)
+              <div
+                className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${(unsortedFolder?.color || "#8b5cf6")}20` }}
+              >
+                <FolderIconRenderer
+                  icon={unsortedFolder?.icon || "📥"}
+                  color={unsortedFolder?.color || "#8b5cf6"}
+                  className="h-3.5 w-3.5"
+                />
+              </div>
+              <span className="font-semibold text-slate-800 dark:text-neutral-200 truncate">
+                {unsortedFolder?.name || "Unsorted"}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                (Inbox)
               </span>
             </>
           )}
@@ -344,20 +370,25 @@ export function FolderTreeSelect({
             {/* Root Option: Unsorted (Inbox) */}
             <div
               onClick={() => {
-                onSelectFolder("");
+                onSelectFolder(unsortedFolder ? unsortedFolder.id : "");
                 setIsOpen(false);
               }}
               className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors text-xs ${
-                !selectedFolderId
+                isUnsortedSelected
                   ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 font-semibold"
                   : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200"
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-base leading-none">📥</span>
-                <span className="font-medium text-xs">Unsorted (Inbox)</span>
+                <FolderIconRenderer
+                  icon={unsortedFolder?.icon || "📥"}
+                  color={unsortedFolder?.color || "#8b5cf6"}
+                  className="h-4 w-4 flex-shrink-0"
+                />
+                <span className="font-medium text-xs">{unsortedFolder?.name || "Unsorted"}</span>
+                <span className="text-[10px] text-muted-foreground font-mono">(Inbox)</span>
               </div>
-              {!selectedFolderId && (
+              {isUnsortedSelected && (
                 <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
               )}
             </div>

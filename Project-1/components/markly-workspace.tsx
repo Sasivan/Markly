@@ -49,6 +49,10 @@ function buildTreeFromFolders(allFolders: FolderType[], bookmarksList: BookmarkW
 
   const nodeMap = new Map<string, FolderTreeNode>();
   for (const f of allFolders) {
+    // Exclude permanent Unsorted system folder from standard tree roots
+    if (f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_")) {
+      continue;
+    }
     const parentId = f.parentId ?? (f as any).parent_id ?? null;
     nodeMap.set(f.id, {
       ...f,
@@ -555,15 +559,16 @@ export function MarklyWorkspace({
   // 0ms Optimistic Folder Operations for instant tree & UI updates
   const handleCreateFolderOptimistic = React.useCallback(
     async (name: string, icon: string, color: string, parentId?: string | null) => {
+      const cleanParentId = (parentId === "null" || parentId === "" || !parentId) ? null : parentId;
       const folderId = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const optimisticFolder: FolderType = {
         id: folderId,
         userId: user?.id || "usr_default_markly",
-        parentId: parentId || null,
+        parentId: cleanParentId,
         name: name.trim() || "New Folder",
         icon: icon || "📁",
         color: color || "#3b82f6",
-        position: folders.filter((f) => f.parentId === (parentId || null)).length,
+        position: folders.filter((f) => f.parentId === cleanParentId).length,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -573,6 +578,10 @@ export function MarklyWorkspace({
       setFolders(updatedFolders);
       setFolderTree(buildTreeFromFolders(updatedFolders, bookmarks));
 
+      // Auto-select newly created folder
+      setActiveFolderId(folderId);
+      setActiveView("all");
+
       // 2. Persist to SQLite in the background with the exact same ID
       try {
         const res = await fetch("/api/folders", {
@@ -581,7 +590,7 @@ export function MarklyWorkspace({
           body: JSON.stringify({
             id: folderId,
             name: name.trim() || "New Folder",
-            parentId: parentId || null,
+            parentId: cleanParentId,
             icon: icon || "📁",
             color: color || "#3b82f6",
             userId: user?.id,
@@ -591,6 +600,9 @@ export function MarklyWorkspace({
         if (data.success && data.folder) {
           const realFolder: FolderType = data.folder;
           setFolders((prev) => prev.map((f) => (f.id === folderId ? realFolder : f)));
+        }
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         }
       } catch (err) {
         console.error("Create folder error:", err);

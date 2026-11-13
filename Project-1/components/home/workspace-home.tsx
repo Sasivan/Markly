@@ -96,23 +96,6 @@ export function WorkspaceHome({
     return [...unarchived].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   }, [bookmarks]);
 
-  // 2. Folder Collections: Root level folder collections
-  const collections = React.useMemo(() => {
-    return folderTree.map((treeNode) => {
-      const folderEntity = folders.find((f) => f.id === treeNode.id);
-      const childCount = treeNode.children?.length || 0;
-      const count = treeNode.totalDescendantBookmarkCount || treeNode.bookmarkCount || 0;
-      return {
-        id: treeNode.id,
-        name: treeNode.name,
-        icon: treeNode.icon || "📁",
-        color: treeNode.color || "#3b82f6",
-        bookmarkCount: count,
-        childFolderCount: childCount,
-      };
-    });
-  }, [folderTree, folders]);
-
   // 3. Recently Visited: Strict chronological timeline of actual visits
   const recentlyVisited = React.useMemo(() => {
     return [...bookmarks]
@@ -551,76 +534,7 @@ export function WorkspaceHome({
         </div>
       </section>
 
-      {/* 2. Folder Collections Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <FolderIcon className="h-3.5 w-3.5" />
-            </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Folder Collections</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">Organized Workspaces</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground font-mono">{collections.length} Collections</span>
-            <button
-              type="button"
-              onClick={() => {
-                onSelectFolder(null);
-                onSelectView("collections");
-              }}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
-            >
-              <span>View all Collections</span>
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {collections.map((coll) => (
-            <div
-              key={coll.id}
-              onClick={() => onSelectFolder(coll.id, true)}
-              className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-4 shadow-xs hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div
-                    className="h-9 w-9 rounded-lg flex items-center justify-center text-lg shadow-2xs"
-                    style={{ backgroundColor: `${coll.color}20` }}
-                  >
-                    <FolderIconRenderer icon={coll.icon} color={coll.color} className="h-5 w-5" />
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] font-mono font-medium px-2 py-0.5">
-                    {coll.bookmarkCount} {coll.bookmarkCount === 1 ? "site" : "sites"}
-                  </Badge>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                    {coll.name}
-                  </h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {coll.childFolderCount > 0
-                      ? `Includes ${coll.childFolderCount} subfolders`
-                      : "Direct collection"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-3 mt-3 border-t border-slate-100 dark:border-neutral-800/80 flex items-center justify-between text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                <span className="inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                  Open Collection with Analytics
-                  <ArrowRight className="h-3 w-3" />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Grid: 3. Recently Visited & 4. Favorites */}
+      {/* Grid: 2. Recently Visited & 3. Favorites */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 3. Recently Visited */}
         <section className="space-y-3">

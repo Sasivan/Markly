@@ -300,6 +300,11 @@ export function ProfileView({
         throw new Error(data.error || "Failed to update password");
       }
 
+      // Also sync password directly to active client session if available
+      try {
+        await supabase.auth.updateUser({ password: newPassword });
+      } catch {}
+
       setStatusMessage({
         type: "success",
         text: "Account password updated successfully! You can now log in using either your username & password or Google/GitHub.",

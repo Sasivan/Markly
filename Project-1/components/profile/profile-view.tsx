@@ -139,9 +139,9 @@ export function ProfileView({
     }
   }, [user]);
 
-  // Real-time debounce check for unique username
+  // Real-time debounce check for unique username (works across both details edit and username edit)
   React.useEffect(() => {
-    if (!isEditingUsername) {
+    if (!isEditingUsername && !isEditingDetails) {
       setUsernameCheck({ state: "idle" });
       return;
     }
@@ -200,7 +200,7 @@ export function ProfileView({
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [username, isEditingUsername, user]);
+  }, [username, isEditingUsername, isEditingDetails, user]);
 
   // Handle changing avatar from DiceBear modal or file upload
   const handleApplyAvatar = async (newUrl: string) => {
@@ -239,15 +239,54 @@ export function ProfileView({
   // Update Profile Details in Supabase (or localStorage if guest)
   const handleSaveProfile = async () => {
     if (!displayName.trim()) return;
+
+    const cleanUsername = username.trim().toLowerCase();
+    const currentUsername = (user?.user_metadata?.username || "").trim().toLowerCase();
+
+    // Check username validation if changed
+    if (cleanUsername && cleanUsername !== currentUsername) {
+      if (usernameCheck.state === "unavailable") {
+        setStatusMessage({
+          type: "error",
+          text: usernameCheck.message || "Please choose an available username.",
+        });
+        return;
+      }
+      if (usernameCheck.state === "checking") {
+        setStatusMessage({
+          type: "error",
+          text: "Please wait while we verify your username...",
+        });
+        return;
+      }
+    }
+
     setIsSavingDetails(true);
     setStatusMessage(null);
 
     try {
       if (user) {
+        // If username was updated, sync credentials through update-credentials API
+        if (cleanUsername && cleanUsername !== currentUsername) {
+          const credRes = await fetch("/api/auth/update-credentials", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+              username: cleanUsername,
+            }),
+          });
+          const credData = await credRes.json();
+          if (!credData.success) {
+            throw new Error(credData.error || "Failed to update username");
+          }
+        }
+
         const { error } = await supabase.auth.updateUser({
           data: {
             display_name: displayName.trim(),
             full_name: displayName.trim(),
+            username: cleanUsername || currentUsername,
             dob: dob.trim(),
             bio: bio.trim(),
             location: location.trim(),
@@ -260,6 +299,7 @@ export function ProfileView({
           "markly_guest_profile",
           JSON.stringify({
             displayName: displayName.trim(),
+            username: cleanUsername,
             dob: dob.trim(),
             bio: bio.trim(),
             location: location.trim(),
@@ -705,7 +745,11 @@ export function ProfileView({
               <Button
                 size="sm"
                 onClick={handleSaveProfile}
-                disabled={isSavingDetails}
+                disabled={
+                  isSavingDetails ||
+                  usernameCheck.state === "unavailable" ||
+                  usernameCheck.state === "checking"
+                }
                 className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1.5"
               >
                 <Save className="h-3 w-3" />
@@ -737,6 +781,21 @@ export function ProfileView({
 
             <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
               <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                <span className="font-mono text-indigo-500 font-bold">@</span>
+                <span>Unique Username</span>
+              </div>
+              <div className="text-xs font-semibold text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
+                <span>{username ? `@${username}` : "Not set"}</span>
+                {username && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-sans font-medium">
+                    Verified
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
+              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-emerald-500" />
                 <span>Date of Birth (DOB)</span>
               </div>
@@ -763,7 +822,7 @@ export function ProfileView({
               </div>
             </div>
 
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
+            <div className="sm:col-span-2 p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
               <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                 <FileText className="h-3.5 w-3.5 text-purple-500" />
                 <span>Bio / About</span>
@@ -787,6 +846,65 @@ export function ProfileView({
                   placeholder="Your full name"
                   className="h-8 text-xs"
                 />
+              </div>
+
+              {/* Unique Username Field with Live Verification */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                    Unique Username
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-mono">Live check</span>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                    placeholder="your_unique_username"
+                    className={`pl-7 pr-8 h-8 text-xs font-mono transition-colors ${
+                      usernameCheck.state === "available" || usernameCheck.state === "unchanged"
+                        ? "border-emerald-500 focus-visible:ring-emerald-500/30"
+                        : usernameCheck.state === "unavailable"
+                        ? "border-rose-500 focus-visible:ring-rose-500/30"
+                        : ""
+                    }`}
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    {usernameCheck.state === "checking" && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                    )}
+                    {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    )}
+                    {usernameCheck.state === "unavailable" && (
+                      <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                    )}
+                  </div>
+                </div>
+                {usernameCheck.message && (
+                  <div
+                    className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 animate-in fade-in duration-200 ${
+                      usernameCheck.state === "available" || usernameCheck.state === "unchanged"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : usernameCheck.state === "unavailable"
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-indigo-500"
+                    }`}
+                  >
+                    {usernameCheck.state === "checking" && (
+                      <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                    )}
+                    {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                    )}
+                    {usernameCheck.state === "unavailable" && (
+                      <XCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
+                    )}
+                    <span className="truncate">{usernameCheck.message}</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">

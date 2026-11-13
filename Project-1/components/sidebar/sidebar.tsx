@@ -32,6 +32,7 @@ import { FolderTreeNodeComponent } from "./folder-tree-node";
 import { DeleteFolderModal } from "./delete-folder-modal";
 import { FolderCustomizeModal } from "./folder-customize-modal";
 import { AddFolderModal } from "./add-folder-modal";
+import { MoveFolderModal } from "./move-folder-modal";
 import type { Folder as FolderType, FolderTreeNode } from "@/server/db/schema";
 
 interface SidebarProps {
@@ -128,6 +129,8 @@ export function Sidebar({
   // Modals state
   const [customizeFolder, setCustomizeFolder] = React.useState<FolderType | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<FolderType | null>(null);
+  const [moveTarget, setMoveTarget] = React.useState<FolderTreeNode | null>(null);
+  const [isRootDragOver, setIsRootDragOver] = React.useState(false);
 
   // Custom avatar live listener
   const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
@@ -231,6 +234,9 @@ export function Sidebar({
         body: JSON.stringify({ name: newName, userId: user?.id }),
       });
       onRefreshData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      }
     } catch (err) {
       console.error("Rename folder error:", err);
     }
@@ -248,6 +254,9 @@ export function Sidebar({
         body: JSON.stringify({ ...updates, userId: user?.id }),
       });
       onRefreshData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      }
     } catch (err) {
       console.error("Customize folder error:", err);
     }
@@ -262,6 +271,9 @@ export function Sidebar({
         body: JSON.stringify({ userId: user?.id }),
       });
       onRefreshData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      }
     } catch (err) {
       console.error("Duplicate folder error:", err);
     }
@@ -288,22 +300,65 @@ export function Sidebar({
     }
   };
 
-  const handleDropFolder = async (draggedFolderId: string, targetFolderId: string, position: "inside" | "before" | "after") => {
+  const handleDropFolder = async (
+    draggedFolderId: string,
+    targetFolderId: string,
+    position: "inside" | "before" | "after" | "root"
+  ) => {
+    if (!draggedFolderId || draggedFolderId === targetFolderId) return;
+
+    // Cyclic check: cannot drop folder into itself or its own subfolder
+    const getDescendants = (parentId: string): string[] => {
+      const children = folders.filter((f) => f.parentId === parentId).map((f) => f.id);
+      return [parentId, ...children.flatMap(getDescendants)];
+    };
+    if (targetFolderId !== "root" && getDescendants(draggedFolderId).includes(targetFolderId)) {
+      console.warn("Cannot move a folder into itself or its subfolder");
+      return;
+    }
+
     try {
       await fetch("/api/folders/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           folderId: draggedFolderId,
-          targetFolderId,
+          targetFolderId: targetFolderId === "root" ? null : targetFolderId,
           dropPosition: position,
           userId: user?.id,
         }),
       });
       onRefreshData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      }
     } catch (err) {
       console.error("Drop folder error:", err);
     }
+  };
+
+  const handleMoveFolder = async (folderId: string, newParentId: string | null) => {
+    await handleDropFolder(folderId, newParentId || "root", newParentId ? "inside" : "root");
+  };
+
+  const handleRootDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRootDragOver(true);
+  };
+
+  const handleRootDragLeave = () => {
+    setIsRootDragOver(false);
+  };
+
+  const handleRootDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRootDragOver(false);
+    const draggedFolderId =
+      e.dataTransfer.getData("application/x-markly-folder") || e.dataTransfer.getData("text/plain");
+    if (!draggedFolderId) return;
+    handleDropFolder(draggedFolderId, "root", "root");
   };
 
   const parentFolderForModal = addFolderParentId ? folders.find((f) => f.id === addFolderParentId) : null;
@@ -500,6 +555,16 @@ export function Sidebar({
         open={Boolean(customizeFolder)}
         onOpenChange={(open) => !open && setCustomizeFolder(null)}
         onSave={handleCustomizeSave}
+      />
+
+      {/* Move Folder Dialog */}
+      <MoveFolderModal
+        folder={moveTarget}
+        isOpen={Boolean(moveTarget)}
+        onClose={() => setMoveTarget(null)}
+        folders={folders}
+        folderTree={folderTree}
+        onMoveFolder={handleMoveFolder}
       />
 
       {/* Sidebar Container */}
@@ -717,7 +782,14 @@ export function Sidebar({
               : "flex-shrink-0 mt-auto border-t border-border/80 bg-[#fbfbfa] dark:bg-[#191919]"
           }`}
         >
-          <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          <div
+            onDragOver={handleRootDragOver}
+            onDragLeave={handleRootDragLeave}
+            onDrop={handleRootDrop}
+            className={`flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider rounded-md transition-colors ${
+              isRootDragOver ? "bg-blue-500/20 text-blue-600 ring-1 ring-blue-500" : ""
+            }`}
+          >
             <button
               type="button"
               onClick={toggleFoldersSection}
@@ -783,9 +855,24 @@ export function Sidebar({
                   onCustomize={setCustomizeFolder}
                   onDuplicate={handleDuplicateFolder}
                   onDelete={setDeleteTarget}
+                  onMove={setMoveTarget}
                   onDropFolder={handleDropFolder}
                 />
               ))}
+
+              {/* Drop to Root Level Target */}
+              <div
+                onDragOver={handleRootDragOver}
+                onDragLeave={handleRootDragLeave}
+                onDrop={handleRootDrop}
+                className={`py-1 px-2 rounded-md border border-dashed text-center text-[10px] transition-all mt-2 ${
+                  isRootDragOver
+                    ? "border-blue-500 bg-blue-500/15 text-blue-600 font-semibold"
+                    : "border-border/40 text-muted-foreground/60 hover:border-border hover:text-muted-foreground"
+                }`}
+              >
+                Drag folder here to move to Root Level
+              </div>
             </div>
           )}
         </div>

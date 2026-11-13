@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, ChevronDown, MoreHorizontal, Plus, Edit2, Palette, Copy, Trash2, GripVertical } from "lucide-react";
+import { ChevronRight, ChevronDown, MoreHorizontal, Plus, Edit2, Palette, Copy, Trash2, GripVertical, FolderInput } from "lucide-react";
 import type { FolderTreeNode } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -16,6 +16,7 @@ interface FolderTreeNodeProps {
   onCustomize: (node: FolderTreeNode) => void;
   onDuplicate: (folderId: string) => void;
   onDelete: (node: FolderTreeNode) => void;
+  onMove?: (node: FolderTreeNode) => void;
   onDropFolder: (draggedFolderId: string, targetFolderId: string, position: "inside" | "before" | "after") => void;
 }
 
@@ -30,6 +31,7 @@ export function FolderTreeNodeComponent({
   onCustomize,
   onDuplicate,
   onDelete,
+  onMove,
   onDropFolder,
 }: FolderTreeNodeProps) {
   const [expanded, setExpanded] = React.useState(true);
@@ -42,7 +44,7 @@ export function FolderTreeNodeComponent({
   const [isEditing, setIsEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(node.name);
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [isDragOver, setIsDragOver] = React.useState(false);
+  const [dropIndicator, setDropIndicator] = React.useState<"inside" | "before" | "after" | null>(null);
 
   const menuRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -87,27 +89,41 @@ export function FolderTreeNodeComponent({
   // Drag and drop events using HTML5 DnD (lightweight, zero bundle friction)
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData("text/plain", node.id);
+    e.dataTransfer.setData("application/x-markly-folder", node.id);
     e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+
+    if (y < height * 0.25) {
+      setDropIndicator("before");
+    } else if (y > height * 0.75) {
+      setDropIndicator("after");
+    } else {
+      setDropIndicator("inside");
+    }
   };
 
-  const handleDragLeave = () => {
-    setIsDragOver(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropIndicator(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragOver(false);
-    const draggedFolderId = e.dataTransfer.getData("text/plain");
+    const pos = dropIndicator || "inside";
+    setDropIndicator(null);
+    const draggedFolderId =
+      e.dataTransfer.getData("application/x-markly-folder") || e.dataTransfer.getData("text/plain");
     if (!draggedFolderId || draggedFolderId === node.id) return;
 
-    onDropFolder(draggedFolderId, node.id, "inside");
+    onDropFolder(draggedFolderId, node.id, pos);
   };
 
   const isActive = activeFolderId === node.id;
@@ -127,11 +143,19 @@ export function FolderTreeNodeComponent({
         }}
         onClick={() => !isEditing && onSelect(node.id, hasChildren)}
         style={{ paddingLeft: `${depth * 12 + 6}px` }}
-        className={`group relative flex items-center gap-1.5 py-1.5 pr-2 rounded-md cursor-pointer transition-colors text-xs ${
+        className={`group relative flex items-center gap-1.5 py-1.5 pr-2 rounded-md cursor-pointer transition-all text-xs ${
           isActive
             ? "bg-accent font-semibold text-foreground"
             : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
-        } ${isDragOver ? "ring-2 ring-primary bg-primary/10" : ""}`}
+        } ${
+          dropIndicator === "inside"
+            ? "ring-2 ring-blue-500 bg-blue-500/15"
+            : dropIndicator === "before"
+            ? "border-t-2 border-blue-500"
+            : dropIndicator === "after"
+            ? "border-b-2 border-blue-500"
+            : ""
+        }`}
       >
         {/* Expand / Collapse Chevron */}
         <button
@@ -237,6 +261,18 @@ export function FolderTreeNodeComponent({
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
+                    onMove?.(node);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                >
+                  <FolderInput className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <span>Move Folder</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
                     onCustomize(node);
                   }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-800 dark:text-neutral-200 hover:text-amber-600 font-medium text-left cursor-pointer transition-colors"
@@ -292,6 +328,7 @@ export function FolderTreeNodeComponent({
               onCustomize={onCustomize}
               onDuplicate={onDuplicate}
               onDelete={onDelete}
+              onMove={onMove}
               onDropFolder={onDropFolder}
             />
           ))}

@@ -8,12 +8,31 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { folderId, targetFolderId, dropPosition } = body;
 
-    // dropPosition: "inside" (nest under targetFolderId) | "before" | "after"
+    const cookieStore = await cookies();
+    const userId = body.userId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+
+    // dropPosition: "inside" (nest under targetFolderId) | "before" | "after" | "root"
     if (!folderId) {
       return NextResponse.json({ success: false, error: "folderId is required" }, { status: 400 });
     }
 
-    if (dropPosition === "inside") {
+    // Cyclic check: cannot move folder into itself or its own descendants
+    if (targetFolderId && targetFolderId !== "root" && targetFolderId !== "__ROOT__") {
+      const descendants = BookmarkRepository.getDescendantFolderIds(folderId, userId);
+      if (descendants.includes(targetFolderId)) {
+        return NextResponse.json(
+          { success: false, error: "Cannot move a folder into itself or its own subfolder" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (dropPosition === "root" || targetFolderId === null || targetFolderId === "root" || targetFolderId === "__ROOT__") {
+      // Move folder to top root level
+      BookmarkRepository.updateFolder(folderId, {
+        parentId: null,
+      });
+    } else if (dropPosition === "inside") {
       // Nest folder under targetFolderId
       BookmarkRepository.updateFolder(folderId, {
         parentId: targetFolderId,
@@ -41,9 +60,6 @@ export async function POST(req: Request) {
         });
       }
     }
-
-    const cookieStore = await cookies();
-    const userId = body.userId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
 
     const updatedTree = BookmarkRepository.getFolderTree(userId);
     const allFolders = BookmarkRepository.getAllFolders(userId);

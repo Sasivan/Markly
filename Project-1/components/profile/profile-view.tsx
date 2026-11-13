@@ -27,6 +27,8 @@ import {
   FileText,
   LogIn,
   Camera,
+  Loader2,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +57,13 @@ export function ProfileView({
   const [username, setUsername] = React.useState("");
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [isSavingUsername, setIsSavingUsername] = React.useState(false);
+
+  // Real-time username verification state
+  const [usernameCheck, setUsernameCheck] = React.useState<{
+    state: "idle" | "checking" | "available" | "unavailable" | "unchanged";
+    message?: string;
+  }>({ state: "idle" });
+
   const [dob, setDob] = React.useState("");
   const [bio, setBio] = React.useState("");
   const [location, setLocation] = React.useState("");
@@ -129,6 +138,69 @@ export function ProfileView({
       }
     }
   }, [user]);
+
+  // Real-time debounce check for unique username
+  React.useEffect(() => {
+    if (!isEditingUsername) {
+      setUsernameCheck({ state: "idle" });
+      return;
+    }
+
+    const clean = username.trim().toLowerCase();
+    const currentUsername = (user?.user_metadata?.username || "").trim().toLowerCase();
+
+    if (!clean) {
+      setUsernameCheck({ state: "idle" });
+      return;
+    }
+
+    if (currentUsername && clean === currentUsername) {
+      setUsernameCheck({
+        state: "unchanged",
+        message: "This is your current username.",
+      });
+      return;
+    }
+
+    if (clean.length < 3) {
+      setUsernameCheck({
+        state: "unavailable",
+        message: "Username must be at least 3 characters.",
+      });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(clean)) {
+      setUsernameCheck({
+        state: "unavailable",
+        message: "Only letters, numbers, underscores, dots, or hyphens.",
+      });
+      return;
+    }
+
+    setUsernameCheck({ state: "checking", message: "Verifying uniqueness..." });
+    const timer = setTimeout(async () => {
+      try {
+        const uId = user?.id || "";
+        const res = await fetch(
+          `/api/auth/check-username?username=${encodeURIComponent(clean)}${uId ? `&userId=${encodeURIComponent(uId)}` : ""}`
+        );
+        const data = await res.json();
+        if (data.available) {
+          setUsernameCheck({ state: "available", message: `@${clean} is available!` });
+        } else {
+          setUsernameCheck({
+            state: "unavailable",
+            message: data.error || "Username is already taken.",
+          });
+        }
+      } catch {
+        setUsernameCheck({ state: "idle" });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [username, isEditingUsername, user]);
 
   // Handle changing avatar from DiceBear modal or file upload
   const handleApplyAvatar = async (newUrl: string) => {
@@ -215,6 +287,31 @@ export function ProfileView({
   // Save unique username in Supabase and SQLite
   const handleSaveUsername = async () => {
     if (!user || !username.trim()) return;
+    const clean = username.trim().toLowerCase();
+    const currentUsername = (user?.user_metadata?.username || "").trim().toLowerCase();
+
+    // If unchanged, simply dismiss edit state
+    if (currentUsername && clean === currentUsername) {
+      setIsEditingUsername(false);
+      return;
+    }
+
+    if (usernameCheck.state === "unavailable") {
+      setStatusMessage({
+        type: "error",
+        text: usernameCheck.message || "Please choose an available username.",
+      });
+      return;
+    }
+
+    if (usernameCheck.state === "checking") {
+      setStatusMessage({
+        type: "error",
+        text: "Please wait while we verify username uniqueness.",
+      });
+      return;
+    }
+
     setIsSavingUsername(true);
     setStatusMessage(null);
 
@@ -779,37 +876,84 @@ export function ProfileView({
               </div>
 
               {isEditingUsername && (
-                <div className="mt-2 pt-3 border-t border-slate-200 dark:border-neutral-800 space-y-2 animate-in fade-in">
+                <div className="mt-2 pt-3 border-t border-slate-200 dark:border-neutral-800 space-y-2.5 animate-in fade-in">
                   <p className="text-[11px] text-muted-foreground">
                     Choose a unique username. Every username is unique and allows you to log in interchangeably with your email and password!
                   </p>
-                  <div className="flex items-center gap-2 max-w-sm">
-                    <div className="relative flex-1">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
-                      <Input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
-                        placeholder="your_unique_username"
-                        className="pl-7 h-8 text-xs font-mono"
-                      />
+                  <div className="space-y-1.5 max-w-md">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
+                        <Input
+                          type="text"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                          placeholder="your_unique_username"
+                          className={`pl-7 pr-8 h-8 text-xs font-mono transition-colors ${
+                            usernameCheck.state === "available"
+                              ? "border-emerald-500 focus-visible:ring-emerald-500/30"
+                              : usernameCheck.state === "unavailable"
+                              ? "border-rose-500 focus-visible:ring-rose-500/30"
+                              : ""
+                          }`}
+                        />
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                          {usernameCheck.state === "checking" && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                          )}
+                          {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          )}
+                          {usernameCheck.state === "unavailable" && (
+                            <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        disabled={
+                          isSavingUsername ||
+                          !username.trim() ||
+                          usernameCheck.state === "unavailable" ||
+                          usernameCheck.state === "checking"
+                        }
+                        onClick={handleSaveUsername}
+                        className="text-xs h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                      >
+                        {isSavingUsername ? "Saving..." : "Save Username"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setIsEditingUsername(false)}
+                        className="text-xs h-8 px-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      disabled={isSavingUsername || !username.trim()}
-                      onClick={handleSaveUsername}
-                      className="text-xs h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
-                    >
-                      {isSavingUsername ? "Saving..." : "Save Username"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setIsEditingUsername(false)}
-                      className="text-xs h-8 px-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
-                    >
-                      Cancel
-                    </Button>
+
+                    {usernameCheck.message && (
+                      <div
+                        className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 animate-in fade-in duration-200 ${
+                          usernameCheck.state === "available" || usernameCheck.state === "unchanged"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : usernameCheck.state === "unavailable"
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-indigo-500"
+                        }`}
+                      >
+                        {usernameCheck.state === "checking" && (
+                          <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                        )}
+                        {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                        )}
+                        {usernameCheck.state === "unavailable" && (
+                          <XCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{usernameCheck.message}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

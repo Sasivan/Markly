@@ -5,7 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
-import { Sparkles, AlertCircle, RefreshCw, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck } from "lucide-react";
+import { Sparkles, AlertCircle, RefreshCw, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 export function AuthModal() {
   const {
@@ -28,12 +28,69 @@ export function AuthModal() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
+  // Real-time username verification state
+  const [usernameStatus, setUsernameStatus] = React.useState<{
+    state: "idle" | "checking" | "available" | "unavailable";
+    message?: string;
+  }>({ state: "idle" });
+
   React.useEffect(() => {
     setMode(authModalMode);
     setErrorMessage(null);
     setSuccessMessage(null);
     setPassword("");
+    setUsernameStatus({ state: "idle" });
   }, [authModalMode, isAuthModalOpen]);
+
+  // Real-time debounce check for username uniqueness
+  React.useEffect(() => {
+    if (mode !== "signup") {
+      setUsernameStatus({ state: "idle" });
+      return;
+    }
+
+    const clean = signupUsername.trim().toLowerCase();
+    if (!clean) {
+      setUsernameStatus({ state: "idle" });
+      return;
+    }
+
+    if (clean.length < 3) {
+      setUsernameStatus({
+        state: "unavailable",
+        message: "Username must be at least 3 characters.",
+      });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(clean)) {
+      setUsernameStatus({
+        state: "unavailable",
+        message: "Only letters, numbers, underscores, dots, or hyphens.",
+      });
+      return;
+    }
+
+    setUsernameStatus({ state: "checking", message: "Verifying uniqueness..." });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(clean)}`);
+        const data = await res.json();
+        if (data.available) {
+          setUsernameStatus({ state: "available", message: `@${clean} is available!` });
+        } else {
+          setUsernameStatus({
+            state: "unavailable",
+            message: data.error || "Username is already taken.",
+          });
+        }
+      } catch {
+        setUsernameStatus({ state: "idle" });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [signupUsername, mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +105,16 @@ export function AuthModal() {
     } else {
       if (!signupUsername.trim() || !signupEmail.trim() || !password.trim()) {
         setErrorMessage("Please enter a username, email, and password.");
+        return;
+      }
+
+      if (usernameStatus.state === "unavailable") {
+        setErrorMessage(usernameStatus.message || "Please choose an available username.");
+        return;
+      }
+
+      if (usernameStatus.state === "checking") {
+        setErrorMessage("Please wait while we verify your username...");
         return;
       }
 
@@ -227,7 +294,7 @@ export function AuthModal() {
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === "signup" ? (
               <>
-                {/* Unique Username Field */}
+                {/* Unique Username Field with Real-Time Verification */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
@@ -242,10 +309,49 @@ export function AuthModal() {
                       placeholder="e.g. alexrivera"
                       value={signupUsername}
                       onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
-                      className="pl-7 h-8 text-xs bg-slate-50 dark:bg-neutral-900 font-mono"
+                      className={`pl-7 pr-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900 font-mono transition-colors ${
+                        usernameStatus.state === "available"
+                          ? "border-emerald-500 focus-visible:ring-emerald-500/30"
+                          : usernameStatus.state === "unavailable"
+                          ? "border-rose-500 focus-visible:ring-rose-500/30"
+                          : ""
+                      }`}
                       required
                     />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      {usernameStatus.state === "checking" && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                      )}
+                      {usernameStatus.state === "available" && (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      )}
+                      {usernameStatus.state === "unavailable" && (
+                        <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                      )}
+                    </div>
                   </div>
+                  {usernameStatus.message && (
+                    <div
+                      className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 animate-in fade-in duration-200 ${
+                        usernameStatus.state === "available"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : usernameStatus.state === "unavailable"
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-indigo-500"
+                      }`}
+                    >
+                      {usernameStatus.state === "checking" && (
+                        <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                      )}
+                      {usernameStatus.state === "available" && (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                      )}
+                      {usernameStatus.state === "unavailable" && (
+                        <XCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
+                      )}
+                      <span className="truncate">{usernameStatus.message}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Email Address */}

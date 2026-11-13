@@ -27,7 +27,7 @@ export default async function HomePage() {
 
     const folderTree = BookmarkRepository.getFolderTree(userId) || [];
     const allFolders = BookmarkRepository.getAllFolders(userId) || [];
-    const bookmarks = BookmarkRepository.getBookmarks({ view: "all", userId }) || [];
+    const bookmarks = BookmarkRepository.getBookmarks({ view: "all", includeArchived: true, userId }) || [];
     const stats = BookmarkRepository.getDashboardStats(userId) || {
       totalBookmarks: 0,
       totalFolders: 0,

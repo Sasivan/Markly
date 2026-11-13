@@ -59,6 +59,7 @@ export function initDbSchema() {
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
+        username TEXT UNIQUE,
         display_name TEXT,
         avatar_url TEXT,
         created_at INTEGER NOT NULL
@@ -163,6 +164,15 @@ export function initDbSchema() {
       CREATE INDEX IF NOT EXISTS recycle_bin_user_idx ON recycle_bin(user_id);
       CREATE INDEX IF NOT EXISTS recycle_bin_deleted_at_idx ON recycle_bin(deleted_at);
     `);
+
+    // Ensure username column exists in users table
+    try {
+      const userCols = sqlite.prepare("PRAGMA table_info(users)").all() as any[];
+      if (!userCols.some((c) => c.name === "username")) {
+        sqlite.exec("ALTER TABLE users ADD COLUMN username TEXT;");
+        sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users(username);");
+      }
+    } catch {}
   } catch (schemaErr) {
     console.warn("Schema initialization warning:", schemaErr);
   }

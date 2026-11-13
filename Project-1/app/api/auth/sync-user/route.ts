@@ -17,6 +17,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: "Offline local mode" });
     }
 
+    // Sync auth user profile metadata into local SQLite users table
+    try {
+      const { data: supaUser } = await client.auth.admin.getUserById(userId);
+      if (supaUser?.user) {
+        const u = supaUser.user;
+        const uName = u.user_metadata?.username || u.user_metadata?.preferred_username || null;
+        BookmarkRepository.ensureUser(
+          u.id,
+          u.email,
+          u.user_metadata?.display_name || u.user_metadata?.full_name || u.user_metadata?.name,
+          u.user_metadata?.avatar_url || u.user_metadata?.picture,
+          uName
+        );
+      }
+    } catch (uErr) {
+      console.warn("User meta sync warning:", uErr);
+    }
+
     // 0. Load ALL tombstoned IDs across local database to permanently prevent resurrected folders/bookmarks
     const tombstonedFolders = sqlite
       .prepare(`SELECT id FROM deleted_folders`)

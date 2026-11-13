@@ -30,7 +30,7 @@ export class BookmarkRepository {
   /**
    * Ensure user record exists in local DB
    */
-  static ensureUser(userId: string, email?: string, displayName?: string, avatarUrl?: string) {
+  static ensureUser(userId: string, email?: string, displayName?: string, avatarUrl?: string, username?: string) {
     try {
       if (!userId || userId === DEFAULT_USER_ID) return;
       const user = db.select().from(users).where(eq(users.id, userId)).get();
@@ -38,13 +38,79 @@ export class BookmarkRepository {
         db.insert(users).values({
           id: userId,
           email: email || `${userId}@markly.app`,
+          username: username || null,
           displayName: displayName || "Markly User",
           avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
           createdAt: Date.now(),
         }).run();
+      } else if (username && !user.username) {
+        sqlite.prepare(`UPDATE users SET username = ? WHERE id = ?`).run(username, userId);
       }
     } catch (e) {
       console.warn("ensureUser notice:", e);
+    }
+  }
+
+  /**
+   * Get user by username (case-insensitive)
+   */
+  static getUserByUsername(username: string) {
+    try {
+      if (!username) return null;
+      return sqlite.prepare(`
+        SELECT * FROM users WHERE LOWER(username) = LOWER(?)
+      `).get(username.trim()) as any;
+    } catch (e) {
+      console.warn("getUserByUsername error:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Check if username is taken (case-insensitive)
+   */
+  static isUsernameTaken(username: string, excludeUserId?: string): boolean {
+    try {
+      if (!username) return false;
+      const q = excludeUserId
+        ? sqlite.prepare(`SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?`)
+        : sqlite.prepare(`SELECT id FROM users WHERE LOWER(username) = LOWER(?)`);
+      const row = excludeUserId ? q.get(username.trim(), excludeUserId) : q.get(username.trim());
+      return Boolean(row);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Update user profile credentials in SQLite
+   */
+  static updateUserProfile(userId: string, updates: { username?: string; email?: string; displayName?: string; avatarUrl?: string }) {
+    try {
+      const sets: string[] = [];
+      const params: any[] = [];
+      if (updates.username !== undefined) {
+        sets.push("username = ?");
+        params.push(updates.username.trim());
+      }
+      if (updates.email !== undefined) {
+        sets.push("email = ?");
+        params.push(updates.email.trim());
+      }
+      if (updates.displayName !== undefined) {
+        sets.push("display_name = ?");
+        params.push(updates.displayName.trim());
+      }
+      if (updates.avatarUrl !== undefined) {
+        sets.push("avatar_url = ?");
+        params.push(updates.avatarUrl.trim());
+      }
+      if (sets.length > 0) {
+        params.push(userId);
+        sqlite.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+      }
+    } catch (e) {
+      console.warn("updateUserProfile notice:", e);
     }
   }
 
@@ -571,6 +637,7 @@ export class BookmarkRepository {
     userId?: string;
     folderId?: string | null;
     includeSubfolders?: boolean;
+    includeArchived?: boolean;
     view?: "all" | "favorites" | "recent" | "unsorted" | "archive" | "trash";
     domain?: string;
     status?: "alive" | "dead" | "pending";
@@ -603,8 +670,10 @@ export class BookmarkRepository {
       query += ` AND b.folder_id IS NULL AND b.is_archived = 0`;
     } else if (options.view === "archive") {
       query += ` AND b.is_archived = 1`;
+    } else if (options.includeArchived) {
+      // Include all bookmarks (both active and archived) for full workspace in-memory state
     } else {
-      // Default: exclude archived unless in archive view
+      // Default: exclude archived unless in archive view or includeArchived requested
       query += ` AND b.is_archived = 0`;
     }
 

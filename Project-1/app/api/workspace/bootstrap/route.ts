@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     // 2. Fetch canonical tree, folders, bookmarks, and stats in parallel from local SQLite
     const tree = BookmarkRepository.getFolderTree(userId) || [];
     const flat = BookmarkRepository.getAllFolders(userId) || [];
-    const bookmarks = BookmarkRepository.getBookmarks({ view: "all", userId }) || [];
+    const bookmarks = BookmarkRepository.getBookmarks({ view: "all", includeArchived: true, userId }) || [];
     const stats = BookmarkRepository.getDashboardStats(userId) || {
       totalBookmarks: 0,
       totalFolders: 0,

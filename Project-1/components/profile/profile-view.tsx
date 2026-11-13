@@ -52,6 +52,9 @@ export function ProfileView({
 
   // Basic Details State
   const [displayName, setDisplayName] = React.useState("");
+  const [username, setUsername] = React.useState("");
+  const [isEditingUsername, setIsEditingUsername] = React.useState(false);
+  const [isSavingUsername, setIsSavingUsername] = React.useState(false);
   const [dob, setDob] = React.useState("");
   const [bio, setBio] = React.useState("");
   const [location, setLocation] = React.useState("");
@@ -94,6 +97,7 @@ export function ProfileView({
       setDob(user.user_metadata?.dob || "");
       setBio(user.user_metadata?.bio || "");
       setLocation(user.user_metadata?.location || "");
+      setUsername(user.user_metadata?.username || user.user_metadata?.preferred_username || "");
     } else if (typeof window !== "undefined") {
       // Load guest profile from localStorage
       try {
@@ -196,6 +200,42 @@ export function ProfileView({
       });
     } finally {
       setIsSavingDetails(false);
+    }
+  };
+
+  // Save unique username in Supabase and SQLite
+  const handleSaveUsername = async () => {
+    if (!user || !username.trim()) return;
+    setIsSavingUsername(true);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch("/api/auth/update-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          username: username.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to update username");
+      }
+
+      setIsEditingUsername(false);
+      setStatusMessage({
+        type: "success",
+        text: `Username set to @${data.username}! You can now log in using @${data.username} or your email.`,
+      });
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err: any) {
+      setStatusMessage({
+        type: "error",
+        text: err.message || "Failed to update username",
+      });
+    } finally {
+      setIsSavingUsername(false);
     }
   };
 
@@ -682,6 +722,65 @@ export function ProfileView({
           </div>
 
           <div className="space-y-3">
+            {/* Unique Username Row */}
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold font-mono text-sm">
+                    @
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                      Unique Markly Username
+                    </div>
+                    <div className="text-[11px] text-muted-foreground font-mono">
+                      {username ? `@${username}` : "No username set yet"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingUsername(!isEditingUsername)}
+                    className="text-xs h-7 px-2.5 cursor-pointer border-slate-200 dark:border-neutral-700"
+                  >
+                    <Edit2 className="h-3 w-3 mr-1 text-muted-foreground" />
+                    <span>{isEditingUsername ? "Cancel" : username ? "Change Username" : "Create Username"}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {isEditingUsername && (
+                <div className="mt-2 pt-3 border-t border-slate-200 dark:border-neutral-800 space-y-2 animate-in fade-in">
+                  <p className="text-[11px] text-muted-foreground">
+                    Choose a unique username. Every username is unique and allows you to log in interchangeably with your email and password!
+                  </p>
+                  <div className="flex items-center gap-2 max-w-sm">
+                    <div className="relative flex-1">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
+                      <Input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                        placeholder="your_unique_username"
+                        className="pl-7 h-8 text-xs font-mono"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={isSavingUsername || !username.trim()}
+                      onClick={handleSaveUsername}
+                      className="text-xs h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                    >
+                      {isSavingUsername ? "Saving..." : "Save Username"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Email & Password Row */}
             <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 space-y-3">
               <div className="flex items-center justify-between">

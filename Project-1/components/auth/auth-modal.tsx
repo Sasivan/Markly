@@ -20,6 +20,8 @@ export function AuthModal() {
 
   const [mode, setMode] = React.useState<"login" | "signup">(authModalMode);
   const [emailOrUser, setEmailOrUser] = React.useState("");
+  const [signupUsername, setSignupUsername] = React.useState("");
+  const [signupEmail, setSignupEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
@@ -37,9 +39,21 @@ export function AuthModal() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!emailOrUser.trim() || !password.trim()) {
-      setErrorMessage("Please fill in all required fields.");
-      return;
+    if (mode === "login") {
+      if (!emailOrUser.trim() || !password.trim()) {
+        setErrorMessage("Please fill in your username/email and password.");
+        return;
+      }
+    } else {
+      if (!signupUsername.trim() || !signupEmail.trim() || !password.trim()) {
+        setErrorMessage("Please enter a username, email, and password.");
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(signupUsername.trim())) {
+        setErrorMessage("Username must be 3-30 characters (letters, numbers, underscores, dots, hyphens).");
+        return;
+      }
     }
 
     if (password.length < 6) {
@@ -51,12 +65,12 @@ export function AuthModal() {
 
     try {
       if (mode === "login") {
-        const res = await signInWithPassword(emailOrUser, password);
+        const res = await signInWithPassword(emailOrUser.trim(), password);
         if (!res.success) {
           setErrorMessage(res.error || "Failed to log in.");
         }
       } else {
-        const res = await signUpWithEmail(emailOrUser, password, displayName);
+        const res = await signUpWithEmail(signupEmail.trim(), password, signupUsername.trim(), displayName.trim());
         if (!res.success) {
           setErrorMessage(res.error || "Failed to sign up.");
         } else {
@@ -206,40 +220,83 @@ export function AuthModal() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === "signup" && (
+            {mode === "signup" ? (
+              <>
+                {/* Unique Username Field */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                      Unique Username
+                    </label>
+                    <span className="text-[10px] text-muted-foreground font-mono">Used to log in</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
+                    <Input
+                      type="text"
+                      placeholder="e.g. alexrivera"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                      className="pl-7 h-8 text-xs bg-slate-50 dark:bg-neutral-900 font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Email Address */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Optional Display Name */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                    Display Name (Optional)
+                  </label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="e.g. Alex Rivera"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Sign In Identifier: Username or Email */
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
-                  Full Name / Username
+                  Username or Email
                 </label>
                 <div className="relative">
-                  <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     type="text"
-                    placeholder="e.g. Alex Rivera"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Enter your username or email"
+                    value={emailOrUser}
+                    onChange={(e) => setEmailOrUser(e.target.value)}
                     className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                    required
                   />
                 </div>
               </div>
             )}
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
-                {mode === "login" ? "Email or Username" : "Email Address"}
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  type={mode === "signup" ? "email" : "text"}
-                  placeholder={mode === "login" ? "user@example.com or username" : "user@example.com"}
-                  value={emailOrUser}
-                  onChange={(e) => setEmailOrUser(e.target.value)}
-                  className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
-                  required
-                />
-              </div>
-            </div>
 
             <div className="space-y-1">
               <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">

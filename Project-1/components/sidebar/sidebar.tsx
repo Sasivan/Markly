@@ -41,6 +41,7 @@ interface SidebarProps {
   activeFolderId: string | null;
   activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile";
   totalBookmarksCount: number;
+  unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
   onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile") => void;
   onRefreshData: () => void;
@@ -59,6 +60,7 @@ export function Sidebar({
   activeFolderId,
   activeView,
   totalBookmarksCount,
+  unsortedCount,
   onSelectFolder,
   onSelectView,
   onRefreshData,
@@ -729,14 +731,21 @@ export function Sidebar({
               onSelectFolder(null);
               onSelectView("unsorted");
             }}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "unsorted"
                 ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
                 : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
             }`}
           >
-            <Inbox className="h-4 w-4 text-violet-500 flex-shrink-0" />
-            <span className="truncate">Inbox / Needs Organization</span>
+            <div className="flex items-center gap-2.5 truncate">
+              <Inbox className="h-4 w-4 text-violet-500 flex-shrink-0" />
+              <span className="truncate">Inbox / Needs Organization</span>
+            </div>
+            {unsortedCount !== undefined && unsortedCount > 0 && (
+              <span className="text-[10px] text-muted-foreground/70 font-mono">
+                {unsortedCount}
+              </span>
+            )}
           </button>
 
           {/* Archive */}
@@ -837,6 +846,30 @@ export function Sidebar({
           {/* Recursive Folder Tree Items */}
           {isFoldersSectionOpen && (
             <div className="space-y-0.5 mt-1">
+              {/* Permanent System Folder: Unsorted (Inbox) */}
+              <div
+                onClick={() => {
+                  onSelectFolder(null);
+                  onSelectView("unsorted");
+                }}
+                className={`flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-md cursor-pointer transition-all text-xs ${
+                  activeView === "unsorted" && !activeFolderId
+                    ? "bg-accent font-semibold text-foreground"
+                    : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+                }`}
+                title="Permanent system folder for uncategorized bookmarks"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="h-4 w-4 rounded flex items-center justify-center text-xs">📥</span>
+                  <span className="truncate font-medium">Unsorted</span>
+                </div>
+                {unsortedCount !== undefined && unsortedCount > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70 font-mono">
+                    {unsortedCount}
+                  </span>
+                )}
+              </div>
+
               {folderTree.map((node) => (
                 <FolderTreeNodeComponent
                   key={node.id}

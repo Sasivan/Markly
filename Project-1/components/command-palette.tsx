@@ -22,7 +22,7 @@ interface CommandPaletteProps {
   folders: Folder[];
   bookmarks: BookmarkWithDetails[];
   onSelectFolder: (folderId: string | null) => void;
-  onSelectView: (view: "home" | "all" | "favorites" | "recent" | "unsorted" | "archive") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive") => void;
   onOpenAddModal: (prefilledUrl?: string) => void;
 }
 
@@ -194,26 +194,75 @@ export function CommandPalette({
 
             {/* Bookmarks */}
             <Command.Group heading="Bookmarks" className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 px-2 py-1 mt-1">
-              {bookmarks.slice(0, 15).map((bm) => (
-                <Command.Item
-                  key={bm.id}
-                  value={`${bm.title} ${bm.domain} ${bm.url}`}
-                  onSelect={() => {
-                    window.open(bm.url, "_blank");
-                    onOpenChange(false);
-                  }}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 group transition-colors"
-                >
-                  <div className="h-4 w-4 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-[9px] font-bold text-slate-500 dark:text-neutral-400 flex-shrink-0">
-                    {bm.domain.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="truncate flex-1">
-                    <span className="font-medium truncate block">{bm.title}</span>
-                    <span className="text-[10px] text-slate-400 dark:text-neutral-500 truncate block font-mono">{bm.domain}</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                </Command.Item>
-              ))}
+              {bookmarks.slice(0, 20).map((bm) => {
+                const folder = bm.folderId ? folders.find((f) => f.id === bm.folderId) : null;
+
+                return (
+                  <Command.Item
+                    key={bm.id}
+                    value={`${bm.title} ${bm.domain} ${bm.url} ${folder?.name || "unsorted"}`}
+                    onSelect={() => {
+                      // Clicking anywhere on row opens the exact folder location!
+                      if (bm.folderId) {
+                        onSelectFolder(bm.folderId);
+                        onSelectView("all");
+                      } else {
+                        onSelectFolder(null);
+                        onSelectView("unsorted");
+                      }
+                      onOpenChange(false);
+                    }}
+                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg data-[selected=true]:bg-slate-100 dark:data-[selected=true]:bg-neutral-800 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer text-slate-900 dark:text-neutral-100 group transition-colors"
+                  >
+                    <div className="h-5 w-5 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-neutral-400 flex-shrink-0">
+                      {bm.domain.charAt(0).toUpperCase()}
+                    </div>
+
+                    <div className="truncate flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        {/* Clicking name specifically opens the website! */}
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(bm.url, "_blank");
+                            onOpenChange(false);
+                          }}
+                          className="font-medium truncate hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer"
+                          title={`Open site: ${bm.url}`}
+                        >
+                          {bm.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(bm.url, "_blank");
+                            onOpenChange(false);
+                          }}
+                          className="text-muted-foreground hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                          title="Open site in new tab"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-slate-400 dark:text-neutral-500 truncate block font-mono">
+                        {bm.domain}
+                      </span>
+                    </div>
+
+                    {/* Exact folder location badge */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-neutral-800/80 text-muted-foreground border border-border/40 group-hover:border-indigo-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
+                        title="Click row to open this folder location"
+                      >
+                        <span>{folder ? (folder.icon || "📁") : "📥"}</span>
+                        <span className="truncate max-w-[100px]">{folder ? folder.name : "Unsorted"}</span>
+                      </span>
+                    </div>
+                  </Command.Item>
+                );
+              })}
             </Command.Group>
           </Command.List>
         </Command>

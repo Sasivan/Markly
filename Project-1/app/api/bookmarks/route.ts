@@ -12,6 +12,7 @@ export async function GET(req: Request) {
     const folderId = searchParams.get("folderId");
     // When a folder is clicked, default to strictly that specific folder only
     const includeSubfolders = searchParams.get("includeSubfolders") === "true";
+    const includeArchived = searchParams.get("includeArchived") === "true";
     const rawView = searchParams.get("view") || "all";
     const view = (rawView === "home" || rawView === "database" || rawView === "collections" ? "all" : rawView) as any;
     const domain = searchParams.get("domain") || undefined;
@@ -40,6 +41,7 @@ export async function GET(req: Request) {
     const bookmarks = BookmarkRepository.getBookmarks({
       folderId: folderId === "null" || folderId === "" ? null : folderId,
       includeSubfolders,
+      includeArchived,
       view,
       domain,
       status,

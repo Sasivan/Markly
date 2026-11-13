@@ -1019,6 +1019,7 @@ export function MarklyWorkspace({
         activeFolderId={activeFolderId}
         activeView={activeView}
         totalBookmarksCount={stats.totalBookmarks}
+        unsortedCount={bookmarks.filter((b) => !b.isArchived && !b.folderId).length}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={toggleSidebarCollapse}
         onCreateFolder={handleCreateFolderOptimistic}
@@ -1228,10 +1229,27 @@ export function MarklyWorkspace({
               onSelectFolder={(id, isParent) => {
                 setActiveFolderId(id);
                 setActiveView("all");
-                setIncludeSubfolders(Boolean(isParent));
+                setIncludeSubfolders(true);
                 setActiveDomain(null);
                 setActiveDomainFilter(null);
                 setActiveTagFilter(null);
+              }}
+              onOpenAddFolder={() => {
+                setPanelAddFolderParentId(null);
+                setPanelAddFolderModalOpen(true);
+              }}
+              onNewSubfolder={(parentId) => {
+                setPanelAddFolderParentId(parentId);
+                setPanelAddFolderModalOpen(true);
+              }}
+              onRenameFolder={handleRenameFolderOptimistic}
+              onCustomizeFolder={(f) => setPanelCustomizeFolder(f)}
+              onMoveFolder={(f) => setPanelMoveFolder(f)}
+              onDeleteFolder={(f) => setPanelDeleteFolder(f)}
+              unsortedCount={bookmarks.filter((b) => !b.isArchived && !b.folderId).length}
+              onSelectView={(v) => {
+                setActiveView(v);
+                setActiveFolderId(null);
               }}
             />
           ) : activeView === "trash" && !activeFolderId ? (

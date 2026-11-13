@@ -13,7 +13,7 @@ interface AuthContextType {
   openAuthModal: (mode?: "login" | "signup") => void;
   closeAuthModal: () => void;
   signInWithPassword: (emailOrUser: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  signUpWithEmail: (email: string, pass: string, name?: string) => Promise<{ success: boolean; error?: string }>;
+  signUpWithEmail: (email: string, pass: string, username?: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   signInWithOAuth: (provider: "google" | "github") => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -153,12 +153,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sign In with email or username + password
   const signInWithPassword = async (emailOrUser: string, pass: string) => {
     try {
-      const email = emailOrUser.includes("@")
-        ? emailOrUser.trim()
-        : `${emailOrUser.trim().toLowerCase()}@markly.internal`;
+      const cleanInput = emailOrUser.trim();
+      if (!cleanInput) {
+        return { success: false, error: "Please enter your username or email." };
+      }
+
+      let emailToUse = cleanInput;
+
+      // If user typed a username (no @), resolve to their registered email first
+      if (!cleanInput.includes("@")) {
+        try {
+          const res = await fetch("/api/auth/resolve-identifier", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: cleanInput }),
+          });
+          const resolveData = await res.json();
+          if (!resolveData.success || !resolveData.email) {
+            return {
+              success: false,
+              error: resolveData.error || `No account found with username "${cleanInput}".`,
+            };
+          }
+          emailToUse = resolveData.email;
+        } catch {
+          emailToUse = `${cleanInput.toLowerCase()}@markly.internal`;
+        }
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: emailToUse,
         password: pass,
       });
 
@@ -166,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error.message.includes("Invalid login credentials")) {
           return {
             success: false,
-            error: "Invalid email or password. If you signed up with Google or GitHub, please click Continue with Google/GitHub below.",
+            error: "Invalid username/email or password. If you signed up with Google or GitHub, please click Continue with Google/GitHub below.",
           };
         }
         return { success: false, error: error.message };
@@ -192,21 +216,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign Up with email, password, and optional name (One account per email verification)
-  const signUpWithEmail = async (emailOrUser: string, pass: string, name?: string) => {
+  // Sign Up with email, password, and unique username
+  const signUpWithEmail = async (email: string, pass: string, username?: string, name?: string) => {
     try {
-      const isEmail = emailOrUser.includes("@");
-      const email = isEmail
-        ? emailOrUser.trim()
-        : `${emailOrUser.trim().toLowerCase()}@markly.internal`;
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanUsername = (username || cleanEmail.split("@")[0]).trim().toLowerCase();
+
+      // 1. Verify username uniqueness before signup
+      if (cleanUsername) {
+        try {
+          const checkRes = await fetch(`/api/auth/check-username?username=${encodeURIComponent(cleanUsername)}`);
+          const checkData = await checkRes.json();
+          if (!checkData.available) {
+            return {
+              success: false,
+              error: checkData.error || `Username "${cleanUsername}" is already taken. Please choose another.`,
+            };
+          }
+        } catch {}
+      }
 
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password: pass,
         options: {
           data: {
-            display_name: name || emailOrUser.split("@")[0],
-            username: isEmail ? emailOrUser.split("@")[0] : emailOrUser,
+            display_name: name?.trim() || cleanUsername,
+            username: cleanUsername,
           },
         },
       });
@@ -236,7 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // If session was not directly returned (e.g. Supabase email confirmation mode), attempt immediate sign in
         if (!data.session) {
-          const loginAttempt = await supabase.auth.signInWithPassword({ email, password: pass });
+          const loginAttempt = await supabase.auth.signInWithPassword({ email: cleanEmail, password: pass });
           if (loginAttempt.data?.session?.user) {
             setUser(loginAttempt.data.session.user);
             setSession(loginAttempt.data.session);

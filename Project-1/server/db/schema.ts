@@ -4,6 +4,7 @@ import { relations } from "drizzle-orm";
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
+  username: text("username").unique(),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
   createdAt: integer("created_at").notNull(),

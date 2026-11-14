@@ -6,12 +6,14 @@ import { sanitizeGeminiModel } from "@/server/ai/suggest";
 import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 
+import { SupabaseManager } from "@/server/supabase/supabase-client";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const summaryRequestSchema = z.object({
   mode: z.enum(["ai", "scrape"]).default("ai"),
-  save: z.boolean().default(false),
+  save: z.boolean().default(true),
 });
 
 // POST /api/bookmarks/[id]/ai-summary
@@ -29,7 +31,7 @@ export async function POST(
     } catch {}
 
     const parsed = summaryRequestSchema.safeParse(body);
-    const { mode, save } = parsed.success ? parsed.data : { mode: "ai", save: false };
+    const { mode, save } = parsed.success ? parsed.data : { mode: "ai", save: true };
 
     const bm = BookmarkRepository.getBookmarkById(id, user.id);
     if (!bm) {
@@ -144,6 +146,7 @@ Keep it informative, objective, and clear.`;
       BookmarkRepository.updateBookmark(id, user.id, {
         description: summaryText,
       });
+      SupabaseManager.invalidateUserSyncCache(user.id);
       isSaved = true;
     }
 

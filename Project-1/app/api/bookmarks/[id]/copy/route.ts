@@ -8,6 +8,7 @@ export const revalidate = 0;
 
 const copyBookmarkSchema = z.object({
   targetFolderId: z.string().nullable().optional(),
+  customTitle: z.string().optional(),
 });
 
 // POST /api/bookmarks/[id]/copy
@@ -32,7 +33,7 @@ export async function POST(
       );
     }
 
-    const { targetFolderId } = parsed.data;
+    const { targetFolderId, customTitle } = parsed.data;
 
     const sourceBm = BookmarkRepository.getBookmarkById(id, user.id);
     if (!sourceBm) {
@@ -45,7 +46,8 @@ export async function POST(
     const copiedBookmark = BookmarkRepository.copyBookmark(
       id,
       targetFolderId ?? null,
-      user.id
+      user.id,
+      customTitle
     );
 
     return NextResponse.json({
@@ -62,3 +64,4 @@ export async function POST(
     );
   }
 }
+

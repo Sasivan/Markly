@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Folder, Star, Archive, ArchiveRestore, Trash2, Download, X, Search, ChevronRight, ChevronDown } from "lucide-react";
+import { Folder, Star, Archive, ArchiveRestore, Trash2, Download, X, Search, ChevronRight, ChevronDown, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { Folder as FolderType } from "@/server/db/schema";
@@ -11,6 +11,7 @@ interface BulkActionBarProps {
   folders: FolderType[];
   onClearSelection: () => void;
   onBulkMove: (folderId: string | null) => void;
+  onBulkCopy?: (folderId: string | null) => void;
   onBulkFavorite: (isFavorite: boolean) => void;
   onBulkArchive: (isArchived: boolean) => void;
   onBulkDelete: () => void;
@@ -23,6 +24,7 @@ export function BulkActionBar({
   folders,
   onClearSelection,
   onBulkMove,
+  onBulkCopy,
   onBulkFavorite,
   onBulkArchive,
   onBulkDelete,
@@ -30,10 +32,14 @@ export function BulkActionBar({
   isArchiveView = false,
 }: BulkActionBarProps) {
   const [moveDropdownOpen, setMoveDropdownOpen] = React.useState(false);
+  const [copyDropdownOpen, setCopyDropdownOpen] = React.useState(false);
   const [folderSearch, setFolderSearch] = React.useState("");
+  const [copyFolderSearch, setCopyFolderSearch] = React.useState("");
   const [expandedFolderIds, setExpandedFolderIds] = React.useState<Set<string>>(new Set());
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const copyDropdownRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const copySearchInputRef = React.useRef<HTMLInputElement>(null);
 
   // Close on outside click
   React.useEffect(() => {
@@ -41,13 +47,17 @@ export function BulkActionBar({
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setMoveDropdownOpen(false);
       }
+      if (copyDropdownRef.current && !copyDropdownRef.current.contains(e.target as Node)) {
+        setCopyDropdownOpen(false);
+      }
     }
-    if (moveDropdownOpen) {
+    if (moveDropdownOpen || copyDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      setTimeout(() => searchInputRef.current?.focus(), 50);
+      if (moveDropdownOpen) setTimeout(() => searchInputRef.current?.focus(), 50);
+      if (copyDropdownOpen) setTimeout(() => copySearchInputRef.current?.focus(), 50);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [moveDropdownOpen]);
+  }, [moveDropdownOpen, copyDropdownOpen]);
 
   // Hierarchical folder tree
   const folderTree = React.useMemo(() => {
@@ -73,10 +83,12 @@ export function BulkActionBar({
 
   if (selectedCount === 0) return null;
 
-  const renderFolderNode = (node: FolderType & { children: any[] }, depth: number = 0): React.ReactNode => {
-    const matchesSearch =
-      !folderSearch.trim() ||
-      node.name.toLowerCase().includes(folderSearch.toLowerCase().trim());
+  const renderFolderItem = (
+    node: FolderType & { children: any[] },
+    depth: number,
+    onSelect: (folderId: string | null) => void,
+    searchVal: string
+  ): React.ReactNode => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedFolderIds.has(node.id);
 
@@ -87,10 +99,7 @@ export function BulkActionBar({
             depth > 0 ? "border-l-2 border-slate-200 dark:border-neutral-700 ml-2.5" : ""
           }`}
           style={{ paddingLeft: `${Math.max(6, depth * 12)}px` }}
-          onClick={() => {
-            setMoveDropdownOpen(false);
-            onBulkMove(node.id);
-          }}
+          onClick={() => onSelect(node.id)}
         >
           {hasChildren ? (
             <button
@@ -126,7 +135,7 @@ export function BulkActionBar({
 
         {hasChildren && isExpanded && (
           <div className="space-y-0.5 mt-0.5">
-            {node.children.map((child: any) => renderFolderNode(child, depth + 1))}
+            {node.children.map((child: any) => renderFolderItem(child, depth + 1, onSelect, searchVal))}
           </div>
         )}
       </div>
@@ -156,7 +165,10 @@ export function BulkActionBar({
             size="sm"
             variant="outline"
             className="text-xs h-7 gap-1"
-            onClick={() => setMoveDropdownOpen(!moveDropdownOpen)}
+            onClick={() => {
+              setMoveDropdownOpen(!moveDropdownOpen);
+              setCopyDropdownOpen(false);
+            }}
           >
             <Folder className="h-3 w-3 text-blue-500" />
             <span>Move to...</span>
@@ -206,11 +218,84 @@ export function BulkActionBar({
                 <div className="h-px bg-slate-200 dark:bg-neutral-700 my-1" />
 
                 {/* Folder Thread Nodes */}
-                {folderTree.map((root) => renderFolderNode(root, 0))}
+                {folderTree.map((root) =>
+                  renderFolderItem(root, 0, (folderId) => {
+                    setMoveDropdownOpen(false);
+                    onBulkMove(folderId);
+                  }, folderSearch)
+                )}
               </div>
             </div>
           )}
         </div>
+
+        {/* Copy to folder thread dropdown */}
+        {onBulkCopy && (
+          <div className="relative" ref={copyDropdownRef}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 gap-1"
+              onClick={() => {
+                setCopyDropdownOpen(!copyDropdownOpen);
+                setMoveDropdownOpen(false);
+              }}
+            >
+              <Copy className="h-3 w-3 text-emerald-500" />
+              <span>Copy to...</span>
+            </Button>
+
+            {copyDropdownOpen && (
+              <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-2 shadow-2xl z-50 text-xs flex flex-col space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    ref={copySearchInputRef}
+                    type="text"
+                    placeholder="Copy to destination folder..."
+                    value={copyFolderSearch}
+                    onChange={(e) => setCopyFolderSearch(e.target.value)}
+                    className="w-full pl-7 pr-6 py-1 text-xs rounded-md bg-slate-100 dark:bg-neutral-800 border-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  {copyFolderSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setCopyFolderSearch("")}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="overflow-y-auto max-h-56 space-y-0.5 pr-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCopyDropdownOpen(false);
+                      onBulkCopy(null);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left cursor-pointer transition-colors"
+                  >
+                    <span className="text-base leading-none">📥</span>
+                    <span className="font-semibold text-slate-800 dark:text-neutral-200">
+                      Unsorted (Inbox)
+                    </span>
+                  </button>
+
+                  <div className="h-px bg-slate-200 dark:bg-neutral-700 my-1" />
+
+                  {folderTree.map((root) =>
+                    renderFolderItem(root, 0, (folderId) => {
+                      setCopyDropdownOpen(false);
+                      onBulkCopy(folderId);
+                    }, copyFolderSearch)
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Favorite */}
         <Button

@@ -727,7 +727,8 @@ export class BookmarkRepository {
   static copyBookmark(
     bookmarkId: string,
     targetFolderId: string | null,
-    userId: string
+    userId: string,
+    customTitle?: string
   ): BookmarkWithDetails {
     const sourceBm = this.getBookmarkById(bookmarkId, userId);
     if (!sourceBm) {
@@ -745,7 +746,7 @@ export class BookmarkRepository {
       userId,
       folderId: targetFolderId,
       url: sourceBm.url,
-      title: sourceBm.title,
+      title: customTitle?.trim() || sourceBm.title,
       description: sourceBm.description || undefined,
       iconUrl: sourceBm.iconUrl || undefined,
       imageUrl: sourceBm.imageUrl || undefined,

@@ -135,45 +135,49 @@ export async function POST(req: Request) {
     if (saveImmediately) {
       let finalFolderId = folderId || null;
       let finalTags = tagNames && tagNames.length > 0 ? tagNames : [];
+      let aiSummary: string | undefined = undefined;
 
-      if (!finalFolderId || finalTags.length === 0) {
-        try {
-          const userFolders = BookmarkRepository.getAllFolders(user.id);
-          const inputData = {
-            title: metadata.title || domain,
-            description: metadata.description || undefined,
-            domain,
-            url: fetchResult.finalUrl,
-            folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
-          };
+      try {
+        const userFolders = BookmarkRepository.getAllFolders(user.id);
+        const inputData = {
+          title: metadata.title || domain,
+          description: metadata.description || undefined,
+          domain,
+          url: fetchResult.finalUrl,
+          folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
+        };
 
-          const aiPromise = suggestWithAi(inputData, aiConfig);
-          const timeoutFallback = new Promise<any>((resolve) =>
-            setTimeout(() => resolve(suggestFolderAndTags(inputData)), 2500)
-          );
+        const aiPromise = suggestWithAi(inputData, aiConfig);
+        const timeoutFallback = new Promise<any>((resolve) =>
+          setTimeout(() => resolve(suggestFolderAndTags(inputData)), 2500)
+        );
 
-          const aiSuggestions = await Promise.race([aiPromise, timeoutFallback]);
+        const aiSuggestions = await Promise.race([aiPromise, timeoutFallback]);
 
-          if (!finalFolderId && aiSuggestions.suggestedFolderId) {
-            finalFolderId = aiSuggestions.suggestedFolderId;
-          }
-          if (finalTags.length === 0 && aiSuggestions.suggestedTags?.length > 0) {
-            finalTags = aiSuggestions.suggestedTags;
-          }
-        } catch {
-          // Graceful fallback to domain tag
+        if (!finalFolderId && aiSuggestions.suggestedFolderId) {
+          finalFolderId = aiSuggestions.suggestedFolderId;
         }
+        if (finalTags.length === 0 && aiSuggestions.suggestedTags?.length > 0) {
+          finalTags = aiSuggestions.suggestedTags;
+        }
+        if (aiSuggestions.summary) {
+          aiSummary = aiSuggestions.summary;
+        }
+      } catch {
+        // Graceful fallback to domain tag
       }
 
       if (finalTags.length === 0) {
         finalTags = [domain.split(".")[0]];
       }
 
+      const finalDescription = customDescription?.trim() || aiSummary || metadata.description || undefined;
+
       bookmark = BookmarkRepository.createBookmark({
         url: fetchResult.finalUrl,
         canonicalUrl: metadata.canonicalUrl || canonicalUrl,
         title: customTitle?.trim() || metadata.title || domain,
-        description: customDescription?.trim() || metadata.description || undefined,
+        description: finalDescription,
         iconUrl: metadata.iconUrl,
         imageUrl: metadata.imageUrl || undefined,
         domain,

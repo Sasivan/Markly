@@ -159,5 +159,11 @@ describe("Folder and Bookmark Copy Operations", () => {
       .prepare("SELECT * FROM bookmarks WHERE folder_id = ? AND user_id = ?")
       .all(target.id, userA);
     expect(targetBms.length).toBe(3); // 1 single + 2 bulk
+
+    // Copy to Unsorted (null folder)
+    const unsortedCopy = BookmarkRepository.copyBookmark(bm2.id, null, userA, "Site Two in Inbox");
+    expect(unsortedCopy.folderId).toBeNull();
+    expect(unsortedCopy.title).toBe("Site Two in Inbox");
+    expect(unsortedCopy.tags.map((t) => t.name)).toContain("two");
   });
 });

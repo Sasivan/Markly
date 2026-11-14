@@ -100,10 +100,15 @@ export function suggestFolderAndTags(input: SuggestInput): SuggestOutput {
     }
   }
 
+  const fallbackSummary = input.description && input.description.length > 20
+    ? input.description
+    : `${input.title || "Website"} is an online resource hosted on ${input.domain || "the web"}.`;
+
   return {
     suggestedFolderId: bestFolder ? bestFolder.id : null,
     suggestedFolderName: bestFolder ? bestFolder.name : null,
     suggestedTags: matchedTags.slice(0, 4),
+    summary: fallbackSummary,
     source: "heuristic",
   };
 }
@@ -178,7 +183,7 @@ ${folderNames.length > 0 ? folderNames.map((n) => `- "${n}"`).join("\n") : "(No 
 Task:
 1. "suggestedFolderName": Recommend the best matching folder name from the existing folders above, or null if none fits.
 2. "suggestedTags": Array of 2 to 4 concise, lowercase topic tags (e.g. ["ai", "react", "cloud"]).
-3. "summary": One brief sentence describing what this page is.
+3. "summary": A descriptive, well-structured 3 to 4 sentence summary explaining what this website or tool is, its core capabilities/features, and primary use cases. Do not include promotional fluff.
 
 Respond strictly in valid JSON:
 {

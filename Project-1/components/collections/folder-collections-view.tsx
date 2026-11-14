@@ -111,16 +111,6 @@ function TreeFolderRow({
         </div>
 
         <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-          {onOpenAddBookmarkToFolder && (
-            <button
-              type="button"
-              onClick={() => onOpenAddBookmarkToFolder(node.id)}
-              className="h-6.5 w-6.5 rounded-md flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
-              title="Add bookmark"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          )}
           <button
             type="button"
             onClick={() => onEditCollection(node)}
@@ -591,17 +581,6 @@ export function FolderCollectionsView({
                 </td>
                 <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1.5">
-                    {onOpenAddBookmarkToFolder && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onOpenAddBookmarkToFolder(unsortedFolder.id)}
-                        className="h-7 w-7 p-0 cursor-pointer text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
-                        title="Add bookmark to inbox"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -655,17 +634,6 @@ export function FolderCollectionsView({
                     </td>
                     <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {onOpenAddBookmarkToFolder && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onOpenAddBookmarkToFolder(rootNode.id)}
-                            className="h-7 w-7 p-0 cursor-pointer text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
-                            title={`Add bookmark to ${rootNode.name}`}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -723,16 +691,6 @@ export function FolderCollectionsView({
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-              {onOpenAddBookmarkToFolder && (
-                <button
-                  type="button"
-                  onClick={() => onOpenAddBookmarkToFolder(unsortedFolder.id)}
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
-                  title="Add bookmark"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              )}
               <button
                 type="button"
                 onClick={() => setEditingCollection(unsortedFolder)}
@@ -786,16 +744,6 @@ export function FolderCollectionsView({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {onOpenAddBookmarkToFolder && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenAddBookmarkToFolder(rootNode.id)}
-                      className="h-7 w-7 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
-                      title="Add bookmark"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => setEditingCollection(rootNode)}

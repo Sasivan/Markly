@@ -35,12 +35,14 @@ import {
   Folder as FolderIcon,
   Plus,
   Globe,
+  FolderPlus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BulkActionBar } from "./bulk-action-bar";
 import { EditBookmarkModal } from "./edit-bookmark-modal";
+import { CopyBookmarkModal } from "@/components/modals/copy-bookmark-modal";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -58,11 +60,13 @@ interface BookmarkTableProps {
   onDeleteBookmark?: (id: string, title?: string) => void;
   onBulkDeleteBookmarks?: (ids: string[]) => void;
   onBulkMoveBookmarks?: (ids: string[], folderId: string | null) => void;
+  onBulkCopyBookmarks?: (ids: string[], targetFolderId: string | null) => void;
   onBulkFavoriteBookmarks?: (ids: string[], isFavorite: boolean) => void;
   onBulkArchiveBookmarks?: (ids: string[], isArchived: boolean) => void;
   onToggleFavorite?: (bookmark: BookmarkWithDetails) => void;
   onToggleArchive?: (bookmark: BookmarkWithDetails) => void;
   onMoveBookmark?: (bookmarkId: string, folderId: string | null) => void;
+  onCopyBookmark?: (bookmark: BookmarkWithDetails) => void;
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
   controlledViewMode?: "table" | "board" | "cards" | "list" | "compact";
   onControlledViewModeChange?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
@@ -79,11 +83,13 @@ export function BookmarkTable({
   onDeleteBookmark,
   onBulkDeleteBookmarks,
   onBulkMoveBookmarks,
+  onBulkCopyBookmarks,
   onBulkFavoriteBookmarks,
   onBulkArchiveBookmarks,
   onToggleFavorite,
   onToggleArchive,
   onMoveBookmark,
+  onCopyBookmark,
   onOpenPreview,
   controlledViewMode,
   onControlledViewModeChange,
@@ -126,8 +132,9 @@ export function BookmarkTable({
     }
   }, [onControlledViewModeChange]);
 
-  // Edit modal
+  // Edit & Copy modals
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
+  const [copyingBookmark, setCopyingBookmark] = React.useState<BookmarkWithDetails | null>(null);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
   // Column visibility dropdown
@@ -322,6 +329,28 @@ export function BookmarkTable({
     }
   };
 
+  const handleBulkCopy = async (targetFolderId: string | null) => {
+    const ids = [...selectedIds];
+    setRowSelection({});
+    if (onBulkCopyBookmarks) {
+      onBulkCopyBookmarks(ids, targetFolderId);
+    } else {
+      try {
+        await fetch("/api/bookmarks/bulk-copy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids, targetFolderId }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+        onRefreshData();
+      } catch (e) {
+        console.error("Bulk copy error:", e);
+      }
+    }
+  };
+
   const handleBulkFavorite = async (isFavorite: boolean) => {
     const ids = [...selectedIds];
     setRowSelection({});
@@ -434,20 +463,26 @@ export function BookmarkTable({
       {
         id: "select",
         header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllPageRowsSelected()}
-            onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
-            className="rounded text-primary h-3.5 w-3.5 cursor-pointer"
-          />
+          <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={table.getIsAllPageRowsSelected()}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
+              className="rounded text-primary h-3.5 w-3.5 cursor-pointer"
+            />
+          </div>
         ),
         cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={(e) => row.toggleSelected(e.target.checked)}
-            className="rounded text-primary h-3.5 w-3.5 cursor-pointer"
-          />
+          <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={row.getIsSelected()}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => row.toggleSelected(e.target.checked)}
+              className="rounded text-primary h-3.5 w-3.5 cursor-pointer"
+            />
+          </div>
         ),
         size: 32,
         enableSorting: false,
@@ -678,6 +713,14 @@ export function BookmarkTable({
               >
                 <Edit2 className="h-3 w-3" />
               </button>
+              <button
+                type="button"
+                onClick={() => setCopyingBookmark(bm)}
+                className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Copy to Folder..."
+              >
+                <FolderPlus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              </button>
               {bm.isArchived ? (
                 <button
                   type="button"
@@ -761,12 +804,22 @@ export function BookmarkTable({
         onSave={handleSaveEdit}
       />
 
+      {/* Copy Bookmark to Destination Folder Modal */}
+      <CopyBookmarkModal
+        bookmark={copyingBookmark}
+        isOpen={Boolean(copyingBookmark)}
+        onClose={() => setCopyingBookmark(null)}
+        folders={folders}
+        onSuccess={onRefreshData}
+      />
+
       {/* Bulk Action Bar */}
       <BulkActionBar
         selectedCount={selectedIds.length}
         folders={folders}
         onClearSelection={() => setRowSelection({})}
         onBulkMove={handleBulkMove}
+        onBulkCopy={handleBulkCopy}
         onBulkFavorite={handleBulkFavorite}
         onBulkArchive={handleBulkArchive}
         onBulkDelete={handleBulkDelete}
@@ -947,11 +1000,23 @@ export function BookmarkTable({
                         row.getIsSelected() ? "bg-primary/5" : ""
                       }`}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="py-2.5 px-3">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
+                      {row.getVisibleCells().map((cell) => {
+                        const isInteractiveCell =
+                          cell.column.id === "select" ||
+                          cell.column.id === "favorite" ||
+                          cell.column.id === "actions";
+                        return (
+                          <td
+                            key={cell.id}
+                            className="py-2.5 px-3"
+                            onClick={(e) => {
+                              if (isInteractiveCell) e.stopPropagation();
+                            }}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))
                 )}
@@ -1041,7 +1106,10 @@ export function BookmarkTable({
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
-                            onClick={() => handleCopyLink(bm.url, bm.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyLink(bm.url, bm.id);
+                            }}
                             className="hover:text-foreground cursor-pointer p-0.5"
                             title="Copy Link"
                           >
@@ -1049,7 +1117,21 @@ export function BookmarkTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setEditingBookmark(bm)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCopyingBookmark(bm);
+                            }}
+                            className="hover:text-foreground cursor-pointer p-0.5"
+                            title="Copy to Folder..."
+                          >
+                            <FolderPlus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingBookmark(bm);
+                            }}
                             className="hover:text-foreground cursor-pointer p-0.5"
                             title="Edit"
                           >
@@ -1057,7 +1139,10 @@ export function BookmarkTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleToggleArchive(bm)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleArchive(bm);
+                            }}
                             className={`cursor-pointer p-0.5 ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
                             title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
                           >
@@ -1067,7 +1152,10 @@ export function BookmarkTable({
                             href={bm.url}
                             target="_blank"
                             rel="noreferrer"
-                            onClick={() => recordVisit(bm)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              recordVisit(bm);
+                            }}
                             className="hover:text-foreground inline-flex items-center p-0.5"
                           >
                             <ExternalLink className="h-3 w-3" />
@@ -1168,7 +1256,10 @@ export function BookmarkTable({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleCopyLink(bm.url, bm.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyLink(bm.url, bm.id);
+                    }}
                     className="hover:text-foreground cursor-pointer"
                     title="Copy Link"
                   >
@@ -1176,7 +1267,21 @@ export function BookmarkTable({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingBookmark(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCopyingBookmark(bm);
+                    }}
+                    className="hover:text-foreground cursor-pointer"
+                    title="Copy to Folder..."
+                  >
+                    <FolderPlus className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingBookmark(bm);
+                    }}
                     className="hover:text-foreground cursor-pointer"
                     title="Edit"
                   >
@@ -1184,7 +1289,10 @@ export function BookmarkTable({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleToggleArchive(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleArchive(bm);
+                    }}
                     className={`cursor-pointer ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
                     title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
                   >
@@ -1194,7 +1302,10 @@ export function BookmarkTable({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={() => recordVisit(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      recordVisit(bm);
+                    }}
                     className="hover:text-foreground inline-flex items-center gap-0.5"
                   >
                     Open <ExternalLink className="h-3 w-3" />
@@ -1271,7 +1382,10 @@ export function BookmarkTable({
                 <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
-                    onClick={() => handleCopyLink(bm.url, bm.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyLink(bm.url, bm.id);
+                    }}
                     className="p-1 hover:text-foreground rounded cursor-pointer"
                     title="Copy URL"
                   >
@@ -1279,7 +1393,21 @@ export function BookmarkTable({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingBookmark(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCopyingBookmark(bm);
+                    }}
+                    className="p-1 hover:text-foreground rounded cursor-pointer"
+                    title="Copy to Folder..."
+                  >
+                    <FolderPlus className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingBookmark(bm);
+                    }}
                     className="p-1 hover:text-foreground rounded cursor-pointer"
                     title="Edit"
                   >
@@ -1287,7 +1415,10 @@ export function BookmarkTable({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleToggleArchive(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleArchive(bm);
+                    }}
                     className={`p-1 rounded cursor-pointer ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
                     title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
                   >
@@ -1297,7 +1428,10 @@ export function BookmarkTable({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={() => recordVisit(bm)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      recordVisit(bm);
+                    }}
                     className="p-1 hover:text-foreground rounded"
                     title="Open website"
                   >
@@ -1358,7 +1492,10 @@ export function BookmarkTable({
 
                 <button
                   type="button"
-                  onClick={() => handleCopyLink(bm.url, bm.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopyLink(bm.url, bm.id);
+                  }}
                   className="p-0.5 hover:text-foreground cursor-pointer opacity-0 group-hover:opacity-100"
                   title="Copy Link"
                 >
@@ -1367,7 +1504,22 @@ export function BookmarkTable({
 
                 <button
                   type="button"
-                  onClick={() => handleToggleArchive(bm)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCopyingBookmark(bm);
+                  }}
+                  className="p-0.5 hover:text-foreground cursor-pointer opacity-0 group-hover:opacity-100"
+                  title="Copy to Folder..."
+                >
+                  <FolderPlus className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleArchive(bm);
+                  }}
                   className={`p-0.5 cursor-pointer opacity-0 group-hover:opacity-100 ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
                   title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
                 >
@@ -1378,7 +1530,10 @@ export function BookmarkTable({
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => recordVisit(bm)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    recordVisit(bm);
+                  }}
                   className="hover:text-foreground p-0.5 inline-flex items-center"
                 >
                   <ExternalLink className="h-3 w-3" />

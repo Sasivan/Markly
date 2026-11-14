@@ -17,9 +17,16 @@ import {
   ChevronDown,
   ChevronUp,
   User as UserIcon,
+  Search,
+  Trash2,
+  X,
+  Archive,
+  Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import type { FeedbackWithReplies } from "@/server/db/schema";
 
 const STATUS_CONFIG: Record<
@@ -100,8 +107,16 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
   const [replyMessage, setReplyMessage] = React.useState("");
   const [isReplying, setIsReplying] = React.useState(false);
 
+  // Delete Ticket State (Admin)
+  const [ticketToDelete, setTicketToDelete] = React.useState<FeedbackWithReplies | null>(null);
+
   // Expanded cards
   const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
+
+  // History / Status Filter Tabs
+  const [userTab, setUserTab] = React.useState<"active" | "history" | "all">("active");
+  const [adminTab, setAdminTab] = React.useState<"active" | "history" | "all">("active");
+  const [adminSearch, setAdminSearch] = React.useState("");
 
   const toggleExpand = (id: string) => {
     setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -207,15 +222,78 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete) return;
+    try {
+      const res = await fetch(`/api/feedback/${ticketToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setTicketToDelete(null);
+        await loadFeedbacks();
+      }
+    } catch (e) {
+      console.error("Failed to delete feedback ticket:", e);
+    }
+  };
+
+  // Filtered User Feedback (Active vs History)
+  const filteredUserFeedback = React.useMemo(() => {
+    if (userTab === "active") {
+      return myFeedback.filter((f) => f.status !== "closed" && f.status !== "fixed");
+    }
+    if (userTab === "history") {
+      return myFeedback.filter((f) => f.status === "closed" || f.status === "fixed");
+    }
+    return myFeedback;
+  }, [myFeedback, userTab]);
+
+  // Filtered Admin Feedback (Search + Active vs History)
+  const filteredAdminFeedback = React.useMemo(() => {
+    let list = allFeedback;
+
+    if (adminTab === "active") {
+      list = list.filter((f) => f.status !== "closed" && f.status !== "fixed");
+    } else if (adminTab === "history") {
+      list = list.filter((f) => f.status === "closed" || f.status === "fixed");
+    }
+
+    if (adminSearch.trim()) {
+      const query = adminSearch.toLowerCase().trim();
+      list = list.filter(
+        (f) =>
+          f.title.toLowerCase().includes(query) ||
+          f.message.toLowerCase().includes(query) ||
+          (f.userEmail && f.userEmail.toLowerCase().includes(query)) ||
+          (f.userName && f.userName.toLowerCase().includes(query)) ||
+          f.category.toLowerCase().includes(query) ||
+          f.status.toLowerCase().includes(query)
+      );
+    }
+
+    return list;
+  }, [allFeedback, adminTab, adminSearch]);
+
+  const userActiveCount = myFeedback.filter((f) => f.status !== "closed" && f.status !== "fixed").length;
+  const userHistoryCount = myFeedback.filter((f) => f.status === "closed" || f.status === "fixed").length;
+
+  const adminActiveCount = allFeedback.filter((f) => f.status !== "closed" && f.status !== "fixed").length;
+  const adminHistoryCount = allFeedback.filter((f) => f.status === "closed" || f.status === "fixed").length;
+
   const renderFeedbackItem = (item: FeedbackWithReplies, showUser = false) => {
     const isExpanded = expandedCards[item.id] ?? true;
     const repliesCount = item.replies?.length || 0;
     const statusCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.received;
+    const isClosed = item.status === "closed";
 
     return (
       <div
         key={item.id}
-        className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-2xs space-y-3 transition-colors"
+        className={`rounded-xl border bg-white dark:bg-[#181818] p-4 shadow-2xs space-y-3 transition-colors ${
+          isClosed
+            ? "border-slate-200 dark:border-neutral-800/60 opacity-90"
+            : "border-slate-200 dark:border-neutral-800"
+        }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -241,9 +319,9 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
           </div>
 
           {isAdmin && (
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="text-[10px] font-mono text-muted-foreground mr-1">Admin Tag:</span>
-              {["received", "under_review", "processing", "fixed", "planned", "closed"].map((st) => {
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-mono text-muted-foreground mr-0.5">Tag:</span>
+              {["received", "under_review", "processing", "fixed", "planned"].map((st) => {
                 const cfg = STATUS_CONFIG[st];
                 const active = item.status === st;
                 return (
@@ -261,13 +339,44 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                   </button>
                 );
               })}
+
+              {/* Close / Reopen Ticket Button */}
+              {isClosed ? (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(item.id, "under_review")}
+                  className="text-[10px] px-2 py-0.5 rounded cursor-pointer transition-colors font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100"
+                  title="Reopen ticket"
+                >
+                  Reopen
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(item.id, "closed")}
+                  className="text-[10px] px-2 py-0.5 rounded cursor-pointer transition-colors font-semibold bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-neutral-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400"
+                  title="Close ticket and move to history"
+                >
+                  Close
+                </button>
+              )}
+
+              {/* Admin Delete Ticket Option */}
+              <button
+                type="button"
+                onClick={() => setTicketToDelete(item)}
+                className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors ml-1"
+                title="Permanently delete ticket"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           )}
         </div>
 
         <div>
           <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
-            <span>{item.title}</span>
+            <span className={isClosed ? "line-through text-muted-foreground" : ""}>{item.title}</span>
             <button
               type="button"
               onClick={() => toggleExpand(item.id)}
@@ -528,7 +637,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       {/* Admin Review Dashboard (Visible only to sasivan177@gmail.com) */}
       {isAdmin && (
         <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-50/10 dark:bg-emerald-950/20 p-5 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/40 dark:border-emerald-800/40 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/40 dark:border-emerald-800/40 pb-3">
             <div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -537,7 +646,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                 </h3>
               </div>
               <p className="text-xs text-muted-foreground">
-                Triage incoming feedback, reply to user threads, and update status tags (Fixed, Processing, Under Review).
+                Triage incoming feedback, reply to user threads, close tickets, or delete spam.
               </p>
             </div>
             <Badge className="bg-emerald-600 text-white text-xs font-mono self-start sm:self-auto">
@@ -545,33 +654,128 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             </Badge>
           </div>
 
-          {allFeedback.length === 0 ? (
+          {/* Admin Controls: Live Search & History Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            {/* Filter Tabs for Admin */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-750 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAdminTab("active")}
+                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  adminTab === "active"
+                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Needs Attention ({adminActiveCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminTab("history")}
+                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  adminTab === "history"
+                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Resolved / Closed History ({adminHistoryCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminTab("all")}
+                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  adminTab === "all"
+                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All ({allFeedback.length})
+              </button>
+            </div>
+
+            {/* Admin Live Search Bar */}
+            <div className="relative w-full sm:w-64">
+              <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
+              <Input
+                type="text"
+                placeholder="Search user, title, content..."
+                value={adminSearch}
+                onChange={(e) => setAdminSearch(e.target.value)}
+                className="h-8 pl-8 pr-7 text-xs rounded-lg border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900"
+              />
+              {adminSearch && (
+                <button
+                  type="button"
+                  onClick={() => setAdminSearch("")}
+                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredAdminFeedback.length === 0 ? (
             <div className="text-center py-8 text-xs text-muted-foreground">
-              No user tickets in the system yet.
+              {adminSearch ? "No matching tickets found for this query." : "No tickets in this tab."}
             </div>
           ) : (
             <div className="space-y-3">
-              {allFeedback.map((item) => renderFeedbackItem(item, true))}
+              {filteredAdminFeedback.map((item) => renderFeedbackItem(item, true))}
             </div>
           )}
         </div>
       )}
 
-      {/* User's Submitted Feedback History */}
+      {/* User's Submitted Feedback & History */}
       <div className="rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-neutral-800 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-neutral-800 pb-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <MessageCircle className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              My Feedback Submissions
+              My Feedback History
             </h3>
             <p className="text-xs text-muted-foreground">
-              Track the status of your submitted tickets and read admin replies.
+              Track the status of your active tickets and review past conversation history.
             </p>
           </div>
-          <Badge variant="secondary" className="text-xs font-mono">
-            {myFeedback.length} {myFeedback.length === 1 ? "ticket" : "tickets"}
-          </Badge>
+
+          {/* User History Tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-750 text-xs font-semibold self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setUserTab("active")}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                userTab === "active"
+                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Active ({userActiveCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setUserTab("history")}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                userTab === "history"
+                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Closed History ({userHistoryCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setUserTab("all")}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                userTab === "all"
+                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All ({myFeedback.length})
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -579,19 +783,32 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
             <span>Loading submissions...</span>
           </div>
-        ) : myFeedback.length === 0 ? (
+        ) : filteredUserFeedback.length === 0 ? (
           <div className="text-center py-8 space-y-2">
             <p className="text-xs text-muted-foreground">
-              You haven't submitted any feedback yet. We'd love to hear your thoughts!
+              {userTab === "history"
+                ? "You have no closed or resolved tickets yet."
+                : userTab === "active"
+                ? "You have no active pending tickets."
+                : "You haven't submitted any feedback yet. We'd love to hear your thoughts!"}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {myFeedback.map((item) => renderFeedbackItem(item, false))}
+            {filteredUserFeedback.map((item) => renderFeedbackItem(item, false))}
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal for Admin */}
+      <ConfirmDeleteModal
+        open={Boolean(ticketToDelete)}
+        onOpenChange={(open) => !open && setTicketToDelete(null)}
+        onConfirm={handleDeleteTicket}
+        title="Delete Feedback Ticket"
+        description="Permanently delete this feedback ticket and all of its conversation replies from the database? This action cannot be undone."
+        itemName={ticketToDelete?.title}
+      />
     </div>
   );
 }
-

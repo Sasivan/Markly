@@ -74,3 +74,13 @@ CREATE POLICY "Users or admin can insert feedback replies"
     auth.jwt() ->> 'email' = 'sasivan177@gmail.com'
   );
 
+-- Admin delete policies
+CREATE POLICY "Admin can delete feedbacks"
+  ON feedbacks FOR DELETE
+  USING (auth.jwt() ->> 'email' = 'sasivan177@gmail.com');
+
+CREATE POLICY "Admin can delete feedback replies"
+  ON feedback_replies FOR DELETE
+  USING (auth.jwt() ->> 'email' = 'sasivan177@gmail.com');
+
+

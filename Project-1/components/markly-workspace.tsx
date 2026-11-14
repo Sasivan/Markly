@@ -135,7 +135,7 @@ export function MarklyWorkspace({
   const [includeSubfolders, setIncludeSubfolders] = React.useState(true); // Default true: include subfolders for smooth navigation
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
-  const [recentBoundary, setRecentBoundary] = React.useState<"1d" | "7d" | "15d" | "30d" | "all" | "top20" | "today">("1d");
+  const [recentDays, setRecentDays] = React.useState<number>(30);
 
   // Sidebar collapse state: collapsed by default for all users when opening website
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(() => {
@@ -424,26 +424,12 @@ export function MarklyWorkspace({
         return lastVisit > 0;
       });
 
-      // Apply boundary filter
+      // Apply boundary filter based on recentDays (1 to 90 days)
       const now = Date.now();
-      let boundedList = visitedOnly;
-      if (recentBoundary === "1d" || recentBoundary === "today") {
-        boundedList = visitedOnly.filter(
-          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 24 * 60 * 60 * 1000
-        );
-      } else if (recentBoundary === "7d") {
-        boundedList = visitedOnly.filter(
-          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 7 * 24 * 60 * 60 * 1000
-        );
-      } else if (recentBoundary === "15d") {
-        boundedList = visitedOnly.filter(
-          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 15 * 24 * 60 * 60 * 1000
-        );
-      } else if (recentBoundary === "30d") {
-        boundedList = visitedOnly.filter(
-          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 30 * 24 * 60 * 60 * 1000
-        );
-      }
+      const cutoff = now - recentDays * 24 * 60 * 60 * 1000;
+      const boundedList = visitedOnly.filter(
+        (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= cutoff
+      );
 
       // Sort strictly by actual visit timestamp descending
       const sorted = [...boundedList].sort((a, b) => {
@@ -452,7 +438,7 @@ export function MarklyWorkspace({
         return timeB - timeA;
       });
 
-      list = recentBoundary === "top20" ? sorted.slice(0, 20) : sorted;
+      list = sorted;
     } else if (activeView === "archive") {
       list = bookmarks.filter((b) => b.isArchived);
     }
@@ -466,7 +452,7 @@ export function MarklyWorkspace({
     }
 
     return list;
-  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, recentBoundary]);
+  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, recentDays]);
 
   // Safety check: if activeFolderId points to a folder that does not exist in folders list, reset it!
   React.useEffect(() => {
@@ -1622,32 +1608,67 @@ export function MarklyWorkspace({
                     </div>
                   </div>
 
-                  {/* Predefined Recency Day Boundary Selector */}
-                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto text-xs shadow-2xs">
-                    <span className="text-[11px] font-medium text-muted-foreground px-2 flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>Activity:</span>
-                    </span>
-                    {[
-                      { id: "1d", label: "1d" },
-                      { id: "7d", label: "7d" },
-                      { id: "15d", label: "15d" },
-                      { id: "30d", label: "30d" },
-                      { id: "all", label: "All Visited" },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setRecentBoundary(tab.id as any)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                          recentBoundary === tab.id || (tab.id === "1d" && (recentBoundary === "today" || recentBoundary === "top20"))
-                            ? "bg-blue-600 text-white shadow-xs scale-102 font-bold"
-                            : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-neutral-800"
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
+                  {/* Interactive Recency Day Range Bar (1 to 90 Days) */}
+                  <div className="flex flex-col gap-1.5 w-full sm:w-72 bg-slate-50 dark:bg-neutral-900/80 p-2.5 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto shadow-2xs">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-blue-500" />
+                        <span>Recency Window:</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-600 text-white font-mono shadow-2xs">
+                        {recentDays} {recentDays === 1 ? "day" : "days"}
+                      </span>
+                    </div>
+
+                    <div className="relative pt-1 px-1">
+                      <input
+                        type="range"
+                        min={1}
+                        max={90}
+                        step={1}
+                        value={recentDays}
+                        onChange={(e) => setRecentDays(Number(e.target.value))}
+                        className="w-full h-2 bg-slate-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-hidden"
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-1">
+                        <span
+                          onClick={() => setRecentDays(1)}
+                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 1 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                        >
+                          1d
+                        </span>
+                        <span
+                          onClick={() => setRecentDays(7)}
+                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 7 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                        >
+                          7d
+                        </span>
+                        <span
+                          onClick={() => setRecentDays(14)}
+                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 14 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                        >
+                          14d
+                        </span>
+                        <span
+                          onClick={() => setRecentDays(30)}
+                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 30 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                        >
+                          30d
+                        </span>
+                        <span
+                          onClick={() => setRecentDays(60)}
+                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 60 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                        >
+                          60d
+                        </span>
+                        <span
+                          onClick={() => setRecentDays(90)}
+                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 90 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
+                        >
+                          90d
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1657,7 +1678,7 @@ export function MarklyWorkspace({
                 data={filteredBookmarks}
                 folders={folders}
                 onRefreshData={refreshData}
-                onOpenAddModal={() => openAddModal()}
+                onOpenAddModal={activeView === "recent" ? undefined : () => openAddModal()}
                 onRecordVisit={handleBookmarkVisit}
                 externalSearchQuery={globalSearch}
                 onSearchChange={setGlobalSearch}

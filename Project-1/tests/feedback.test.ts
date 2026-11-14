@@ -110,5 +110,27 @@ describe("Feedback System Repository & Access Control", () => {
     const invalid = BookmarkRepository.updateFeedbackStatus(feedback.id, "invalid_status_tag");
     expect(invalid).toBe(false);
   });
+
+  it("deletes a feedback ticket and its replies permanently", () => {
+    const feedback = BookmarkRepository.createFeedback({
+      userId: testUserId,
+      title: "Spam ticket to delete",
+      message: "This should be deleted by admin",
+      category: "general",
+    });
+
+    BookmarkRepository.addFeedbackReply({
+      feedbackId: feedback.id,
+      userId: testUserId,
+      message: "A reply on spam ticket",
+      isAdmin: false,
+    });
+
+    const deleted = BookmarkRepository.deleteFeedback(feedback.id);
+    expect(deleted).toBe(true);
+
+    const list = BookmarkRepository.getFeedbacks(testUserId);
+    expect(list.some((f) => f.id === feedback.id)).toBe(false);
+  });
 });
 

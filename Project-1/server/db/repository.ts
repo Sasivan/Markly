@@ -2315,6 +2315,26 @@ export class BookmarkRepository {
     }
     return false;
   }
+
+  static deleteFeedback(feedbackId: string): boolean {
+    try {
+      sqlite.prepare(`DELETE FROM feedback_replies WHERE feedback_id = ?`).run(feedbackId);
+      const res = sqlite.prepare(`DELETE FROM feedbacks WHERE id = ?`).run(feedbackId);
+
+      try {
+        const client = SupabaseManager.getClient();
+        if (client) {
+          client.from("feedback_replies").delete().eq("feedback_id", feedbackId).then(() => {});
+          client.from("feedbacks").delete().eq("id", feedbackId).then(() => {});
+        }
+      } catch {}
+
+      return res.changes > 0;
+    } catch (e) {
+      console.error("deleteFeedback error:", e);
+      return false;
+    }
+  }
 }
 
 export const FolderRepository = BookmarkRepository;

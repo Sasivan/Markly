@@ -51,7 +51,7 @@ interface BookmarkTableProps {
   data: BookmarkWithDetails[];
   folders: FolderType[];
   onRefreshData: () => void;
-  onOpenAddModal: () => void;
+  onOpenAddModal?: () => void;
   onRecordVisit?: (bm: BookmarkWithDetails) => void;
   externalSearchQuery?: string;
   onSearchChange?: (val: string) => void;

@@ -113,63 +113,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthModalOpen(false);
   }, []);
 
-  // Sign In with email or username + password
+  // Sign In with email or username + password via secure server route /api/auth/login
   const signInWithPassword = async (emailOrUser: string, pass: string) => {
     try {
       const cleanInput = emailOrUser.trim();
       if (!cleanInput) {
         return { success: false, error: "Please enter your username or email." };
       }
-
-      let emailToUse = cleanInput;
-      const isActualEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanInput);
-
-      // If user typed a username (or @handle), resolve to their registered email first
-      if (!isActualEmail) {
-        try {
-          const res = await fetch("/api/auth/resolve-identifier", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: cleanInput }),
-          });
-          const resolveData = await res.json();
-          if (!resolveData.success || !resolveData.email) {
-            return {
-              success: false,
-              error: resolveData.error || `No account found with username "${cleanInput}".`,
-            };
-          }
-          emailToUse = resolveData.email;
-        } catch {
-          emailToUse = cleanInput.startsWith("@") ? cleanInput.slice(1) : cleanInput;
-        }
+      if (!pass) {
+        return { success: false, error: "Please enter your password." };
       }
 
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: emailToUse,
-        password: pass,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: cleanInput, password: pass }),
       });
 
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          return {
-            success: false,
-            error: "Invalid username/email or password. If you signed up with Google or GitHub, please click Continue with Google/GitHub below.",
-          };
-        }
-        return { success: false, error: error.message };
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || "Invalid username/email or password.",
+        };
       }
 
-      if (data.user) {
+      // Re-hydrate client session tokens from refreshed cookie
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        setUser(sessionData.session.user);
+        setSession(sessionData.session);
+      } else if (data.user) {
         setUser(data.user);
-        setSession(data.session);
-        closeAuthModal();
-
-        // Trigger automatic sync for this user
-        fetch("/api/auth/sync-user", {
-          method: "POST",
-        }).catch(() => {});
       }
+
+      closeAuthModal();
+
+      // Trigger automatic sync for this user
+      fetch("/api/auth/sync-user", {
+        method: "POST",
+      }).catch(() => {});
 
       return { success: true };
     } catch (err: any) {

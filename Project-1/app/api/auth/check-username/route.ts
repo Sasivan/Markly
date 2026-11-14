@@ -15,11 +15,11 @@ export async function GET(req: Request) {
     }
 
     // Format validation: 3-30 chars, alphanumeric, underscore, dot, hyphen
-    const validFormat = /^[a-zA-Z0-9_.-]{3,30}$/.test(username);
+    const validFormat = /^[a-z0-9_.-]{3,30}$/.test(username);
     if (!validFormat) {
       return NextResponse.json({
         available: false,
-        error: "Username must be 3-30 characters and only contain letters, numbers, underscores, dots, or hyphens.",
+        error: "Username must be 3-30 characters and only contain lowercase letters, numbers, underscores, dots, or hyphens.",
       });
     }
 
@@ -35,18 +35,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ available: false, error: "Username is already taken." });
     }
 
-    // 2. Check Supabase Auth users
+    // 2. Check Supabase profiles table directly (never auth.admin.listUsers)
     try {
       const client = SupabaseManager.getClient();
       if (client) {
-        const { data } = await client.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        if (data?.users) {
-          const match = data.users.find((u) => {
-            if (excludeUserId && u.id === excludeUserId) return false;
-            const uName = (u.user_metadata?.username || "").toLowerCase();
-            return uName === username;
-          });
+        const query = client
+          .from("profiles")
+          .select("id")
+          .eq("username", username);
 
+        const { data: profiles, error } = await query;
+        if (!error && profiles && profiles.length > 0) {
+          const match = profiles.find((p) => !excludeUserId || p.id !== excludeUserId);
           if (match) {
             return NextResponse.json({ available: false, error: "Username is already taken." });
           }
@@ -59,7 +59,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ available: true, username });
   } catch (error: any) {
     console.error("Check username error:", error);
-    return NextResponse.json({ available: false, error: error.message || "Failed to check username" }, { status: 500 });
+    return NextResponse.json({ available: false, error: "Failed to check username" }, { status: 500 });
   }
 }
-

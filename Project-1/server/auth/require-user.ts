@@ -41,3 +41,4 @@ export function handleAuthError(err: unknown): NextResponse | null {
   }
   return null;
 }
+

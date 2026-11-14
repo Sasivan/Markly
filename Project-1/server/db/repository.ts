@@ -1,5 +1,5 @@
 import { db, sqlite } from "./client";
-import { folders, bookmarks, tags, bookmarkTags, users, type Folder, type Bookmark, type Tag, type BookmarkWithDetails, type FolderTreeNode } from "./schema";
+import { folders, bookmarks, tags, bookmarkTags, users, feedbacks, feedbackReplies, type Folder, type Bookmark, type Tag, type BookmarkWithDetails, type FolderTreeNode, type Feedback, type FeedbackReply, type FeedbackWithReplies } from "./schema";
 import { eq, and, desc, asc, isNull, inArray, like, or, sql } from "drizzle-orm";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 
@@ -1138,6 +1138,11 @@ export class BookmarkRepository {
 
     const updated = this.getBookmarkById(id, userId);
     if (updated) {
+      const tagStr = (updated.tags || []).map((t) => t.name).join(" ");
+      const combinedSearch = [updated.title, updated.url, updated.description || "", tagStr].join(" ").toLowerCase();
+      try {
+        sqlite.prepare(`UPDATE bookmarks SET search_text = ? WHERE id = ?`).run(combinedSearch, id);
+      } catch {}
       SupabaseManager.syncBookmark(updated, "upsert").catch(() => {});
       SupabaseManager.invalidateUserSyncCache(userId);
     }
@@ -2107,6 +2112,208 @@ export class BookmarkRepository {
    */
   static getTags(userId: string): Tag[] {
     return db.select().from(tags).where(eq(tags.userId, userId)).orderBy(asc(tags.name)).all();
+  }
+
+  /**
+   * Feedback System
+   */
+  static createFeedback(data: {
+    userId: string;
+    userEmail?: string | null;
+    userName?: string | null;
+    userAvatar?: string | null;
+    title: string;
+    message: string;
+    category?: string;
+  }): FeedbackWithReplies {
+    const id = `fb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = Date.now();
+    const category = data.category || "feedback";
+    const status = "received";
+
+    sqlite.prepare(`
+      INSERT INTO feedbacks (id, user_id, user_email, user_name, user_avatar, title, message, category, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      data.userId,
+      data.userEmail || null,
+      data.userName || null,
+      data.userAvatar || null,
+      data.title.trim(),
+      data.message.trim(),
+      category,
+      status,
+      now,
+      now
+    );
+
+    // Sync to Supabase in background
+    try {
+      const client = SupabaseManager.getClient();
+      if (client) {
+        client.from("feedbacks").insert({
+          id,
+          user_id: data.userId,
+          user_email: data.userEmail || null,
+          user_name: data.userName || null,
+          user_avatar: data.userAvatar || null,
+          title: data.title.trim(),
+          message: data.message.trim(),
+          category,
+          status,
+          created_at: now,
+          updated_at: now,
+        }).then(() => {});
+      }
+    } catch {}
+
+    return {
+      id,
+      userId: data.userId,
+      userEmail: data.userEmail || null,
+      userName: data.userName || null,
+      userAvatar: data.userAvatar || null,
+      title: data.title.trim(),
+      message: data.message.trim(),
+      category,
+      status,
+      createdAt: now,
+      updatedAt: now,
+      replies: [],
+    };
+  }
+
+  static getFeedbacks(userId?: string): FeedbackWithReplies[] {
+    let rows: any[] = [];
+    if (userId) {
+      rows = sqlite.prepare(`SELECT * FROM feedbacks WHERE user_id = ? ORDER BY created_at DESC`).all(userId) as any[];
+    } else {
+      rows = sqlite.prepare(`SELECT * FROM feedbacks ORDER BY created_at DESC`).all() as any[];
+    }
+
+    const feedbackIds = rows.map((r) => r.id);
+    const replyMap = new Map<string, FeedbackReply[]>();
+
+    if (feedbackIds.length > 0) {
+      const placeholders = feedbackIds.map(() => "?").join(",");
+      const replyRows = sqlite.prepare(`
+        SELECT * FROM feedback_replies WHERE feedback_id IN (${placeholders}) ORDER BY created_at ASC
+      `).all(...feedbackIds) as any[];
+
+      for (const r of replyRows) {
+        if (!replyMap.has(r.feedback_id)) {
+          replyMap.set(r.feedback_id, []);
+        }
+        replyMap.get(r.feedback_id)!.push({
+          id: r.id,
+          feedbackId: r.feedback_id,
+          userId: r.user_id,
+          userEmail: r.user_email,
+          userName: r.user_name,
+          userAvatar: r.user_avatar,
+          isAdmin: Boolean(r.is_admin),
+          message: r.message,
+          createdAt: r.created_at,
+        });
+      }
+    }
+
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      userEmail: r.user_email,
+      userName: r.user_name,
+      userAvatar: r.user_avatar,
+      title: r.title,
+      message: r.message,
+      category: r.category,
+      status: r.status,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      replies: replyMap.get(r.id) || [],
+    }));
+  }
+
+  static addFeedbackReply(data: {
+    feedbackId: string;
+    userId: string;
+    userEmail?: string | null;
+    userName?: string | null;
+    userAvatar?: string | null;
+    isAdmin: boolean;
+    message: string;
+  }): FeedbackReply | null {
+    const feedback = sqlite.prepare(`SELECT id FROM feedbacks WHERE id = ?`).get(data.feedbackId);
+    if (!feedback) return null;
+
+    const id = `fbr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = Date.now();
+
+    sqlite.prepare(`
+      INSERT INTO feedback_replies (id, feedback_id, user_id, user_email, user_name, user_avatar, is_admin, message, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      data.feedbackId,
+      data.userId,
+      data.userEmail || null,
+      data.userName || null,
+      data.userAvatar || null,
+      data.isAdmin ? 1 : 0,
+      data.message.trim(),
+      now
+    );
+
+    sqlite.prepare(`UPDATE feedbacks SET updated_at = ? WHERE id = ?`).run(now, data.feedbackId);
+
+    try {
+      const client = SupabaseManager.getClient();
+      if (client) {
+        client.from("feedback_replies").insert({
+          id,
+          feedback_id: data.feedbackId,
+          user_id: data.userId,
+          user_email: data.userEmail || null,
+          user_name: data.userName || null,
+          user_avatar: data.userAvatar || null,
+          is_admin: data.isAdmin,
+          message: data.message.trim(),
+          created_at: now,
+        }).then(() => {});
+        client.from("feedbacks").update({ updated_at: now }).eq("id", data.feedbackId).then(() => {});
+      }
+    } catch {}
+
+    return {
+      id,
+      feedbackId: data.feedbackId,
+      userId: data.userId,
+      userEmail: data.userEmail || null,
+      userName: data.userName || null,
+      userAvatar: data.userAvatar || null,
+      isAdmin: data.isAdmin,
+      message: data.message.trim(),
+      createdAt: now,
+    };
+  }
+
+  static updateFeedbackStatus(feedbackId: string, status: string): boolean {
+    const validStatuses = ["received", "under_review", "processing", "fixed", "planned", "closed"];
+    if (!validStatuses.includes(status)) return false;
+
+    const now = Date.now();
+    const res = sqlite.prepare(`UPDATE feedbacks SET status = ?, updated_at = ? WHERE id = ?`).run(status, now, feedbackId);
+    if (res.changes > 0) {
+      try {
+        const client = SupabaseManager.getClient();
+        if (client) {
+          client.from("feedbacks").update({ status, updated_at: now }).eq("id", feedbackId).then(() => {});
+        }
+      } catch {}
+      return true;
+    }
+    return false;
   }
 }
 

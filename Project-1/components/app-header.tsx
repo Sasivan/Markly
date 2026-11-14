@@ -99,7 +99,7 @@ export function AppHeader({
   const currentLabel = activeFolder ? activeFolder.name : (viewLabels[activeView] || activeView);
 
   return (
-    <header className="h-12 border-b border-border flex items-center justify-between px-4 bg-background/95 backdrop-blur z-10 flex-shrink-0">
+    <header className="h-12 border-b border-border flex items-center justify-between px-4 bg-background/95 backdrop-blur relative z-40 flex-shrink-0">
       {/* Left side: Single Sidebar Toggle Button */}
       <div className="flex items-center gap-3">
         <button

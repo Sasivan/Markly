@@ -410,6 +410,25 @@ export class SupabaseManager {
           created_at: bookmark.createdAt || bookmark.created_at || Date.now(),
           search_text: bookmark.searchText || bookmark.search_text || null,
         });
+
+        if (Array.isArray(bookmark.tags) && bookmark.tags.length > 0) {
+          const uId = bookmark.userId || bookmark.user_id || "usr_default";
+          for (const t of bookmark.tags) {
+            try {
+              await client.from("tags").upsert({
+                id: t.id,
+                user_id: uId,
+                name: t.name,
+                color: t.color || "#3b82f6",
+                created_at: t.createdAt || t.created_at || Date.now(),
+              });
+              await client.from("bookmark_tags").upsert({
+                bookmark_id: bookmark.id,
+                tag_id: t.id,
+              });
+            } catch {}
+          }
+        }
       }
     } catch (e) {
       console.error("Supabase syncBookmark error:", e);
@@ -521,10 +540,11 @@ export class SupabaseManager {
       const tombstoneBmSet = new Set(tombstonedBookmarks.map((t) => t.id));
 
       // Fetch all remote entities concurrently in a single network round-trip
-      const [foldersRes, bookmarksRes, tagsRes] = await Promise.all([
+      const [foldersRes, bookmarksRes, tagsRes, bookmarkTagsRes] = await Promise.all([
         client.from("folders").select("*").eq("user_id", userId),
         client.from("bookmarks").select("*").eq("user_id", userId),
         client.from("tags").select("*").eq("user_id", userId),
+        client.from("bookmark_tags").select("*"),
       ]);
 
       const remoteFolders = foldersRes.data || [];
@@ -717,6 +737,19 @@ export class SupabaseManager {
           for (const t of remoteTags) {
             try {
               upsertTag.run(t.id, userId, t.name, t.color || "#3b82f6", t.created_at || Date.now());
+            } catch {}
+          }
+        }
+
+        // 4. Process Bookmark Tags
+        if (bookmarkTagsRes?.data && bookmarkTagsRes.data.length > 0) {
+          const insertBmTag = sqlite.prepare(`
+            INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id)
+            VALUES (?, ?)
+          `);
+          for (const bt of bookmarkTagsRes.data) {
+            try {
+              insertBmTag.run(bt.bookmark_id, bt.tag_id);
             } catch {}
           }
         }

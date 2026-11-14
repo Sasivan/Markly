@@ -25,6 +25,7 @@ import {
   Trash2,
   Globe,
   Edit2,
+  MessageSquarePlus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,11 +42,11 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback";
   totalBookmarksCount: number;
   unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
@@ -530,8 +531,24 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Pinned Bottom Left Profile Icon in Collapsed Rail */}
-        <div className="p-2 border-t border-border flex items-center justify-center flex-shrink-0 bg-[#fbfbfa] dark:bg-[#191919]">
+        {/* Pinned Bottom Left Feedback & Profile in Collapsed Rail */}
+        <div className="p-2 border-t border-border flex flex-col items-center gap-1.5 justify-center flex-shrink-0 bg-[#fbfbfa] dark:bg-[#191919]">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("feedback");
+            }}
+            title="Feedback & Support"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "feedback" && !activeFolderId
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-indigo-600 dark:hover:text-indigo-400"
+            }`}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -941,6 +958,25 @@ export function Sidebar({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Feedback & Support Nav Button */}
+        <div className="px-3 py-1.5 border-t border-border/60 bg-[#fbfbfa] dark:bg-[#191919] flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("feedback");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+              activeView === "feedback" && !activeFolderId
+                ? "bg-indigo-600 text-white shadow-2xs font-semibold"
+                : "text-slate-700 dark:text-neutral-300 hover:bg-slate-200/80 dark:hover:bg-neutral-800"
+            }`}
+          >
+            <MessageSquarePlus className="h-4 w-4 text-indigo-500 shrink-0" />
+            <span className="truncate">Feedback & Support</span>
+          </button>
         </div>
 
         {/* Sidebar Footer: Supabase Realtime User Profile */}

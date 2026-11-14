@@ -10,6 +10,9 @@ import {
   Table as TableIcon,
   LayoutGrid,
   Rows3,
+  FolderTree,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +40,124 @@ interface FolderCollectionsViewProps {
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
 }
 
+interface TreeFolderRowProps {
+  node: FolderTreeNode;
+  depth: number;
+  onSelectFolder: (folderId: string, isParent?: boolean) => void;
+  onEditCollection: (folder: Folder) => void;
+  onOpenAddBookmarkToFolder?: (folderId: string) => void;
+  onNewSubfolder?: (parentId: string) => void;
+}
+
+function TreeFolderRow({
+  node,
+  depth,
+  onSelectFolder,
+  onEditCollection,
+  onOpenAddBookmarkToFolder,
+  onNewSubfolder,
+}: TreeFolderRowProps) {
+  const [isOpen, setIsOpen] = React.useState(true);
+  const childCount = node.children?.length || 0;
+  const bookmarkCount = node.totalDescendantBookmarkCount || node.bookmarkCount || 0;
+
+  return (
+    <div className="select-none">
+      <div
+        className="group flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-850 cursor-pointer transition-colors"
+        style={{ paddingLeft: `${Math.max(12, depth * 22 + 12)}px` }}
+        onClick={() => onSelectFolder(node.id, childCount > 0)}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          {childCount > 0 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(!isOpen);
+              }}
+              className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer transition-colors"
+            >
+              {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </button>
+          ) : (
+            <span className="w-5" />
+          )}
+
+          <div
+            className="h-7 w-7 rounded-lg flex items-center justify-center text-sm shadow-2xs shrink-0"
+            style={{ backgroundColor: `${node.color}20` }}
+          >
+            <FolderIconRenderer icon={node.icon} color={node.color} className="h-3.5 w-3.5" />
+          </div>
+
+          <div className="flex items-center gap-2 truncate">
+            <span className="text-xs font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+              {node.name}
+            </span>
+            <Badge
+              variant="secondary"
+              className="text-[10px] font-mono px-1.5 py-0 bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 border-none"
+            >
+              {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
+            </Badge>
+            {childCount > 0 && (
+              <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline">
+                ({childCount} {childCount === 1 ? "subfolder" : "subfolders"})
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+          {onOpenAddBookmarkToFolder && (
+            <button
+              type="button"
+              onClick={() => onOpenAddBookmarkToFolder(node.id)}
+              className="h-6.5 w-6.5 rounded-md flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
+              title="Add bookmark"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onEditCollection(node)}
+            className="h-6.5 w-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+            title="Edit"
+          >
+            <Edit2 className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectFolder(node.id, childCount > 0)}
+            className="h-6.5 px-2 rounded-md border border-slate-200 dark:border-neutral-700 text-[10px] font-medium flex items-center gap-1 text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+          >
+            <span>Open</span>
+            <ArrowRight className="h-2.5 w-2.5" />
+          </button>
+        </div>
+      </div>
+
+      {isOpen && childCount > 0 && (
+        <div className="space-y-0.5 border-l border-slate-200 dark:border-neutral-800 ml-4 my-0.5">
+          {node.children.map((child) => (
+            <TreeFolderRow
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              onSelectFolder={onSelectFolder}
+              onEditCollection={onEditCollection}
+              onOpenAddBookmarkToFolder={onOpenAddBookmarkToFolder}
+              onNewSubfolder={onNewSubfolder}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FolderCollectionsView({
   folders,
   folderTree,
@@ -54,11 +175,11 @@ export function FolderCollectionsView({
   onOpenAddBookmarkToFolder,
 }: FolderCollectionsViewProps) {
   const [editingCollection, setEditingCollection] = React.useState<Folder | null>(null);
-  const [viewMode, setViewMode] = React.useState<"cards" | "table" | "compact">(() => {
+  const [viewMode, setViewMode] = React.useState<"cards" | "tree" | "table" | "compact">(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("markly_collections_view_mode");
-        if (saved && ["cards", "table", "compact"].includes(saved)) {
+        if (saved && ["cards", "tree", "table", "compact"].includes(saved)) {
           return saved as any;
         }
       } catch {}
@@ -66,7 +187,7 @@ export function FolderCollectionsView({
     return "cards";
   });
 
-  const handleSetViewMode = (mode: "cards" | "table" | "compact") => {
+  const handleSetViewMode = (mode: "cards" | "tree" | "table" | "compact") => {
     setViewMode(mode);
     if (typeof window !== "undefined") {
       try {
@@ -130,7 +251,7 @@ export function FolderCollectionsView({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Multi-View Mode Switcher: Cards | Table | Compact */}
+          {/* Multi-View Mode Switcher: Cards | Tree | Table | Compact */}
           <div className="flex items-center bg-slate-100 dark:bg-neutral-850 p-0.5 rounded-lg border border-slate-200 dark:border-neutral-700 shadow-2xs">
             <button
               type="button"
@@ -143,6 +264,18 @@ export function FolderCollectionsView({
               title="Cards View (Default)"
             >
               <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode("tree")}
+              className={`p-1.5 rounded-md cursor-pointer transition-colors ${
+                viewMode === "tree"
+                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Parent & Child Tree View (Hierarchical)"
+            >
+              <FolderTree className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
@@ -215,22 +348,6 @@ export function FolderCollectionsView({
                     {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
                   </Badge>
 
-                  {/* Quick Add Bookmark to this collection */}
-                  {onOpenAddBookmarkToFolder && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenAddBookmarkToFolder(unsortedFolder.id);
-                      }}
-                      className="h-7 px-2 rounded-lg flex items-center gap-1 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
-                      title={`Add bookmark directly to ${unsortedFolder.name}`}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Add</span>
-                    </button>
-                  )}
-
                   {/* All-in-One Edit Collection Button */}
                   <button
                     type="button"
@@ -294,25 +411,9 @@ export function FolderCollectionsView({
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5">
+                      <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-none">
                         {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
                       </Badge>
-
-                      {/* Quick Add Bookmark to this collection */}
-                      {onOpenAddBookmarkToFolder && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenAddBookmarkToFolder(rootNode.id);
-                          }}
-                          className="h-7 px-2 rounded-lg flex items-center gap-1 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
-                          title={`Add bookmark directly to ${rootNode.name}`}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          <span>Add</span>
-                        </button>
-                      )}
 
                       {/* All-in-One Edit Collection Button */}
                       <button
@@ -321,7 +422,7 @@ export function FolderCollectionsView({
                           e.stopPropagation();
                           setEditingCollection(rootNode);
                         }}
-                        className="h-7 px-2 rounded-lg flex items-center gap-1 bg-slate-100/80 dark:bg-neutral-800/80 hover:bg-slate-200 dark:hover:bg-neutral-700 text-slate-700 dark:text-neutral-200 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                        className="h-7 px-2 rounded-lg flex items-center gap-1 bg-slate-100/80 dark:bg-neutral-850 hover:bg-slate-200 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-200 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
                         title="Edit collection details"
                       >
                         <Edit2 className="h-3.5 w-3.5 text-indigo-500" />
@@ -379,7 +480,76 @@ export function FolderCollectionsView({
         </div>
       )}
 
-      {/* 2. Table View of Collections */}
+      {/* 2. Parent & Child Tree View (Hierarchical) */}
+      {viewMode === "tree" && (
+        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-3 shadow-xs space-y-1">
+          {/* Inbox / Unsorted Tree Row */}
+          <div
+            onClick={() => onSelectView?.("unsorted")}
+            className="group flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-850 cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-5" />
+              <div
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-sm shadow-2xs shrink-0"
+                style={{ backgroundColor: `${unsortedFolder.color}20` }}
+              >
+                <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex items-center gap-2 truncate">
+                <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                  {unsortedFolder.name}
+                </span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-violet-400 text-violet-600 dark:text-violet-400">
+                  Inbox
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] font-mono px-1.5 py-0 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-none"
+                >
+                  {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setEditingCollection(unsortedFolder)}
+                className="h-6.5 w-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+                title="Edit"
+              >
+                <Edit2 className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectView?.("unsorted")}
+                className="h-6.5 px-2 rounded-md border border-slate-200 dark:border-neutral-700 text-[10px] font-medium flex items-center gap-1 text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+              >
+                <span>Open</span>
+                <ArrowRight className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-neutral-800/80 my-1.5" />
+
+          {/* Root Tree Folders */}
+          {folderTree.map((rootNode) => (
+            <TreeFolderRow
+              key={rootNode.id}
+              node={rootNode}
+              depth={0}
+              onSelectFolder={onSelectFolder}
+              onEditCollection={setEditingCollection}
+              onOpenAddBookmarkToFolder={onOpenAddBookmarkToFolder}
+              onNewSubfolder={onNewSubfolder}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 3. Table View of Collections */}
       {viewMode === "table" && (
         <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] overflow-hidden shadow-xs">
           <table className="w-full text-xs text-left">
@@ -477,7 +647,7 @@ export function FolderCollectionsView({
                       {childCount} {childCount === 1 ? "subfolder" : "subfolders"}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5">
+                      <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-none">
                         {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
                       </Badge>
                     </td>

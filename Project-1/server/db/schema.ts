@@ -121,6 +121,45 @@ export const recycleBin = sqliteTable(
   ]
 );
 
+export const feedbacks = sqliteTable(
+  "feedbacks",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    userEmail: text("user_email"),
+    userName: text("user_name"),
+    userAvatar: text("user_avatar"),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    category: text("category").notNull().default("feedback"),
+    status: text("status").notNull().default("received"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("feedbacks_user_idx").on(table.userId),
+    index("feedbacks_created_idx").on(table.createdAt),
+  ]
+);
+
+export const feedbackReplies = sqliteTable(
+  "feedback_replies",
+  {
+    id: text("id").primaryKey(),
+    feedbackId: text("feedback_id").notNull(),
+    userId: text("user_id").notNull(),
+    userEmail: text("user_email"),
+    userName: text("user_name"),
+    userAvatar: text("user_avatar"),
+    isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
+    message: text("message").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("feedback_replies_fid_idx").on(table.feedbackId),
+  ]
+);
+
 // Drizzle Relations
 export const foldersRelations = relations(folders, ({ one, many }) => ({
   parent: one(folders, {
@@ -181,4 +220,10 @@ export type FolderTreeNode = Folder & {
 };
 
 export type RecycleBinItem = typeof recycleBin.$inferSelect;
+
+export type Feedback = typeof feedbacks.$inferSelect;
+export type FeedbackReply = typeof feedbackReplies.$inferSelect;
+export type FeedbackWithReplies = Feedback & {
+  replies: FeedbackReply[];
+};
 

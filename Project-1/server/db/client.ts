@@ -164,6 +164,38 @@ export function initDbSchema() {
 
       CREATE INDEX IF NOT EXISTS recycle_bin_user_idx ON recycle_bin(user_id);
       CREATE INDEX IF NOT EXISTS recycle_bin_deleted_at_idx ON recycle_bin(deleted_at);
+
+      CREATE TABLE IF NOT EXISTS feedbacks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_email TEXT,
+        user_name TEXT,
+        user_avatar TEXT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'feedback',
+        status TEXT NOT NULL DEFAULT 'received',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS feedbacks_user_idx ON feedbacks(user_id);
+      CREATE INDEX IF NOT EXISTS feedbacks_created_idx ON feedbacks(created_at);
+
+      CREATE TABLE IF NOT EXISTS feedback_replies (
+        id TEXT PRIMARY KEY,
+        feedback_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        user_email TEXT,
+        user_name TEXT,
+        user_avatar TEXT,
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        message TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (feedback_id) REFERENCES feedbacks(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS feedback_replies_fid_idx ON feedback_replies(feedback_id);
     `);
 
     // Ensure dynamic columns exist in users table

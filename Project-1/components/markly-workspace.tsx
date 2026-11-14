@@ -35,6 +35,7 @@ import { DomainInsightsView } from "@/components/domain/domain-insights-view";
 import { LibraryInsightsView } from "@/components/insights/library-insights-view";
 import { ProfileView } from "@/components/profile/profile-view";
 import { RecycleBinView } from "@/components/trash/recycle-bin-view";
+import { FeedbackView } from "@/components/feedback/feedback-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -104,7 +105,7 @@ interface MarklyWorkspaceProps {
     tagDistribution: { name: string; color: string; count: number }[];
     timeline: { date: string; count: number }[];
   };
-  initialView?: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile";
+  initialView?: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback";
   initialFolderId?: string | null;
   initialSidebarCollapsed?: boolean;
 }
@@ -127,7 +128,7 @@ export function MarklyWorkspace({
 
   // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile">(
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback">(
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
@@ -1249,8 +1250,8 @@ export function MarklyWorkspace({
           activeFolder={activeFolderId ? folders.find((f) => f.id === activeFolderId) || null : null}
         />
 
-        {/* Breadcrumb Navigation Trail (Shown for workspace browsing, hidden for full-page profile and recycle bin) */}
-        {activeView !== "profile" && activeView !== "trash" && (
+        {/* Breadcrumb Navigation Trail (Shown for workspace browsing, hidden for full-page profile, recycle bin, and feedback) */}
+        {activeView !== "profile" && activeView !== "trash" && activeView !== "feedback" && (
           <Breadcrumbs
             activeFolderId={activeFolderId}
             activeView={activeView}
@@ -1274,7 +1275,12 @@ export function MarklyWorkspace({
         )}
 
         {/* Dashboard, Home, Graph & Table Zone */}
-        <div ref={mainScrollRef} className="overflow-y-auto flex-1 p-6 space-y-6">
+        <div
+          ref={mainScrollRef}
+          className={`flex-1 ${
+            activeView === "trash" ? "overflow-hidden p-0" : "overflow-y-auto p-6 space-y-6"
+          }`}
+        >
           {activeDomain ? (
             /* Dedicated Level 3: Website / Domain Insights Page */
             <DomainInsightsView
@@ -1446,6 +1452,14 @@ export function MarklyWorkspace({
               onRefreshWorkspace={refreshData}
               onNavigateView={(view) => {
                 setActiveView(view);
+                setActiveFolderId(null);
+              }}
+            />
+          ) : activeView === "feedback" && !activeFolderId ? (
+            /* Dedicated Feedback & Support View */
+            <FeedbackView
+              onNavigateHome={() => {
+                setActiveView("home");
                 setActiveFolderId(null);
               }}
             />

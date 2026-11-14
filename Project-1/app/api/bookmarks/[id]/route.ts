@@ -51,7 +51,12 @@ export async function PATCH(
       status: body.status,
       visitCount: body.visitCount,
       lastVisitedAt: body.lastVisitedAt,
-      tagNames: body.tagNames,
+      tagNames:
+        body.tagNames !== undefined
+          ? body.tagNames
+          : Array.isArray(body.tags)
+          ? body.tags.map((t: any) => (typeof t === "string" ? t : t.name))
+          : undefined,
     });
 
     if (!updated) {

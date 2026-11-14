@@ -114,13 +114,13 @@ export function DomainInsightsView({
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* Header Bar */}
-      <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 dark:border-neutral-800 pb-5">
+      <div className="flex items-center justify-between flex-wrap gap-4 border-b border-border pb-5">
         <div className="flex items-center gap-3">
           <Button
             size="sm"
             variant="outline"
             onClick={onBack}
-            className="h-8 px-2.5 text-xs text-slate-600 dark:text-neutral-300"
+            className="h-8 px-2.5 text-xs text-muted-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5 mr-1" />
             Back
@@ -129,39 +129,39 @@ export function DomainInsightsView({
           <BookmarkIcon
             src={data.iconUrl}
             domain={data.domain}
-            className="h-9 w-9 rounded-xl border border-slate-200 dark:border-neutral-700 p-1 bg-white dark:bg-neutral-800 shadow-xs"
+            className="h-9 w-9 rounded-lg border border-border p-1 bg-card shadow-xs"
           />
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
                 {data.domain}
               </h1>
               <a
                 href={`https://${data.domain}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-slate-400 hover:text-blue-500 transition-colors"
+                className="text-muted-foreground hover:text-primary transition-colors"
                 title="Open domain homepage"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>
-            <p className="text-xs text-slate-500 dark:text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               Complete website analytics across all library folders
             </p>
           </div>
         </div>
 
         {/* Tab View Switcher */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-neutral-800 p-0.5 rounded-xl border border-slate-200 dark:border-neutral-700 text-xs">
+        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border text-xs">
           <button
             type="button"
             onClick={() => setActiveTab("overview")}
-            className={`px-3 py-1.5 rounded-lg font-medium cursor-pointer transition-colors ${
+            className={`px-3 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
               activeTab === "overview"
-                ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:text-foreground"
+                ? "bg-background text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Overview & Metrics
@@ -169,22 +169,22 @@ export function DomainInsightsView({
           <button
             type="button"
             onClick={() => setActiveTab("graph")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium cursor-pointer transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
               activeTab === "graph"
-                ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:text-foreground"
+                ? "bg-background text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Layers className="h-3.5 w-3.5 text-purple-500" />
+            <Layers className="h-3.5 w-3.5 text-primary" />
             <span>Domain Graph</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("bookmarks")}
-            className={`px-3 py-1.5 rounded-lg font-medium cursor-pointer transition-colors ${
+            className={`px-3 py-1.5 rounded-md font-medium cursor-pointer transition-colors ${
               activeTab === "bookmarks"
-                ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:text-foreground"
+                ? "bg-background text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Saved Pages ({data.totalBookmarks})
@@ -194,34 +194,34 @@ export function DomainInsightsView({
 
       {/* KPI Overview Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Saved Pages</div>
-          <div className="text-xl font-bold text-slate-900 dark:text-white mt-1">{data.totalBookmarks}</div>
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
+          <div className="text-xs font-mono text-muted-foreground">Saved Pages</div>
+          <div className="text-xl font-bold font-mono text-foreground mt-1">{data.totalBookmarks}</div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Total Visits</div>
-          <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">{data.totalVisits}</div>
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
+          <div className="text-xs font-mono text-muted-foreground">Total Visits</div>
+          <div className="text-xl font-bold font-mono text-primary mt-1">{data.totalVisits}</div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Folders Stored In</div>
-          <div className="text-xl font-bold text-purple-600 dark:text-purple-400 mt-1">{data.foldersCount}</div>
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
+          <div className="text-xs font-mono text-muted-foreground">Folders Stored In</div>
+          <div className="text-xl font-bold font-mono text-foreground mt-1">{data.foldersCount}</div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Link Health</div>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{healthScore}%</div>
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
+          <div className="text-xs font-mono text-muted-foreground">Link Health</div>
+          <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">{healthScore}%</div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Distinct Tags</div>
-          <div className="text-xl font-bold text-teal-600 dark:text-teal-400 mt-1">{data.tagDistribution?.length || 0}</div>
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
+          <div className="text-xs font-mono text-muted-foreground">Distinct Tags</div>
+          <div className="text-xl font-bold font-mono text-foreground mt-1">{data.tagDistribution?.length || 0}</div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-neutral-400">Last Visited</div>
-          <div className="text-xs font-mono font-medium text-slate-700 dark:text-neutral-200 mt-2 truncate">
+        <div className="rounded-lg border border-border bg-card p-3 shadow-xs">
+          <div className="text-xs font-mono text-muted-foreground">Last Visited</div>
+          <div className="text-xs font-mono text-foreground mt-2 truncate">
             {data.lastVisitedAt ? formatDateTime(data.lastVisitedAt) : "Never"}
           </div>
         </div>
@@ -233,17 +233,17 @@ export function DomainInsightsView({
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. Folder Distribution */}
-            <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-xs space-y-3">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FolderIcon className="h-4 w-4 text-purple-500" />
-                  <h3 className="font-bold text-xs text-slate-900 dark:text-white">Folder Distribution</h3>
+                  <FolderIcon className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-xs text-foreground">Folder Distribution</h3>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Pages per folder</span>
+                <span className="text-xs text-muted-foreground font-mono">Pages per folder</span>
               </div>
 
               {data.folderDistribution.length === 0 ? (
-                <div className="h-44 flex items-center justify-center text-xs text-slate-400">No folder data</div>
+                <div className="h-44 flex items-center justify-center text-xs text-muted-foreground">No folder data</div>
               ) : (
                 <div className="h-52 w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -259,9 +259,9 @@ export function DomainInsightsView({
                           if (active && payload && payload.length) {
                             const d = payload[0].payload;
                             return (
-                              <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2 text-xs shadow-xl">
-                                <span className="font-bold text-slate-900 dark:text-white">{d.name}</span>
-                                <span className="text-purple-600 block">{d.count} saved pages</span>
+                              <div className="rounded-lg border border-border bg-popover p-2 text-xs shadow-md">
+                                <span className="font-semibold text-popover-foreground">{d.name}</span>
+                                <span className="text-primary font-mono block">{d.count} saved pages</span>
                               </div>
                             );
                           }
@@ -270,8 +270,8 @@ export function DomainInsightsView({
                       />
                       <Bar
                         dataKey="count"
-                        fill="#7963E9"
-                        radius={[0, 6, 6, 0]}
+                        fill="var(--primary)"
+                        radius={[0, 4, 4, 0]}
                         cursor="pointer"
                         onClick={(entry: any) => entry?.id && entry.id !== "unsorted" && onSelectFolder(entry.id)}
                       />
@@ -282,28 +282,28 @@ export function DomainInsightsView({
             </div>
 
             {/* 2. Addition Timeline */}
-            <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-xs space-y-3">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                  <h3 className="font-bold text-xs text-slate-900 dark:text-white">Addition History</h3>
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-xs text-foreground">Addition History</h3>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Bookmarks added over time</span>
+                <span className="text-xs text-muted-foreground font-mono">Bookmarks added over time</span>
               </div>
 
               {data.timeline.length === 0 ? (
-                <div className="h-44 flex items-center justify-center text-xs text-slate-400">No timeline data</div>
+                <div className="h-44 flex items-center justify-center text-xs text-muted-foreground">No timeline data</div>
               ) : (
                 <div className="h-52 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data.timeline} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="domainTimelineGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0.0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.06} />
                       <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                       <Tooltip
@@ -311,9 +311,9 @@ export function DomainInsightsView({
                           if (active && payload && payload.length) {
                             const d = payload[0].payload;
                             return (
-                              <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2 text-xs shadow-xl">
-                                <span className="font-bold text-slate-900 dark:text-white block">{d.date}</span>
-                                <span className="text-blue-600 font-semibold">{d.count} added</span>
+                              <div className="rounded-lg border border-border bg-popover p-2 text-xs shadow-md">
+                                <span className="font-semibold text-popover-foreground block">{d.date}</span>
+                                <span className="text-primary font-mono font-medium">{d.count} added</span>
                               </div>
                             );
                           }
@@ -323,7 +323,7 @@ export function DomainInsightsView({
                       <Area
                         type="monotone"
                         dataKey="count"
-                        stroke="#3b82f6"
+                        stroke="#2563eb"
                         strokeWidth={2}
                         fill="url(#domainTimelineGrad)"
                       />
@@ -337,20 +337,20 @@ export function DomainInsightsView({
           {/* Bottom Row: Most Accessed Pages & Associated Tags */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Most Accessed Pages */}
-            <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-xs space-y-3">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                  <h3 className="font-bold text-xs text-slate-900 dark:text-white">Most Accessed Pages</h3>
+                  <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="font-semibold text-xs text-foreground">Most Accessed Pages</h3>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Ranked by visits</span>
+                <span className="text-xs text-muted-foreground font-mono">Ranked by visits</span>
               </div>
 
               <div className="space-y-2">
                 {data.mostAccessed.slice(0, 5).map((bm: BookmarkWithDetails) => (
                   <div
                     key={bm.id}
-                    className="flex items-center justify-between p-2 rounded-xl border border-slate-100 dark:border-neutral-800/80 bg-slate-50/50 dark:bg-neutral-900/40 text-xs hover:border-blue-400 transition-colors"
+                    className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/30 text-xs hover:border-primary/40 transition-colors"
                   >
                     <div className="flex items-center gap-2.5 truncate min-w-0">
                       <BookmarkIcon src={bm.iconUrl} domain={bm.domain} className="h-4 w-4 rounded" />
@@ -358,13 +358,13 @@ export function DomainInsightsView({
                         href={bm.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="truncate font-medium hover:underline text-slate-900 dark:text-white"
+                        className="truncate font-medium hover:underline text-foreground"
                       >
                         {bm.title}
                       </a>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      <span className="font-mono text-[11px] text-slate-500">{bm.visitCount || 0} visits</span>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className="font-mono text-xs text-muted-foreground">{bm.visitCount || 0} visits</span>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -381,17 +381,17 @@ export function DomainInsightsView({
             </div>
 
             {/* Tag Distribution */}
-            <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-xs space-y-3">
+            <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <TagIcon className="h-4 w-4 text-teal-500" />
-                  <h3 className="font-bold text-xs text-slate-900 dark:text-white">Tags & Categories</h3>
+                  <TagIcon className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-xs text-foreground">Tags & Categories</h3>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-mono">Topics associated with {domain}</span>
+                <span className="text-xs text-muted-foreground font-mono">Topics associated with {domain}</span>
               </div>
 
               {data.tagDistribution.length === 0 ? (
-                <div className="h-32 flex items-center justify-center text-xs text-slate-400">
+                <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">
                   No tags added to bookmarks from this domain yet.
                 </div>
               ) : (
@@ -399,11 +399,11 @@ export function DomainInsightsView({
                   {data.tagDistribution.map((t: { name: string; color: string; count: number }) => (
                     <span
                       key={t.name}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border/40 shadow-2xs"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium border border-border/40"
                       style={{ backgroundColor: `${t.color}15`, color: t.color }}
                     >
                       <span>#{t.name}</span>
-                      <span className="font-mono text-[10px] opacity-75">({t.count})</span>
+                      <span className="opacity-75">({t.count})</span>
                     </span>
                   ))}
                 </div>
@@ -416,7 +416,7 @@ export function DomainInsightsView({
       {/* Graph Tab */}
       {activeTab === "graph" && (
         <div className="space-y-3">
-          <div className="text-xs text-slate-500 dark:text-neutral-400">
+          <div className="text-xs text-muted-foreground">
             Interactive knowledge network centered on <strong>{domain}</strong> connecting its pages, folders, and shared tags.
           </div>
           <KnowledgeGraph
@@ -431,9 +431,9 @@ export function DomainInsightsView({
 
       {/* Bookmarks Tab */}
       {activeTab === "bookmarks" && (
-        <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-xs space-y-3">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-xs text-slate-900 dark:text-white">
+            <h3 className="font-semibold text-xs text-foreground">
               All Saved Bookmarks for {domain}
             </h3>
             <span className="text-xs font-mono text-muted-foreground">{data.bookmarks.length} total</span>
@@ -443,28 +443,29 @@ export function DomainInsightsView({
             {data.bookmarks.map((bm: BookmarkWithDetails) => (
               <div
                 key={bm.id}
-                className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40 hover:border-blue-400 transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 hover:border-primary/40 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1 truncate">
-                  <BookmarkIcon src={bm.iconUrl} domain={bm.domain} className="h-5 w-5 rounded flex-shrink-0" />
+                  <BookmarkIcon src={bm.iconUrl} domain={bm.domain} className="h-5 w-5 rounded shrink-0" />
                   <div className="truncate">
                     <a
                       href={bm.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-medium hover:underline text-slate-900 dark:text-white text-xs block truncate"
+                      className="font-medium hover:underline text-foreground text-xs block truncate"
                     >
                       {bm.title}
                     </a>
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono mt-0.5">
-                      <span>📁 {bm.folderName || "Unsorted"}</span>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono mt-0.5">
+                      <FolderIcon className="h-3 w-3 inline text-muted-foreground" />
+                      <span>{bm.folderName || "Unsorted"}</span>
                       <span>·</span>
                       <span>{formatDateTime(bm.createdAt)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                <div className="flex items-center gap-1.5 shrink-0 ml-3">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -473,7 +474,7 @@ export function DomainInsightsView({
                   >
                     <Star
                       className={`h-3.5 w-3.5 ${
-                        bm.isFavorite ? "text-amber-500 fill-amber-500" : "text-slate-400"
+                        bm.isFavorite ? "text-amber-500 fill-amber-500" : "text-muted-foreground"
                       }`}
                     />
                   </Button>

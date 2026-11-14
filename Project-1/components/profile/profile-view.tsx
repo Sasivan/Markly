@@ -564,10 +564,10 @@ export function ProfileView({
       {/* Status banner */}
       {statusMessage && (
         <div
-          className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 shadow-2xs ${
+          className={`p-3 rounded-md border text-xs flex items-center gap-2.5 ${
             statusMessage.type === "success"
-              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
-              : "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono"
+              : "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300 font-mono"
           }`}
         >
           {statusMessage.type === "success" ? (
@@ -580,17 +580,15 @@ export function ProfileView({
       )}
 
       {/* Main Profile Header Card */}
-      <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-6 shadow-xs relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
-
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mt-1">
+      <div className="rounded-lg border border-border bg-card p-6 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
           <div className="flex items-center gap-4">
             {/* Circular Avatar */}
             <div className="relative group">
               <img
                 src={avatarUrl}
                 alt={displayName}
-                className="h-16 w-16 rounded-full object-cover border-2 border-white dark:border-neutral-700 shadow-md bg-slate-100 dark:bg-neutral-800"
+                className="h-16 w-16 rounded-full object-cover border border-border bg-secondary"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`;
                 }}
@@ -598,14 +596,14 @@ export function ProfileView({
               <button
                 type="button"
                 onClick={() => setIsAvatarModalOpen(true)}
-                className="absolute inset-0 rounded-full bg-black/55 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[9px] font-semibold cursor-pointer"
+                className="absolute inset-0 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs font-mono font-medium cursor-pointer"
                 title="Change Avatar (DiceBear or Upload)"
               >
                 <Camera className="h-4 w-4 mb-0.5" />
                 <span>Change</span>
               </button>
               <span
-                className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white dark:border-neutral-800 shadow-xs pointer-events-none ${
+                className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-background ${
                   isGuest ? "bg-amber-500" : "bg-emerald-500"
                 }`}
                 title={isGuest ? "Local Offline Mode" : "Online & Synced"}
@@ -615,22 +613,22 @@ export function ProfileView({
             {/* Name & Basic Info */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                <h2 className="text-lg font-semibold text-foreground">
                   {displayName}
                 </h2>
                 {isGuest && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                  <span className="px-2 py-0.5 rounded-sm text-xs font-mono bg-secondary text-muted-foreground border border-border">
                     Local Guest Mode
                   </span>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1 font-mono">
-                  <Mail className="h-3.5 w-3.5 text-blue-500" />
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{user?.email || "guest@local.device"}</span>
                 </span>
                 <span>•</span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 font-mono">
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{isGuest ? "Active Session" : `Joined ${createdDate}`}</span>
                 </span>
@@ -639,21 +637,21 @@ export function ProfileView({
                 <button
                   type="button"
                   onClick={() => setIsAvatarModalOpen(true)}
-                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
                 >
                   <Camera className="h-3 w-3" />
                   <span>Change Avatar</span>
                 </button>
                 {avatarUrl !== defaultAvatar && (
                   <>
-                    <span className="text-muted-foreground text-[10px]">•</span>
+                    <span className="text-muted-foreground text-xs">•</span>
                     <button
                       type="button"
                       onClick={() => handleApplyAvatar(defaultAvatar)}
-                      className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      className="text-xs text-destructive hover:underline flex items-center gap-1 cursor-pointer font-medium"
                       title="Reset avatar to default"
                     >
-                      <span>Remove / Reset Avatar</span>
+                      <span>Reset Avatar</span>
                     </button>
                   </>
                 )}
@@ -663,37 +661,37 @@ export function ProfileView({
 
           {/* Quick Stats Badges */}
           <div className="flex items-center gap-2 sm:self-center">
-            <div className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 text-center">
-              <div className="text-xs font-bold text-slate-900 dark:text-white">
+            <div className="px-3.5 py-1.5 rounded-md border border-border bg-card text-center">
+              <div className="text-sm font-semibold font-mono text-foreground">
                 {totalBookmarks}
               </div>
-              <div className="text-[10px] text-muted-foreground">Bookmarks</div>
+              <div className="text-xs text-muted-foreground font-mono">Bookmarks</div>
             </div>
-            <div className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 text-center">
-              <div className="text-xs font-bold text-slate-900 dark:text-white">
+            <div className="px-3.5 py-1.5 rounded-md border border-border bg-card text-center">
+              <div className="text-sm font-semibold font-mono text-foreground">
                 {totalFolders}
               </div>
-              <div className="text-[10px] text-muted-foreground">Folders</div>
+              <div className="text-xs text-muted-foreground font-mono">Folders</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Guest Mode Invitation Banner (Only if not logged in) */}
+      {/* Guest Mode Invitation Banner */}
       {isGuest && (
-        <div className="rounded-2xl border-2 border-dashed border-blue-300 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="rounded-md border border-dashed border-border bg-card p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-xs font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-primary" />
               <span>Connect Cloud Sync (Optional)</span>
             </div>
-            <p className="text-[11px] text-muted-foreground max-w-lg">
+            <p className="text-xs text-muted-foreground max-w-lg">
               Sign in with Google, GitHub, or Email to back up your bookmarks to Supabase, sync across all your devices in real-time, and link multiple login providers.
             </p>
           </div>
           <Button
             onClick={() => openAuthModal("login")}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-8 px-4 cursor-pointer shadow-xs flex-shrink-0"
+            className="text-xs h-8 px-4 cursor-pointer flex-shrink-0"
           >
             <LogIn className="h-3.5 w-3.5 mr-1" />
             <span>Sign In or Sign Up</span>
@@ -702,21 +700,21 @@ export function ProfileView({
       )}
 
       {/* AI Daily Usage & Quota Card */}
-      <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
+      <div className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 border border-indigo-200 dark:border-indigo-800 shadow-2xs">
-              <Sparkles className="h-5 w-5" />
+            <div className="h-9 w-9 rounded-md bg-secondary text-primary flex items-center justify-center flex-shrink-0 border border-border">
+              <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>AI Summary &amp; Metadata Quota</span>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <span>AI Summary & Metadata Quota</span>
                 {aiQuota.hasCustomKey ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                  <span className="px-2 py-0.5 rounded-sm text-xs font-mono font-medium bg-secondary text-foreground border border-border">
                     Custom Key: Unlimited
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                  <span className="px-2 py-0.5 rounded-sm text-xs font-mono font-medium bg-secondary text-foreground border border-border">
                     Free Tier: 30 Credits / Day
                   </span>
                 )}
@@ -734,21 +732,21 @@ export function ProfileView({
               size="sm"
               variant="outline"
               onClick={onOpenApiKeyModal}
-              className="text-xs h-8 cursor-pointer gap-1.5 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex-shrink-0"
+              className="text-xs h-8 cursor-pointer gap-1.5 border-border hover:bg-secondary flex-shrink-0"
             >
-              <Key className="h-3.5 w-3.5" />
+              <Key className="h-3.5 w-3.5 text-muted-foreground" />
               <span>{aiQuota.hasCustomKey ? "Change Gemini Key" : "Add Custom API Key"}</span>
             </Button>
           )}
         </div>
 
         {/* Usage Progress Bar */}
-        <div className="p-3.5 rounded-xl border border-slate-100 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <span className="text-slate-700 dark:text-neutral-300">
+        <div className="p-3.5 rounded-md border border-border bg-card space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="text-muted-foreground">
               {aiQuota.hasCustomKey ? "Daily Usage Mode: Custom Gemini Key" : "Today's Usage:"}
             </span>
-            <span className={aiQuota.isQuotaExceeded ? "text-amber-600 font-bold" : "text-slate-900 dark:text-white"}>
+            <span className={aiQuota.isQuotaExceeded ? "text-amber-600 font-semibold" : "text-foreground"}>
               {aiQuota.hasCustomKey ? (
                 "Unlimited Requests (Personal Key Active)"
               ) : (
@@ -758,17 +756,17 @@ export function ProfileView({
           </div>
 
           {!aiQuota.hasCustomKey && (
-            <div className="w-full bg-slate-200 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                  aiQuota.isQuotaExceeded ? "bg-amber-500" : "bg-indigo-600 dark:bg-indigo-500"
+                  aiQuota.isQuotaExceeded ? "bg-amber-500" : "bg-primary"
                 }`}
                 style={{ width: `${Math.min(100, Math.round((aiQuota.used / aiQuota.limit) * 100))}%` }}
               />
             </div>
           )}
 
-          <p className="text-[11px] text-muted-foreground pt-0.5">
+          <p className="text-xs font-mono text-muted-foreground pt-0.5">
             {aiQuota.isQuotaExceeded
               ? "Free daily limit reached for today. You can still save any bookmark normally; AI will resume tomorrow or immediately upon adding your own Gemini key."
               : "Bookmarks always save cleanly even if quota is reached. Enter your own free Gemini API key anytime for unlimited uses."}
@@ -776,12 +774,12 @@ export function ProfileView({
         </div>
       </div>
 
-      {/* 1. Basic Details Card (Name, DOB, Location, Bio) - No UID */}
-      <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
+      {/* 1. Basic Details Card */}
+      <div className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-500" />
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <User className="h-4 w-4 text-primary" />
               <span>Personal Details</span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -804,7 +802,7 @@ export function ProfileView({
                 size="sm"
                 onClick={handleSaveProfile}
                 disabled={isSavingDetails}
-                className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1.5"
+                className="text-xs h-7 px-3 cursor-pointer gap-1.5"
               >
                 <Save className="h-3 w-3" />
                 <span>{isSavingDetails ? "Saving..." : "Save Details"}</span>
@@ -822,23 +820,23 @@ export function ProfileView({
         </div>
 
         {!isEditingDetails ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5 text-blue-500" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="p-3 rounded-md border border-border bg-card space-y-1">
+              <div className="text-xs font-mono text-muted-foreground flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Full Name</span>
               </div>
-              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+              <div className="text-xs font-medium text-foreground">
                 {displayName || "Not set"}
               </div>
             </div>
 
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-emerald-500" />
+            <div className="p-3 rounded-md border border-border bg-card space-y-1">
+              <div className="text-xs font-mono text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Date of Birth (DOB)</span>
               </div>
-              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+              <div className="text-xs font-medium text-foreground">
                 {dob ? (
                   new Date(dob).toLocaleDateString("en-US", {
                     year: "numeric",
@@ -851,22 +849,22 @@ export function ProfileView({
               </div>
             </div>
 
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-rose-500" />
+            <div className="p-3 rounded-md border border-border bg-card space-y-1">
+              <div className="text-xs font-mono text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Location</span>
               </div>
-              <div className="text-xs font-semibold text-slate-900 dark:text-white">
+              <div className="text-xs font-medium text-foreground">
                 {location || <span className="text-muted-foreground font-normal">Not set</span>}
               </div>
             </div>
 
-            <div className="sm:col-span-2 p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-purple-500" />
+            <div className="sm:col-span-2 p-3 rounded-md border border-border bg-card space-y-1">
+              <div className="text-xs font-mono text-muted-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Bio / About</span>
               </div>
-              <div className="text-xs text-slate-800 dark:text-neutral-200 line-clamp-2">
+              <div className="text-xs text-foreground line-clamp-2">
                 {bio || <span className="text-muted-foreground font-normal">No bio added yet</span>}
               </div>
             </div>
@@ -875,7 +873,7 @@ export function ProfileView({
           <div className="space-y-3 pt-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                <label className="text-xs font-medium text-foreground">
                   Full Name
                 </label>
                 <Input
@@ -888,7 +886,7 @@ export function ProfileView({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                <label className="text-xs font-medium text-foreground">
                   Date of Birth (DOB)
                 </label>
                 <Input
@@ -900,7 +898,7 @@ export function ProfileView({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                <label className="text-xs font-medium text-foreground">
                   Location
                 </label>
                 <Input
@@ -914,7 +912,7 @@ export function ProfileView({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+              <label className="text-xs font-medium text-foreground">
                 Bio / About
               </label>
               <Input
@@ -931,10 +929,10 @@ export function ProfileView({
 
       {/* 2. Connected Sign-in Methods & Password Management (When logged in) */}
       {!isGuest ? (
-        <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <LinkIcon className="h-4 w-4 text-indigo-500" />
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-primary" />
               <span>Connected Sign-in Methods & Password</span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -944,17 +942,17 @@ export function ProfileView({
 
           <div className="space-y-3">
             {/* Unique Username Row */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 space-y-3">
+            <div className="p-3.5 rounded-md border border-border bg-card space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold font-mono text-sm">
+                  <div className="h-8 w-8 rounded-md bg-secondary flex items-center justify-center text-foreground font-medium font-mono text-sm border border-border">
                     @
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                    <div className="text-xs font-semibold text-foreground">
                       Unique Markly Username
                     </div>
-                    <div className="text-[11px] text-muted-foreground font-mono">
+                    <div className="text-xs text-muted-foreground font-mono">
                       {username ? `@${username}` : "No username set yet"}
                     </div>
                   </div>
@@ -965,7 +963,7 @@ export function ProfileView({
                     variant="outline"
                     size="sm"
                     onClick={() => setIsEditingUsername(!isEditingUsername)}
-                    className="text-xs h-7 px-2.5 cursor-pointer border-slate-200 dark:border-neutral-700"
+                    className="text-xs h-7 px-2.5 cursor-pointer border-border hover:bg-secondary"
                   >
                     <Edit2 className="h-3 w-3 mr-1 text-muted-foreground" />
                     <span>{isEditingUsername ? "Cancel" : username ? "Change Username" : "Create Username"}</span>
@@ -974,14 +972,14 @@ export function ProfileView({
               </div>
 
               {isEditingUsername && (
-                <div className="mt-2 pt-3 border-t border-slate-200 dark:border-neutral-800 space-y-2.5 animate-in fade-in">
-                  <p className="text-[11px] text-muted-foreground">
-                    Choose a unique username. Every username is unique and allows you to log in interchangeably with your email and password!
+                <div className="mt-2 pt-3 border-t border-border space-y-2.5">
+                  <p className="text-xs text-muted-foreground">
+                    Choose a unique username. Every username is unique and allows you to log in interchangeably with your email and password.
                   </p>
                   <div className="space-y-1.5 max-w-md">
                     <div className="flex items-center gap-2">
                       <div className="relative flex-1">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-medium text-muted-foreground">@</span>
                         <Input
                           type="text"
                           value={username}
@@ -997,7 +995,7 @@ export function ProfileView({
                         />
                         <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                           {usernameCheck.state === "checking" && (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                           )}
                           {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -1016,7 +1014,7 @@ export function ProfileView({
                           usernameCheck.state === "checking"
                         }
                         onClick={handleSaveUsername}
-                        className="text-xs h-8 px-3 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                        className="text-xs h-8 px-3 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                       >
                         {isSavingUsername ? "Saving..." : "Save Username"}
                       </Button>
@@ -1032,12 +1030,12 @@ export function ProfileView({
 
                     {usernameCheck.message && (
                       <div
-                        className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 animate-in fade-in duration-200 ${
+                        className={`flex items-center gap-1.5 text-xs font-mono pt-0.5 ${
                           usernameCheck.state === "available" || usernameCheck.state === "unchanged"
                             ? "text-emerald-600 dark:text-emerald-400"
                             : usernameCheck.state === "unavailable"
                             ? "text-rose-600 dark:text-rose-400"
-                            : "text-indigo-500"
+                            : "text-primary"
                         }`}
                       >
                         {usernameCheck.state === "checking" && (
@@ -1058,32 +1056,32 @@ export function ProfileView({
             </div>
 
             {/* Email & Password Row */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 space-y-3">
+            <div className="p-3.5 rounded-md border border-border bg-card space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                  <div className="h-8 w-8 rounded-md bg-secondary flex items-center justify-center text-foreground border border-border">
                     <Mail className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                    <div className="text-xs font-semibold text-foreground">
                       Email & Password
                     </div>
-                    <div className="text-[11px] text-muted-foreground font-mono">
+                    <div className="text-xs text-muted-foreground font-mono">
                       {user.email}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
-                    <CheckCircle2 className="h-3 w-3" />
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-secondary text-foreground text-xs font-mono font-medium border border-border">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                     <span>Active</span>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowPasswordForm(!showPasswordForm)}
-                    className="text-xs h-7 px-2.5 cursor-pointer border-slate-200 dark:border-neutral-700"
+                    className="text-xs h-7 px-2.5 cursor-pointer border-border hover:bg-secondary"
                   >
                     <Lock className="h-3 w-3 mr-1 text-muted-foreground" />
                     <span>{showPasswordForm ? "Close" : "Set / Change Password"}</span>
@@ -1095,15 +1093,15 @@ export function ProfileView({
               {showPasswordForm && (
                 <form
                   onSubmit={handleSetPassword}
-                  className="mt-2 pt-3 border-t border-slate-200 dark:border-neutral-800 space-y-3 animate-in fade-in"
+                  className="mt-2 pt-3 border-t border-border space-y-3"
                 >
-                  <p className="text-[11px] text-muted-foreground">
-                    Set an email password. Once set, you can sign in using either Google/GitHub OR this password!
+                  <p className="text-xs text-muted-foreground">
+                    Set an email password. Once set, you can sign in using either Google/GitHub or this password.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                      <label className="text-xs font-medium text-foreground">
                         New Password (min 6 characters)
                       </label>
                       <div className="relative">
@@ -1112,7 +1110,7 @@ export function ProfileView({
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="h-8 text-xs pr-8"
+                          className="h-8 text-xs pr-8 font-mono"
                           required
                           minLength={6}
                         />
@@ -1131,7 +1129,7 @@ export function ProfileView({
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                      <label className="text-xs font-medium text-foreground">
                         Confirm New Password
                       </label>
                       <Input
@@ -1139,7 +1137,7 @@ export function ProfileView({
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs font-mono"
                         required
                         minLength={6}
                       />
@@ -1162,7 +1160,7 @@ export function ProfileView({
                     <Button
                       type="submit"
                       disabled={isSettingPassword || !newPassword || newPassword !== confirmPassword}
-                      className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                      className="text-xs h-7 px-3 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                     >
                       {isSettingPassword ? "Saving Password..." : "Update Password"}
                     </Button>
@@ -1172,9 +1170,9 @@ export function ProfileView({
             </div>
 
             {/* Google OAuth Row */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 flex items-center justify-between">
+            <div className="p-3.5 rounded-md border border-border bg-card flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-md bg-secondary border border-border flex items-center justify-center">
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
@@ -1195,18 +1193,18 @@ export function ProfileView({
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                  <div className="text-xs font-semibold text-foreground">
                     Google Account
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-xs text-muted-foreground font-mono">
                     {isGoogleLinked ? "Connected with Google" : "Not connected yet"}
                   </div>
                 </div>
               </div>
 
               {isGoogleLinked ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
-                  <CheckCircle2 className="h-3 w-3" />
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-secondary text-foreground text-xs font-mono font-medium border border-border">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                   <span>Linked</span>
                 </div>
               ) : (
@@ -1214,7 +1212,7 @@ export function ProfileView({
                   variant="outline"
                   size="sm"
                   onClick={() => handleLinkIdentity("google")}
-                  className="text-xs h-7 px-3 cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
+                  className="text-xs h-7 px-3 cursor-pointer border-border hover:bg-secondary"
                 >
                   <span>Link Google</span>
                 </Button>
@@ -1222,26 +1220,26 @@ export function ProfileView({
             </div>
 
             {/* GitHub OAuth Row */}
-            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 flex items-center justify-between">
+            <div className="p-3.5 rounded-md border border-border bg-card flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-black text-white flex items-center justify-center">
+                <div className="h-8 w-8 rounded-md bg-secondary text-foreground flex items-center justify-center border border-border">
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
                     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                  <div className="text-xs font-semibold text-foreground">
                     GitHub Account
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-xs text-muted-foreground font-mono">
                     {isGithubLinked ? "Connected with GitHub" : "Not connected yet"}
                   </div>
                 </div>
               </div>
 
               {isGithubLinked ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
-                  <CheckCircle2 className="h-3 w-3" />
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-secondary text-foreground text-xs font-mono font-medium border border-border">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                   <span>Linked</span>
                 </div>
               ) : (
@@ -1249,7 +1247,7 @@ export function ProfileView({
                   variant="outline"
                   size="sm"
                   onClick={() => handleLinkIdentity("github")}
-                  className="text-xs h-7 px-3 cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
+                  className="text-xs h-7 px-3 cursor-pointer border-border hover:bg-secondary"
                 >
                   <span>Link GitHub</span>
                 </Button>
@@ -1260,11 +1258,11 @@ export function ProfileView({
       ) : null}
 
       {/* 3. Cloud Database & Realtime Sync Card */}
-      <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
+      <div className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Database className="h-4 w-4 text-emerald-500" />
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Database className="h-4 w-4 text-primary" />
               <span>Database & Cloud Sync</span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -1279,10 +1277,10 @@ export function ProfileView({
               variant="outline"
               onClick={handleSyncNow}
               disabled={isSyncing}
-              className="text-xs h-8 cursor-pointer gap-1.5"
+              className="text-xs h-8 cursor-pointer gap-1.5 border-border hover:bg-secondary"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 text-blue-500 ${
+                className={`h-3.5 w-3.5 text-muted-foreground ${
                   isSyncing ? "animate-spin" : ""
                 }`}
               />
@@ -1292,7 +1290,7 @@ export function ProfileView({
             <Button
               size="sm"
               onClick={() => openAuthModal("login")}
-              className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1.5"
+              className="text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer gap-1.5"
             >
               <LogIn className="h-3.5 w-3.5" />
               <span>Sign In to Cloud</span>
@@ -1303,12 +1301,12 @@ export function ProfileView({
 
       {/* Sign Out (Only when logged in) */}
       {!isGuest && (
-        <div className="rounded-2xl border border-rose-200 dark:border-rose-950/60 bg-rose-50/30 dark:bg-rose-950/20 p-5 flex items-center justify-between">
+        <div className="rounded-lg border border-border bg-card p-5 flex items-center justify-between">
           <div>
-            <div className="text-xs font-bold text-rose-900 dark:text-rose-300">
+            <div className="text-xs font-semibold text-foreground">
               Sign Out of Account
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-xs text-muted-foreground font-mono">
               End your 30-day session on this browser. Your bookmarks remain safely stored in Supabase.
             </div>
           </div>
@@ -1316,7 +1314,7 @@ export function ProfileView({
             variant="outline"
             size="sm"
             onClick={signOut}
-            className="text-xs h-8 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/60 cursor-pointer gap-1.5"
+            className="text-xs h-8 border-border hover:bg-secondary cursor-pointer gap-1.5"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>Sign Out</span>

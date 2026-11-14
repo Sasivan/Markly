@@ -147,13 +147,13 @@ export function DicebearAvatarModal({
         </DialogHeader>
 
         {/* Tab Selection */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-neutral-800/80 rounded-lg mt-2">
+        <div className="flex items-center gap-1 p-0.5 bg-muted rounded-md mt-2 border border-border">
           <button
             type="button"
             onClick={() => setActiveTab("dicebear")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
               activeTab === "dicebear"
-                ? "bg-white dark:bg-neutral-900 text-blue-600 dark:text-blue-400 shadow-xs"
+                ? "bg-card text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -163,9 +163,9 @@ export function DicebearAvatarModal({
           <button
             type="button"
             onClick={() => setActiveTab("upload")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer ${
               activeTab === "upload"
-                ? "bg-white dark:bg-neutral-900 text-blue-600 dark:text-blue-400 shadow-xs"
+                ? "bg-card text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -175,27 +175,27 @@ export function DicebearAvatarModal({
         </div>
 
         {/* Live Preview Display */}
-        <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 mt-3">
+        <div className="flex items-center gap-4 p-4 rounded-md border border-border bg-card mt-3">
           <div className="relative flex-shrink-0">
             <img
               src={previewUrl}
               alt="Avatar Preview"
-              className="h-16 w-16 rounded-full object-cover border-2 border-white dark:border-neutral-700 shadow-md bg-white dark:bg-neutral-800"
+              className="h-16 w-16 rounded-full object-cover border border-border bg-secondary"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=Markly`;
               }}
             />
-            <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-neutral-900 shadow-xs" />
+            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-background" />
           </div>
 
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-900 dark:text-white">Active Preview</span>
-              <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0">
+              <span className="text-xs font-semibold text-foreground">Active Preview</span>
+              <Badge variant="outline" className="text-xs font-mono px-1.5 py-0 border-border">
                 {activeTab === "upload" ? "Custom File" : selectedStyle}
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate font-mono">
               {activeTab === "upload"
                 ? customUploadUrl
                   ? "Custom picture ready to apply"
@@ -210,7 +210,7 @@ export function DicebearAvatarModal({
           <div className="space-y-4 mt-2">
             {/* Style Selector Chips */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+              <label className="text-xs font-medium text-foreground">
                 Choose Art Style
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
@@ -222,14 +222,14 @@ export function DicebearAvatarModal({
                       key={st.id}
                       type="button"
                       onClick={() => setSelectedStyle(st.id)}
-                      className={`flex items-center gap-1.5 p-2 rounded-lg text-xs font-medium border text-left transition-all cursor-pointer ${
+                      className={`flex items-center gap-1.5 p-2 rounded-md text-xs font-medium border text-left transition-colors cursor-pointer ${
                         isSelected
-                          ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500"
-                          : "border-slate-200 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card hover:bg-secondary text-foreground"
                       }`}
                     >
                       <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span className="truncate text-[11px]">{st.name.split(" ")[0]}</span>
+                      <span className="truncate text-xs font-mono">{st.name.split(" ")[0]}</span>
                     </button>
                   );
                 })}
@@ -239,13 +239,13 @@ export function DicebearAvatarModal({
             {/* Seed & Randomizer */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                <label className="text-xs font-medium text-foreground">
                   Avatar Seed
                 </label>
                 <button
                   type="button"
                   onClick={handleRandomize}
-                  className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
                 >
                   <Shuffle className="h-3 w-3" />
                   <span>Roll Random</span>
@@ -274,7 +274,7 @@ export function DicebearAvatarModal({
 
             {/* Preset Avatar Gallery */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+              <label className="text-xs font-medium text-foreground">
                 Quick Presets
               </label>
               <div className="grid grid-cols-8 gap-1.5">
@@ -286,10 +286,10 @@ export function DicebearAvatarModal({
                       key={presetSeed}
                       type="button"
                       onClick={() => setSeed(presetSeed)}
-                      className={`h-9 w-9 rounded-lg border p-1 transition-all flex items-center justify-center cursor-pointer ${
+                      className={`h-9 w-9 rounded-md border p-1 transition-colors flex items-center justify-center cursor-pointer ${
                         isSelected
-                          ? "border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/40"
-                          : "border-slate-200 dark:border-neutral-800 hover:scale-105 bg-white dark:bg-neutral-800"
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-card hover:bg-secondary"
                       }`}
                       title={`Select ${presetSeed}`}
                     >
@@ -315,21 +315,21 @@ export function DicebearAvatarModal({
 
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 dark:border-neutral-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-neutral-900/30 group"
+              className="border border-dashed border-border hover:border-primary/60 rounded-md p-5 text-center cursor-pointer transition-colors bg-secondary/30 hover:bg-secondary/50 group"
             >
-              <div className="h-10 w-10 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                <Upload className="h-5 w-5" />
+              <div className="h-9 w-9 rounded-md bg-secondary text-foreground mx-auto flex items-center justify-center mb-2 border border-border">
+                <Upload className="h-4 w-4" />
               </div>
-              <p className="text-xs font-semibold text-slate-800 dark:text-neutral-200">
+              <p className="text-xs font-medium text-foreground">
                 Click to browse and upload an image
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 Supports PNG, JPG, GIF, WebP, or SVG (max 5MB)
               </p>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+              <label className="text-xs font-medium text-foreground">
                 Or paste image URL directly
               </label>
               <Input
@@ -337,7 +337,7 @@ export function DicebearAvatarModal({
                 value={customUploadUrl}
                 onChange={(e) => setCustomUploadUrl(e.target.value)}
                 placeholder="https://example.com/avatar.png"
-                className="h-8 text-xs"
+                className="h-8 text-xs font-mono"
               />
             </div>
           </div>

@@ -289,26 +289,26 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
     return (
       <div
         key={item.id}
-        className={`rounded-xl border bg-white dark:bg-[#181818] p-4 shadow-2xs space-y-3 transition-colors ${
+        className={`rounded-lg border bg-card p-4 shadow-xs space-y-3 transition-colors ${
           isClosed
-            ? "border-slate-200 dark:border-neutral-800/60 opacity-90"
-            : "border-slate-200 dark:border-neutral-800"
+            ? "border-border/60 opacity-90"
+            : "border-border"
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${statusCfg.color} ${statusCfg.bg} ${statusCfg.darkBg} ${statusCfg.border}`}
+              className={`px-2 py-0.5 rounded-full text-xs font-mono font-medium border ${statusCfg.color} ${statusCfg.bg} ${statusCfg.darkBg} ${statusCfg.border}`}
             >
               {statusCfg.label}
             </span>
             <Badge
               variant="outline"
-              className="text-[10px] capitalize border-slate-200 dark:border-neutral-700 text-muted-foreground"
+              className="text-xs font-mono capitalize border-border text-muted-foreground"
             >
               {item.category}
             </Badge>
-            <span className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
+            <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {new Date(item.createdAt).toLocaleDateString(undefined, {
                 month: "short",
@@ -320,7 +320,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
           {isAdmin && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-mono text-muted-foreground mr-0.5">Tag:</span>
+              <span className="text-xs font-mono text-muted-foreground mr-0.5">Tag:</span>
               {["received", "under_review", "processing", "fixed", "planned"].map((st) => {
                 const cfg = STATUS_CONFIG[st];
                 const active = item.status === st;
@@ -329,10 +329,10 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                     key={st}
                     type="button"
                     onClick={() => handleStatusChange(item.id, st)}
-                    className={`text-[10px] px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium ${
+                    className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors font-medium ${
                       active
-                        ? "bg-indigo-600 text-white font-bold"
-                        : "bg-slate-100 dark:bg-neutral-800 text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-700"
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                     }`}
                   >
                     {cfg.label}
@@ -345,7 +345,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                 <button
                   type="button"
                   onClick={() => handleStatusChange(item.id, "under_review")}
-                  className="text-[10px] px-2 py-0.5 rounded cursor-pointer transition-colors font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100"
+                  className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100"
                   title="Reopen ticket"
                 >
                   Reopen
@@ -354,7 +354,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                 <button
                   type="button"
                   onClick={() => handleStatusChange(item.id, "closed")}
-                  className="text-[10px] px-2 py-0.5 rounded cursor-pointer transition-colors font-semibold bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border border-slate-200 dark:border-neutral-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400"
+                  className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors font-medium bg-muted text-muted-foreground border border-border hover:bg-destructive/10 hover:text-destructive"
                   title="Close ticket and move to history"
                 >
                   Close
@@ -365,7 +365,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
               <button
                 type="button"
                 onClick={() => setTicketToDelete(item)}
-                className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors ml-1"
+                className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors ml-1"
                 title="Permanently delete ticket"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -375,7 +375,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
         </div>
 
         <div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-foreground flex items-center justify-between">
             <span className={isClosed ? "line-through text-muted-foreground" : ""}>{item.title}</span>
             <button
               type="button"
@@ -385,14 +385,14 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
           </h4>
-          <p className="text-xs text-slate-700 dark:text-neutral-300 mt-1 whitespace-pre-wrap leading-relaxed">
+          <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap leading-relaxed">
             {item.message}
           </p>
 
           {showUser && (
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-neutral-850 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50 text-xs text-muted-foreground font-mono">
               <UserIcon className="h-3 w-3" />
-              <span className="font-medium text-slate-800 dark:text-neutral-200">{item.userName || "User"}</span>
+              <span className="font-medium text-foreground">{item.userName || "User"}</span>
               {item.userEmail && <span>({item.userEmail})</span>}
             </div>
           )}
@@ -400,43 +400,43 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
         {/* Reply Threads */}
         {isExpanded && (
-          <div className="pt-2 border-t border-slate-100 dark:border-neutral-800/80 space-y-2.5">
+          <div className="pt-2 border-t border-border/60 space-y-2.5">
             {repliesCount > 0 && (
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 font-mono">
                   <MessageCircle className="h-3 w-3" />
                   Conversation Thread ({repliesCount})
                 </span>
-                <div className="space-y-2 pl-3 border-l-2 border-indigo-200 dark:border-indigo-900/60 ml-1">
+                <div className="space-y-2 pl-3 border-l-2 border-primary/30 ml-1">
                   {item.replies.map((reply) => (
                     <div
                       key={reply.id}
                       className={`p-2.5 rounded-lg text-xs space-y-1 ${
                         reply.isAdmin
-                          ? "bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40"
-                          : "bg-slate-50 dark:bg-neutral-850 border border-slate-100 dark:border-neutral-800"
+                          ? "bg-primary/5 border border-primary/20"
+                          : "bg-muted/50 border border-border"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-slate-900 dark:text-white">
+                          <span className="font-semibold text-foreground">
                             {reply.userName || (reply.isAdmin ? "Admin (Sasivan)" : "User")}
                           </span>
                           {reply.isAdmin && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-600 text-white flex items-center gap-0.5">
-                              <ShieldCheck className="h-2.5 w-2.5" />
+                            <span className="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-primary text-primary-foreground flex items-center gap-0.5">
+                              <ShieldCheck className="h-3 w-3" />
                               Admin
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground font-mono">
+                        <span className="text-xs text-muted-foreground font-mono">
                           {new Date(reply.createdAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
                         </span>
                       </div>
-                      <p className="text-slate-700 dark:text-neutral-300 whitespace-pre-wrap">
+                      <p className="text-foreground/90 whitespace-pre-wrap">
                         {reply.message}
                       </p>
                     </div>
@@ -453,7 +453,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                   onChange={(e) => setReplyMessage(e.target.value)}
                   placeholder={isAdmin ? "Type your official admin response..." : "Add a reply to this thread..."}
                   rows={2}
-                  className="w-full text-xs rounded-lg border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900 p-2.5 text-slate-900 dark:text-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                  className="w-full text-xs rounded-lg border border-input bg-background p-2.5 text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                 />
                 <div className="flex items-center justify-end gap-2">
                   <Button
@@ -471,7 +471,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                     size="sm"
                     onClick={() => handleSendReply(item.id)}
                     disabled={isReplying || !replyMessage.trim()}
-                    className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                    className="h-7 text-xs"
                   >
                     {isReplying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
                     Reply
@@ -485,7 +485,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                   setActiveReplyId(item.id);
                   setReplyMessage("");
                 }}
-                className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer flex items-center gap-1"
+                className="text-xs font-medium text-primary hover:underline cursor-pointer flex items-center gap-1 font-mono"
               >
                 <MessageSquarePlus className="h-3 w-3" />
                 {isAdmin ? "Write back as Admin" : "Reply to thread"}
@@ -500,21 +500,21 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16 animate-in fade-in duration-300">
       {/* Page Header */}
-      <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-5 rounded-xl border border-border bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1">
+            <span className="px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-primary/10 text-primary border border-primary/20 inline-flex items-center gap-1">
               <MessageSquarePlus className="h-3 w-3" />
               Community & Support
             </span>
             {isAdmin && (
-              <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-mono px-2 py-0 flex items-center gap-1">
+              <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono px-2 py-0.5 flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3" />
                 Admin: sasivan177@gmail.com
               </Badge>
             )}
           </div>
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white">
+          <h1 className="text-lg font-bold text-foreground">
             Feedback & Feature Requests
           </h1>
           <p className="text-xs text-muted-foreground">
@@ -535,19 +535,19 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       </div>
 
       {/* Submission Box */}
-      <div className="rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-sm space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Send className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Send className="h-4 w-4 text-primary" />
             Send New Feedback
           </h2>
-          <span className="text-[11px] text-muted-foreground font-mono">
+          <span className="text-xs text-muted-foreground font-mono">
             Directly stored in database
           </span>
         </div>
 
         {formError && (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{formError}</span>
           </div>
@@ -563,7 +563,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* Category Selector */}
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 block mb-1.5">
+            <label className="text-xs font-medium text-foreground block mb-1.5">
               Select Category
             </label>
             <div className="flex items-center gap-2 flex-wrap">
@@ -577,8 +577,8 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                     onClick={() => setCategory(cat.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors border ${
                       isSelected
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                        : "bg-slate-50 dark:bg-neutral-850 text-slate-700 dark:text-neutral-300 border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -591,7 +591,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
           {/* Title */}
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 block mb-1">
+            <label className="text-xs font-medium text-foreground block mb-1">
               Title
             </label>
             <input
@@ -599,13 +599,13 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Folder tree drag & drop performance or custom icons"
-              className="w-full text-xs rounded-lg border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900 px-3 py-2 text-slate-900 dark:text-white placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
             />
           </div>
 
           {/* Message */}
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300 block mb-1">
+            <label className="text-xs font-medium text-foreground block mb-1">
               Description & Details
             </label>
             <textarea
@@ -613,7 +613,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Provide as much context as possible. Include steps to reproduce for bugs, or use cases for feature ideas..."
-              className="w-full text-xs rounded-lg border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900 p-3 text-slate-900 dark:text-white placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+              className="w-full text-xs rounded-lg border border-input bg-background p-3 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -621,7 +621,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-8 px-4 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+              className="h-8 px-4 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 text-xs"
             >
               {isSubmitting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
@@ -636,12 +636,12 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
       {/* Admin Review Dashboard (Visible only to sasivan177@gmail.com) */}
       {isAdmin && (
-        <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-50/10 dark:bg-emerald-950/20 p-5 shadow-sm space-y-4">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/10 dark:bg-emerald-950/20 p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/40 dark:border-emerald-800/40 pb-3">
             <div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h3 className="text-sm font-semibold text-foreground">
                   Admin Feedback Moderation (All Users)
                 </h3>
               </div>
@@ -657,13 +657,13 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
           {/* Admin Controls: Live Search & History Tabs */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             {/* Filter Tabs for Admin */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-750 text-xs font-semibold">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-muted border border-border text-xs font-medium">
               <button
                 type="button"
                 onClick={() => setAdminTab("active")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   adminTab === "active"
-                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -672,9 +672,9 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
               <button
                 type="button"
                 onClick={() => setAdminTab("history")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   adminTab === "history"
-                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -683,9 +683,9 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
               <button
                 type="button"
                 onClick={() => setAdminTab("all")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                   adminTab === "all"
-                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -701,7 +701,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
                 placeholder="Search user, title, content..."
                 value={adminSearch}
                 onChange={(e) => setAdminSearch(e.target.value)}
-                className="h-8 pl-8 pr-7 text-xs rounded-lg border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900"
+                className="h-8 pl-8 pr-7 text-xs rounded-lg border-input bg-background"
               />
               {adminSearch && (
                 <button
@@ -728,11 +728,11 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       )}
 
       {/* User's Submitted Feedback & History */}
-      <div className="rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-neutral-800 pb-3">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-primary" />
               My Feedback History
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -741,13 +741,13 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
           </div>
 
           {/* User History Tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-750 text-xs font-semibold self-start sm:self-auto">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-muted border border-border text-xs font-medium self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setUserTab("active")}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 userTab === "active"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -756,9 +756,9 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             <button
               type="button"
               onClick={() => setUserTab("history")}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 userTab === "history"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -767,9 +767,9 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             <button
               type="button"
               onClick={() => setUserTab("all")}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 userTab === "all"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-bold"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -780,7 +780,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
         {isLoading ? (
           <div className="py-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
             <span>Loading submissions...</span>
           </div>
         ) : filteredUserFeedback.length === 0 ? (

@@ -102,7 +102,7 @@ export function LibraryInsightsView({
       return {
         id: node.id,
         name: node.name,
-        icon: node.icon || "📁",
+        icon: node.icon || "folder",
         color: node.color || "#3b82f6",
         count,
         childCount,
@@ -183,15 +183,15 @@ export function LibraryInsightsView({
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       {/* Insights Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-xl border border-border bg-card shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 inline-flex items-center gap-1">
+            <span className="px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-primary/10 text-primary border border-primary/20 inline-flex items-center gap-1">
               <BarChart3 className="h-3 w-3" />
               Intelligence Hub
             </span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
             Library Insights & Analytics
           </h1>
           <p className="text-xs text-muted-foreground">
@@ -200,7 +200,7 @@ export function LibraryInsightsView({
         </div>
 
         {/* 8 Restructured Tabs Bar */}
-        <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-neutral-800/80 p-1 rounded-xl border border-slate-200 dark:border-neutral-700 text-xs self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-lg border border-border text-xs self-start md:self-auto">
           {[
             { id: "overview", label: "Overview", icon: BarChart3 },
             { id: "domains", label: "Domains", icon: Globe },
@@ -218,13 +218,13 @@ export function LibraryInsightsView({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as InsightsTab)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer font-medium transition-colors ${
                   isActive
-                    ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs font-semibold"
-                    : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className={`h-3.5 w-3.5 ${isActive ? "text-purple-600 dark:text-purple-400" : ""}`} />
+                <Icon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -237,69 +237,69 @@ export function LibraryInsightsView({
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* KPI Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
-              <div className="text-[11px] text-muted-foreground">Total Bookmarks</div>
-              <div className="text-xl font-bold text-slate-900 dark:text-white mt-1">{totalCount}</div>
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs">
+              <div className="text-xs font-mono text-muted-foreground">Total Bookmarks</div>
+              <div className="text-xl font-bold font-mono text-foreground mt-1">{totalCount}</div>
             </div>
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
-              <div className="text-[11px] text-muted-foreground">Folder Collections</div>
-              <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{folders.length}</div>
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs">
+              <div className="text-xs font-mono text-muted-foreground">Folder Collections</div>
+              <div className="text-xl font-bold font-mono text-primary mt-1">{folders.length}</div>
             </div>
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
-              <div className="text-[11px] text-muted-foreground">Unique Domains</div>
-              <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">{domainStats.length}</div>
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs">
+              <div className="text-xs font-mono text-muted-foreground">Unique Domains</div>
+              <div className="text-xl font-bold font-mono text-foreground mt-1">{domainStats.length}</div>
             </div>
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
-              <div className="text-[11px] text-muted-foreground">Active Tags</div>
-              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{tagStats.length}</div>
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs">
+              <div className="text-xs font-mono text-muted-foreground">Active Tags</div>
+              <div className="text-xl font-bold font-mono text-foreground mt-1">{tagStats.length}</div>
             </div>
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
-              <div className="text-[11px] text-muted-foreground">Reachable Health</div>
-              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{healthPercent}%</div>
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs">
+              <div className="text-xs font-mono text-muted-foreground">Reachable Health</div>
+              <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">{healthPercent}%</div>
             </div>
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs">
-              <div className="text-[11px] text-muted-foreground">Recorded Visits</div>
-              <div className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-1">{totalVisits}</div>
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs">
+              <div className="text-xs font-mono text-muted-foreground">Recorded Visits</div>
+              <div className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400 mt-1">{totalVisits}</div>
             </div>
           </div>
 
           {/* Quick Health & Cleanup Alerts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
-              <div className="flex items-center gap-2 font-bold text-xs text-slate-900 dark:text-white">
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs space-y-3">
+              <div className="flex items-center gap-2 font-semibold text-xs text-foreground">
                 <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Link Health Status</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                <div className="h-10 w-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold font-mono text-sm">
                   {healthPercent}%
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-900 dark:text-white">{aliveCount} Reachable Sites</div>
-                  <div className="text-[11px] text-muted-foreground">{deadCount} flagged as broken or unreachable</div>
+                  <div className="text-xs font-semibold text-foreground">{aliveCount} Reachable Sites</div>
+                  <div className="text-xs text-muted-foreground">{deadCount} flagged as broken or unreachable</div>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
-              <div className="flex items-center gap-2 font-bold text-xs text-slate-900 dark:text-white">
+            <div className="p-4 rounded-lg border border-border bg-card shadow-xs space-y-3">
+              <div className="flex items-center gap-2 font-semibold text-xs text-foreground">
                 <Trash2 className="h-4 w-4 text-amber-500" />
                 <span>Library Hygiene & Cleanup</span>
               </div>
-              <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-4 text-xs font-mono">
                 <div>
-                  <span className="font-bold text-amber-600">{cleanupAudits.duplicates.length}</span> Duplicates
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{cleanupAudits.duplicates.length}</span> Duplicates
                 </div>
                 <div>
-                  <span className="font-bold text-blue-600">{cleanupAudits.orphans.length}</span> Unsorted
+                  <span className="font-bold text-primary">{cleanupAudits.orphans.length}</span> Unsorted
                 </div>
                 <div>
-                  <span className="font-bold text-slate-500">{cleanupAudits.emptyFolders.length}</span> Empty Folders
+                  <span className="font-bold text-muted-foreground">{cleanupAudits.emptyFolders.length}</span> Empty
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveTab("cleanup")}
-                  className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
+                  className="ml-auto text-xs text-primary hover:underline font-medium cursor-pointer"
                 >
                   Review Cleanup →
                 </button>
@@ -312,10 +312,10 @@ export function LibraryInsightsView({
       {/* Tab 2: Domains */}
       {activeTab === "domains" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Domain Ranking & Share</h3>
+                <h3 className="font-semibold text-sm text-foreground">Domain Ranking & Share</h3>
                 <p className="text-xs text-muted-foreground">Every domain saved in your workspace ranked by frequency</p>
               </div>
               <span className="text-xs font-mono text-muted-foreground">{domainStats.length} Domains</span>
@@ -325,18 +325,18 @@ export function LibraryInsightsView({
               {domainStats.map((d, idx) => (
                 <div
                   key={d.domain}
-                  className="p-3 rounded-xl border border-slate-100 dark:border-neutral-800 bg-slate-50/70 dark:bg-neutral-900/40 flex flex-col justify-between gap-2"
+                  className="p-3 rounded-lg border border-border bg-muted/40 flex flex-col justify-between gap-2"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 truncate min-w-0">
-                      <span className="font-mono text-[10px] text-slate-400 w-3">{idx + 1}</span>
+                      <span className="font-mono text-xs text-muted-foreground w-4">{idx + 1}</span>
                       <BookmarkIcon src={d.iconUrl} domain={d.domain} className="h-4 w-4 rounded" />
-                      <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{d.domain}</span>
+                      <span className="text-xs font-medium text-foreground truncate">{d.domain}</span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">{d.count} sites</span>
+                    <span className="text-xs font-mono font-medium text-foreground">{d.count} sites</span>
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-neutral-800 overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${d.barWidth}%` }} />
+                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${d.barWidth}%` }} />
                   </div>
                 </div>
               ))}
@@ -348,25 +348,25 @@ export function LibraryInsightsView({
       {/* Tab 3: Collections */}
       {activeTab === "collections" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Folder Architecture & Collections</h3>
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
+            <h3 className="font-semibold text-sm text-foreground">Folder Architecture & Collections</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {collectionStats.map((c) => (
                 <div
                   key={c.id}
                   onClick={() => onSelectFolder(c.id)}
-                  className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-indigo-500 transition-all cursor-pointer flex items-center justify-between"
+                  className="p-4 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors cursor-pointer flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <div className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shadow-2xs" style={{ backgroundColor: `${c.color}20` }}>
+                    <div className="h-8 w-8 rounded-lg flex items-center justify-center text-sm" style={{ backgroundColor: `${c.color}20` }}>
                       <FolderIconRenderer icon={c.icon} color={c.color} className="h-4 w-4" />
                     </div>
                     <div className="truncate">
-                      <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">{c.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{c.childCount > 0 ? `${c.childCount} subfolders` : "Direct collection"}</div>
+                      <div className="text-xs font-medium text-foreground truncate">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">{c.childCount > 0 ? `${c.childCount} subfolders` : "Direct collection"}</div>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="font-mono text-[10px]">{c.count} sites</Badge>
+                  <Badge variant="secondary" className="font-mono text-xs">{c.count} sites</Badge>
                 </div>
               ))}
             </div>
@@ -377,18 +377,18 @@ export function LibraryInsightsView({
       {/* Tab 4: Topics & Tags */}
       {activeTab === "tags" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Topics & Tags Leaderboard</h3>
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
+            <h3 className="font-semibold text-sm text-foreground">Topics & Tags Leaderboard</h3>
             <div className="flex flex-wrap gap-2">
               {tagStats.map((t) => (
                 <button
                   key={t.name}
                   type="button"
                   onClick={() => onSelectTag?.(t.name)}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900 hover:border-purple-400 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+                  className="px-3 py-1.5 rounded-lg border border-border bg-muted/40 hover:border-primary/50 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
                 >
-                  <span className="text-purple-600 dark:text-purple-400">#{t.name}</span>
-                  <span className="font-mono text-[10px] bg-slate-200 dark:bg-neutral-800 px-1.5 py-0.2 rounded">{t.count}</span>
+                  <span className="text-primary font-mono">#{t.name}</span>
+                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{t.count}</span>
                 </button>
               ))}
             </div>
@@ -399,24 +399,24 @@ export function LibraryInsightsView({
       {/* Tab 5: Access & Activity */}
       {activeTab === "activity" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Most Visited Bookmarks Leaderboard</h3>
-            <div className="divide-y divide-slate-100 dark:divide-neutral-800/80">
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
+            <h3 className="font-semibold text-sm text-foreground">Most Visited Bookmarks Leaderboard</h3>
+            <div className="divide-y divide-border">
               {mostVisited.map((bm, idx) => (
                 <div key={bm.id} className="py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 truncate min-w-0">
-                    <span className="font-mono text-[10px] text-slate-400 w-4">{idx + 1}</span>
-                    <BookmarkIcon src={bm.iconUrl} domain={bm.domain} className="h-5 w-5 rounded flex-shrink-0" />
+                    <span className="font-mono text-xs text-muted-foreground w-4">{idx + 1}</span>
+                    <BookmarkIcon src={bm.iconUrl} domain={bm.domain} className="h-5 w-5 rounded shrink-0" />
                     <div className="truncate">
-                      <a href={bm.url} target="_blank" rel="noreferrer" onClick={() => recordVisit(bm)} className="text-xs font-semibold text-slate-900 dark:text-white hover:underline truncate block">
+                      <a href={bm.url} target="_blank" rel="noreferrer" onClick={() => recordVisit(bm)} className="text-xs font-medium text-foreground hover:underline truncate block">
                         {bm.title}
                       </a>
-                      <span className="text-[10px] text-muted-foreground font-mono">{bm.domain}</span>
+                      <span className="text-xs text-muted-foreground font-mono">{bm.domain}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 font-mono text-xs flex-shrink-0">
-                    <span className="text-amber-600 font-bold">{bm.visitCount || 0} visits</span>
-                    <a href={bm.url} target="_blank" rel="noreferrer" onClick={() => recordVisit(bm)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-400 hover:text-foreground">
+                  <div className="flex items-center gap-3 font-mono text-xs shrink-0">
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold">{bm.visitCount || 0} visits</span>
+                    <a href={bm.url} target="_blank" rel="noreferrer" onClick={() => recordVisit(bm)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   </div>
@@ -430,28 +430,28 @@ export function LibraryInsightsView({
       {/* Tab 6: Link Health */}
       {activeTab === "health" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Link Health Verification</h3>
+                <h3 className="font-semibold text-sm text-foreground">Link Health Verification</h3>
                 <p className="text-xs text-muted-foreground">{aliveCount} healthy • {deadCount} broken links</p>
               </div>
-              <span className="text-xs font-semibold font-mono text-emerald-600">{healthPercent}% Reachable</span>
+              <span className="text-xs font-semibold font-mono text-emerald-600 dark:text-emerald-400">{healthPercent}% Reachable</span>
             </div>
 
             {deadCount === 0 ? (
-              <div className="p-6 text-center text-xs text-emerald-600 font-medium">
+              <div className="p-6 text-center text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                 ✓ All verified bookmarks in your library are alive and reachable!
               </div>
             ) : (
               <div className="space-y-2">
                 {bookmarks.filter((b) => b.status === "dead").map((bm) => (
-                  <div key={bm.id} className="p-3 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/40 dark:bg-rose-950/20 flex items-center justify-between">
+                  <div key={bm.id} className="p-3 rounded-lg border border-destructive/20 bg-destructive/5 flex items-center justify-between">
                     <div>
-                      <div className="text-xs font-semibold text-rose-900 dark:text-rose-200">{bm.title}</div>
-                      <a href={bm.url} target="_blank" rel="noreferrer" className="text-[11px] text-rose-600 hover:underline">{bm.url}</a>
+                      <div className="text-xs font-medium text-foreground">{bm.title}</div>
+                      <a href={bm.url} target="_blank" rel="noreferrer" className="text-xs font-mono text-destructive hover:underline">{bm.url}</a>
                     </div>
-                    <button type="button" onClick={() => onEditBookmark?.(bm)} className="text-xs px-2.5 py-1 rounded bg-rose-600 text-white font-medium cursor-pointer">
+                    <button type="button" onClick={() => onEditBookmark?.(bm)} className="text-xs px-2.5 py-1 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium cursor-pointer">
                       Fix Link
                     </button>
                   </div>
@@ -465,29 +465,29 @@ export function LibraryInsightsView({
       {/* Tab 7: Cleanup */}
       {activeTab === "cleanup" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-4">
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
             <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">Library Cleanup & Organization Audit</h3>
+              <h3 className="font-semibold text-sm text-foreground">Library Cleanup & Organization Audit</h3>
               <p className="text-xs text-muted-foreground">Identify redundant URLs, unorganized items, and empty folders</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40 space-y-1">
-                <div className="font-bold text-base text-amber-600">{cleanupAudits.duplicates.length}</div>
-                <div className="text-xs font-semibold text-slate-900 dark:text-white">Duplicate URLs</div>
-                <p className="text-[10px] text-muted-foreground">Links that exist more than once</p>
+              <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-1">
+                <div className="font-mono font-bold text-base text-amber-600 dark:text-amber-400">{cleanupAudits.duplicates.length}</div>
+                <div className="text-xs font-medium text-foreground">Duplicate URLs</div>
+                <p className="text-xs text-muted-foreground">Links that exist more than once</p>
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40 space-y-1">
-                <div className="font-bold text-base text-blue-600">{cleanupAudits.orphans.length}</div>
-                <div className="text-xs font-semibold text-slate-900 dark:text-white">Unsorted Items</div>
-                <p className="text-[10px] text-muted-foreground">Bookmarks without a parent folder</p>
+              <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-1">
+                <div className="font-mono font-bold text-base text-primary">{cleanupAudits.orphans.length}</div>
+                <div className="text-xs font-medium text-foreground">Unsorted Items</div>
+                <p className="text-xs text-muted-foreground">Bookmarks without a parent folder</p>
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/40 space-y-1">
-                <div className="font-bold text-base text-purple-600">{cleanupAudits.emptyFolders.length}</div>
-                <div className="text-xs font-semibold text-slate-900 dark:text-white">Empty Folders</div>
-                <p className="text-[10px] text-muted-foreground">Folders containing zero bookmarks</p>
+              <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-1">
+                <div className="font-mono font-bold text-base text-muted-foreground">{cleanupAudits.emptyFolders.length}</div>
+                <div className="text-xs font-medium text-foreground">Empty Folders</div>
+                <p className="text-xs text-muted-foreground">Folders containing zero bookmarks</p>
               </div>
             </div>
           </div>
@@ -497,10 +497,10 @@ export function LibraryInsightsView({
       {/* Tab 8: Explore */}
       {activeTab === "explore" && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs space-y-3">
+          <div className="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">Obsidian Knowledge Graph & Visual Wall</h3>
+                <h3 className="font-semibold text-sm text-foreground">Obsidian Knowledge Graph & Visual Wall</h3>
                 <p className="text-xs text-muted-foreground">Explore interconnected node relationships and favicons</p>
               </div>
             </div>

@@ -3,30 +3,32 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer active:translate-y-0.5",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-xs font-medium transition-[color,background-color,border-color,opacity,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer active:scale-[0.98]",
   {
     variants: {
       variant: {
         default:
-          "bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 border-b-2 border-blue-800",
+          "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:bg-rose-800 border-b-2 border-rose-800",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#202020] text-slate-800 dark:text-neutral-100 shadow-xs hover:bg-slate-100 dark:hover:bg-[#2a2a2a] hover:border-slate-400 dark:hover:border-neutral-600",
+          "border border-border bg-card text-foreground hover:bg-secondary hover:text-foreground",
         secondary:
-          "bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-neutral-100 hover:bg-slate-200 dark:hover:bg-neutral-700 border border-slate-200 dark:border-neutral-700",
-        ghost: "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white",
-        link: "text-blue-600 dark:text-blue-400 underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border/60",
+        ghost:
+          "text-muted-foreground hover:bg-secondary hover:text-foreground",
+        link:
+          "text-primary underline-offset-4 hover:underline",
         tactile:
-          "bg-white dark:bg-neutral-800 text-slate-900 dark:text-white border-2 border-slate-300 dark:border-neutral-700 shadow-sm hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-400 active:shadow-xs",
+          "bg-card text-foreground border border-border hover:border-primary/50 hover:text-primary",
         cinder:
-          "bg-slate-900 dark:bg-neutral-900 text-white border border-slate-700 shadow-sm hover:bg-black hover:border-slate-500",
+          "bg-foreground text-background hover:bg-foreground/90 border border-foreground/10",
       },
       size: {
         default: "h-8 px-3.5 py-1.5",
         sm: "h-7 rounded-md px-2.5 text-xs",
         lg: "h-9 rounded-lg px-4 text-sm",
-        icon: "h-7 w-7 p-0",
+        icon: "h-8 w-8 p-0",
       },
     },
     defaultVariants: {

@@ -41,14 +41,14 @@ export function FolderCustomizeModal({
   onSave,
 }: FolderCustomizeModalProps) {
   const [name, setName] = React.useState("");
-  const [selectedIcon, setSelectedIcon] = React.useState("📁");
+  const [selectedIcon, setSelectedIcon] = React.useState("Folder");
   const [selectedColor, setSelectedColor] = React.useState("#3b82f6");
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (folder) {
       setName(folder.name);
-      setSelectedIcon(folder.icon || "📁");
+      setSelectedIcon(folder.icon || "Folder");
       setSelectedColor(folder.color || "#3b82f6");
     }
   }, [folder]);
@@ -78,17 +78,17 @@ export function FolderCustomizeModal({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 shadow-sm border border-black/5"
-              style={{ backgroundColor: `${selectedColor}25` }}
+              className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
+              style={{ backgroundColor: `${selectedColor}20` }}
             >
               <FolderIconRenderer icon={selectedIcon} className="h-5 w-5" color={selectedColor} />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
-                Customize Folder
+              <DialogTitle className="text-base font-medium text-foreground">
+                Customize folder
               </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500 dark:text-neutral-400">
-                Search icons and customize folder branding.
+              <DialogDescription className="text-xs text-muted-foreground">
+                Search icons and customize folder appearance
               </DialogDescription>
             </div>
           </div>
@@ -96,21 +96,21 @@ export function FolderCustomizeModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-xs">
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-800 dark:text-neutral-200">
-              Folder Name
+            <label className="font-medium text-foreground">
+              Folder name
             </label>
             <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-8 text-xs bg-slate-50 dark:bg-neutral-800"
+              className="h-8 text-xs bg-background border border-border"
               autoFocus
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-800 dark:text-neutral-200">
-              Search & Select Icon
+            <label className="font-medium text-foreground">
+              Search & select icon
             </label>
             <IconSearchPicker
               selectedIcon={selectedIcon}
@@ -120,11 +120,11 @@ export function FolderCustomizeModal({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-slate-800 dark:text-neutral-200">
-                Color Palette & Badge
+              <label className="font-medium text-foreground">
+                Color palette & badge
               </label>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer">
+                <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
                   <span>Custom:</span>
                   <input
                     type="color"
@@ -138,22 +138,22 @@ export function FolderCustomizeModal({
                   type="text"
                   value={selectedColor}
                   onChange={(e) => setSelectedColor(e.target.value)}
-                  className="h-6 w-16 text-[10px] font-mono px-1.5 rounded border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-foreground"
+                  className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
                   placeholder="#3b82f6"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-8 gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-900/50">
+            <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
               {COLOR_PALETTE.map((c) => (
                 <button
                   type="button"
                   key={c.value}
                   onClick={() => setSelectedColor(c.value)}
-                  className={`h-6 w-6 rounded-full cursor-pointer transition-transform ${
+                  className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
                     selectedColor.toLowerCase() === c.value.toLowerCase()
-                      ? "scale-110 ring-2 ring-blue-600 ring-offset-2"
-                      : "hover:scale-105"
+                      ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                      : "opacity-85 hover:opacity-100"
                   }`}
                   style={{ backgroundColor: c.value }}
                   title={c.name}
@@ -162,7 +162,7 @@ export function FolderCustomizeModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-neutral-800">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
             <Button
               type="button"
               variant="outline"
@@ -179,7 +179,7 @@ export function FolderCustomizeModal({
               disabled={saving || !name.trim()}
               className="text-xs h-8"
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? "Saving..." : "Save changes"}
             </Button>
           </div>
         </form>

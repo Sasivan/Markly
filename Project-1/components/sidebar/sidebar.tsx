@@ -15,7 +15,6 @@ import {
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
-  Sparkles,
   Search,
   Layers,
   History,
@@ -216,7 +215,7 @@ export function Sidebar({
         body: JSON.stringify({
           name: name.trim() || "New Folder",
           parentId: parentId || null,
-          icon: icon || "📁",
+          icon: icon || "Folder",
           color: color || "#3b82f6",
         }),
       });
@@ -385,9 +384,9 @@ export function Sidebar({
 
   if (collapsed) {
     return (
-      <aside className="w-12 flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none">
+      <aside className="w-12 flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none">
         {/* Workspace Brand Header - clean M logo navigating to homepage on click */}
-        <div className="h-12 border-b border-border flex items-center justify-center bg-[#fbfbfa] dark:bg-[#191919] flex-shrink-0">
+        <div className="h-12 border-b border-sidebar-border flex items-center justify-center bg-sidebar-bg flex-shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -395,14 +394,14 @@ export function Sidebar({
               onSelectView("home");
             }}
             title="Markly Home"
-            className="h-6 w-6 rounded-md bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white font-bold text-xs shadow-xs cursor-pointer transition-transform active:scale-95"
+            className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-medium text-xs cursor-pointer transition-transform active:scale-95"
           >
             M
           </button>
         </div>
 
         {/* Collapsed Nav Rail */}
-        <div className="flex-1 py-2 flex flex-col items-center space-y-2.5 px-1 overflow-y-auto">
+        <div className="flex-1 py-2 flex flex-col items-center space-y-2 px-1 overflow-y-auto">
           {/* Home Option */}
           <button
             type="button"
@@ -413,11 +412,11 @@ export function Sidebar({
             title="Workspace Home"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "home" && !activeFolderId
-                ? "bg-blue-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Sparkles className="h-4 w-4" />
+            <Compass className="h-4 w-4" />
           </button>
 
           {/* Quick Search in Minimized Rail */}
@@ -425,7 +424,7 @@ export function Sidebar({
             type="button"
             onClick={onOpenSearch}
             title="Search Bookmarks (⌘K)"
-            className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
+            className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -440,8 +439,8 @@ export function Sidebar({
             title="All Sites"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "all" && !activeFolderId
-                ? "bg-blue-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
             <Globe className="h-4 w-4" />
@@ -457,11 +456,11 @@ export function Sidebar({
             title="Folder Collections"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "collections" && !activeFolderId
-                ? "bg-indigo-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-foreground"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Folder className="h-4 w-4 text-indigo-500" />
+            <Folder className="h-4 w-4" />
           </button>
 
           {/* Knowledge Graph Option */}
@@ -471,14 +470,14 @@ export function Sidebar({
               onSelectFolder(null);
               onSelectView("graph");
             }}
-            title="Interactive Knowledge Graph (Obsidian)"
+            title="Interactive Knowledge Graph"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "graph" && !activeFolderId
-                ? "bg-purple-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-purple-400"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Layers className="h-4 w-4 text-purple-500" />
+            <Layers className="h-4 w-4" />
           </button>
 
           {/* Recently Visited Option */}
@@ -491,11 +490,11 @@ export function Sidebar({
             title="Recently Visited"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "recent" && !activeFolderId
-                ? "bg-blue-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-blue-500"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <History className="h-4 w-4 text-blue-500" />
+            <History className="h-4 w-4" />
           </button>
 
           {/* Favorites Option */}
@@ -508,11 +507,11 @@ export function Sidebar({
             title="Favorites"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "favorites" && !activeFolderId
-                ? "bg-amber-500 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-amber-500"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Star className="h-4 w-4 text-amber-500" />
+            <Star className="h-4 w-4" />
           </button>
 
           {/* Archive Option */}
@@ -525,11 +524,11 @@ export function Sidebar({
             title="Archive"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "archive" && !activeFolderId
-                ? "bg-purple-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-purple-400"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Archive className="h-4 w-4 text-purple-400" />
+            <Archive className="h-4 w-4" />
           </button>
 
           {/* Recycle Bin Option */}
@@ -539,19 +538,19 @@ export function Sidebar({
               onSelectFolder(null);
               onSelectView("trash");
             }}
-            title="Recycle Bin (Trash)"
+            title="Recycle Bin"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "trash"
-                ? "bg-rose-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-rose-500"
+                ? "bg-accent text-destructive font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Trash2 className="h-4 w-4 text-rose-500" />
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
 
         {/* Pinned Bottom Left Feedback & Profile in Collapsed Rail */}
-        <div className="p-2 border-t border-border flex flex-col items-center gap-1.5 justify-center flex-shrink-0 bg-[#fbfbfa] dark:bg-[#191919]">
+        <div className="p-2 border-t border-sidebar-border flex flex-col items-center gap-1.5 justify-center flex-shrink-0 bg-sidebar-bg">
           <button
             type="button"
             onClick={() => {
@@ -561,8 +560,8 @@ export function Sidebar({
             title="Feedback & Support"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "feedback" && !activeFolderId
-                ? "bg-indigo-600 text-white shadow-xs"
-                : "text-muted-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 hover:text-indigo-600 dark:hover:text-indigo-400"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
             <MessageSquarePlus className="h-4 w-4" />
@@ -577,8 +576,8 @@ export function Sidebar({
             title={user ? `Profile (${user.email})` : "Account Profile"}
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
               activeView === "profile" && !activeFolderId
-                ? "bg-blue-600 text-white shadow-xs"
-                : "text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
             {customAvatar || user?.user_metadata?.avatar_url ? (
@@ -588,11 +587,11 @@ export function Sidebar({
                 className="h-6 w-6 rounded-full object-cover border border-border"
               />
             ) : user ? (
-              <div className="h-6 w-6 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center">
+              <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground font-medium text-xs flex items-center justify-center">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
             ) : (
-              <User className="h-4 w-4 text-slate-500 hover:text-blue-500" />
+              <User className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
         </div>
@@ -650,10 +649,10 @@ export function Sidebar({
       {/* Sidebar Container */}
       <aside
         style={{ width: `${sidebarWidth}px` }}
-        className="relative flex-shrink-0 flex flex-col border-r border-border bg-[#fbfbfa] dark:bg-[#191919] h-full overflow-hidden select-none"
+        className="relative flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none"
       >
-        {/* Workspace Brand Header - clean, full width clicking logo or name navigates to Home */}
-        <div className="h-12 border-b border-border flex items-center px-3.5 bg-[#fbfbfa] dark:bg-[#191919]">
+        {/* Workspace Brand Header */}
+        <div className="h-12 border-b border-sidebar-border flex items-center px-3.5 bg-sidebar-bg">
           <button
             type="button"
             onClick={() => {
@@ -663,26 +662,25 @@ export function Sidebar({
             title="Markly Home"
             className="flex items-center gap-2.5 truncate cursor-pointer group text-left"
           >
-            <div className="h-6 w-6 rounded-md bg-blue-600 group-hover:bg-blue-700 flex items-center justify-center text-white font-bold text-xs shadow-xs flex-shrink-0 transition-transform group-active:scale-95">
+            <div className="h-6 w-6 rounded-md bg-primary group-hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-medium text-xs flex-shrink-0 transition-transform group-active:scale-95">
               M
             </div>
-            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate transition-colors">
+            <span className="font-medium text-sm text-foreground group-hover:text-primary truncate transition-colors">
               Markly
             </span>
           </button>
         </div>
 
-        {/* Modern Homepage Section */}
+        {/* Workspace Nav Section */}
         <div
-          className={`p-2 space-y-1 text-xs select-none transition-all ${
+          className={`p-2 space-y-1 text-xs select-none transition-colors ${
             isFoldersSectionOpen
-              ? "flex-shrink-0 border-b border-border/60"
+              ? "flex-shrink-0 border-b border-sidebar-border/60"
               : "flex-1 overflow-y-auto min-h-0"
           }`}
         >
-          <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider flex items-center justify-between">
+          <div className="px-2 py-1 text-xs font-medium text-muted-foreground flex items-center justify-between">
             <span>Workspace</span>
-            <span className="text-[9px] bg-slate-100 dark:bg-neutral-800 text-slate-500 px-1.5 py-0.5 rounded font-mono">Hub</span>
           </div>
 
           {/* Home Page Link */}
@@ -694,24 +692,23 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "home" && !activeFolderId
-                ? "bg-blue-600 text-white font-semibold shadow-xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Sparkles className={`h-4 w-4 ${activeView === "home" && !activeFolderId ? "text-white" : "text-blue-500"} flex-shrink-0`} />
+            <Compass className={`h-4 w-4 ${activeView === "home" && !activeFolderId ? "text-primary" : "text-muted-foreground"} flex-shrink-0`} />
             <span className="truncate">Home</span>
-            <span className={`ml-auto text-[10px] font-mono px-1.5 py-0.2 rounded ${activeView === "home" && !activeFolderId ? "bg-blue-700 text-white" : "text-muted-foreground"}`}>Overview</span>
           </button>
 
           {/* Quick Search in Nav */}
           <button
             type="button"
             onClick={onOpenSearch}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors text-muted-foreground hover:bg-accent/60 hover:text-foreground"
           >
-            <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="truncate">Search</span>
-            <kbd className="ml-auto text-[10px] bg-slate-100 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 px-1.5 py-0.2 rounded font-mono text-muted-foreground">⌘K</kbd>
+            <kbd className="ml-auto text-xs bg-muted border border-border px-1.5 py-0.5 rounded font-mono text-muted-foreground">⌘K</kbd>
           </button>
 
           {/* All Sites */}
@@ -723,13 +720,13 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "all" && !activeFolderId
-                ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Globe className="h-4 w-4 text-blue-500 flex-shrink-0" />
-            <span className="truncate">All Sites</span>
-            <span className="ml-auto text-[11px] font-mono text-muted-foreground">{totalBookmarksCount}</span>
+            <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">All sites</span>
+            <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">{totalBookmarksCount}</span>
           </button>
 
           {/* Folder Collections */}
@@ -741,18 +738,18 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "collections" && !activeFolderId
-                ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Folder className="h-4 w-4 text-indigo-500 flex-shrink-0" />
-            <span className="truncate">Folder Collections</span>
-            <span className="ml-auto text-[11px] font-mono text-muted-foreground">
+            <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Folder collections</span>
+            <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
               {folders.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_")).length}
             </span>
           </button>
 
-          {/* Obsidian-Style Interactive Knowledge Graph */}
+          {/* Knowledge Graph */}
           <button
             type="button"
             onClick={() => {
@@ -761,13 +758,12 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "graph" && !activeFolderId
-                ? "bg-purple-600 text-white font-semibold shadow-xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Layers className="h-4 w-4 text-purple-500 flex-shrink-0" />
-            <span className="truncate">Knowledge Graph</span>
-            <span className="ml-auto text-[9px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-mono px-1.5 py-0.2 rounded">Obsidian</span>
+            <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Knowledge graph</span>
           </button>
 
           {/* Recently Visited */}
@@ -779,12 +775,12 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "recent"
-                ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <History className="h-4 w-4 text-indigo-500 flex-shrink-0" />
-            <span className="truncate">Recently Visited</span>
+            <History className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Recently visited</span>
           </button>
 
           {/* Favorites */}
@@ -796,11 +792,11 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "favorites"
-                ? "bg-slate-200 dark:bg-neutral-800 text-amber-700 dark:text-amber-400 font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Star className="h-4 w-4 text-amber-500 fill-amber-500 flex-shrink-0" />
+            <Star className={`h-4 w-4 flex-shrink-0 ${activeView === "favorites" ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
             <span className="truncate">Favorites</span>
           </button>
 
@@ -813,11 +809,11 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "archive"
-                ? "bg-slate-200 dark:bg-neutral-800 text-slate-900 dark:text-white font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Archive className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            <Archive className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="truncate">Archive</span>
           </button>
 
@@ -830,29 +826,29 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "trash"
-                ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 font-semibold shadow-2xs"
-                : "text-slate-600 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-800/60 hover:text-foreground"
+                ? "bg-accent text-destructive font-medium"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Trash2 className="h-4 w-4 text-rose-500 flex-shrink-0" />
-            <span className="truncate">Recycle Bin</span>
+            <Trash2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Recycle bin</span>
           </button>
         </div>
 
-        {/* Folders Section Header (VS Code Style) */}
+        {/* Folders Section Header */}
         <div
-          className={`p-2 transition-all select-none ${
+          className={`p-2 transition-colors select-none ${
             isFoldersSectionOpen
               ? "flex-1 overflow-y-auto min-h-0"
-              : "flex-shrink-0 mt-auto border-t border-border/80 bg-[#fbfbfa] dark:bg-[#191919]"
+              : "flex-shrink-0 mt-auto border-t border-sidebar-border bg-sidebar-bg"
           }`}
         >
           <div
             onDragOver={handleRootDragOver}
             onDragLeave={handleRootDragLeave}
             onDrop={handleRootDrop}
-            className={`flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider rounded-md transition-colors ${
-              isRootDragOver ? "bg-blue-500/20 text-blue-600 ring-1 ring-blue-500" : ""
+            className={`flex items-center justify-between px-2 py-1 text-xs font-medium text-muted-foreground rounded-md transition-colors ${
+              isRootDragOver ? "bg-primary/10 text-primary ring-1 ring-primary/40" : ""
             }`}
           >
             <button
@@ -870,12 +866,12 @@ export function Sidebar({
             </button>
 
             <div className="flex items-center gap-1">
-              {/* Unified Toggle All Folders Icon (Collapse / Expand merged) */}
+              {/* Unified Toggle All Folders Icon */}
               <button
                 type="button"
                 onClick={handleToggleAllFolders}
                 title={isAllFoldersExpanded ? "Collapse all folders" : "Expand all folders"}
-                className="h-5 w-5 rounded flex items-center justify-center hover:bg-slate-200 dark:hover:bg-neutral-700 hover:text-foreground cursor-pointer transition-colors"
+                className="h-6 w-6 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               >
                 {isAllFoldersExpanded ? (
                   <ChevronsDownUp className="h-3.5 w-3.5" />
@@ -891,8 +887,8 @@ export function Sidebar({
                   setAddFolderParentId(null);
                   setAddFolderModalOpen(true);
                 }}
-                title="Add New Folder (with Icon Search)"
-                className="h-5 w-5 rounded flex items-center justify-center hover:bg-slate-200 dark:hover:bg-neutral-700 hover:text-foreground cursor-pointer transition-colors"
+                title="Add New Folder"
+                className="h-6 w-6 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -902,11 +898,11 @@ export function Sidebar({
           {/* Recursive Folder Tree Items */}
           {isFoldersSectionOpen && (
             <div className="space-y-0.5 mt-1">
-              {/* Permanent System Folder: Unsorted (linked to customizable permanent folder) */}
+              {/* Permanent System Folder: Unsorted */}
               {(() => {
                 const unsortedFolder = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_"));
                 const unsortedName = unsortedFolder?.name || "Unsorted";
-                const unsortedIcon = unsortedFolder?.icon || "📥";
+                const unsortedIcon = unsortedFolder?.icon || "Inbox";
                 const unsortedColor = unsortedFolder?.color || "#8b5cf6";
 
                 return (
@@ -915,12 +911,12 @@ export function Sidebar({
                       onSelectFolder(null);
                       onSelectView("unsorted");
                     }}
-                    className={`group flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-md cursor-pointer transition-all text-xs ${
+                    className={`group flex items-center justify-between gap-1.5 py-1.5 px-2 rounded-lg cursor-pointer transition-colors text-xs ${
                       activeView === "unsorted" && !activeFolderId
-                        ? "bg-accent font-semibold text-foreground"
+                        ? "bg-accent font-medium text-accent-foreground"
                         : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
                     }`}
-                    title="Permanent system folder for uncategorized bookmarks"
+                    title="Permanent folder for uncategorized bookmarks"
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <FolderIconRenderer icon={unsortedIcon} color={unsortedColor} className="h-4 w-4 flex-shrink-0" />
@@ -928,7 +924,7 @@ export function Sidebar({
                     </div>
                     <div className="flex items-center gap-1">
                       {unsortedCount !== undefined && unsortedCount > 0 && (
-                        <span className="text-[10px] text-muted-foreground/70 font-mono">
+                        <span className="text-xs text-muted-foreground font-mono tabular-nums">
                           {unsortedCount}
                         </span>
                       )}
@@ -938,7 +934,7 @@ export function Sidebar({
                           e.stopPropagation();
                           if (unsortedFolder) setCustomizeFolder(unsortedFolder);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-neutral-700 text-muted-foreground hover:text-foreground cursor-pointer transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-opacity"
                         title="Edit Unsorted Name & Icon"
                       >
                         <Edit2 className="h-3 w-3" />
@@ -973,14 +969,14 @@ export function Sidebar({
                 />
               ))}
 
-              {/* Drop to Root Level Target (clean invisible drop area, highlights only when dragging) */}
+              {/* Drop to Root Level Target */}
               <div
                 onDragOver={handleRootDragOver}
                 onDragLeave={handleRootDragLeave}
                 onDrop={handleRootDrop}
-                className={`transition-all rounded ${
+                className={`transition-colors rounded-md ${
                   isRootDragOver
-                    ? "h-6 my-1 border-2 border-dashed border-blue-500 bg-blue-500/15 flex items-center justify-center text-[10px] text-blue-600 font-semibold"
+                    ? "h-6 my-1 border border-dashed border-primary/50 bg-primary/10 flex items-center justify-center text-xs text-primary font-medium"
                     : "h-2"
                 }`}
               >
@@ -991,7 +987,7 @@ export function Sidebar({
         </div>
 
         {/* Feedback & Support Nav Button */}
-        <div className="px-3 py-1.5 border-t border-border/60 bg-[#fbfbfa] dark:bg-[#191919] flex-shrink-0">
+        <div className="px-3 py-1.5 border-t border-sidebar-border/60 bg-sidebar-bg flex-shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -1000,17 +996,17 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
               activeView === "feedback" && !activeFolderId
-                ? "bg-indigo-600 text-white shadow-2xs font-semibold"
-                : "text-slate-700 dark:text-neutral-300 hover:bg-slate-200/80 dark:hover:bg-neutral-800"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <MessageSquarePlus className="h-4 w-4 text-indigo-500 shrink-0" />
-            <span className="truncate">Feedback & Support</span>
+            <MessageSquarePlus className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="truncate">Feedback & support</span>
           </button>
         </div>
 
-        {/* Sidebar Footer: Supabase Realtime User Profile */}
-        <div className="p-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground flex-shrink-0 bg-slate-50/70 dark:bg-neutral-900/40">
+        {/* Sidebar Footer: Realtime User Profile */}
+        <div className="p-2.5 border-t border-sidebar-border flex items-center justify-between text-xs text-muted-foreground flex-shrink-0 bg-sidebar-bg">
           {user ? (
             <div className="flex items-center justify-between w-full">
               <button
@@ -1027,18 +1023,18 @@ export function Sidebar({
                     `https://api.dicebear.com/7.x/bottts/svg?seed=${user.email || user.id}`
                   }
                   alt={user.email || "User"}
-                  className="h-7 w-7 rounded-full object-cover bg-blue-600 text-white font-bold flex-shrink-0 border border-slate-200 dark:border-neutral-700 shadow-2xs"
+                  className="h-7 w-7 rounded-full object-cover bg-primary text-primary-foreground font-medium flex-shrink-0 border border-border"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${user.email || "User"}`;
                   }}
                 />
                 <div className="truncate">
-                  <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                  <div className="text-xs font-medium text-foreground truncate">
                     {user.user_metadata?.display_name || user.email?.split("@")[0]}
                   </div>
-                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Supabase Synced
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span>Synced</span>
                   </div>
                 </div>
               </button>
@@ -1046,7 +1042,7 @@ export function Sidebar({
                 type="button"
                 onClick={signOut}
                 title="Sign out of Markly"
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors flex-shrink-0"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors flex-shrink-0"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
@@ -1059,21 +1055,21 @@ export function Sidebar({
                 onSelectView("profile");
               }}
               title="View Account Profile"
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-neutral-800/60 border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 font-medium cursor-pointer hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors shadow-2xs"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-card border border-border text-foreground font-medium cursor-pointer hover:bg-secondary transition-colors"
             >
               <div className="flex items-center gap-2 truncate">
                 {customAvatar ? (
                   <img
                     src={customAvatar}
                     alt="Guest"
-                    className="h-5 w-5 rounded-full object-cover border border-slate-200 dark:border-neutral-700"
+                    className="h-5 w-5 rounded-full object-cover border border-border"
                   />
                 ) : (
-                  <User className="h-4 w-4 text-blue-500" />
+                  <User className="h-4 w-4 text-muted-foreground" />
                 )}
-                <span className="text-xs font-semibold truncate">Account Profile</span>
+                <span className="text-xs font-medium truncate">Account profile</span>
               </div>
-              <span className="text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-mono font-semibold">
+              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
                 Guest
               </span>
             </button>
@@ -1083,7 +1079,7 @@ export function Sidebar({
         {/* Draggable Resizer Bar on right edge */}
         <div
           onMouseDown={startResizing}
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600 transition-colors z-20"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary active:bg-primary transition-colors z-20"
         />
       </aside>
     </>

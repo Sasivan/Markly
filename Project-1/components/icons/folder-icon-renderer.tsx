@@ -28,6 +28,18 @@ export function FolderIconRenderer({
     );
   }
 
+  if (icon === "📥" || icon === "Inbox") {
+    const DefaultInbox = IconoirIcons.Archive;
+    return (
+      <span
+        className="inline-flex items-center justify-center flex-shrink-0"
+        style={{ color: effectiveColor }}
+      >
+        <DefaultInbox className={className} />
+      </span>
+    );
+  }
+
   // Check if it's an iconoir icon name (e.g. "iconoir:Folder", "Folder", or "folder")
   const cleanName = icon.startsWith("iconoir:") ? icon.replace("iconoir:", "") : icon;
   const iconsDict = IconoirIcons as unknown as Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>>;

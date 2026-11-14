@@ -158,25 +158,25 @@ export function MoveFolderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl p-5 text-foreground animate-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in">
+      <div className="relative w-full max-w-md rounded-xl border border-border bg-card shadow-xl p-5 text-foreground animate-in zoom-in-95">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-border">
+        <div className="flex items-center justify-between pb-3 border-b border-border/60">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
-              <FolderInput className="h-4 w-4" />
+            <div className="h-8 w-8 rounded-lg bg-secondary text-foreground flex items-center justify-center">
+              <FolderInput className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Move Folder</h3>
+              <h3 className="font-medium text-sm text-foreground">Move folder</h3>
               <p className="text-xs text-muted-foreground">
-                Select where to place <span className="font-medium text-foreground">"{folder.name}"</span>
+                Select where to place <span className="font-medium text-foreground">&quot;{folder.name}&quot;</span>
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -210,8 +210,8 @@ export function MoveFolderModal({
                 <Home className="h-3 w-3" />
               </div>
               <div>
-                <span className="font-medium">🏠 Root Level</span>
-                <span className="text-[10px] text-muted-foreground ml-2">(Top-level folder)</span>
+                <span className="font-medium">Root level</span>
+                <span className="text-xs text-muted-foreground ml-2 font-mono">(Top-level folder)</span>
               </div>
             </div>
             {selectedParentId === null && <Check className="h-4 w-4 text-primary flex-shrink-0" />}
@@ -237,9 +237,9 @@ export function MoveFolderModal({
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50"
+            className="px-4 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
-            {isSubmitting ? "Moving..." : "Move Folder"}
+            {isSubmitting ? "Moving..." : "Move folder"}
           </button>
         </div>
       </div>

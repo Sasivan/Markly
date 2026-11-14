@@ -147,17 +147,17 @@ export function FolderTreeNodeComponent({
         }}
         onClick={() => !isEditing && onSelect(node.id, hasChildren)}
         style={{ paddingLeft: `${depth * 12 + 6}px` }}
-        className={`group relative flex items-center gap-1.5 py-1.5 pr-2 rounded-md cursor-pointer transition-all text-xs ${
+        className={`group relative flex items-center gap-1.5 py-1.5 pr-2 rounded-lg cursor-pointer transition-colors duration-150 ease-out text-xs ${
           isActive
-            ? "bg-accent font-semibold text-foreground"
+            ? "bg-accent font-medium text-accent-foreground"
             : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
         } ${
           dropIndicator === "inside"
-            ? "ring-2 ring-blue-500 bg-blue-500/15"
+            ? "ring-1 ring-primary bg-primary/10"
             : dropIndicator === "before"
-            ? "border-t-2 border-blue-500"
+            ? "border-t border-primary"
             : dropIndicator === "after"
-            ? "border-b-2 border-blue-500"
+            ? "border-b border-primary"
             : ""
         }`}
       >
@@ -212,7 +212,7 @@ export function FolderTreeNodeComponent({
 
         {/* Bookmark Count badge */}
         {!isEditing && (
-          <span className="text-[10px] text-muted-foreground/70 opacity-60 group-hover:opacity-100 font-mono">
+          <span className="text-xs text-muted-foreground opacity-60 group-hover:opacity-100 font-mono tabular-nums">
             {node.totalDescendantBookmarkCount}
           </span>
         )}
@@ -228,7 +228,7 @@ export function FolderTreeNodeComponent({
                   onAddBookmarkToFolder(node.id);
                 }}
                 title={`Add Bookmark to ${node.name}`}
-                className="h-5 w-5 rounded flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 cursor-pointer"
+                className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -245,11 +245,11 @@ export function FolderTreeNodeComponent({
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
 
-              {/* Context Dropdown Menu - Solid high contrast, no glassy blur */}
+              {/* Context Dropdown Menu */}
               {menuOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-1.5 shadow-2xl z-50 text-xs text-slate-900 dark:text-neutral-100 animate-in zoom-in-95 opacity-100"
+                  className="absolute right-0 top-full mt-1.5 w-48 rounded-lg border border-border bg-card p-1.5 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 opacity-100"
                 >
                   {onAddBookmarkToFolder && (
                     <button
@@ -258,10 +258,10 @@ export function FolderTreeNodeComponent({
                         setMenuOpen(false);
                         onAddBookmarkToFolder(node.id);
                       }}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                     >
-                      <Plus className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                      <span>Add Bookmark Here</span>
+                      <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span>Add bookmark</span>
                     </button>
                   )}
                   <button
@@ -270,10 +270,10 @@ export function FolderTreeNodeComponent({
                       setMenuOpen(false);
                       onNewSubfolder(node.id);
                     }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                    className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                   >
-                    <Plus className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                    <span>New Subfolder</span>
+                    <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>New subfolder</span>
                   </button>
 
                 <button
@@ -282,9 +282,9 @@ export function FolderTreeNodeComponent({
                     setMenuOpen(false);
                     setIsEditing(true);
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200 font-medium text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                 >
-                  <Edit2 className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                  <Edit2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span>Rename</span>
                 </button>
 
@@ -294,10 +294,10 @@ export function FolderTreeNodeComponent({
                     setMenuOpen(false);
                     onMove?.(node);
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                 >
-                  <FolderInput className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                  <span>Move Folder</span>
+                  <FolderInput className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Move folder</span>
                 </button>
 
                 {onCopy && (
@@ -307,9 +307,9 @@ export function FolderTreeNodeComponent({
                       setMenuOpen(false);
                       onCopy(node);
                     }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-800 dark:text-neutral-200 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium text-left cursor-pointer transition-colors"
+                    className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                   >
-                    <Copy className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                    <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span>Copy to...</span>
                   </button>
                 )}
@@ -320,10 +320,10 @@ export function FolderTreeNodeComponent({
                     setMenuOpen(false);
                     onCustomize(node);
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-800 dark:text-neutral-200 hover:text-amber-600 font-medium text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                 >
-                  <Palette className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                  <span>Change Icon & Color</span>
+                  <Palette className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Change icon & color</span>
                 </button>
 
                 <button
@@ -332,13 +332,13 @@ export function FolderTreeNodeComponent({
                     setMenuOpen(false);
                     onDuplicate(node.id);
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200 font-medium text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
                 >
-                  <Copy className="h-4 w-4 text-slate-500 flex-shrink-0" />
-                  <span>Duplicate Folder</span>
+                  <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Duplicate folder</span>
                 </button>
 
-                <div className="h-px bg-slate-200 dark:bg-neutral-800 my-1" />
+                <div className="h-px bg-border my-1" />
 
                 <button
                   type="button"
@@ -346,10 +346,10 @@ export function FolderTreeNodeComponent({
                     setMenuOpen(false);
                     onDelete(node);
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-medium text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-destructive/10 text-destructive font-medium text-left cursor-pointer transition-colors"
                 >
                   <Trash2 className="h-4 w-4 flex-shrink-0" />
-                  <span>Delete Folder</span>
+                  <span>Delete folder</span>
                 </button>
               </div>
             )}

@@ -13,7 +13,7 @@ export function ThemeToggle() {
   }, []);
 
   if (!mounted) {
-    return <div className="h-7 w-7" />;
+    return <div className="h-8 w-8" />;
   }
 
   const isDark = resolvedTheme === "dark";
@@ -22,7 +22,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="h-7 w-7 rounded-md border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+      className="h-8 w-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
       title={`Switch to ${isDark ? "Light" : "Dark"} mode`}
     >
       {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}

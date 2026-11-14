@@ -105,19 +105,19 @@ export function CopyFolderModal({
           type="button"
           disabled={isForbidden}
           onClick={() => !isForbidden && setSelectedParentId(node.id)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left w-full ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors duration-150 ease-out text-left w-full ${
             isForbidden
-              ? "opacity-35 cursor-not-allowed bg-slate-100/50 dark:bg-neutral-900/50"
+              ? "opacity-35 cursor-not-allowed bg-muted/50"
               : isSelected
-              ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs font-semibold"
-              : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-foreground cursor-pointer"
+              ? "bg-accent text-accent-foreground border border-border"
+              : "hover:bg-secondary text-foreground cursor-pointer"
           }`}
           style={{ paddingLeft: `${Math.max(12, depth * 20 + 12)}px` }}
         >
           {hasChildren ? (
             <span
               onClick={(e) => toggleExpand(node.id, e)}
-              className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-neutral-700 cursor-pointer"
+              className="p-0.5 rounded hover:bg-muted cursor-pointer"
             >
               {isExpanded ? (
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -139,12 +139,12 @@ export function CopyFolderModal({
           <span className="truncate flex-1">{node.name}</span>
 
           {isForbidden && (
-            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">
               Current
             </span>
           )}
 
-          {isSelected && <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+          {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
         </button>
 
         {isExpanded && node.children && node.children.length > 0 && (
@@ -157,43 +157,43 @@ export function CopyFolderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md rounded-xl border border-border bg-card shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-neutral-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-secondary text-foreground flex items-center justify-center">
               <Copy className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-foreground">Copy Folder</h2>
-              <p className="text-[11px] text-muted-foreground">
-                Duplicate folder, subfolders, and bookmarks to a project
+              <h2 className="text-sm font-medium text-foreground">Copy folder</h2>
+              <p className="text-xs text-muted-foreground">
+                Duplicate folder, subfolders, and bookmarks
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Name input */}
-        <div className="p-4 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/30 space-y-1.5">
-          <label className="text-[11px] font-semibold text-muted-foreground">New Folder Name</label>
+        <div className="p-4 border-b border-border/60 bg-muted/30 space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">New folder name</label>
           <Input
             value={folderName}
             onChange={(e) => setFolderName(e.target.value)}
             placeholder="Folder name"
-            className="h-8.5 text-xs bg-white dark:bg-neutral-800"
+            className="h-8 text-xs bg-background"
           />
         </div>
 
         {/* Search destination */}
-        <div className="p-3 border-b border-slate-100 dark:border-neutral-800">
+        <div className="p-3 border-b border-border/60">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -201,7 +201,7 @@ export function CopyFolderModal({
               placeholder="Search destination folders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs h-8 bg-slate-50 dark:bg-neutral-900 border-none"
+              className="pl-8 text-xs h-8 bg-muted/40 border border-border"
             />
           </div>
         </div>
@@ -212,18 +212,18 @@ export function CopyFolderModal({
           <button
             type="button"
             onClick={() => setSelectedParentId(null)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left w-full cursor-pointer ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors duration-150 ease-out text-left w-full cursor-pointer ${
               selectedParentId === null
-                ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs font-semibold"
-                : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-foreground"
+                ? "bg-accent text-accent-foreground border border-border"
+                : "hover:bg-secondary text-foreground"
             }`}
           >
-            <div className="h-5 w-5 rounded-md bg-slate-100 dark:bg-neutral-800 flex items-center justify-center flex-shrink-0">
+            <div className="h-5 w-5 rounded-md bg-secondary flex items-center justify-center flex-shrink-0">
               <Home className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
-            <span className="truncate flex-1">Root Collections (Top Level)</span>
+            <span className="truncate flex-1">Root collections (top level)</span>
             {selectedParentId === null && (
-              <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <Check className="h-3.5 w-3.5 text-primary shrink-0" />
             )}
           </button>
 
@@ -232,9 +232,9 @@ export function CopyFolderModal({
         </div>
 
         {/* Footer info & buttons */}
-        <div className="p-4 border-t border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50 flex items-center justify-between gap-3">
-          <p className="text-[10px] text-muted-foreground">
-            Duplicates all nested folders, bookmarks & tags.
+        <div className="p-4 border-t border-border/60 bg-muted/20 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            Duplicates all nested items and tags
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -249,10 +249,11 @@ export function CopyFolderModal({
             </Button>
             <Button
               type="button"
+              variant="default"
               size="sm"
               onClick={handleConfirm}
               disabled={isSubmitting || !folderName.trim()}
-              className="h-8 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5"
+              className="h-8 text-xs gap-1.5"
             >
               {isSubmitting ? (
                 <>
@@ -262,7 +263,7 @@ export function CopyFolderModal({
               ) : (
                 <>
                   <Copy className="h-3.5 w-3.5" />
-                  <span>Copy Folder</span>
+                  <span>Copy folder</span>
                 </>
               )}
             </Button>

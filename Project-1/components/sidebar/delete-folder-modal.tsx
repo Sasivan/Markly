@@ -39,13 +39,13 @@ export function DeleteFolderModal({
       <DialogContent className="max-w-md p-5">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-destructive/10 text-destructive flex items-center justify-center font-bold text-xs flex-shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center font-medium text-xs flex-shrink-0">
               <Trash2 className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold">Delete &quot;{folder.name}&quot;</DialogTitle>
+              <DialogTitle className="text-base font-medium text-foreground">Delete &quot;{folder.name}&quot;</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Move folder and all contained websites to Recycle Bin.
+                Move folder and contained items to Recycle bin
               </DialogDescription>
             </div>
           </div>
@@ -123,7 +123,7 @@ export function DeleteFolderModal({
             disabled={isDeleting}
             className="text-xs h-8"
           >
-            {isDeleting ? "Deleting..." : "Confirm Delete"}
+            {isDeleting ? "Deleting..." : "Confirm delete"}
           </Button>
         </div>
       </DialogContent>

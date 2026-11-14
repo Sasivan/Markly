@@ -44,7 +44,7 @@ export function DialogContent({
   return (
     <div
       className={cn(
-        "relative w-full rounded-2xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] text-slate-900 dark:text-neutral-100 p-6 shadow-2xl transition-all duration-150 animate-in zoom-in-95 opacity-100",
+        "relative w-full rounded-xl border border-border bg-card text-card-foreground p-6 shadow-xl transition-[opacity,transform] duration-150 ease-out animate-in zoom-in-95 opacity-100",
         className
       )}
       {...props}
@@ -60,7 +60,7 @@ export function DialogHeader({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex flex-col space-y-1.5 text-left border-b border-slate-100 dark:border-neutral-800 pb-3", className)}
+      className={cn("flex flex-col space-y-1.5 text-left border-b border-border/60 pb-3", className)}
       {...props}
     />
   );
@@ -72,7 +72,7 @@ export function DialogTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
-      className={cn("text-base font-bold leading-none tracking-tight text-slate-900 dark:text-white", className)}
+      className={cn("text-base font-medium leading-none text-foreground", className)}
       {...props}
     />
   );
@@ -84,7 +84,7 @@ export function DialogDescription({
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
     <p
-      className={cn("text-xs text-slate-500 dark:text-neutral-400 font-medium", className)}
+      className={cn("text-xs text-muted-foreground", className)}
       {...props}
     />
   );

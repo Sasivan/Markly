@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { clearStoredAiApiKey } from "@/lib/ai-config";
 
 interface AuthContextType {
   user: User | null;
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 3. Auth state subscription (token refresh, sign in, sign out)
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (event === "SIGNED_OUT") {
+        clearStoredAiApiKey();
         setUser(null);
         setSession(null);
       } else if (newSession?.user?.id) {
@@ -263,6 +265,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sign Out
   const signOut = async () => {
     try {
+      clearStoredAiApiKey(user?.id);
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
@@ -274,6 +277,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sign Out All Devices (Global Scope Session Revocation)
   const signOutAllDevices = async () => {
     try {
+      clearStoredAiApiKey(user?.id);
       await supabase.auth.signOut({ scope: "global" });
       setUser(null);
       setSession(null);

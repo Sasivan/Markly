@@ -34,6 +34,7 @@ import { useAuth } from "@/components/auth/auth-context";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
+import { getAiRequestHeaders } from "@/lib/ai-config";
 
 interface AddBookmarkModalProps {
   open: boolean;
@@ -319,7 +320,10 @@ export function AddBookmarkModal({
 
       const res = await fetch("/api/scrape", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAiRequestHeaders(user?.id),
+        },
         signal: AbortSignal.timeout(4500),
         body: JSON.stringify({
           url: trimmed,

@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
+import { useAuth } from "@/components/auth/auth-context";
+import { getAiRequestHeaders } from "@/lib/ai-config";
 
 interface EditBookmarkModalProps {
   bookmark: BookmarkWithDetails | null;
@@ -37,6 +39,7 @@ export function EditBookmarkModal({
   onOpenChange,
   onSave,
 }: EditBookmarkModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = React.useState("");
   const [url, setUrl] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState("");
@@ -81,7 +84,10 @@ export function EditBookmarkModal({
     try {
       const res = await fetch("/api/scrape", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAiRequestHeaders(user?.id),
+        },
         body: JSON.stringify({
           url: targetUrl,
           saveImmediately: false,

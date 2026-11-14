@@ -20,6 +20,28 @@ export interface SuggestOutput {
   source?: "gemini" | "heuristic";
 }
 
+export const ALLOWED_GEMINI_MODELS = [
+  "gemini-flash-latest",
+  "gemini-pro-latest",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-exp",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+  "gemini-1.5-flash-8b",
+] as const;
+
+export function sanitizeGeminiModel(model?: string): string {
+  if (!model) return "gemini-flash-latest";
+  const clean = model.trim().replace(/^models\//, "");
+  if ((ALLOWED_GEMINI_MODELS as readonly string[]).includes(clean)) {
+    return clean;
+  }
+  return "gemini-flash-latest";
+}
+
 /**
  * Intelligent folder and tag auto-suggestion engine
  * Uses keyword taxonomy and folder similarity heuristics with provider-agnostic extensibility
@@ -168,22 +190,21 @@ Respond strictly in valid JSON:
   try {
     let rawText = "";
 
-    // Google Gemini Native API
-    const rawModel = config.model?.trim() || "gemini-flash-latest";
-    let cleanModel = rawModel.replace(/^models\//, "");
-    if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
-      cleanModel = "gemini-flash-latest";
-    }
+    // Google Gemini Native API (API key in x-goog-api-key header; model verified against allowlist)
+    const cleanModel = sanitizeGeminiModel(config.model);
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3500);
 
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
           signal: controller.signal,
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],

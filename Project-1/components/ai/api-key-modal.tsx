@@ -22,6 +22,11 @@ import {
   Loader2,
   Cpu,
 } from "lucide-react";
+import {
+  getStoredAiApiKey,
+  setStoredAiApiKey,
+  clearStoredAiApiKey,
+} from "@/lib/ai-config";
 
 export interface GeminiModelOption {
   id: string;
@@ -86,8 +91,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
       setIsSaved(false);
 
       if (typeof window !== "undefined") {
-        const userScopedKey = user?.id ? `markly_gemini_api_key_${user.id}` : "markly_gemini_api_key";
-        const savedKey = localStorage.getItem(userScopedKey) || localStorage.getItem("markly_gemini_api_key");
+        const savedKey = getStoredAiApiKey(user?.id);
         if (savedKey) {
           setApiKey(savedKey);
           setIsSaved(true);
@@ -109,9 +113,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
 
     if (typeof window !== "undefined") {
       if (trimmedKey) {
-        const userScopedKey = user?.id ? `markly_gemini_api_key_${user.id}` : "markly_gemini_api_key";
-        localStorage.setItem(userScopedKey, trimmedKey);
-        localStorage.setItem("markly_gemini_api_key", trimmedKey);
+        setStoredAiApiKey(trimmedKey, user?.id);
 
         setIsSaved(true);
         setTestStatus({
@@ -134,10 +136,7 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
   // Clear config from browser localStorage
   const handleClear = () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("markly_gemini_api_key");
-      if (user?.id) {
-        localStorage.removeItem(`markly_gemini_api_key_${user.id}`);
-      }
+      clearStoredAiApiKey(user?.id);
       setApiKey("");
       setIsSaved(false);
       setTestStatus({
@@ -168,10 +167,13 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
       }
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${trimmedKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": trimmedKey,
+          },
           body: JSON.stringify({
             contents: [{ parts: [{ text: "Say 'Ready'" }] }],
           }),

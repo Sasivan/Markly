@@ -616,5 +616,38 @@ describe("Phase 10 Security Hardening Tests", () => {
       }
     });
   });
+
+  describe("Phase 12 Stage 4: Headers & Database Hardening", () => {
+    it("ensures next.config.ts restricts images.remotePatterns and CSP connect-src", async () => {
+      const configPath = path.join(process.cwd(), "next.config.ts");
+      const configSource = fs.readFileSync(configPath, "utf-8");
+
+      // Verify images.remotePatterns has no wildcards like "**"
+      expect(configSource).not.toContain('hostname: "**"');
+      expect(configSource).toContain('hostname: "api.dicebear.com"');
+      expect(configSource).toContain('hostname: "www.google.com"');
+
+      // Verify connect-src restricted
+      expect(configSource).toContain("connect-src 'self'");
+      expect(configSource).toContain("generativelanguage.googleapis.com");
+
+      // Verify report-only planned nonce/strict CSP header is present
+      expect(configSource).toContain("Content-Security-Policy-Report-Only");
+      expect(configSource).toContain("script-src 'self'");
+    });
+
+    it("ensures 004_hardening.sql contains search_path='', FORCE RLS, and reserved usernames CHECK", () => {
+      const migrationPath = path.join(process.cwd(), "supabase", "migrations", "004_hardening.sql");
+      const sql = fs.readFileSync(migrationPath, "utf-8");
+
+      expect(sql).toContain("SET search_path = ''");
+      expect(sql).toContain("FORCE ROW LEVEL SECURITY");
+      expect(sql).toContain("username_reserved_check");
+      expect(sql).toContain("'admin'");
+      expect(sql).toContain("'root'");
+      expect(sql).toContain("'markly'");
+      expect(sql).toContain("'anonymous'");
+    });
+  });
 });
 

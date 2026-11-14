@@ -594,3 +594,4 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
     </div>
   );
 }
+

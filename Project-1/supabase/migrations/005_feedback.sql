@@ -73,3 +73,4 @@ CREATE POLICY "Users or admin can insert feedback replies"
     auth.uid()::text = user_id OR
     auth.jwt() ->> 'email' = 'sasivan177@gmail.com'
   );
+

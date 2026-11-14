@@ -75,14 +75,15 @@ describe("Feedback System Repository & Access Control", () => {
     });
 
     expect(adminReply).toBeDefined();
-    expect(adminReply.feedbackId).toBe(feedback.id);
-    expect(adminReply.isAdmin).toBe(true);
+    expect(adminReply).not.toBeNull();
+    expect(adminReply!.feedbackId).toBe(feedback.id);
+    expect(adminReply!.isAdmin).toBe(true);
 
     const updatedFeedbacks = BookmarkRepository.getFeedbacks(testUserId);
     const target = updatedFeedbacks.find((f) => f.id === feedback.id);
     expect(target).toBeDefined();
     expect(target?.replies.length).toBeGreaterThanOrEqual(1);
-    expect(target?.replies.some((r) => r.id === adminReply.id && r.isAdmin)).toBe(true);
+    expect(target?.replies.some((r) => r.id === adminReply!.id && r.isAdmin)).toBe(true);
   });
 
   it("updates feedback status for admin triage tags", () => {
@@ -110,3 +111,4 @@ describe("Feedback System Repository & Access Control", () => {
     expect(invalid).toBe(false);
   });
 });
+

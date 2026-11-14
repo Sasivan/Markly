@@ -46,7 +46,7 @@
     "sharp": "^0.35.5",
     "sigma": "^4.0.5",
     "tailwind-merge": "^3.0.2",
-    "zod": "^3.24.2",
+    "zod": "^4.6.7",
     "zustand": "^5.1.0"
   },
   "devDependencies": {

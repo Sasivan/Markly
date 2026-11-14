@@ -49,7 +49,31 @@ export async function DELETE(req: Request) {
   }
 }
 
-// PATCH /api/recycle-bin - Disabled until Stage 4 (requires auth)
-export async function PATCH() {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// PATCH /api/recycle-bin - Update retention days (1, 7, 15, 30)
+export async function PATCH(req: Request) {
+  try {
+    const user = await requireUser();
+    const body = await req.json();
+    const { retentionDays } = body;
+
+    const days = parseInt(retentionDays, 10);
+    if (![1, 7, 15, 30].includes(days)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid retention days. Must be 1, 7, 15, or 30." },
+        { status: 400 }
+      );
+    }
+
+    BookmarkRepository.setRecycleBinRetentionDays(days);
+
+    return NextResponse.json({ success: true, retentionDays: days });
+  } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
+    console.error("PATCH /api/recycle-bin error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update retention" },
+      { status: 500 }
+    );
+  }
 }

@@ -29,9 +29,9 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser();
 
-    // 1. Rate Limiting Check — use first IP from trusted header only
-    const ip = req.headers.get("x-real-ip") || "127.0.0.1";
-    const rateLimit = checkRateLimit(ip, 30, 60 * 1000);
+    // 1. Sliding Window Rate Limiting — scoped to session user ID (never trusts x-forwarded-for)
+    const rateLimitKey = user.id ? `user:${user.id}` : (req.headers.get("x-real-ip") || "127.0.0.1");
+    const rateLimit = checkRateLimit(rateLimitKey, 30, 60 * 1000);
 
     if (!rateLimit.allowed) {
       return NextResponse.json(

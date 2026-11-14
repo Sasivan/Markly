@@ -6,7 +6,8 @@ import {
   Tag,
   Layers,
   Calendar,
-  Sparkles,
+  BookOpen,
+  Folders,
   MousePointerClick,
   PlusCircle,
 } from "lucide-react";
@@ -39,22 +40,22 @@ interface GlobalHomepageAnalyticsProps {
 }
 
 const CATEGORY_PALETTE = [
-  { stroke: "#3b82f6", fill: "#3b82f6", gradId: "catGrad1" }, // Blue
-  { stroke: "#6366f1", fill: "#6366f1", gradId: "catGrad2" }, // Indigo
-  { stroke: "#0ea5e9", fill: "#0ea5e9", gradId: "catGrad3" }, // Sky
-  { stroke: "#8b5cf6", fill: "#8b5cf6", gradId: "catGrad4" }, // Purple
-  { stroke: "#14b8a6", fill: "#14b8a6", gradId: "catGrad5" }, // Teal
+  { stroke: "#2563eb", fill: "#2563eb", gradId: "catGrad1" }, // Primary Blue
+  { stroke: "#475569", fill: "#475569", gradId: "catGrad2" }, // Slate
+  { stroke: "#0d9488", fill: "#0d9488", gradId: "catGrad3" }, // Teal
+  { stroke: "#6366f1", fill: "#6366f1", gradId: "catGrad4" }, // Indigo
+  { stroke: "#78716c", fill: "#78716c", gradId: "catGrad5" }, // Warm Stone
 ];
 
 const TAG_PALETTE = [
-  "#3b82f6",
+  "#2563eb",
+  "#475569",
+  "#0d9488",
   "#6366f1",
-  "#8b5cf6",
-  "#0ea5e9",
-  "#14b8a6",
-  "#10b981",
-  "#f59e0b",
-  "#ec4899",
+  "#64748b",
+  "#d97706",
+  "#0284c7",
+  "#78716c",
 ];
 
 export function GlobalHomepageAnalytics({
@@ -250,29 +251,29 @@ export function GlobalHomepageAnalytics({
   return (
     <section className="space-y-6 pt-2 animate-in fade-in duration-300">
       {/* 1. TOP FULL-WIDTH CHART: Bookmarking Activity Over Time — Top 5 Categories (Stacked) */}
-      <div className="rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-base">📚</span>
-              <h3 className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
-                Bookmarking Activity Over Time — Top Categories (Stacked)
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm tracking-tight text-foreground">
+                Bookmarking activity over time — Top categories (Stacked)
               </h3>
             </div>
-            <p className="text-xs text-slate-500 dark:text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               Monthly site visit volume by category — see how often sites inside each folder and subfolder are accessed over time
             </p>
           </div>
 
           {/* Metric Toggle: Visited Sites vs Created */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-neutral-800 p-0.5 rounded-lg border border-slate-200 dark:border-neutral-700 text-xs self-start sm:self-auto">
+          <div className="flex items-center gap-1 bg-secondary p-0.5 rounded-lg border border-border text-xs self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setActivityMetric("visited")}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer font-medium transition-colors ${
                 activityMetric === "visited"
-                  ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold"
-                  : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-card text-foreground shadow-xs font-medium"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <MousePointerClick className="h-3 w-3" />
@@ -283,8 +284,8 @@ export function GlobalHomepageAnalytics({
               onClick={() => setActivityMetric("created")}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer font-medium transition-colors ${
                 activityMetric === "created"
-                  ? "bg-white dark:bg-neutral-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold"
-                  : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-card text-foreground shadow-xs font-medium"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <PlusCircle className="h-3 w-3" />
@@ -294,9 +295,9 @@ export function GlobalHomepageAnalytics({
         </div>
 
         {/* Stacked Stream Area Chart */}
-        <div className="h-68 w-full pt-1">
+        <div className="h-64 w-full pt-1">
           {monthlyActivityData.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-xs text-slate-400">
+            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
               No activity recorded for this period yet.
             </div>
           ) : (
@@ -310,25 +311,25 @@ export function GlobalHomepageAnalytics({
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.08} />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
+                <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 shadow-xl text-xs space-y-2 min-w-44 text-slate-900 dark:text-white">
-                          <div className="font-bold border-b border-slate-100 dark:border-neutral-800 pb-1.5 font-mono text-[11px] text-slate-500 dark:text-neutral-400">
+                        <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
+                          <div className="font-medium border-b border-border pb-1.5 font-mono text-xs text-muted-foreground">
                             Month: {label}
                           </div>
                           <div className="space-y-1">
                             {payload.map((entry: any, i: number) => (
-                              <div key={`tip-${i}`} className="flex items-center justify-between gap-3 text-[11px]">
+                              <div key={`tip-${i}`} className="flex items-center justify-between gap-3 text-xs">
                                 <span className="flex items-center gap-1.5 font-medium">
                                   <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
                                   {entry.name}
                                 </span>
-                                <span className="font-mono font-semibold">{entry.value}</span>
+                                <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
                               </div>
                             ))}
                           </div>
@@ -347,7 +348,7 @@ export function GlobalHomepageAnalytics({
                       dataKey={cat.name}
                       stackId="1"
                       stroke={pal.stroke}
-                      strokeWidth={2}
+                      strokeWidth={1.5}
                       fill={`url(#${pal.gradId})`}
                     />
                   );
@@ -358,20 +359,20 @@ export function GlobalHomepageAnalytics({
         </div>
 
         {/* Legend Row */}
-        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-slate-600 dark:text-neutral-400 pt-2 border-t border-slate-100 dark:border-neutral-800">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-muted-foreground pt-2 border-t border-border">
           {parentCategories.map((cat, idx) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => cat.id !== "unsorted" && onSelectFolder(cat.id)}
-              className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors"
             >
               <span
                 className="h-2.5 w-2.5 rounded-xs flex-shrink-0"
                 style={{ backgroundColor: CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length].stroke }}
               />
               <span>{cat.name}</span>
-              <span className="font-mono text-[10px] text-slate-400">({cat.count})</span>
+              <span className="font-mono tabular-nums text-xs text-muted-foreground">({cat.count})</span>
             </button>
           ))}
         </div>
@@ -380,38 +381,38 @@ export function GlobalHomepageAnalytics({
       {/* 2. BOTTOM ROW: Category Fingerprint (Parent Folders) & Tag Distribution (Real Tags) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left: Category Fingerprint (Radar Chart with Parent Folders) */}
-        <div className="rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-3 flex flex-col justify-between">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-3 flex flex-col justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-base">❄️</span>
-              <h3 className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
-                Category Fingerprint
+              <Folders className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm tracking-tight text-foreground">
+                Category fingerprint
               </h3>
             </div>
-            <p className="text-xs text-slate-500 dark:text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               Parent categories by total bookmark volume — your library intellectual shape
             </p>
           </div>
 
           <div className="h-64 w-full flex items-center justify-center py-2">
             {categoryFingerprint.length < 3 ? (
-              <div className="text-xs text-slate-400 text-center p-4">
+              <div className="text-xs text-muted-foreground text-center p-4">
                 Create at least 3 folders or tags to render your category fingerprint.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={categoryFingerprint} outerRadius="75%">
-                  <PolarGrid stroke="currentColor" opacity={0.15} />
-                  <PolarAngleAxis dataKey="category" tick={{ fill: "#64748b", fontSize: 11 }} />
-                  <PolarRadiusAxis stroke="#94a3b8" tick={false} />
+                  <PolarGrid stroke="currentColor" opacity={0.1} />
+                  <PolarAngleAxis dataKey="category" tick={{ fill: "currentColor", fontSize: 11 }} />
+                  <PolarRadiusAxis stroke="currentColor" strokeOpacity={0.15} tick={false} />
                   <Tooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const d = payload[0].payload;
                         return (
-                          <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2.5 shadow-xl text-xs text-slate-900 dark:text-white">
-                            <span className="font-bold block">{d.category}</span>
-                            <span className="text-blue-600 dark:text-blue-400 font-mono text-[11px]">
+                          <div className="rounded-xl border border-border bg-card p-2.5 shadow-lg text-xs text-card-foreground">
+                            <span className="font-medium block text-foreground">{d.category}</span>
+                            <span className="text-muted-foreground font-mono tabular-nums text-xs">
                               {d.count} {d.count === 1 ? "bookmark" : "bookmarks"}
                             </span>
                           </div>
@@ -423,44 +424,44 @@ export function GlobalHomepageAnalytics({
                   <Radar
                     name="Bookmarks"
                     dataKey="count"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.25}
-                    strokeWidth={2}
+                    stroke="#2563eb"
+                    fill="#2563eb"
+                    fillOpacity={0.15}
+                    strokeWidth={1.5}
                   />
                 </RadarChart>
               </ResponsiveContainer>
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-neutral-400 pt-2 border-t border-slate-100 dark:border-neutral-800">
-            <span className="h-2 w-2 rounded-xs bg-[#3b82f6]" />
-            <span>Parent Categories Volume</span>
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
+            <span className="h-2 w-2 rounded-xs bg-[#2563eb]" />
+            <span>Parent categories volume</span>
           </div>
         </div>
 
         {/* Right: Tag Distribution (Donut Chart using Real Tags) */}
-        <div className="rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4 flex flex-col justify-between">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="text-base">🏷️</span>
-                <h3 className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
-                  Tag Distribution
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm tracking-tight text-foreground">
+                  Tag distribution
                 </h3>
               </div>
-              <p className="text-xs text-slate-500 dark:text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 Share of collection across your top active tags
               </p>
             </div>
-            <span className="text-[10px] font-mono text-slate-500 dark:text-neutral-400 bg-slate-100 dark:bg-neutral-800 px-2 py-0.5 rounded border border-slate-200 dark:border-neutral-700">
+            <span className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-md border border-border tabular-nums">
               {tagDistribution.length} tags
             </span>
           </div>
 
           {/* Donut Chart + Right Legend */}
           {tagDistribution.length === 0 ? (
-            <div className="h-52 flex items-center justify-center text-xs text-slate-400 text-center">
+            <div className="h-52 flex items-center justify-center text-xs text-muted-foreground text-center">
               No tags found on your bookmarks yet. Tag items to visualize their distribution here.
             </div>
           ) : (
@@ -490,9 +491,9 @@ export function GlobalHomepageAnalytics({
                       if (active && payload && payload.length) {
                         const item = payload[0].payload;
                         return (
-                          <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2.5 shadow-xl text-xs text-slate-900 dark:text-white">
-                            <span className="font-bold block">#{item.tag}</span>
-                            <span className="text-slate-500 dark:text-neutral-400 text-[11px]">
+                          <div className="rounded-xl border border-border bg-card p-2.5 shadow-lg text-xs text-card-foreground">
+                            <span className="font-medium block text-foreground">#{item.tag}</span>
+                            <span className="text-muted-foreground font-mono tabular-nums text-xs">
                               {item.count} {item.count === 1 ? "bookmark" : "bookmarks"} ({item.percentage}%)
                             </span>
                           </div>
@@ -511,15 +512,15 @@ export function GlobalHomepageAnalytics({
                     type="button"
                     key={item.tag}
                     onClick={() => onSelectTag?.(item.tag)}
-                    className="w-full flex items-center justify-between py-1 px-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer group text-left"
+                    className="w-full flex items-center justify-between py-1 px-1.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer group text-left"
                   >
                     <div className="flex items-center gap-2 truncate">
                       <span className="h-2 w-2 rounded-xs flex-shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="truncate text-slate-700 dark:text-neutral-300 font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                      <span className="truncate text-foreground font-medium group-hover:text-primary transition-colors">
                         #{item.tag}
                       </span>
                     </div>
-                    <span className="font-mono text-slate-400 text-[11px] ml-2 flex-shrink-0">
+                    <span className="font-mono tabular-nums text-muted-foreground text-xs ml-2 flex-shrink-0">
                       {item.percentage}%
                     </span>
                   </button>
@@ -530,16 +531,16 @@ export function GlobalHomepageAnalytics({
 
           {/* Bottom Pills with Tag & Counts */}
           {tagDistribution.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-100 dark:border-neutral-800 text-[11px] font-mono">
+            <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-border text-xs font-mono tabular-nums">
               {tagDistribution.map((item) => (
                 <button
                   type="button"
                   key={`pill-tag-${item.tag}`}
                   onClick={() => onSelectTag?.(item.tag)}
-                  className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 border border-slate-200 dark:border-neutral-700 text-slate-700 dark:text-neutral-300 cursor-pointer transition-colors"
+                  className="px-2 py-0.5 rounded-md bg-secondary hover:bg-muted border border-border text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                 >
                   <span>#{item.tag}: </span>
-                  <span className="font-semibold text-slate-900 dark:text-white">{item.count}</span>
+                  <span className="font-medium text-foreground">{item.count}</span>
                 </button>
               ))}
             </div>

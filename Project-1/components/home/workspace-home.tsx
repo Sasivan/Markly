@@ -7,8 +7,8 @@ import {
   Clock,
   Star,
   Inbox,
-  Sparkles,
   ArrowRight,
+  ArrowUpRight,
   ExternalLink,
   Plus,
   CheckCircle2,
@@ -191,20 +191,18 @@ export function WorkspaceHome({
     timeAgoLabel?: string;
   } | null>(null);
 
-  // Dot Palette for distinct sites (modern, vibrant, high-contrast)
+  // Calibrated archival dot palette for sites in spectrum
   const DOT_PALETTE = [
+    "#2563eb", // Primary blue
+    "#475569", // Slate
+    "#0d9488", // Teal
     "#6366f1", // Indigo
-    "#3b82f6", // Blue
-    "#8b5cf6", // Violet
-    "#0ea5e9", // Sky
-    "#10b981", // Emerald
-    "#06b6d4", // Cyan
-    "#ec4899", // Pink
-    "#a855f7", // Purple
-    "#38bdf8", // Light Blue
-    "#14b8a6", // Teal
-    "#f43f5e", // Rose
-    "#64748b", // Slate
+    "#64748b", // Cool grey
+    "#d97706", // Amber
+    "#0284c7", // Sky
+    "#4f46e5", // Iris
+    "#059669", // Emerald
+    "#78716c", // Warm stone
   ];
 
   // Compute Area Dot Spectrum data mapped dynamically across Hours (1 day) or Days (N days)
@@ -370,30 +368,30 @@ export function WorkspaceHome({
   return (
     <div className="space-y-8 pb-12 animate-in fade-in duration-300">
       {/* Workspace Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-6 shadow-sm">
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                Workspace Home
+              <span className="px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-secondary text-secondary-foreground border border-border inline-flex items-center gap-1.5">
+                <Compass className="h-3 w-3 text-muted-foreground" />
+                Workspace Overview
               </span>
               <span className="text-xs text-muted-foreground font-mono" suppressHydrationWarning>
                 {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
               </span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Markly Workspace
             </h1>
             <p className="text-xs text-muted-foreground max-w-xl">
-              Your centralized bookmark hub. Jump into collections, review recent discoveries, or organize pending items. Open any folder to unlock deep visual analytics.
+              Centralized bookmark library. Jump into collections, review recent discoveries, or organize unfiled items.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-shrink-0">
             <Button
               onClick={onOpenAddModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs px-3.5 h-8.5 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs px-3 h-8 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Add Bookmark</span>
@@ -404,53 +402,53 @@ export function WorkspaceHome({
                 onSelectFolder(null);
                 onSelectView("all");
               }}
-              className="text-xs h-8.5 px-3 rounded-lg border-slate-300 dark:border-neutral-700 cursor-pointer flex items-center gap-1.5"
+              className="text-xs h-8 px-3 rounded-lg border-border cursor-pointer flex items-center gap-1.5"
             >
-              <Globe className="h-3.5 w-3.5 text-blue-500" />
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Browse All Sites ({totalCount})</span>
             </Button>
           </div>
         </div>
 
         {/* Live Metrics Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-slate-100 dark:border-neutral-800/80">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
               <Bookmark className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-900 dark:text-white">{totalCount}</div>
-              <div className="text-[11px] text-muted-foreground">Active Bookmarks</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{totalCount}</div>
+              <div className="text-xs text-muted-foreground">Active bookmarks</div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
               <FolderIcon className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-900 dark:text-white">{folderCollectionsCount}</div>
-              <div className="text-[11px] text-muted-foreground">Folder Collections</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{folderCollectionsCount}</div>
+              <div className="text-xs text-muted-foreground">Folder collections</div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
               <ShieldCheck className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-900 dark:text-white">{healthPercent}%</div>
-              <div className="text-[11px] text-muted-foreground">Reachable & Healthy</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{healthPercent}%</div>
+              <div className="text-xs text-muted-foreground">Reachable & healthy</div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
               <Star className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-bold text-slate-900 dark:text-white">{totalFavoritesCount}</div>
-              <div className="text-[11px] text-muted-foreground">Starred Favorites</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{totalFavoritesCount}</div>
+              <div className="text-xs text-muted-foreground">Starred favorites</div>
             </div>
           </div>
         </div>
@@ -458,12 +456,12 @@ export function WorkspaceHome({
 
       {/* Empty Database State Banner */}
       {bookmarks.length === 0 && (
-        <div className="rounded-2xl border-2 border-dashed border-blue-300 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 p-8 text-center space-y-4">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm">
-            <Bookmark className="h-7 w-7" />
+        <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-8 text-center space-y-4">
+          <div className="mx-auto h-12 w-12 rounded-xl bg-secondary border border-border flex items-center justify-center text-muted-foreground shadow-xs">
+            <Bookmark className="h-6 w-6" />
           </div>
           <div className="max-w-md mx-auto space-y-1">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            <h3 className="text-base font-semibold text-foreground">
               {user ? "Your Cloud Database is Ready & Clean" : "Welcome to Markly"}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -475,9 +473,9 @@ export function WorkspaceHome({
           <div className="flex items-center justify-center gap-3 pt-2">
             <Button
               onClick={onOpenAddModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs h-9 px-4 cursor-pointer shadow-xs gap-1.5"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs h-8 px-3 rounded-lg cursor-pointer shadow-xs gap-1.5"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
               <span>Add First Bookmark</span>
             </Button>
           </div>
@@ -488,11 +486,11 @@ export function WorkspaceHome({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
               <Compass className="h-3.5 w-3.5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Quick Access</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">Frequent & daily drivers (top 6)</span>
+            <h2 className="text-sm font-semibold text-foreground">Quick Access</h2>
+            <span className="text-xs text-muted-foreground font-mono">Frequent & daily drivers (top 6)</span>
           </div>
           <button
             type="button"
@@ -500,7 +498,7 @@ export function WorkspaceHome({
               onSelectFolder(null);
               onSelectView("all");
             }}
-            className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer font-medium"
           >
             <span>View All Sites</span>
             <ArrowRight className="h-3 w-3" />
@@ -512,7 +510,7 @@ export function WorkspaceHome({
             <div
               key={bm.id}
               onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-              className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs hover:border-blue-400 dark:hover:border-blue-700 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+              className="rounded-xl border border-border bg-card p-3 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-3 group cursor-pointer"
             >
               <div className="flex items-center gap-2.5 truncate min-w-0">
                 <BookmarkIcon
@@ -523,14 +521,14 @@ export function WorkspaceHome({
                 />
                 <div className="truncate">
                   <span
-                    className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block cursor-pointer"
+                    className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer"
                   >
                     {bm.title}
                   </span>
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                    <span className="truncate max-w-[110px]">{bm.domain}</span>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                    <span className="truncate max-w-28 font-mono">{bm.domain}</span>
                     <span>•</span>
-                    <span className="font-mono">{bm.visitCount || 0} visits</span>
+                    <span className="font-mono tabular-nums">{bm.visitCount || 0} visits</span>
                   </div>
                 </div>
               </div>
@@ -544,7 +542,7 @@ export function WorkspaceHome({
                       e.stopPropagation();
                       onToggleArchive(bm);
                     }}
-                    className="h-7 w-7 rounded-md bg-slate-100 hover:bg-purple-50 dark:bg-neutral-800 dark:hover:bg-purple-950/50 flex items-center justify-center text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                    className="h-7 w-7 rounded-md bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
                     title="Archive bookmark"
                   >
                     <Archive className="h-3.5 w-3.5" />
@@ -558,7 +556,7 @@ export function WorkspaceHome({
                       e.stopPropagation();
                       onDeleteBookmark(bm.id, bm.title);
                     }}
-                    className="h-7 w-7 rounded-md bg-slate-100 hover:bg-rose-50 dark:bg-neutral-800 dark:hover:bg-rose-950/50 flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex-shrink-0 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                    className="h-7 w-7 rounded-md bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
                     title="Delete bookmark"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -569,7 +567,7 @@ export function WorkspaceHome({
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => handleSiteVisit(bm)}
-                  className="h-7 w-7 rounded-md bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0 transition-colors"
+                  className="h-7 w-7 rounded-md bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-colors"
                   title="Launch Site"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -586,12 +584,12 @@ export function WorkspaceHome({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
                 <History className="h-3.5 w-3.5" />
               </div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Recently Visited</h2>
+              <h2 className="text-sm font-semibold text-foreground">Recently Visited</h2>
               {totalVisitedCount > 0 && (
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-xs text-muted-foreground font-mono tabular-nums">
                   {totalVisitedCount} {totalVisitedCount === 1 ? "site" : "sites"}
                 </span>
               )}
@@ -603,7 +601,7 @@ export function WorkspaceHome({
                 onSelectFolder(null);
                 onSelectView("recent");
               }}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium flex items-center gap-1"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
             >
               <span>View All</span>
               <ArrowRight className="h-3 w-3" />
@@ -611,20 +609,20 @@ export function WorkspaceHome({
           </div>
 
           {recentlyVisited.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground bg-white dark:bg-[#1a1a1a] rounded-xl border border-dashed border-slate-200 dark:border-neutral-800">
-              <Clock className="h-6 w-6 mx-auto mb-2 text-indigo-400 opacity-60" />
-              <p className="font-medium text-slate-700 dark:text-neutral-300">No visit activity recorded yet</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Click or launch any bookmark to track it in your chronological activity stream.</p>
+            <div className="p-6 text-center text-xs text-muted-foreground bg-card rounded-xl border border-dashed border-border">
+              <Clock className="h-6 w-6 mx-auto mb-2 text-muted-foreground/60" />
+              <p className="font-medium text-foreground">No visit activity recorded yet</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Click or launch any bookmark to track it in your chronological activity stream.</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] shadow-xs divide-y divide-slate-100 dark:divide-neutral-800/80 overflow-hidden">
+            <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
               {recentlyVisited.map((bm) => {
                 const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
                 return (
                   <div
                     key={bm.id}
                     onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                    className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer group"
+                    className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <BookmarkIcon
@@ -635,16 +633,16 @@ export function WorkspaceHome({
                       />
                       <div className="truncate">
                         <span
-                          className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block cursor-pointer"
+                          className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer"
                         >
                           {bm.title}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                          <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                          <span className="font-mono tabular-nums text-muted-foreground font-medium">
                             {lastTime ? `Visited ${formatTimeAgo(lastTime)}` : "Not visited yet"}
                           </span>
                           <span>•</span>
-                          <span className="truncate max-w-[120px]">{getParentName(bm)}</span>
+                          <span className="truncate max-w-32">{getParentName(bm)}</span>
                         </div>
                       </div>
                     </div>
@@ -658,7 +656,7 @@ export function WorkspaceHome({
                             e.stopPropagation();
                             onDeleteBookmark(bm.id, bm.title);
                           }}
-                          className="h-6 w-6 rounded bg-slate-100 hover:bg-rose-50 dark:bg-neutral-800 dark:hover:bg-rose-950/50 flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                          className="h-6 w-6 rounded bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
                           title="Delete bookmark"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -669,7 +667,7 @@ export function WorkspaceHome({
                         target="_blank"
                         rel="noreferrer"
                         onClick={() => handleSiteVisit(bm)}
-                        className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
                         title="Open link"
                       >
                         <ExternalLink className="h-3 w-3" />
@@ -686,12 +684,12 @@ export function WorkspaceHome({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <div className="h-5 w-5 rounded bg-secondary text-amber-500 flex items-center justify-center">
                 <Star className="h-3.5 w-3.5 fill-amber-500" />
               </div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Starred Favorites</h2>
+              <h2 className="text-sm font-semibold text-foreground">Starred Favorites</h2>
               {totalFavoritesCount > 0 && (
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-xs text-muted-foreground font-mono tabular-nums">
                   {totalFavoritesCount} {totalFavoritesCount === 1 ? "site" : "sites"}
                 </span>
               )}
@@ -702,13 +700,14 @@ export function WorkspaceHome({
                 onSelectFolder(null);
                 onSelectView("favorites");
               }}
-              className="text-xs text-amber-600 dark:text-amber-400 hover:underline cursor-pointer font-medium"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
             >
-              View Favorites →
+              <span>View Favorites</span>
+              <ArrowRight className="h-3 w-3" />
             </button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] shadow-xs divide-y divide-slate-100 dark:divide-neutral-800/80 overflow-hidden">
+          <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
             {favorites.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">
                 No favorites starred yet. Click the star on any bookmark to pin it here.
@@ -718,7 +717,7 @@ export function WorkspaceHome({
                 <div
                   key={bm.id}
                   onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                  className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer group"
+                  className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <BookmarkIcon
@@ -729,14 +728,14 @@ export function WorkspaceHome({
                     />
                     <div className="truncate">
                       <span
-                        className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block cursor-pointer"
+                        className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer"
                       >
                         {bm.title}
                       </span>
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                        <span className="truncate max-w-[110px]">{bm.domain}</span>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                        <span className="truncate max-w-28 font-mono">{bm.domain}</span>
                         <span>•</span>
-                        <span className="truncate max-w-[100px]">{getParentName(bm)}</span>
+                        <span className="truncate max-w-28">{getParentName(bm)}</span>
                       </div>
                     </div>
                   </div>
@@ -746,7 +745,7 @@ export function WorkspaceHome({
                       <button
                         type="button"
                         onClick={() => onToggleArchive(bm)}
-                        className="h-6 w-6 rounded bg-slate-100 hover:bg-purple-50 dark:bg-neutral-800 dark:hover:bg-purple-950/50 flex items-center justify-center text-slate-400 hover:text-purple-600 transition-colors cursor-pointer"
+                        className="h-6 w-6 rounded bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
                         title="Archive bookmark"
                       >
                         <Archive className="h-3 w-3" />
@@ -757,7 +756,7 @@ export function WorkspaceHome({
                       target="_blank"
                       rel="noreferrer"
                       onClick={() => handleSiteVisit(bm)}
-                      className="h-6 w-6 rounded bg-slate-100 dark:bg-neutral-800 flex items-center justify-center text-slate-500 hover:text-amber-600 transition-colors"
+                      className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
                       title="Launch site"
                     >
                       <ExternalLink className="h-3 w-3" />
@@ -774,12 +773,12 @@ export function WorkspaceHome({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
               <Inbox className="h-3.5 w-3.5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Inbox / Unsorted Sites</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">
-              {totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} Unsorted`}
+            <h2 className="text-sm font-semibold text-foreground">Inbox / Unsorted Sites</h2>
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">
+              {totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} unfiled`}
             </span>
           </div>
           <button
@@ -788,17 +787,18 @@ export function WorkspaceHome({
               onSelectFolder(null);
               onSelectView("unsorted");
             }}
-            className="text-xs text-rose-600 dark:text-rose-400 hover:underline cursor-pointer font-medium"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
           >
-            Open Inbox ({totalUnsortedCount}) →
+            <span>Open Inbox ({totalUnsortedCount})</span>
+            <ArrowRight className="h-3 w-3" />
           </button>
         </div>
 
         {totalUnsortedCount === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900/40 p-6 text-center space-y-1.5">
-            <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto" />
-            <div className="text-xs font-semibold text-slate-900 dark:text-white">Inbox Zero!</div>
-            <p className="text-[11px] text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-6 text-center space-y-1.5">
+            <CheckCircle2 className="h-6 w-6 text-muted-foreground mx-auto" />
+            <div className="text-xs font-semibold text-foreground">Inbox Zero</div>
+            <p className="text-xs text-muted-foreground">
               All bookmarks in your workspace are filed into folder collections.
             </p>
           </div>
@@ -808,7 +808,7 @@ export function WorkspaceHome({
               <div
                 key={bm.id}
                 onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#1a1a1a] p-3.5 shadow-xs flex flex-col justify-between gap-3 cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 transition-all hover:shadow-sm group"
+                className="rounded-xl border border-border bg-card p-3.5 shadow-xs flex flex-col justify-between gap-3 cursor-pointer hover:border-border-hover transition-colors group"
                 title="Click to view details and preview"
               >
                 <div className="space-y-1.5">
@@ -819,19 +819,20 @@ export function WorkspaceHome({
                       domain={bm.domain}
                       className="h-5 w-5 rounded object-contain flex-shrink-0"
                     />
-                    <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                      Unfiled Site
+                    <span className="text-xs font-mono text-muted-foreground">
+                      Unfiled
                     </span>
                   </div>
-                  <div className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-1 block group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  <div className="text-xs font-medium text-foreground line-clamp-1 block group-hover:text-primary transition-colors">
                     {bm.title}
                   </div>
-                  <p className="text-[10px] text-muted-foreground font-mono truncate">{bm.domain}</p>
+                  <p className="text-xs text-muted-foreground font-mono truncate">{bm.domain}</p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-neutral-800/80 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 group-hover:underline flex items-center gap-1">
-                    Organize Now →
+                <div className="pt-2 border-t border-border flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground flex items-center gap-1 transition-colors">
+                    <span>Organize</span>
+                    <ArrowRight className="h-3 w-3" />
                   </span>
                   <a
                     href={bm.url}
@@ -841,7 +842,7 @@ export function WorkspaceHome({
                       e.stopPropagation();
                       handleSiteVisit(bm);
                     }}
-                    className="text-muted-foreground hover:text-foreground p-1 hover:bg-slate-100 dark:hover:bg-neutral-800 rounded"
+                    className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
                     title="Open link"
                   >
                     <ExternalLink className="h-3 w-3" />
@@ -857,30 +858,30 @@ export function WorkspaceHome({
       <section className="space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+            <div className="h-6 w-6 rounded-lg bg-secondary text-muted-foreground flex items-center justify-center flex-shrink-0">
               <Ghost className="h-4 w-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Forgotten Bookmarks</h2>
-                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono px-2 py-0.5 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
+                <h2 className="text-sm font-semibold text-foreground">Activity Spectrum</h2>
+                <span className="text-xs bg-secondary text-muted-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
                   {spectrumData.isHourly ? "24-Hour Activity Division" : `${inactiveThreshold}-Day Dynamic Division`}
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Hover any site dot to inspect its exact last clicked time • Click dot to visit & record realtime
+              <p className="text-xs text-muted-foreground">
+                Inspect last visited timestamp • Click dot to launch site
               </p>
             </div>
           </div>
 
           {/* Range Slider: 1 Day (Hourly) to 90 Days */}
-          <div className="flex flex-wrap items-center gap-2.5 bg-slate-50 dark:bg-neutral-900/60 p-2 rounded-xl border border-slate-200 dark:border-neutral-800 text-xs">
-            <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-neutral-300">
-              <span className="text-muted-foreground text-[11px]">Threshold:</span>
-              <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+          <div className="flex flex-wrap items-center gap-2.5 bg-secondary/40 p-2 rounded-xl border border-border text-xs">
+            <div className="flex items-center gap-1.5 font-medium text-foreground">
+              <span className="text-muted-foreground text-xs">Threshold:</span>
+              <span className="font-medium font-mono tabular-nums">
                 {inactiveThreshold === 1 ? "1 Day (24 Hours)" : `${inactiveThreshold} Days`}
               </span>
-              <span className="text-[10px] text-muted-foreground">({spectrumData.inactiveCount} dormant)</span>
+              <span className="text-xs text-muted-foreground font-mono tabular-nums">({spectrumData.inactiveCount} dormant)</span>
             </div>
             <input
               type="range"
@@ -888,8 +889,8 @@ export function WorkspaceHome({
               max="90"
               value={inactiveThreshold}
               onChange={(e) => setInactiveThreshold(Number(e.target.value))}
-              className="w-28 sm:w-36 accent-indigo-600 cursor-pointer"
-              title={`Adjust threshold (1 day = hourly division, >1 = dynamic daily division)`}
+              className="w-28 sm:w-36 accent-foreground cursor-pointer"
+              title="Adjust threshold (1 day = hourly division, >1 = dynamic daily division)"
             />
             <div className="flex items-center gap-1">
               {[1, 7, 14, 30, 60, 90].map((d) => (
@@ -897,10 +898,10 @@ export function WorkspaceHome({
                   type="button"
                   key={`preset-${d}`}
                   onClick={() => setInactiveThreshold(d)}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                  className={`px-2 py-0.5 rounded text-xs font-mono cursor-pointer transition-colors ${
                     inactiveThreshold === d
-                      ? "bg-indigo-600 text-white font-bold shadow-2xs"
-                      : "bg-slate-200/80 dark:bg-neutral-800 text-slate-600 dark:text-neutral-400 hover:text-foreground"
+                      ? "bg-foreground text-background font-medium"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {d === 1 ? "1d (24h)" : `${d}d`}
@@ -911,15 +912,15 @@ export function WorkspaceHome({
         </div>
 
         {/* INTERACTIVE AREA SPECTRUM WITH DYNAMIC HOURLY / DAILY GRID DIVISIONS */}
-        <div className="relative rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-4 shadow-sm overflow-hidden">
-          <div className="text-[11px] font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+        <div className="relative rounded-xl border border-border bg-card p-4 shadow-xs overflow-hidden">
+          <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center justify-between">
             <span>
               {spectrumData.isHourly
-                ? "Hourly Activity Division (0h to 24h)"
-                : `Daily Grid Division across ${inactiveThreshold} Days (Day 1 to ${inactiveThreshold}d+)`}
+                ? "Hourly activity division (0h to 24h)"
+                : `Daily grid division across ${inactiveThreshold} days (Day 1 to ${inactiveThreshold}d+)`}
             </span>
-            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">
-              ● {spectrumData.dots.length} total sites • Inactive / Dormant: {spectrumData.inactiveCount}
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">
+              {spectrumData.dots.length} sites • {spectrumData.inactiveCount} dormant
             </span>
           </div>
 
@@ -930,18 +931,10 @@ export function WorkspaceHome({
               viewBox="0 0 1000 200"
               preserveAspectRatio="none"
             >
-              <defs>
-                <linearGradient id="forgottenIndigoGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.32" />
-                  <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.14" />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.01" />
-                </linearGradient>
-              </defs>
-
               {/* Horizontal Guidelines */}
-              <line x1="40" y1="40" x2="960" y2="40" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
-              <line x1="40" y1="100" x2="960" y2="100" stroke="currentColor" strokeOpacity="0.06" strokeDasharray="3 3" />
-              <line x1="40" y1="160" x2="960" y2="160" stroke="currentColor" strokeOpacity="0.12" />
+              <line x1="40" y1="40" x2="960" y2="40" stroke="currentColor" strokeOpacity={0.06} strokeDasharray="3 3" />
+              <line x1="40" y1="100" x2="960" y2="100" stroke="currentColor" strokeOpacity={0.06} strokeDasharray="3 3" />
+              <line x1="40" y1="160" x2="960" y2="160" stroke="currentColor" strokeOpacity={0.12} />
 
               {/* Dynamic Vertical Grid Division Lines */}
               {spectrumData.gridLines.map((gl, i) => {
@@ -954,7 +947,7 @@ export function WorkspaceHome({
                     x2={gx}
                     y2={160}
                     stroke="currentColor"
-                    strokeOpacity={gl.isMajor ? "0.14" : "0.05"}
+                    strokeOpacity={gl.isMajor ? "0.12" : "0.04"}
                     strokeDasharray={gl.isMajor ? undefined : "2 2"}
                   />
                 );
@@ -963,16 +956,17 @@ export function WorkspaceHome({
               {/* Area Background Shape */}
               <path
                 d="M 40,160 Q 250,65 500,90 T 800,60 T 960,45 L 960,160 L 40,160 Z"
-                fill="url(#forgottenIndigoGrad)"
+                fill="currentColor"
+                fillOpacity={0.03}
               />
               {/* Area Top Boundary Stroke */}
               <path
                 d="M 40,160 Q 250,65 500,90 T 800,60 T 960,45"
                 fill="none"
-                stroke="#6366f1"
-                strokeWidth="1.5"
+                stroke="currentColor"
+                strokeWidth="1"
                 strokeDasharray="3 3"
-                opacity="0.65"
+                opacity="0.25"
               />
 
               {/* Small, Crisp, Interactive Dots for Each Site */}
@@ -1023,7 +1017,7 @@ export function WorkspaceHome({
                       stroke={isHovered ? "#ffffff" : dot.isInactive ? "currentColor" : "#ffffff"}
                       strokeOpacity={dot.isInactive ? 0.3 : 0.85}
                       strokeWidth={isHovered ? "1.5" : "0.75"}
-                      className="transition-all duration-150 drop-shadow-xs"
+                      className="transition-opacity duration-150"
                     />
                   </g>
                 );
@@ -1031,10 +1025,10 @@ export function WorkspaceHome({
             </svg>
 
             {/* Dynamic Bottom Time Axis */}
-            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-neutral-400 pt-1.5 border-t border-slate-200/80 dark:border-neutral-800 px-3">
+            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-xs font-mono text-muted-foreground pt-1.5 border-t border-border px-3">
               {spectrumData.timeMarkers.map((m, i) => (
                 <div key={`tm-${i}`} className="text-center" style={{ width: `${100 / spectrumData.timeMarkers.length}%` }}>
-                  <span className="font-semibold text-slate-700 dark:text-neutral-300">{m.label}</span>
+                  <span className="font-medium text-muted-foreground">{m.label}</span>
                 </div>
               ))}
             </div>
@@ -1042,54 +1036,55 @@ export function WorkspaceHome({
             {/* Tooltip Over the Spot (Last Time Clicked) */}
             {hoveredSpot && (
               <div
-                className="absolute z-30 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 p-2.5 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-56"
+                className="absolute z-30 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground"
                 style={{
                   left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
                   top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
                 }}
               >
-                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-neutral-800 pb-1.5">
+                <div className="flex items-center gap-2 border-b border-border pb-1.5 font-medium">
                   <BookmarkIcon
                     src={hoveredSpot.bookmark.iconUrl}
                     domain={hoveredSpot.bookmark.domain}
                     className="h-4 w-4 rounded object-contain flex-shrink-0"
                   />
-                  <div className="truncate font-bold text-slate-900 dark:text-white">
+                  <div className="truncate text-foreground font-semibold">
                     {hoveredSpot.bookmark.title}
                   </div>
                 </div>
 
-                <div className="space-y-1 text-[11px]">
+                <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>Domain:</span>
-                    <span className="font-mono text-slate-700 dark:text-neutral-300">
+                    <span className="font-mono text-foreground">
                       {hoveredSpot.bookmark.domain}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>Category:</span>
-                    <span className="text-slate-700 dark:text-neutral-300">
+                    <span className="text-foreground">
                       {getParentName(hoveredSpot.bookmark)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400 font-semibold pt-0.5 border-t border-slate-100 dark:border-neutral-800/80">
-                    <span>Last Time Clicked:</span>
-                    <span className="font-mono">
+                  <div className="flex items-center justify-between font-medium pt-0.5 border-t border-border">
+                    <span className="text-muted-foreground">Last clicked:</span>
+                    <span className="font-mono tabular-nums text-foreground">
                       {hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt
                         ? `${new Date(hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt!).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "numeric" })} (${hoveredSpot.timeAgoLabel || `${hoveredSpot.daysAgo}d ago`})`
-                        : `Never Clicked (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
+                        : `Never (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>Total Visits:</span>
-                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Total visits:</span>
+                    <span className="font-mono tabular-nums font-semibold text-foreground">
                       {hoveredSpot.bookmark.visitCount || 0}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-[10px] text-center text-indigo-600 dark:text-indigo-400 font-medium pt-1 border-t border-slate-100 dark:border-neutral-800">
-                  Click dot to visit site ↗
+                <div className="text-xs text-center text-muted-foreground font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
+                  <span>Inspect bookmark</span>
+                  <ArrowUpRight className="h-3 w-3" />
                 </div>
               </div>
             )}
@@ -1110,10 +1105,10 @@ export function WorkspaceHome({
       {topTags.length > 0 && (
         <section className="space-y-3 pt-2">
           <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
               <Tag className="h-3.5 w-3.5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Workspace Topics & Tags</h2>
+            <h2 className="text-sm font-semibold text-foreground">Workspace Topics & Tags</h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1126,13 +1121,13 @@ export function WorkspaceHome({
                   onSelectFolder(null);
                   onSelectView("all");
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] hover:border-purple-400 transition-all cursor-pointer shadow-2xs group"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-border bg-card hover:border-border-hover hover:bg-muted/40 transition-colors cursor-pointer group"
               >
-                <Hash className="h-3 w-3 text-purple-500" />
-                <span className="text-slate-800 dark:text-neutral-200 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                <Hash className="h-3 w-3 text-muted-foreground" />
+                <span className="text-foreground group-hover:text-primary transition-colors">
                   {tag.name}
                 </span>
-                <span className="text-[10px] bg-slate-100 dark:bg-neutral-800 text-muted-foreground px-1.5 py-0.2 rounded font-mono">
+                <span className="text-xs bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-mono tabular-nums">
                   {tag.count}
                 </span>
               </button>

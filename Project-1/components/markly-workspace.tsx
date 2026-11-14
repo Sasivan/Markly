@@ -136,8 +136,16 @@ export function MarklyWorkspace({
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
   const [recentBoundary, setRecentBoundary] = React.useState<"top20" | "today" | "7d" | "30d" | "all">("top20");
 
-  // Sidebar collapse state initialized directly from SSR cookie to eliminate full-then-collapse glimpse!
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(Boolean(initialSidebarCollapsed));
+  // Sidebar collapse state: collapsed by default for all users when opening website
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_sidebar_collapsed");
+        if (stored !== null) return stored === "true";
+      } catch {}
+    }
+    return true; // Default collapsed
+  });
 
   React.useEffect(() => {
     try {
@@ -546,6 +554,17 @@ export function MarklyWorkspace({
   };
 
   const [defaultFolderForAdd, setDefaultFolderForAdd] = React.useState<string | null>(null);
+  const [folderViewMode, setFolderViewMode] = React.useState<"table" | "board" | "cards" | "list" | "compact">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_view_mode");
+        if (stored && ["table", "board", "cards", "list", "compact"].includes(stored)) {
+          return stored as any;
+        }
+      } catch {}
+    }
+    return "table";
+  });
 
   const openAddModal = React.useCallback((folderIdOrUrl?: unknown, urlToPrefill?: unknown) => {
     let cleanFolderId: string | null = null;
@@ -1480,6 +1499,8 @@ export function MarklyWorkspace({
                     onMoveFolder={(folder) => setPanelMoveFolder(folder)}
                     onDeleteFolder={(folder) => setPanelDeleteFolder(folder)}
                     onAddBookmarkToFolder={(fId) => openAddModal(fId)}
+                    viewMode={folderViewMode}
+                    onChangeViewMode={setFolderViewMode}
                   />
                 );
               })()}
@@ -1586,7 +1607,7 @@ export function MarklyWorkspace({
                   </div>
 
                   {/* Predefined Recency Boundary Selector */}
-                  <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto text-xs">
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto text-xs shadow-2xs">
                     {[
                       { id: "top20", label: "Top 20" },
                       { id: "today", label: "Past 24h" },
@@ -1598,10 +1619,10 @@ export function MarklyWorkspace({
                         key={tab.id}
                         type="button"
                         onClick={() => setRecentBoundary(tab.id as any)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
                           recentBoundary === tab.id
-                            ? "bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold"
-                            : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white"
+                            ? "bg-blue-600 text-white shadow-xs scale-102 font-bold"
+                            : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-neutral-800"
                         }`}
                       >
                         {tab.label}
@@ -1628,6 +1649,8 @@ export function MarklyWorkspace({
                 onToggleFavorite={handleToggleFavoriteOptimistic}
                 onToggleArchive={handleToggleArchiveOptimistic}
                 onMoveBookmark={handleMoveBookmarkOptimistic}
+                controlledViewMode={folderViewMode}
+                onControlledViewModeChange={setFolderViewMode}
               />
             </>
           )}

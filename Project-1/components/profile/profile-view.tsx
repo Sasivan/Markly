@@ -149,9 +149,9 @@ export function ProfileView({
     }
   }, [user]);
 
-  // Real-time debounce check for unique username (works across both details edit and username edit)
+  // Real-time debounce check for unique username
   React.useEffect(() => {
-    if (!isEditingUsername && !isEditingDetails) {
+    if (!isEditingUsername) {
       setUsernameCheck({ state: "idle" });
       return;
     }
@@ -249,27 +249,6 @@ export function ProfileView({
   const handleSaveProfile = async () => {
     if (!displayName.trim()) return;
 
-    const cleanUsername = username.trim().toLowerCase();
-    const currentUsername = (user?.user_metadata?.username || "").trim().toLowerCase();
-
-    // Check username validation if changed
-    if (cleanUsername && cleanUsername !== currentUsername) {
-      if (usernameCheck.state === "unavailable") {
-        setStatusMessage({
-          type: "error",
-          text: usernameCheck.message || "Please choose an available username.",
-        });
-        return;
-      }
-      if (usernameCheck.state === "checking") {
-        setStatusMessage({
-          type: "error",
-          text: "Please wait while we verify your username...",
-        });
-        return;
-      }
-    }
-
     setIsSavingDetails(true);
     setStatusMessage(null);
 
@@ -279,7 +258,6 @@ export function ProfileView({
           data: {
             display_name: displayName.trim(),
             full_name: displayName.trim(),
-            username: cleanUsername || currentUsername,
             dob: dob.trim(),
             bio: bio.trim(),
             location: location.trim(),
@@ -302,7 +280,7 @@ export function ProfileView({
           "markly_guest_profile",
           JSON.stringify({
             displayName: displayName.trim(),
-            username: cleanUsername,
+            username: username.trim().toLowerCase(),
             dob: dob.trim(),
             bio: bio.trim(),
             location: location.trim(),
@@ -473,7 +451,13 @@ export function ProfileView({
 
   // Manual Trigger Database Sync
   const handleSyncNow = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setStatusMessage({
+        type: "success",
+        text: "Guest mode: your links and folders are safely stored in your local browser cache.",
+      });
+      return;
+    }
     setIsSyncing(true);
     setStatusMessage(null);
 
@@ -483,24 +467,29 @@ export function ProfileView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
-      if (data.success) {
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: `Server response: ${res.status}` };
+      }
+      if (res.ok && data?.success) {
         setStatusMessage({
           type: "success",
           text: `Synced successfully! (${data.bookmarksCount || 0} bookmarks, ${data.foldersCount || 0} folders)`,
         });
         if (onRefreshData) onRefreshData();
       } else {
-        throw new Error(data.error || "Sync failed");
+        throw new Error(data?.error || `Sync could not complete (${res.status})`);
       }
     } catch (err: any) {
       setStatusMessage({
         type: "error",
-        text: `Sync error: ${err.message}`,
+        text: `Sync note: ${err.message}`,
       });
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setStatusMessage(null), 4000);
+      setTimeout(() => setStatusMessage(null), 4500);
     }
   };
 
@@ -906,65 +895,6 @@ export function ProfileView({
                   placeholder="Your full name"
                   className="h-8 text-xs"
                 />
-              </div>
-
-              {/* Unique Username Field with Live Verification */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
-                    Unique Username
-                  </label>
-                  <span className="text-[10px] text-muted-foreground font-mono">Live check</span>
-                </div>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
-                  <Input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
-                    placeholder="your_unique_username"
-                    className={`pl-7 pr-8 h-8 text-xs font-mono transition-colors ${
-                      usernameCheck.state === "available" || usernameCheck.state === "unchanged"
-                        ? "border-emerald-500 focus-visible:ring-emerald-500/30"
-                        : usernameCheck.state === "unavailable"
-                        ? "border-rose-500 focus-visible:ring-rose-500/30"
-                        : ""
-                    }`}
-                  />
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                    {usernameCheck.state === "checking" && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
-                    )}
-                    {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                    )}
-                    {usernameCheck.state === "unavailable" && (
-                      <XCircle className="h-3.5 w-3.5 text-rose-500" />
-                    )}
-                  </div>
-                </div>
-                {usernameCheck.message && (
-                  <div
-                    className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 animate-in fade-in duration-200 ${
-                      usernameCheck.state === "available" || usernameCheck.state === "unchanged"
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : usernameCheck.state === "unavailable"
-                        ? "text-rose-600 dark:text-rose-400"
-                        : "text-indigo-500"
-                    }`}
-                  >
-                    {usernameCheck.state === "checking" && (
-                      <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
-                    )}
-                    {(usernameCheck.state === "available" || usernameCheck.state === "unchanged") && (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                    )}
-                    {usernameCheck.state === "unavailable" && (
-                      <XCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
-                    )}
-                    <span className="truncate">{usernameCheck.message}</span>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-1">

@@ -14,6 +14,9 @@ import {
   ArrowRight,
   Check,
   X,
+  Table as TableIcon,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -36,6 +39,8 @@ interface FolderPagePanelProps {
   onMoveFolder: (folder: FolderType) => void;
   onDeleteFolder: (folder: FolderType) => void;
   onAddBookmarkToFolder?: (folderId: string) => void;
+  viewMode?: "table" | "board" | "cards" | "list" | "compact";
+  onChangeViewMode?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
 }
 
 export function FolderPagePanel({
@@ -55,6 +60,8 @@ export function FolderPagePanel({
   onMoveFolder,
   onDeleteFolder,
   onAddBookmarkToFolder,
+  viewMode = "table",
+  onChangeViewMode,
 }: FolderPagePanelProps) {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editName, setEditName] = React.useState(currentFolder.name);
@@ -245,6 +252,42 @@ export function FolderPagePanel({
               <Plus className="h-3.5 w-3.5" />
               <span>Add Bookmark</span>
             </Button>
+          )}
+
+          {/* Multi-View Mode Switcher */}
+          {onChangeViewMode && (
+            <div className="flex items-center bg-slate-100 dark:bg-neutral-850 p-0.5 rounded-lg border border-slate-200 dark:border-neutral-700 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => onChangeViewMode("table")}
+                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                  viewMode === "table" ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Spreadsheet Table View"
+              >
+                <TableIcon className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeViewMode("cards")}
+                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                  viewMode === "cards" ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Visual Card Gallery View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeViewMode("compact")}
+                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                  viewMode === "compact" ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Ultra-Compact Dense View"
+              >
+                <Rows3 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
 
           {/* Subfolder Toggle Icon */}

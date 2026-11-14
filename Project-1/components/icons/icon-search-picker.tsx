@@ -234,7 +234,7 @@ export function IconSearchPicker({ selectedIcon, onSelectIcon }: IconSearchPicke
 
           {/* Quick Categories Filter (only when not actively searching) */}
           {!search.trim() && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] no-scrollbar">
+            <div className="flex flex-wrap items-center gap-1 pb-1 text-[11px] overflow-x-hidden">
               {CATEGORIES.map((cat) => (
                 <button
                   type="button"
@@ -253,7 +253,7 @@ export function IconSearchPicker({ selectedIcon, onSelectIcon }: IconSearchPicke
           )}
 
           {/* Iconoir Icons Grid */}
-          <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-48 overflow-y-auto p-1.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-900/50">
+          <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-48 overflow-y-auto overflow-x-hidden p-1.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-900/50">
             {filteredIconoirNames.length === 0 ? (
               <div className="col-span-full py-6 text-center text-xs text-slate-400">
                 No matching Iconoir icons found for &quot;{search}&quot;
@@ -288,7 +288,7 @@ export function IconSearchPicker({ selectedIcon, onSelectIcon }: IconSearchPicke
       )}
 
       {mode === "emoji" && (
-        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-52 overflow-y-auto p-1.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-900/50">
+        <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-52 overflow-y-auto overflow-x-hidden p-1.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-900/50">
           {filteredEmojis.map((emoji) => {
             const isSelected = selectedIcon === emoji;
             return (

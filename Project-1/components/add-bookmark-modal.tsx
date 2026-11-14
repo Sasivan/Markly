@@ -432,7 +432,7 @@ export function AddBookmarkModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto p-5 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#161616] shadow-2xl">
+      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto overflow-x-hidden p-5 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#161616] shadow-2xl">
         <DialogHeader className="pb-2">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0 border border-blue-200 dark:border-blue-800 shadow-2xs">

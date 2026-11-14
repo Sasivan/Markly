@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "skullet/dist/styles.css";
+@import "skullet/styles.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

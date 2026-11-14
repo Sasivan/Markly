@@ -33,6 +33,7 @@ import {
   Check,
   Activity,
   Folder as FolderIcon,
+  Plus,
   Globe,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,8 @@ interface BookmarkTableProps {
   onToggleFavorite?: (bookmark: BookmarkWithDetails) => void;
   onToggleArchive?: (bookmark: BookmarkWithDetails) => void;
   onMoveBookmark?: (bookmarkId: string, folderId: string | null) => void;
+  controlledViewMode?: "table" | "board" | "cards" | "list" | "compact";
+  onControlledViewModeChange?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
 }
 
 export function BookmarkTable({
@@ -80,6 +83,8 @@ export function BookmarkTable({
   onToggleFavorite,
   onToggleArchive,
   onMoveBookmark,
+  controlledViewMode,
+  onControlledViewModeChange,
 }: BookmarkTableProps) {
   // State
   const [sorting, setSorting] = React.useState<SortingState>([{ id: "createdAt", desc: true }]);
@@ -95,7 +100,7 @@ export function BookmarkTable({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   
   // 5 Notion-Inspired View Modes with persistent memory
-  const [viewMode, setViewModeState] = React.useState<"table" | "board" | "cards" | "list" | "compact">(() => {
+  const [internalViewMode, setInternalViewMode] = React.useState<"table" | "board" | "cards" | "list" | "compact">(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("markly_table_view_mode") as any;
@@ -107,12 +112,17 @@ export function BookmarkTable({
     return "table";
   });
 
+  const viewMode = controlledViewMode ?? internalViewMode;
+
   const setViewMode = React.useCallback((mode: "table" | "board" | "cards" | "list" | "compact") => {
-    setViewModeState(mode);
-    try {
-      localStorage.setItem("markly_table_view_mode", mode);
-    } catch {}
-  }, []);
+    setInternalViewMode(mode);
+    onControlledViewModeChange?.(mode);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("markly_table_view_mode", mode);
+      } catch {}
+    }
+  }, [onControlledViewModeChange]);
 
   // Edit modal
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
@@ -748,8 +758,20 @@ export function BookmarkTable({
 
       {/* Table Controls Header: Search, View Toggle, Status Filter, Column Visibility */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        {/* Left: Global Search & Status Filter */}
+        {/* Left: Quick Add Bookmark, Global Search & Status Filter */}
         <div className="flex items-center gap-2 flex-1 max-w-md">
+          {onOpenAddModal && (
+            <Button
+              size="sm"
+              onClick={onOpenAddModal}
+              className="h-8 px-2.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1 shadow-2xs flex-shrink-0"
+              title="Add new bookmark (N)"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add</span>
+            </Button>
+          )}
+
           <div className="relative flex-1">
             <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
             <Input

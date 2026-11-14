@@ -121,6 +121,32 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handleUpdateRetention = async (days: number) => {
     try {
       setRetentionDays(days);
+
+      // Real-time recalculation of expiration for all items in state upon clicking
+      setItems((prevItems) =>
+        prevItems.map((item) => {
+          if (days === 0) {
+            return {
+              ...item,
+              retentionDays: 0,
+              expiresInDays: 9999,
+              expiresInHours: 99999,
+            };
+          }
+          const ageMs = Date.now() - (item.deletedAt || Date.now());
+          const totalMs = days * 24 * 60 * 60 * 1000;
+          const remainingMs = Math.max(0, totalMs - ageMs);
+          const remainingHours = Math.max(1, Math.ceil(remainingMs / (1000 * 60 * 60)));
+          const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+          return {
+            ...item,
+            retentionDays: days,
+            expiresInDays: remainingDays,
+            expiresInHours: remainingHours,
+          };
+        })
+      );
+
       if (typeof window !== "undefined") {
         try {
           if (user?.id) {
@@ -242,7 +268,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
           </div>
 
           {/* Retention Options & Empty Actions */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full sm:w-auto">
             {/* Retention Selector */}
             <div className="flex items-center gap-1.5 p-1 rounded-xl bg-card dark:bg-[#1a1a1a] border border-border text-xs shadow-2xs">
               <span className="text-[11px] font-medium text-muted-foreground px-2 flex items-center gap-1">
@@ -277,13 +303,13 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               </button>
             </div>
 
-            {/* Empty Recycle Bin Button */}
+            {/* Empty Recycle Bin Button - Separated with clean position */}
             {items.length > 0 && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowEmptyConfirm(true)}
-                className="h-8.5 px-3.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 shadow-xs"
+                className="h-8.5 px-3.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 shadow-xs border border-rose-600 hover:bg-rose-700 active:scale-95 transition-all"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Empty Bin</span>
@@ -397,11 +423,29 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
           </div>
         </div>
 
-        {/* Loading Spinner */}
+        {/* Loading Skullet Smart Skeleton States */}
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-2 text-muted-foreground text-xs">
-            <Loader2 className="h-6 w-6 animate-spin text-rose-500" />
-            <span>Loading Recycle Bin...</span>
+          <div className="space-y-3" skullet-loading="true">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                data-skullet-bar=""
+                className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] shadow-xs flex items-center justify-between gap-4 animate-pulse"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="h-9 w-9 rounded-xl bg-slate-200/80 dark:bg-neutral-800/80 flex-shrink-0" />
+                  <div className="space-y-1.5 flex-1 max-w-sm">
+                    <div className="h-4 bg-slate-200/80 dark:bg-neutral-800/80 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200/60 dark:bg-neutral-800/60 rounded w-1/2" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="h-6 w-20 bg-slate-200/70 dark:bg-neutral-800/70 rounded-full" />
+                  <div className="h-7 w-16 bg-slate-200/70 dark:bg-neutral-800/70 rounded-lg" />
+                  <div className="h-7 w-7 bg-slate-200/70 dark:bg-neutral-800/70 rounded-lg" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredItems.length === 0 ? (
           /* Empty State */

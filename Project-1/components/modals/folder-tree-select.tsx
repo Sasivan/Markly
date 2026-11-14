@@ -366,7 +366,7 @@ export function FolderTreeSelect({
           </div>
 
           {/* Scrollable Tree View List */}
-          <div className="overflow-y-auto space-y-0.5 max-h-60 pr-1">
+          <div className="overflow-y-auto overflow-x-hidden space-y-0.5 max-h-60 pr-1">
             {/* Root Option: Unsorted (Inbox) */}
             <div
               onClick={() => {

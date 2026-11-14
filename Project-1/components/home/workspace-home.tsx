@@ -159,8 +159,28 @@ export function WorkspaceHome({
       .slice(0, 12);
   }, [bookmarks]);
 
-  // 7. Forgotten Bookmarks State: 1 to 90 Days Slider & Spot Hover
-  const [inactiveThreshold, setInactiveThreshold] = React.useState<number>(30);
+  // 7. Forgotten Bookmarks State: 1 to 90 Days Slider & Spot Hover (Persisted in localStorage)
+  const [inactiveThreshold, setInactiveThresholdState] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_forgotten_threshold");
+        if (stored !== null) {
+          const parsed = parseInt(stored, 10);
+          if (!isNaN(parsed) && parsed >= 1 && parsed <= 90) return parsed;
+        }
+      } catch {}
+    }
+    return 30;
+  });
+
+  const setInactiveThreshold = React.useCallback((val: number) => {
+    setInactiveThresholdState(val);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("markly_forgotten_threshold", String(val));
+      } catch {}
+    }
+  }, []);
   const [hoveredSpot, setHoveredSpot] = React.useState<{
     bookmark: BookmarkWithDetails;
     x: number;
@@ -577,16 +597,21 @@ export function WorkspaceHome({
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                onSelectFolder(null);
-                onSelectView("recent");
-              }}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium"
-            >
-              View Activity →
-            </button>
+            {/* Interactive Timeline Navigation Bar */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-750 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectFolder(null);
+                  onSelectView("recent");
+                }}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-neutral-750 text-indigo-600 dark:text-indigo-400 font-bold shadow-2xs hover:bg-slate-50 dark:hover:bg-neutral-700 transition-all flex items-center gap-1.5 cursor-pointer text-[11px]"
+                title="Open chronological visit timeline & analytics"
+              >
+                <span>Activity Timeline Bar</span>
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
           {recentlyVisited.length === 0 ? (

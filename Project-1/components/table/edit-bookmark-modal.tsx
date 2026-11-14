@@ -316,10 +316,10 @@ export function EditBookmarkModal({
                   }}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center p-4 text-slate-400 dark:text-neutral-500">
-                  <ImageIcon className="h-7 w-7 stroke-1 mb-1" />
-                  <span className="text-[11px]">No preview image attached</span>
-                  <span className="text-[10px] text-slate-400">Click &quot;Scrape Again&quot; or &quot;Upload&quot; to add one</span>
+                <div className="flex flex-col items-center justify-center p-4 text-muted-foreground">
+                  <ImageIcon className="h-6 w-6 stroke-1 mb-1" />
+                  <span className="text-xs">No preview image attached</span>
+                  <span className="text-xs text-muted-foreground">Click &quot;Scrape Again&quot; or &quot;Upload&quot; to add one</span>
                 </div>
               )}
             </div>
@@ -330,16 +330,16 @@ export function EditBookmarkModal({
               placeholder="Or paste direct image URL (e.g. https://... image.png)"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              className="h-7 text-[11px] bg-white dark:bg-neutral-800"
+              className="h-8 text-xs bg-secondary"
             />
 
             {/* Scrape Notice Banner */}
             {scrapeNotice && (
               <div
-                className={`p-2 rounded-lg text-[11px] flex items-center gap-1.5 ${
+                className={`p-2 rounded-lg text-xs flex items-center gap-1.5 ${
                   scrapeNotice.type === "success"
-                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                    : "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                    ? "bg-secondary text-foreground border border-border"
+                    : "bg-destructive/10 text-destructive border border-destructive/20"
                 }`}
               >
                 {scrapeNotice.type === "success" ? (
@@ -404,8 +404,8 @@ export function EditBookmarkModal({
                 onChange={(e) => setStatus(e.target.value as "alive" | "dead")}
                 className="w-full h-8 text-xs rounded-md border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
-                <option value="alive">🟢 Alive (Reachable)</option>
-                <option value="dead">🔴 Dead (Broken Link)</option>
+                <option value="alive">Reachable</option>
+                <option value="dead">Unreachable (Broken link)</option>
               </select>
             </div>
 

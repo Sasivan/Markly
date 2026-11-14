@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Folder, Star, Archive, ArchiveRestore, Trash2, Download, X, Search, ChevronRight, ChevronDown, Copy } from "lucide-react";
+import { Folder, Star, Archive, ArchiveRestore, Trash2, Download, X, Search, ChevronRight, ChevronDown, Copy, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { Folder as FolderType } from "@/server/db/schema";
@@ -143,15 +143,15 @@ export function BulkActionBar({
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-[#1a1a1a] border-2 border-slate-300 dark:border-neutral-700 px-3.5 py-2 rounded-xl shadow-2xl flex items-center gap-2 text-xs animate-in slide-in-from-bottom-5 text-slate-900 dark:text-neutral-100">
-      <div className="flex items-center gap-2 pr-2 border-r border-slate-200 dark:border-neutral-700">
-        <span className="font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-[11px] border border-blue-200 dark:border-blue-800">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card border border-border px-3.5 py-2 rounded-xl shadow-lg flex items-center gap-2 text-xs animate-in slide-in-from-bottom-5 text-foreground">
+      <div className="flex items-center gap-2 pr-2 border-r border-border">
+        <span className="font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-md text-xs font-mono tabular-nums border border-border">
           {selectedCount} selected
         </span>
         <button
           type="button"
           onClick={onClearSelection}
-          className="text-slate-400 hover:text-slate-800 dark:hover:text-white p-1 rounded hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer"
+          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-secondary cursor-pointer transition-colors"
           title="Clear Selection"
         >
           <X className="h-3.5 w-3.5" />
@@ -170,12 +170,12 @@ export function BulkActionBar({
               setCopyDropdownOpen(false);
             }}
           >
-            <Folder className="h-3 w-3 text-blue-500" />
+            <Folder className="h-3 w-3 text-muted-foreground" />
             <span>Move to...</span>
           </Button>
 
           {moveDropdownOpen && (
-            <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-2 shadow-2xl z-50 text-xs flex flex-col space-y-2 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border border-border bg-card p-2 shadow-xl z-50 text-xs flex flex-col space-y-2 animate-in fade-in zoom-in-95 duration-150">
               {/* Search Bar */}
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -185,7 +185,7 @@ export function BulkActionBar({
                   placeholder="Search destination folder..."
                   value={folderSearch}
                   onChange={(e) => setFolderSearch(e.target.value)}
-                  className="w-full pl-7 pr-6 py-1 text-xs rounded-md bg-slate-100 dark:bg-neutral-800 border-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-7 pr-6 py-1 text-xs rounded-md bg-secondary border-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 {folderSearch && (
                   <button
@@ -207,15 +207,15 @@ export function BulkActionBar({
                     setMoveDropdownOpen(false);
                     onBulkMove(null);
                   }}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted text-left cursor-pointer transition-colors"
                 >
-                  <span className="text-base leading-none">📥</span>
-                  <span className="font-semibold text-slate-800 dark:text-neutral-200">
+                  <Inbox className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium text-foreground">
                     Unsorted (Inbox)
                   </span>
                 </button>
 
-                <div className="h-px bg-slate-200 dark:bg-neutral-700 my-1" />
+                <div className="h-px bg-border my-1" />
 
                 {/* Folder Thread Nodes */}
                 {folderTree.map((root) =>
@@ -241,12 +241,12 @@ export function BulkActionBar({
                 setMoveDropdownOpen(false);
               }}
             >
-              <Copy className="h-3 w-3 text-emerald-500" />
+              <Copy className="h-3 w-3 text-muted-foreground" />
               <span>Copy to...</span>
             </Button>
 
             {copyDropdownOpen && (
-              <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-2 shadow-2xl z-50 text-xs flex flex-col space-y-2 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border border-border bg-card p-2 shadow-xl z-50 text-xs flex flex-col space-y-2 animate-in fade-in zoom-in-95 duration-150">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <input
@@ -255,7 +255,7 @@ export function BulkActionBar({
                     placeholder="Copy to destination folder..."
                     value={copyFolderSearch}
                     onChange={(e) => setCopyFolderSearch(e.target.value)}
-                    className="w-full pl-7 pr-6 py-1 text-xs rounded-md bg-slate-100 dark:bg-neutral-800 border-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full pl-7 pr-6 py-1 text-xs rounded-md bg-secondary border-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                   {copyFolderSearch && (
                     <button
@@ -275,15 +275,15 @@ export function BulkActionBar({
                       setCopyDropdownOpen(false);
                       onBulkCopy(null);
                     }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left cursor-pointer transition-colors"
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted text-left cursor-pointer transition-colors"
                   >
-                    <span className="text-base leading-none">📥</span>
-                    <span className="font-semibold text-slate-800 dark:text-neutral-200">
+                    <Inbox className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-foreground">
                       Unsorted (Inbox)
                     </span>
                   </button>
 
-                  <div className="h-px bg-slate-200 dark:bg-neutral-700 my-1" />
+                  <div className="h-px bg-border my-1" />
 
                   {folderTree.map((root) =>
                     renderFolderItem(root, 0, (folderId) => {

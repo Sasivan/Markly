@@ -174,7 +174,7 @@ export function BookmarkTable({
       folderMap.set(f.id, {
         id: f.id,
         name: f.name,
-        icon: f.icon || "📁",
+        icon: f.icon || "folder",
         color: f.color || "#3b82f6",
         bookmarks: [],
       });
@@ -183,7 +183,7 @@ export function BookmarkTable({
     folderMap.set("unsorted", {
       id: "unsorted",
       name: "Unsorted (Inbox)",
-      icon: "📥",
+      icon: "inbox",
       color: "#64748b",
       bookmarks: [],
     });
@@ -420,9 +420,9 @@ export function BookmarkTable({
   // Helper: for any site or subfolder, show ONLY its parent folder
   const getParentFolderInfo = React.useCallback(
     (bm: BookmarkWithDetails) => {
-      if (!bm.folderId) return { name: "Unsorted", icon: "📁", color: "#64748b" };
+      if (!bm.folderId) return { name: "Unsorted", icon: "folder", color: "#64748b" };
       const currentFolder = folders.find((f) => f.id === bm.folderId);
-      if (!currentFolder) return { name: bm.folderName || "Unsorted", icon: "📁", color: "#64748b" };
+      if (!currentFolder) return { name: bm.folderName || "Unsorted", icon: "folder", color: "#64748b" };
 
       // If current folder has a parent folder, return the parent folder!
       const pid = currentFolder.parentId ?? (currentFolder as any).parent_id;
@@ -431,7 +431,7 @@ export function BookmarkTable({
         if (parentFolder) {
           return {
             name: parentFolder.name,
-            icon: parentFolder.icon || "📁",
+            icon: parentFolder.icon || "folder",
             color: parentFolder.color || "#3b82f6",
           };
         }
@@ -440,7 +440,7 @@ export function BookmarkTable({
       // If already a top-level parent folder, return its own folder info
       return {
         name: currentFolder.name,
-        icon: currentFolder.icon || "📁",
+        icon: currentFolder.icon || "folder",
         color: currentFolder.color || "#3b82f6",
       };
     },
@@ -580,7 +580,7 @@ export function BookmarkTable({
           const parentInfo = getParentFolderInfo(row.original);
           return (
             <span
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border border-border/40"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border border-border/40"
               style={{
                 backgroundColor: `${parentInfo.color}14`,
                 color: parentInfo.color,
@@ -588,7 +588,7 @@ export function BookmarkTable({
               title={`Parent folder: ${parentInfo.name}`}
             >
               <FolderIconRenderer icon={parentInfo.icon} color={parentInfo.color} className="h-3.5 w-3.5" />
-              <span className="truncate max-w-[140px]">{parentInfo.name}</span>
+              <span className="truncate max-w-36">{parentInfo.name}</span>
             </span>
           );
         },
@@ -604,7 +604,7 @@ export function BookmarkTable({
               {tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag.id}
-                  className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  className="px-1.5 py-0.5 rounded text-xs font-medium"
                   style={{
                     backgroundColor: `${tag.color}15`,
                     color: tag.color,
@@ -614,7 +614,7 @@ export function BookmarkTable({
                 </span>
               ))}
               {tags.length > 3 && (
-                <span className="text-[10px] text-muted-foreground font-mono">+{tags.length - 3}</span>
+                <span className="text-xs text-muted-foreground font-mono">+{tags.length - 3}</span>
               )}
             </div>
           );
@@ -627,13 +627,13 @@ export function BookmarkTable({
           const status = row.original.status;
           return (
             <span
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${status === "dead"
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${status === "dead"
                   ? "bg-destructive/10 text-destructive"
                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${status === "dead" ? "bg-destructive" : "bg-emerald-500"}`} />
-              {status === "dead" ? "Dead" : "Alive"}
+              {status === "dead" ? "Broken" : "Reachable"}
             </span>
           );
         },
@@ -654,10 +654,10 @@ export function BookmarkTable({
         cell: ({ row }) => {
           const lastTime = row.original.lastClickedAt || row.original.lastVisitedAt;
           if (!lastTime) {
-            return <span className="text-muted-foreground/40 font-mono text-[11px]">- Never -</span>;
+            return <span className="text-muted-foreground/40 font-mono text-xs">- Never -</span>;
           }
           return (
-            <span className="text-foreground/90 whitespace-nowrap font-mono text-[11px]" title={new Date(lastTime).toLocaleString()}>
+            <span className="text-foreground/90 whitespace-nowrap font-mono tabular-nums text-xs" title={new Date(lastTime).toLocaleString()}>
               {formatDateTime(lastTime)}
             </span>
           );
@@ -675,7 +675,7 @@ export function BookmarkTable({
             <ArrowUpDown className="h-3 w-3" />
           </button>
         ),
-        cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.original.visitCount}</span>,
+        cell: ({ row }) => <span className="font-mono tabular-nums text-muted-foreground">{row.original.visitCount}</span>,
       },
       {
         accessorKey: "createdAt",
@@ -690,7 +690,7 @@ export function BookmarkTable({
           </button>
         ),
         cell: ({ row }) => (
-          <span className="text-muted-foreground whitespace-nowrap font-mono text-[11px]">
+          <span className="text-muted-foreground whitespace-nowrap font-mono tabular-nums text-xs">
             {formatDateTime(row.original.createdAt)}
           </span>
         ),
@@ -853,8 +853,8 @@ export function BookmarkTable({
             className="h-8 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="all">All Health</option>
-            <option value="alive">🟢 Alive</option>
-            <option value="dead">🔴 Dead Links</option>
+            <option value="alive">Reachable</option>
+            <option value="dead">Broken links</option>
           </select>
         </div>
 
@@ -866,7 +866,7 @@ export function BookmarkTable({
               type="button"
               onClick={() => setViewMode("table")}
               className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "table" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                viewMode === "table" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
               title="Notion Table View (Spreadsheet)"
             >
@@ -876,7 +876,7 @@ export function BookmarkTable({
               type="button"
               onClick={() => setViewMode("board")}
               className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "board" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                viewMode === "board" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
               title="Notion Board View (Kanban Columns)"
             >
@@ -886,7 +886,7 @@ export function BookmarkTable({
               type="button"
               onClick={() => setViewMode("cards")}
               className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "cards" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                viewMode === "cards" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
               title="Notion Gallery View (Visual Cards)"
             >
@@ -896,7 +896,7 @@ export function BookmarkTable({
               type="button"
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "list" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                viewMode === "list" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
               title="Notion List View (Clean Document Rows)"
             >
@@ -906,7 +906,7 @@ export function BookmarkTable({
               type="button"
               onClick={() => setViewMode("compact")}
               className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "compact" ? "bg-background text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
+                viewMode === "compact" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
               }`}
               title="Ultra-Dense Mode (Maximum Space Optimization)"
             >
@@ -927,8 +927,8 @@ export function BookmarkTable({
             </Button>
 
             {colMenuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-2 shadow-2xl z-50 text-xs text-slate-900 dark:text-neutral-100 animate-in zoom-in-95">
-                <div className="font-semibold px-2 py-1 text-[11px] text-muted-foreground border-b border-border mb-1">
+              <div className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-border bg-card p-2 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95">
+                <div className="font-medium px-2 py-1 text-xs text-muted-foreground border-b border-border mb-1">
                   Toggle Columns
                 </div>
                 {table
@@ -937,7 +937,7 @@ export function BookmarkTable({
                   .map((col) => (
                     <label
                       key={col.id}
-                      className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer text-[11px]"
+                      className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer text-xs"
                     >
                       <input
                         type="checkbox"
@@ -1016,19 +1016,19 @@ export function BookmarkTable({
         </div>
       ) : viewMode === "board" ? (
         /* Notion-Style Kanban Board View */
-        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 items-start min-h-[460px]">
+        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 items-start min-h-96">
           {kanbanColumns.map((col) => (
             <div
               key={col.id}
-              className="w-72 flex-shrink-0 rounded-xl border border-border bg-card/60 dark:bg-[#161616]/90 flex flex-col max-h-[75vh] shadow-xs"
+              className="w-72 flex-shrink-0 rounded-xl border border-border bg-card flex flex-col max-h-[75vh] shadow-xs"
             >
               {/* Column Header */}
               <div className="p-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2 truncate">
                   <FolderIconRenderer icon={col.icon} color={col.color} className="h-4 w-4 flex-shrink-0" />
-                  <span className="font-bold text-xs text-foreground truncate">{col.name}</span>
+                  <span className="font-semibold text-xs text-foreground truncate">{col.name}</span>
                 </div>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+                <Badge variant="secondary" className="text-xs px-1.5 py-0 font-mono">
                   {col.bookmarks.length}
                 </Badge>
               </div>
@@ -1036,7 +1036,7 @@ export function BookmarkTable({
               {/* Column Cards Container */}
               <div className="p-2 space-y-2 overflow-y-auto flex-1">
                 {col.bookmarks.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground text-[11px] border border-dashed border-border/60 rounded-lg">
+                  <div className="py-8 text-center text-muted-foreground text-xs border border-dashed border-border/60 rounded-lg">
                     No items in this collection
                   </div>
                 ) : (
@@ -1044,7 +1044,7 @@ export function BookmarkTable({
                     <div
                       key={bm.id}
                       onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-                      className="group p-2.5 rounded-lg border border-border/80 bg-background hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs space-y-1.5 cursor-pointer"
+                      className="group p-2.5 rounded-lg border border-border bg-background hover:border-border-hover transition-colors text-xs space-y-1.5 cursor-pointer shadow-xs"
                     >
                       <div className="flex items-start justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -1055,7 +1055,7 @@ export function BookmarkTable({
                             className="h-4 w-4 rounded object-contain flex-shrink-0"
                           />
                           <span
-                            className="font-semibold text-xs text-foreground truncate hover:underline cursor-pointer"
+                            className="font-medium text-xs text-foreground truncate hover:underline cursor-pointer"
                           >
                             {bm.title}
                           </span>
@@ -1073,7 +1073,7 @@ export function BookmarkTable({
                       </div>
 
                       {bm.description && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-2">{bm.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{bm.description}</p>
                       )}
 
                       {/* Tags in Kanban */}
@@ -1082,7 +1082,7 @@ export function BookmarkTable({
                           {bm.tags.slice(0, 2).map((t) => (
                             <span
                               key={t.id}
-                              className="px-1.5 py-0.2 rounded text-[9px] font-medium"
+                              className="px-1.5 py-0.5 rounded text-xs font-medium"
                               style={{ backgroundColor: `${t.color}15`, color: t.color }}
                             >
                               #{t.name}
@@ -1091,8 +1091,8 @@ export function BookmarkTable({
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
-                        <span className="truncate max-w-[120px] font-mono">{bm.domain}</span>
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-xs text-muted-foreground">
+                        <span className="truncate max-w-32 font-mono">{bm.domain}</span>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
@@ -1172,21 +1172,21 @@ export function BookmarkTable({
               <div
                 key={bm.id}
                 onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-                className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-neutral-700 transition-all flex flex-col justify-between group cursor-pointer"
+                className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer"
               >
                 {/* Notion-Style Card Cover: Visual Snapshot */}
-                <div className="relative h-36 w-full bg-slate-100 dark:bg-neutral-850 overflow-hidden border-b border-border/60">
+                <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={snapshotUrl}
                     alt={bm.title}
                     loading="lazy"
-                    className="w-full h-full object-cover object-top group-hover:scale-102 transition-transform duration-300"
+                    className="w-full h-full object-cover object-top"
                     onError={(e) => {
                       (e.currentTarget as HTMLElement).style.display = "none";
                     }}
                   />
-                  <div className="absolute bottom-2 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono px-2 py-0.5 rounded shadow-xs truncate max-w-[80%]">
+                  <div className="absolute bottom-2 left-2.5 bg-black/60 backdrop-blur-xs text-white text-xs font-mono px-2 py-0.5 rounded shadow-xs truncate max-w-[80%]">
                     {bm.domain}
                   </div>
                   {/* Quick Favorite Star on Cover */}
@@ -1217,7 +1217,7 @@ export function BookmarkTable({
                         className="h-5 w-5 rounded object-contain bg-background flex-shrink-0 border border-border/40"
                       />
                       <span
-                        className="font-semibold text-sm hover:underline text-foreground block truncate cursor-pointer flex-1"
+                        className="font-medium text-sm hover:underline text-foreground block truncate cursor-pointer flex-1"
                         title={bm.title}
                       >
                         {bm.title}
@@ -1230,7 +1230,7 @@ export function BookmarkTable({
                           e.stopPropagation();
                           recordVisit(bm);
                         }}
-                        className="text-muted-foreground hover:text-blue-500 p-0.5 shrink-0"
+                        className="text-muted-foreground hover:text-primary p-0.5 shrink-0"
                         title="Open in new tab"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -1249,7 +1249,7 @@ export function BookmarkTable({
                         {bm.tags.map((t) => (
                           <span
                             key={t.id}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                            className="px-1.5 py-0.5 rounded text-xs font-medium"
                             style={{ backgroundColor: `${t.color}15`, color: t.color }}
                           >
                             #{t.name}
@@ -1260,10 +1260,10 @@ export function BookmarkTable({
                   </div>
 
                   {/* Card Footer */}
-                  <div className="pt-2.5 mt-2 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <div className="pt-2.5 mt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1 font-medium">
                       <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3.5 w-3.5" />
-                      <span className="truncate max-w-[120px]">{getParentFolderInfo(bm).name}</span>
+                      <span className="truncate max-w-32">{getParentFolderInfo(bm).name}</span>
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -1340,7 +1340,7 @@ export function BookmarkTable({
                   {bm.title}
                 </span>
 
-                <span className="text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40 font-mono hidden md:inline truncate">
+                <span className="text-xs text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40 font-mono hidden md:inline truncate">
                   {bm.domain}
                 </span>
 
@@ -1349,7 +1349,7 @@ export function BookmarkTable({
                     {bm.tags.slice(0, 3).map((t) => (
                       <span
                         key={t.id}
-                        className="text-[10px] px-1.5 py-0.2 rounded font-medium"
+                        className="text-xs px-1.5 py-0.5 rounded font-medium"
                         style={{ backgroundColor: `${t.color}15`, color: t.color }}
                       >
                         #{t.name}
@@ -1360,15 +1360,15 @@ export function BookmarkTable({
               </div>
 
               <div
-                className="flex items-center gap-3 text-muted-foreground text-[11px] flex-shrink-0"
+                className="flex items-center gap-3 text-muted-foreground text-xs flex-shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <span className="inline-flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-400">
                   <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-[110px] hidden sm:inline">{getParentFolderInfo(bm).name}</span>
+                  <span className="truncate max-w-28 hidden sm:inline">{getParentFolderInfo(bm).name}</span>
                 </span>
 
-                <span className="font-mono hidden sm:inline">{bm.visitCount} visits</span>
+                <span className="font-mono tabular-nums hidden sm:inline">{bm.visitCount} visits</span>
 
                 <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
@@ -1435,7 +1435,7 @@ export function BookmarkTable({
         </div>
       ) : (
         /* Notion Ultra-Dense / Space-Optimized Mode */
-        <div className="rounded-lg border border-border bg-card shadow-xs divide-y divide-border/50 text-[11px]">
+        <div className="rounded-lg border border-border bg-card shadow-xs divide-y divide-border/50 text-xs">
           {filteredData.map((bm) => (
             <div
               key={bm.id}
@@ -1467,18 +1467,18 @@ export function BookmarkTable({
                   {bm.title}
                 </span>
 
-                <span className="text-[10px] text-muted-foreground font-mono truncate hidden md:inline">
+                <span className="text-xs text-muted-foreground font-mono truncate hidden md:inline">
                   {bm.domain}
                 </span>
               </div>
 
               <div
-                className="flex items-center gap-2 text-muted-foreground text-[10px] flex-shrink-0"
+                className="flex items-center gap-2 text-muted-foreground text-xs flex-shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <span className="hidden sm:inline-flex items-center gap-1">
                   <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3 w-3" />
-                  <span className="truncate max-w-[90px]">{getParentFolderInfo(bm).name}</span>
+                  <span className="truncate max-w-24">{getParentFolderInfo(bm).name}</span>
                 </span>
 
                 <button

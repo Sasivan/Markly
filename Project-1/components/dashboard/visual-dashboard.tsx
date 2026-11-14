@@ -172,18 +172,18 @@ export function VisualDashboard({
   }, [bookmarks]);
 
   return (
-    <div className={`rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-3.5 shadow-xs transition-all ${collapsed ? "" : "space-y-3.5"}`}>
+    <div className={`rounded-lg border border-border bg-card p-3.5 ${collapsed ? "" : "space-y-3.5"}`}>
       {/* Dashboard Header Bar */}
-      <div className={`flex flex-wrap items-center justify-between gap-3 ${collapsed ? "" : "border-b border-slate-100 dark:border-neutral-800 pb-3"}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-3 ${collapsed ? "" : "border-b border-border/60 pb-3"}`}>
         {/* Left Side: Title & Badges */}
         <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-          <div className="flex items-center gap-2 font-bold text-xs text-slate-900 dark:text-neutral-100">
-            <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <div className="flex items-center gap-2 font-medium text-xs text-foreground">
+            <BarChart3 className="h-4 w-4 text-primary" />
             <span>Visual Analytics & Intelligence</span>
           </div>
 
           {/* Real-time sync badge */}
-          <span className="text-[10px] font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+          <span className="text-xs font-mono bg-secondary text-secondary-foreground px-2 py-0.5 rounded-md border border-border">
             {bookmarks.length} active {bookmarks.length === 1 ? "site" : "sites"}
           </span>
 
@@ -191,19 +191,19 @@ export function VisualDashboard({
           {(activeDomainFilter || activeTagFilter) && (
             <div className="flex items-center gap-1.5 ml-1">
               {activeDomainFilter && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-600 text-white shadow-2xs">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono bg-primary text-primary-foreground">
                   <Filter className="h-2.5 w-2.5" />
                   Domain: {activeDomainFilter}
-                  <button type="button" onClick={() => onSelectDomain(null)} className="hover:text-slate-200 cursor-pointer">
+                  <button type="button" onClick={() => onSelectDomain(null)} className="hover:opacity-80 cursor-pointer">
                     <X className="h-3 w-3" />
                   </button>
                 </span>
               )}
               {activeTagFilter && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-600 text-white shadow-2xs">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono bg-primary text-primary-foreground">
                   <Filter className="h-2.5 w-2.5" />
                   Tag: #{activeTagFilter}
-                  <button type="button" onClick={() => onSelectTag(null)} className="hover:text-purple-200 cursor-pointer">
+                  <button type="button" onClick={() => onSelectTag(null)} className="hover:opacity-80 cursor-pointer">
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -216,40 +216,40 @@ export function VisualDashboard({
         <div className="flex items-center gap-2 ml-auto">
           {/* 5 Influential Chart Tabs */}
           {!collapsed && (
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-neutral-800 p-0.5 rounded-xl text-xs border border-slate-200 dark:border-neutral-700">
+            <div className="flex items-center gap-1 bg-muted p-0.5 rounded-md text-xs border border-border">
               <button
                 type="button"
                 onClick={() => setActiveTab("tags")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg cursor-pointer transition-all font-medium ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-sm cursor-pointer transition-colors font-medium ${
                   activeTab === "tags"
-                    ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <TagIcon className="h-3 w-3 text-purple-500" />
+                <TagIcon className="h-3 w-3 text-muted-foreground" />
                 <span>Tags ({tagData.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("engagement")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg cursor-pointer transition-all font-medium ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-sm cursor-pointer transition-colors font-medium ${
                   activeTab === "engagement"
-                    ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                <TrendingUp className="h-3 w-3 text-muted-foreground" />
                 <span>Engagement</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("health")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg cursor-pointer transition-all font-medium ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-sm cursor-pointer transition-colors font-medium ${
                   activeTab === "health"
-                    ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Activity className="h-3 w-3" />
@@ -259,10 +259,10 @@ export function VisualDashboard({
               <button
                 type="button"
                 onClick={() => setActiveTab("wall")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg cursor-pointer transition-all font-medium ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-sm cursor-pointer transition-colors font-medium ${
                   activeTab === "wall"
-                    ? "bg-white dark:bg-neutral-700 text-slate-900 dark:text-white shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <LayoutGrid className="h-3 w-3" />
@@ -272,10 +272,10 @@ export function VisualDashboard({
               <button
                 type="button"
                 onClick={() => setActiveTab("graph")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg cursor-pointer transition-all font-medium ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm cursor-pointer transition-colors font-medium ${
                   activeTab === "graph"
-                    ? "bg-purple-600 text-white shadow-2xs"
-                    : "text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Layers className="h-3 w-3" />
@@ -284,22 +284,22 @@ export function VisualDashboard({
             </div>
           )}
 
-          {/* Toggle Button on the Right with Good Icon */}
+          {/* Toggle Button on the Right */}
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all border border-slate-200 dark:border-neutral-700 bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-neutral-100 hover:bg-slate-200 dark:hover:bg-neutral-700 hover:border-slate-300 dark:hover:border-neutral-600 shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80"
             title={collapsed ? "Show Visual Analytics" : "Hide Visual Analytics"}
           >
             {collapsed ? (
               <>
-                <BarChart3 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <BarChart3 className="h-3.5 w-3.5 text-primary" />
                 <span>Show Analytics</span>
-                <ChevronDown className="h-3.5 w-3.5 text-slate-500 dark:text-neutral-400" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </>
             ) : (
               <>
-                <ChevronUp className="h-3.5 w-3.5 text-slate-500 dark:text-neutral-400" />
+                <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Hide Analytics</span>
               </>
             )}
@@ -314,14 +314,14 @@ export function VisualDashboard({
           {activeTab === "tags" && (
             <div className="space-y-4 min-h-56">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">
+                <div className="text-xs font-mono text-muted-foreground">
                   Tag Frequency & Distribution ({tagData.length} unique tags in view)
                 </div>
                 {activeTagFilter && (
                   <button
                     type="button"
                     onClick={() => onSelectTag(null)}
-                    className="text-xs text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1 font-medium cursor-pointer"
                   >
                     Clear Filter
                   </button>
@@ -329,15 +329,15 @@ export function VisualDashboard({
               </div>
 
               {tagData.length === 0 ? (
-                <div className="h-44 flex flex-col items-center justify-center text-xs text-slate-400 space-y-1">
-                  <TagIcon className="h-5 w-5 text-slate-300 dark:text-neutral-600 mb-1" />
+                <div className="h-44 flex flex-col items-center justify-center text-xs text-muted-foreground space-y-1">
+                  <TagIcon className="h-5 w-5 text-muted-foreground/50 mb-1" />
                   <span>No tags found in the current folder or subfolder sites.</span>
-                  <span className="text-[11px] text-muted-foreground">Add tags to bookmarks to unlock tag analytics.</span>
+                  <span className="text-xs text-muted-foreground">Add tags to bookmarks to unlock tag analytics.</span>
                 </div>
               ) : (
                 <>
                   {/* Area Graph Representing Tags */}
-                  <div className="h-48 w-full bg-slate-50/50 dark:bg-neutral-900/40 rounded-xl p-2.5 border border-slate-200/70 dark:border-neutral-800/80">
+                  <div className="h-48 w-full bg-card rounded-md p-2.5 border border-border">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
                         data={tagData.slice(0, 16)}
@@ -351,32 +351,32 @@ export function VisualDashboard({
                       >
                         <defs>
                           <linearGradient id="tagAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.55} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
+                            <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.02} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.06} />
                         <XAxis
                           dataKey="tag"
-                          tick={{ fontSize: 10 }}
+                          tick={{ fontSize: 11 }}
                           stroke="#94a3b8"
                           tickFormatter={(val) => (val.length > 12 ? `${val.slice(0, 10)}…` : val)}
                         />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                         <Tooltip
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               const d = payload[0].payload;
                               return (
-                                <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2.5 shadow-xl text-xs space-y-1">
-                                  <div className="flex items-center gap-1.5 font-bold text-purple-600 dark:text-purple-400">
+                                <div className="rounded-md border border-border bg-popover p-2.5 shadow-sm text-xs space-y-1 text-popover-foreground">
+                                  <div className="flex items-center gap-1.5 font-medium text-foreground">
                                     <TagIcon className="h-3.5 w-3.5" />
                                     <span>{d.tag}</span>
                                   </div>
-                                  <div className="text-slate-900 dark:text-white font-semibold text-[11px]">
+                                  <div className="font-mono text-xs">
                                     {d.count} {d.count === 1 ? "bookmark" : "bookmarks"} ({d.percentage}% of folder)
                                   </div>
-                                  <div className="text-[10px] text-muted-foreground">Click to filter bookmarks below</div>
+                                  <div className="text-xs text-muted-foreground">Click to filter bookmarks below</div>
                                 </div>
                               );
                             }
@@ -386,11 +386,11 @@ export function VisualDashboard({
                         <Area
                           type="monotone"
                           dataKey="count"
-                          stroke="#8b5cf6"
-                          strokeWidth={2.5}
+                          stroke="var(--primary)"
+                          strokeWidth={1.5}
                           fillOpacity={1}
                           fill="url(#tagAreaGrad)"
-                          activeDot={{ r: 5, fill: "#8b5cf6", stroke: "#fff", strokeWidth: 2 }}
+                          activeDot={{ r: 4, fill: "var(--primary)", stroke: "var(--background)", strokeWidth: 2 }}
                         />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -405,14 +405,14 @@ export function VisualDashboard({
                           type="button"
                           key={t.rawName}
                           onClick={() => onSelectTag(isSelected ? null : t.rawName)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all border ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors border ${
                             isSelected
-                              ? "bg-purple-600 text-white border-purple-600 shadow-xs ring-1 ring-purple-500"
-                              : "border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900/60 text-slate-700 dark:text-neutral-300 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "border-border bg-secondary/50 text-foreground hover:bg-secondary"
                           }`}
                         >
                           <span>{t.tag}</span>
-                          <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isSelected ? "bg-purple-700 text-white" : "bg-slate-200 dark:bg-neutral-800 text-muted-foreground"}`}>
+                          <span className={`text-xs font-mono px-1.5 py-0.2 rounded-sm ${isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                             {t.count}
                           </span>
                         </button>
@@ -428,47 +428,47 @@ export function VisualDashboard({
           {activeTab === "engagement" && (
             <div className="space-y-4 min-h-56">
               <div className="flex items-center justify-between">
-                <div className="text-[11px] font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wider">
+                <div className="text-xs font-mono text-muted-foreground">
                   Bookmark Engagement & Visit Frequency Tiers
                 </div>
-                <div className="text-[11px] text-muted-foreground font-mono">
+                <div className="text-xs text-muted-foreground font-mono">
                   {engagementData.totalVisits} total visits • {engagementData.avgVisits} avg/site
                 </div>
               </div>
 
               {/* 4 Summary Stat Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-slate-50/70 dark:bg-neutral-900/40 space-y-1">
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">Total Visits</span>
-                  <div className="text-lg font-bold text-slate-900 dark:text-white font-mono">
+                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                  <span className="text-xs text-muted-foreground font-mono">Total Visits</span>
+                  <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.totalVisits}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-slate-50/70 dark:bg-neutral-900/40 space-y-1">
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">Avg / Site</span>
-                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400 font-mono">
+                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                  <span className="text-xs text-muted-foreground font-mono">Avg / Site</span>
+                  <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.avgVisits}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-slate-50/70 dark:bg-neutral-900/40 space-y-1">
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">Active (≥2)</span>
-                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                  <span className="text-xs text-muted-foreground font-mono">Active (≥2)</span>
+                  <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.tiers[0].count + engagementData.tiers[1].count}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-slate-50/70 dark:bg-neutral-900/40 space-y-1">
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase">Dormant (0)</span>
-                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400 font-mono">
+                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                  <span className="text-xs text-muted-foreground font-mono">Dormant (0)</span>
+                  <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.dormantCount}
                   </div>
                 </div>
               </div>
 
               {/* Bar Chart Representing Interaction Tiers */}
-              <div className="h-44 w-full bg-slate-50/50 dark:bg-neutral-900/40 rounded-xl p-2.5 border border-slate-200/70 dark:border-neutral-800/80">
+              <div className="h-44 w-full bg-card rounded-md p-2.5 border border-border">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={engagementData.tiers} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.06} />
                     <XAxis dataKey="tier" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <Tooltip
@@ -476,19 +476,19 @@ export function VisualDashboard({
                         if (active && payload && payload.length) {
                           const d = payload[0].payload;
                           return (
-                            <div className="rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-2.5 shadow-xl text-xs space-y-1">
-                              <span className="font-bold text-slate-900 dark:text-white block">{d.tier}</span>
-                              <div className="font-semibold" style={{ color: d.color }}>
+                            <div className="rounded-md border border-border bg-popover p-2.5 shadow-sm text-xs space-y-1 text-popover-foreground">
+                              <span className="font-medium text-foreground block">{d.tier}</span>
+                              <div className="font-mono text-xs">
                                 {d.count} sites ({d.percentage}%)
                               </div>
-                              <span className="text-[10px] text-muted-foreground">{d.desc}</span>
+                              <span className="text-xs text-muted-foreground">{d.desc}</span>
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                    <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                       {engagementData.tiers.map((entry, idx) => (
                         <Cell key={`tier-${idx}`} fill={entry.color} />
                       ))}
@@ -524,18 +524,18 @@ export function VisualDashboard({
               </div>
 
               <div className="space-y-3">
-                <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+                <div className="text-xs font-mono text-muted-foreground">
                   Link Health & Reachability Overview
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 flex items-center justify-between">
+                <div className="p-3.5 rounded-md border border-border bg-card flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     <div>
-                      <div className="font-bold text-sm text-emerald-900 dark:text-emerald-200">
+                      <div className="font-semibold text-sm text-foreground">
                         {healthData.alivePercent}% Reachable
                       </div>
-                      <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                      <div className="text-xs text-muted-foreground font-mono">
                         {healthData.alive} bookmarks verified active & alive
                       </div>
                     </div>
@@ -543,20 +543,20 @@ export function VisualDashboard({
                 </div>
 
                 {healthData.dead > 0 ? (
-                  <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 flex items-center gap-2.5">
-                    <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                  <div className="p-3.5 rounded-md border border-rose-500/20 bg-rose-500/5 flex items-center gap-2.5">
+                    <AlertTriangle className="h-5 w-5 text-rose-500" />
                     <div>
-                      <div className="font-bold text-sm text-rose-900 dark:text-rose-200">
+                      <div className="font-semibold text-sm text-foreground">
                         {healthData.dead} Broken Links
                       </div>
-                      <div className="text-[11px] text-rose-700 dark:text-rose-400">
+                      <div className="text-xs text-rose-600 dark:text-rose-400 font-mono">
                         Flagged as 404 or unreachable
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/50 dark:bg-neutral-800/40 text-xs text-slate-600 dark:text-neutral-400">
-                    Zero broken links detected in the current view!
+                  <div className="p-3.5 rounded-md border border-border bg-card text-xs text-muted-foreground">
+                    Zero broken links detected in the current view.
                   </div>
                 )}
               </div>
@@ -566,7 +566,7 @@ export function VisualDashboard({
           {/* 5. FAVICON WALL MATRIX */}
           {activeTab === "wall" && (
             <div className="space-y-2">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+              <div className="text-xs font-mono text-muted-foreground">
                 Visual Favicon Wall ({bookmarks.length} sites in current view)
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2.5 max-h-56 overflow-y-auto p-1">
@@ -576,16 +576,16 @@ export function VisualDashboard({
                     href={bm.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50/60 dark:bg-neutral-800/40 hover:bg-blue-50 dark:hover:bg-neutral-700 flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-105 group cursor-pointer"
+                    className="p-2.5 rounded-md border border-border bg-card hover:bg-secondary flex flex-col items-center justify-center gap-1.5 transition-colors group cursor-pointer"
                     title={`${bm.title} (${bm.domain})`}
                   >
                     <BookmarkIcon
                       src={bm.iconUrl}
                       alt={bm.title}
                       domain={bm.domain}
-                      className="h-8 w-8 rounded-lg object-contain bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 p-0.5"
+                      className="h-8 w-8 rounded-md object-contain bg-background border border-border p-0.5"
                     />
-                    <span className="text-[10px] text-slate-600 dark:text-neutral-400 group-hover:text-blue-600 font-medium truncate w-full text-center">
+                    <span className="text-xs font-mono text-muted-foreground group-hover:text-foreground truncate w-full text-center">
                       {bm.domain.split(".")[0]}
                     </span>
                   </a>
@@ -594,14 +594,14 @@ export function VisualDashboard({
             </div>
           )}
 
-          {/* 6. LOCAL KNOWLEDGE GRAPH WITHOUT SETTINGS PANEL */}
+          {/* 6. LOCAL KNOWLEDGE GRAPH */}
           {activeTab === "graph" && (
             <div className="space-y-2">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider flex items-center justify-between">
+              <div className="text-xs font-mono text-muted-foreground flex items-center justify-between">
                 <span>{activeFolderId ? "Nested Folder & Site Local Graph" : "Current View Local Graph"}</span>
-                <span className="text-[10px] text-muted-foreground font-mono">Shows folder, child folders & sites as nodes (No settings clutter)</span>
+                <span className="text-xs text-muted-foreground font-mono">Folder, child folders & sites as nodes</span>
               </div>
-              <div className="h-[360px] w-full rounded-xl overflow-hidden border border-slate-200 dark:border-neutral-800 bg-[#fbfbfa] dark:bg-[#111318]">
+              <div className="h-90 w-full rounded-md overflow-hidden border border-border bg-card">
                 <KnowledgeGraph
                   mode={activeFolderId ? "folder" : "global"}
                   folderId={activeFolderId}

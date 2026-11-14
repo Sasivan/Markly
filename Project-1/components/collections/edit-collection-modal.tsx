@@ -77,7 +77,7 @@ export function EditCollectionModal({
   onDeleteFolder,
 }: EditCollectionModalProps) {
   const [name, setName] = React.useState("");
-  const [selectedIcon, setSelectedIcon] = React.useState("📁");
+  const [selectedIcon, setSelectedIcon] = React.useState("folder");
   const [selectedColor, setSelectedColor] = React.useState("#3b82f6");
   const [parentId, setParentId] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -89,7 +89,7 @@ export function EditCollectionModal({
   React.useEffect(() => {
     if (folder) {
       setName(folder.name);
-      setSelectedIcon(folder.icon || (isPermanent ? "📥" : "📁"));
+      setSelectedIcon(folder.icon || (isPermanent ? "inbox" : "folder"));
       setSelectedColor(folder.color || (isPermanent ? "#8b5cf6" : "#3b82f6"));
       const p = folder.parentId ?? (folder as any).parent_id ?? null;
       setParentId(p);
@@ -154,10 +154,10 @@ export function EditCollectionModal({
               <FolderIconRenderer icon={selectedIcon} className="h-6 w-6" color={selectedColor} />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-1.5">
                 <span>{isPermanent ? "Edit Unsorted Collection" : "Edit Folder Collection"}</span>
                 {isPermanent && (
-                  <span className="text-[10px] bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 font-mono px-2 py-0.5 rounded-full font-semibold">
+                  <span className="text-xs bg-secondary text-secondary-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
                     Permanent
                   </span>
                 )}
@@ -172,7 +172,7 @@ export function EditCollectionModal({
         <form onSubmit={handleSubmit} className="space-y-4 mt-2 text-xs">
           {/* Collection Name */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+            <label className="text-xs font-semibold text-foreground">
               Collection Name
             </label>
             <Input
@@ -188,7 +188,7 @@ export function EditCollectionModal({
 
           {/* Icon Search & Picker */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+            <label className="text-xs font-semibold text-foreground">
               Collection Icon
             </label>
             <IconSearchPicker
@@ -199,10 +199,10 @@ export function EditCollectionModal({
 
           {/* Color Palette Selector */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+            <label className="text-xs font-semibold text-foreground">
               Theme Color
             </label>
-            <div className="grid grid-cols-8 gap-1.5 p-2 bg-slate-50 dark:bg-neutral-900/60 rounded-xl border border-slate-200 dark:border-neutral-800">
+            <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
               {COLOR_PALETTE.map((c) => {
                 const isSelected = selectedColor === c.value;
                 return (
@@ -210,7 +210,7 @@ export function EditCollectionModal({
                     key={c.value}
                     type="button"
                     onClick={() => setSelectedColor(c.value)}
-                    className="h-7 w-7 rounded-lg flex items-center justify-center transition-all cursor-pointer hover:scale-110 relative"
+                    className="h-7 w-7 rounded-lg flex items-center justify-center transition-transform duration-150 cursor-pointer relative"
                     style={{ backgroundColor: c.value }}
                     title={c.name}
                   >
@@ -225,13 +225,13 @@ export function EditCollectionModal({
 
           {/* Location / Move Parent Folder Selection */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+            <label className="text-xs font-semibold text-foreground">
               Folder Location & Hierarchy
             </label>
             {isPermanent ? (
-              <div className="p-3 rounded-xl border border-violet-200 dark:border-violet-900/50 bg-violet-50/40 dark:bg-violet-950/20 flex items-center gap-2.5 text-violet-800 dark:text-violet-300 text-xs">
-                <ShieldCheck className="h-4 w-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
-                <span className="text-[11px] font-medium">
+              <div className="p-3 rounded-xl border border-border bg-secondary/40 flex items-center gap-2.5 text-foreground text-xs">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs font-medium">
                   Permanent system folder — always positioned at the root level.
                 </span>
               </div>
@@ -243,7 +243,7 @@ export function EditCollectionModal({
                   onSelectFolder={(id) => setParentId(id ? id : null)}
                   className="w-full text-xs"
                 />
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Select a parent folder to nest this collection, or choose Root to keep it top-level.
                 </p>
               </div>

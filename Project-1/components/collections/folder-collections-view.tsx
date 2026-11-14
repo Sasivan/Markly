@@ -93,17 +93,17 @@ function TreeFolderRow({
           </div>
 
           <div className="flex items-center gap-2 truncate">
-            <span className="text-xs font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+            <span className="text-xs font-medium text-foreground group-hover:text-primary truncate">
               {node.name}
             </span>
             <Badge
               variant="secondary"
-              className="text-[10px] font-mono px-1.5 py-0 bg-slate-100 dark:bg-neutral-800 text-slate-600 dark:text-neutral-300 border-none"
+              className="text-xs font-mono tabular-nums px-1.5 py-0 bg-secondary text-foreground border border-border"
             >
               {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
             </Badge>
             {childCount > 0 && (
-              <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline">
+              <span className="text-xs text-muted-foreground font-mono tabular-nums hidden sm:inline">
                 ({childCount} {childCount === 1 ? "subfolder" : "subfolders"})
               </span>
             )}
@@ -114,7 +114,7 @@ function TreeFolderRow({
           <button
             type="button"
             onClick={() => onEditCollection(node)}
-            className="h-6.5 w-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+            className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
             title="Edit"
           >
             <Edit2 className="h-3 w-3" />
@@ -122,7 +122,7 @@ function TreeFolderRow({
           <button
             type="button"
             onClick={() => onSelectFolder(node.id, childCount > 0)}
-            className="h-6.5 px-2 rounded-md border border-slate-200 dark:border-neutral-700 text-[10px] font-medium flex items-center gap-1 text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+            className="h-7 px-2 rounded-md border border-border text-xs font-medium flex items-center gap-1 text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
           >
             <span>Open</span>
             <ArrowRight className="h-2.5 w-2.5" />
@@ -195,7 +195,7 @@ export function FolderCollectionsView({
         userId: "",
         parentId: null,
         name: "Inbox / Needs Organization",
-        icon: "📥",
+        icon: "inbox",
         color: "#8b5cf6",
         position: -9999,
         createdAt: Date.now(),
@@ -223,18 +223,18 @@ export function FolderCollectionsView({
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-xl border border-border bg-card shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1">
-              <FolderIcon className="h-3 w-3" />
+            <span className="px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-secondary text-secondary-foreground border border-border inline-flex items-center gap-1.5">
+              <FolderIcon className="h-3 w-3 text-muted-foreground" />
               Collections Directory
             </span>
-            <span className="text-xs text-muted-foreground font-mono">
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">
               {folderTree.length} Root Collections
             </span>
           </div>
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">
             Folder Collections
           </h1>
           <p className="text-xs text-muted-foreground">
@@ -244,13 +244,13 @@ export function FolderCollectionsView({
 
         <div className="flex items-center gap-2">
           {/* Multi-View Mode Switcher: Cards | Tree | Table | Compact */}
-          <div className="flex items-center bg-slate-100 dark:bg-neutral-850 p-0.5 rounded-lg border border-slate-200 dark:border-neutral-700 shadow-2xs">
+          <div className="flex items-center bg-secondary p-0.5 rounded-lg border border-border">
             <button
               type="button"
               onClick={() => handleSetViewMode("cards")}
               className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                 viewMode === "cards"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-semibold"
+                  ? "bg-card text-foreground shadow-xs font-medium"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Cards View (Default)"
@@ -262,7 +262,7 @@ export function FolderCollectionsView({
               onClick={() => handleSetViewMode("tree")}
               className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                 viewMode === "tree"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-semibold"
+                  ? "bg-card text-foreground shadow-xs font-medium"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Parent & Child Tree View (Hierarchical)"
@@ -274,7 +274,7 @@ export function FolderCollectionsView({
               onClick={() => handleSetViewMode("table")}
               className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                 viewMode === "table"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-semibold"
+                  ? "bg-card text-foreground shadow-xs font-medium"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Table View"
@@ -286,7 +286,7 @@ export function FolderCollectionsView({
               onClick={() => handleSetViewMode("compact")}
               className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                 viewMode === "compact"
-                  ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-semibold"
+                  ? "bg-card text-foreground shadow-xs font-medium"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               title="Compact View"
@@ -299,7 +299,7 @@ export function FolderCollectionsView({
             <Button
               type="button"
               onClick={onOpenAddFolder}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-8 px-3 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs h-8 px-3 rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>New Collection</span>
@@ -317,12 +317,12 @@ export function FolderCollectionsView({
             onClick={() => {
               onSelectView?.("unsorted");
             }}
-            className="rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-900/60 bg-violet-50/20 dark:bg-violet-950/20 p-4 shadow-xs hover:border-violet-500 dark:hover:border-violet-600 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between relative"
+            className="rounded-xl border border-dashed border-border bg-card p-4 shadow-xs hover:border-border-hover transition-colors cursor-pointer group flex flex-col justify-between relative"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xl shadow-2xs"
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xl border border-border/40"
                   style={{ backgroundColor: `${unsortedFolder.color}20` }}
                 >
                   <FolderIconRenderer
@@ -335,7 +335,7 @@ export function FolderCollectionsView({
                 <div className="flex items-center gap-1.5">
                   <Badge
                     variant="secondary"
-                    className="text-[11px] font-mono px-2 py-0.5 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300"
+                    className="text-xs font-mono tabular-nums px-2 py-0.5 bg-secondary text-foreground border border-border"
                   >
                     {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
                   </Badge>
@@ -347,31 +347,31 @@ export function FolderCollectionsView({
                       e.stopPropagation();
                       setEditingCollection(unsortedFolder);
                     }}
-                    className="h-7 px-2 rounded-lg flex items-center gap-1 bg-slate-100/80 dark:bg-neutral-800/80 hover:bg-slate-200 dark:hover:bg-neutral-700 text-slate-700 dark:text-neutral-200 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                    className="h-7 px-2 rounded-lg flex items-center gap-1 bg-secondary hover:bg-muted text-foreground text-xs font-medium cursor-pointer transition-colors border border-border/40"
                     title="Edit collection details"
                   >
-                    <Edit2 className="h-3.5 w-3.5 text-violet-500" />
+                    <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>Edit</span>
                   </button>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   {unsortedFolder.name}
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Permanent system folder for all uncategorized bookmarks
                 </p>
               </div>
             </div>
 
-            <div className="pt-3 mt-4 border-t border-violet-100 dark:border-violet-900/40 flex items-center justify-between text-xs text-violet-600 dark:text-violet-400 font-semibold">
-              <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+            <div className="pt-3 mt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground font-medium">
+              <span className="inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                 Open Unsorted Collection
                 <ArrowRight className="h-3 w-3" />
               </span>
-              <span className="text-[10px] text-muted-foreground font-mono">permanent</span>
+              <span className="text-xs text-muted-foreground font-mono">permanent</span>
             </div>
           </div>
 
@@ -387,12 +387,12 @@ export function FolderCollectionsView({
                 onClick={() => {
                   onSelectFolder(rootNode.id, childCount > 0);
                 }}
-                className="rounded-xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-4 shadow-sm hover:border-indigo-500 dark:hover:border-indigo-600 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between relative"
+                className="rounded-xl border border-border bg-card p-4 shadow-xs hover:border-border-hover transition-colors cursor-pointer group flex flex-col justify-between relative"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div
-                      className="h-10 w-10 rounded-xl flex items-center justify-center text-xl shadow-2xs"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center text-xl border border-border/40"
                       style={{ backgroundColor: `${rootNode.color}20` }}
                     >
                       <FolderIconRenderer
@@ -403,7 +403,7 @@ export function FolderCollectionsView({
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-none">
+                      <Badge variant="secondary" className="text-xs font-mono tabular-nums px-2 py-0.5 bg-secondary text-foreground border border-border">
                         {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
                       </Badge>
 
@@ -414,20 +414,20 @@ export function FolderCollectionsView({
                           e.stopPropagation();
                           setEditingCollection(rootNode);
                         }}
-                        className="h-7 px-2 rounded-lg flex items-center gap-1 bg-slate-100/80 dark:bg-neutral-850 hover:bg-slate-200 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-200 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                        className="h-7 px-2 rounded-lg flex items-center gap-1 bg-secondary hover:bg-muted text-foreground text-xs font-medium cursor-pointer transition-colors border border-border/40"
                         title="Edit collection details"
                       >
-                        <Edit2 className="h-3.5 w-3.5 text-indigo-500" />
+                        <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>Edit</span>
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                       {rootNode.name}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {childCount > 0
                         ? `Contains ${childCount} nested ${childCount === 1 ? "subfolder" : "subfolders"}`
                         : "Direct standalone collection"}
@@ -444,14 +444,14 @@ export function FolderCollectionsView({
                             e.stopPropagation();
                             onSelectFolder(child.id, (child.children?.length || 0) > 0);
                           }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 hover:bg-indigo-100 hover:text-indigo-700 dark:hover:bg-neutral-700 transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-foreground hover:bg-muted transition-colors border border-border/40"
                         >
                           <FolderIconRenderer icon={child.icon} color={child.color} className="h-3 w-3" />
                           <span>{child.name}</span>
                         </span>
                       ))}
                       {childCount > 3 && (
-                        <span className="text-[10px] font-mono text-muted-foreground">
+                        <span className="text-xs font-mono tabular-nums text-muted-foreground">
                           +{childCount - 3}
                         </span>
                       )}
@@ -489,15 +489,15 @@ export function FolderCollectionsView({
                 <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-3.5 w-3.5" />
               </div>
               <div className="flex items-center gap-2 truncate">
-                <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                <span className="text-xs font-semibold text-foreground truncate">
                   {unsortedFolder.name}
                 </span>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-violet-400 text-violet-600 dark:text-violet-400">
+                <Badge variant="outline" className="text-xs px-1.5 py-0 border-border text-muted-foreground">
                   Inbox
                 </Badge>
                 <Badge
                   variant="secondary"
-                  className="text-[10px] font-mono px-1.5 py-0 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-none"
+                  className="text-xs font-mono tabular-nums px-1.5 py-0 bg-secondary text-foreground border border-border"
                 >
                   {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
                 </Badge>
@@ -508,7 +508,7 @@ export function FolderCollectionsView({
               <button
                 type="button"
                 onClick={() => setEditingCollection(unsortedFolder)}
-                className="h-6.5 w-6.5 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+                className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
                 title="Edit"
               >
                 <Edit2 className="h-3 w-3" />
@@ -516,7 +516,7 @@ export function FolderCollectionsView({
               <button
                 type="button"
                 onClick={() => onSelectView?.("unsorted")}
-                className="h-6.5 px-2 rounded-md border border-slate-200 dark:border-neutral-700 text-[10px] font-medium flex items-center gap-1 text-slate-700 dark:text-neutral-300 hover:bg-slate-200 dark:hover:bg-neutral-800 cursor-pointer"
+                className="h-7 px-2 rounded-md border border-border text-xs font-medium flex items-center gap-1 text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
               >
                 <span>Open</span>
                 <ArrowRight className="h-2.5 w-2.5" />
@@ -543,9 +543,9 @@ export function FolderCollectionsView({
 
       {/* 3. Table View of Collections */}
       {viewMode === "table" && (
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] overflow-hidden shadow-xs">
+        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
           <table className="w-full text-xs text-left">
-            <thead className="bg-slate-50 dark:bg-neutral-850 border-b border-slate-200 dark:border-neutral-800 text-muted-foreground font-semibold">
+            <thead className="bg-muted/40 border-b border-border text-muted-foreground font-medium">
               <tr>
                 <th className="py-3 px-4">Collection</th>
                 <th className="py-3 px-4">Subfolders</th>
@@ -553,29 +553,29 @@ export function FolderCollectionsView({
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-neutral-800/80">
+            <tbody className="divide-y divide-border">
               {/* Inbox / Unsorted Row */}
               <tr
                 onClick={() => onSelectView?.("unsorted")}
-                className="hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+                className="hover:bg-muted/40 cursor-pointer transition-colors"
               >
                 <td className="py-3 px-4">
-                  <div className="flex items-center gap-2.5 font-bold text-slate-900 dark:text-white">
+                  <div className="flex items-center gap-2.5 font-medium text-foreground">
                     <div
-                      className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shadow-2xs"
+                      className="h-8 w-8 rounded-lg flex items-center justify-center text-sm border border-border/40"
                       style={{ backgroundColor: `${unsortedFolder.color}20` }}
                     >
                       <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-4 w-4" />
                     </div>
                     <span>{unsortedFolder.name}</span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-violet-400 text-violet-600 dark:text-violet-400">
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 border-border text-muted-foreground">
                       Inbox
                     </Badge>
                   </div>
                 </td>
                 <td className="py-3 px-4 text-muted-foreground font-mono">0</td>
                 <td className="py-3 px-4">
-                  <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300">
+                  <Badge variant="secondary" className="text-xs font-mono tabular-nums px-2 py-0.5 bg-secondary text-foreground border border-border">
                     {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
                   </Badge>
                 </td>
@@ -585,7 +585,7 @@ export function FolderCollectionsView({
                       size="sm"
                       variant="ghost"
                       onClick={() => setEditingCollection(unsortedFolder)}
-                      className="h-7 w-7 p-0 cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800"
+                      className="h-7 w-7 p-0 cursor-pointer hover:bg-secondary"
                       title="Edit collection"
                     >
                       <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -594,7 +594,7 @@ export function FolderCollectionsView({
                       size="sm"
                       variant="outline"
                       onClick={() => onSelectView?.("unsorted")}
-                      className="h-7 px-2 text-[11px] cursor-pointer"
+                      className="h-7 px-2 text-xs cursor-pointer border-border"
                     >
                       <span>Open</span>
                       <ArrowRight className="h-3 w-3 ml-1" />
@@ -611,24 +611,24 @@ export function FolderCollectionsView({
                   <tr
                     key={rootNode.id}
                     onClick={() => onSelectFolder(rootNode.id, childCount > 0)}
-                    className="hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+                    className="hover:bg-muted/40 cursor-pointer transition-colors"
                   >
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2.5 font-bold text-slate-900 dark:text-white">
+                      <div className="flex items-center gap-2.5 font-medium text-foreground">
                         <div
-                          className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shadow-2xs"
+                          className="h-8 w-8 rounded-lg flex items-center justify-center text-sm border border-border/40"
                           style={{ backgroundColor: `${rootNode.color}20` }}
                         >
                           <FolderIconRenderer icon={rootNode.icon} color={rootNode.color} className="h-4 w-4" />
                         </div>
-                        <span className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{rootNode.name}</span>
+                        <span className="hover:text-primary transition-colors">{rootNode.name}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground font-mono">
+                    <td className="py-3 px-4 text-muted-foreground font-mono tabular-nums">
                       {childCount} {childCount === 1 ? "subfolder" : "subfolders"}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-none">
+                      <Badge variant="secondary" className="text-xs font-mono tabular-nums px-2 py-0.5 bg-secondary text-foreground border border-border">
                         {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
                       </Badge>
                     </td>
@@ -638,7 +638,7 @@ export function FolderCollectionsView({
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditingCollection(rootNode)}
-                          className="h-7 w-7 p-0 cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800"
+                          className="h-7 w-7 p-0 cursor-pointer hover:bg-secondary"
                           title="Edit collection"
                         >
                           <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -647,7 +647,7 @@ export function FolderCollectionsView({
                           size="sm"
                           variant="outline"
                           onClick={() => onSelectFolder(rootNode.id, childCount > 0)}
-                          className="h-7 px-2 text-[11px] cursor-pointer"
+                          className="h-7 px-2 text-xs cursor-pointer border-border"
                         >
                           <span>Open</span>
                           <ArrowRight className="h-3 w-3 ml-1" />
@@ -664,27 +664,27 @@ export function FolderCollectionsView({
 
       {/* 3. Compact List View */}
       {viewMode === "compact" && (
-        <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] divide-y divide-slate-100 dark:divide-neutral-800/80 overflow-hidden shadow-xs">
+        <div className="rounded-lg border border-border bg-card divide-y divide-border/60 overflow-hidden">
           {/* Inbox / Unsorted Compact Row */}
           <div
             onClick={() => onSelectView?.("unsorted")}
-            className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+            className="p-3 flex items-center justify-between gap-3 hover:bg-secondary/50 cursor-pointer transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
               <div
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shadow-2xs shrink-0"
+                className="h-8 w-8 rounded-md flex items-center justify-center text-sm shrink-0"
                 style={{ backgroundColor: `${unsortedFolder.color}20` }}
               >
                 <FolderIconRenderer icon={unsortedFolder.icon} color={unsortedFolder.color} className="h-4 w-4" />
               </div>
               <div className="truncate">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{unsortedFolder.name}</span>
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-violet-400 text-violet-600 dark:text-violet-400">
+                  <span className="text-xs font-semibold text-foreground truncate">{unsortedFolder.name}</span>
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 border-border text-muted-foreground font-mono">
                     Inbox
                   </Badge>
                 </div>
-                <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                <div className="text-xs text-muted-foreground font-mono mt-0.5">
                   {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
                 </div>
               </div>
@@ -694,7 +694,7 @@ export function FolderCollectionsView({
               <button
                 type="button"
                 onClick={() => setEditingCollection(unsortedFolder)}
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer"
+                className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
                 title="Edit"
               >
                 <Edit2 className="h-3.5 w-3.5" />
@@ -702,7 +702,7 @@ export function FolderCollectionsView({
               <button
                 type="button"
                 onClick={() => onSelectView?.("unsorted")}
-                className="h-7 px-2.5 rounded-lg border border-slate-200 dark:border-neutral-700 text-[11px] font-medium flex items-center gap-1 text-slate-700 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-800 cursor-pointer"
+                className="h-7 px-2.5 rounded-md border border-border text-xs font-medium flex items-center gap-1 text-foreground hover:bg-secondary cursor-pointer transition-colors"
               >
                 <span>Open</span>
                 <ArrowRight className="h-3 w-3" />
@@ -718,20 +718,20 @@ export function FolderCollectionsView({
               <div
                 key={rootNode.id}
                 onClick={() => onSelectFolder(rootNode.id, childCount > 0)}
-                className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+                className="p-3 flex items-center justify-between gap-3 hover:bg-secondary/50 cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
-                    className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shadow-2xs shrink-0"
+                    className="h-8 w-8 rounded-md flex items-center justify-center text-sm shrink-0"
                     style={{ backgroundColor: `${rootNode.color}20` }}
                   >
                     <FolderIconRenderer icon={rootNode.icon} color={rootNode.color} className="h-4 w-4" />
                   </div>
                   <div className="truncate">
-                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                    <div className="text-xs font-semibold text-foreground truncate hover:text-primary transition-colors">
                       {rootNode.name}
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono mt-0.5">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono mt-0.5">
                       <span>{bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}</span>
                       {childCount > 0 && (
                         <>
@@ -747,7 +747,7 @@ export function FolderCollectionsView({
                   <button
                     type="button"
                     onClick={() => setEditingCollection(rootNode)}
-                    className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer"
+                    className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
                     title="Edit"
                   >
                     <Edit2 className="h-3.5 w-3.5" />
@@ -755,7 +755,7 @@ export function FolderCollectionsView({
                   <button
                     type="button"
                     onClick={() => onSelectFolder(rootNode.id, childCount > 0)}
-                    className="h-7 px-2.5 rounded-lg border border-slate-200 dark:border-neutral-700 text-[11px] font-medium flex items-center gap-1 text-slate-700 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-800 cursor-pointer"
+                    className="h-7 px-2.5 rounded-md border border-border text-xs font-medium flex items-center gap-1 text-foreground hover:bg-secondary cursor-pointer transition-colors"
                   >
                     <span>Open</span>
                     <ArrowRight className="h-3 w-3" />

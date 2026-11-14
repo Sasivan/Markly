@@ -508,26 +508,26 @@ export function KnowledgeGraph({
   }, [nodes]);
 
   return (
-    <div className="relative flex flex-col md:flex-row w-full h-[620px] rounded-2xl border-2 border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] overflow-hidden shadow-xs animate-in fade-in duration-200">
+    <div className="relative flex flex-col md:flex-row w-full h-150 rounded-lg border border-border bg-card overflow-hidden">
       {/* LEFT: Canvas Viewport */}
-      <div ref={containerRef} className="relative flex-1 h-full overflow-hidden bg-slate-50/50 dark:bg-[#141414]">
+      <div ref={containerRef} className="relative flex-1 h-full overflow-hidden bg-background">
         {loading && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-xs text-xs font-medium text-slate-500">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-xs text-xs font-mono text-muted-foreground">
             Constructing force layout graph...
           </div>
         )}
 
         {/* Floating Canvas Top Bar */}
         <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur shadow-xs text-xs">
-            <span className="font-bold text-slate-900 dark:text-white capitalize">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card/95 backdrop-blur-sm text-xs">
+            <span className="font-semibold text-foreground capitalize">
               {mode === "global"
                 ? "Global Knowledge Graph"
                 : mode === "folder"
                 ? `Folder Graph: ${folderName || "Selected Folder"}`
                 : `Website Graph: ${domain}`}
             </span>
-            <span className="text-[10px] font-mono text-muted-foreground bg-slate-100 dark:bg-neutral-800 px-1.5 py-0.2 rounded">
+            <span className="text-xs font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-sm">
               {nodes.length} nodes · {edges.length} edges
             </span>
           </div>
@@ -535,14 +535,14 @@ export function KnowledgeGraph({
 
         {/* Floating Canvas Quick Controls (Zoom / Reset / Export / Toggle Panel) */}
         {showControls && (
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-white/95 dark:bg-neutral-900/95 p-1 rounded-xl border border-slate-200/80 dark:border-neutral-800 shadow-xs">
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-card/95 p-1 rounded-md border border-border shadow-xs">
             <button
               type="button"
               onClick={() => {
                 cameraRef.current.zoom = Math.min(3.5, cameraRef.current.zoom * 1.25);
               }}
               title="Zoom In"
-              className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-300 cursor-pointer"
+              className="h-7 w-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
@@ -552,7 +552,7 @@ export function KnowledgeGraph({
                 cameraRef.current.zoom = Math.max(0.2, cameraRef.current.zoom * 0.8);
               }}
               title="Zoom Out"
-              className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-300 cursor-pointer"
+              className="h-7 w-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
@@ -560,7 +560,7 @@ export function KnowledgeGraph({
               type="button"
               onClick={resetCamera}
               title="Reset View"
-              className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-300 cursor-pointer"
+              className="h-7 w-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -568,19 +568,19 @@ export function KnowledgeGraph({
               type="button"
               onClick={exportImage}
               title="Export PNG"
-              className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-600 dark:text-neutral-300 cursor-pointer"
+              className="h-7 w-7 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
             </button>
-            <div className="w-[1px] h-4 bg-border my-auto mx-0.5" />
+            <div className="w-px h-4 bg-border my-auto mx-0.5" />
             <button
               type="button"
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
               title={rightPanelOpen ? "Collapse Graph Panel" : "Open Graph Settings Panel"}
-              className={`h-7 px-2 rounded-lg flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-colors ${
+              className={`h-7 px-2 rounded-md flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-colors ${
                 rightPanelOpen
-                  ? "bg-blue-600 text-white"
-                  : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-200"
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-secondary text-muted-foreground hover:text-foreground"
               }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -601,44 +601,44 @@ export function KnowledgeGraph({
         />
 
         {/* Legend pills (Bottom Left) */}
-        <div className="absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-2 p-1.5 rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur text-[11px] font-medium shadow-xs">
-          <span className="flex items-center gap-1 text-slate-600 dark:text-neutral-300">
+        <div className="absolute bottom-3 left-3 z-10 flex flex-wrap items-center gap-2 p-1.5 rounded-md border border-border bg-card/95 backdrop-blur-sm text-xs font-mono shadow-xs">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-[#7963E9]" />
             Folder
           </span>
-          <span className="flex items-center gap-1 text-slate-600 dark:text-neutral-300">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
             Site
           </span>
-          <span className="flex items-center gap-1 text-slate-600 dark:text-neutral-300">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-[#4AA8E8]" />
             Domain
           </span>
-          <span className="flex items-center gap-1 text-slate-600 dark:text-neutral-300">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-[#42C99A]" />
             Tag
           </span>
-          <span className="flex items-center gap-1 text-slate-600 dark:text-neutral-300">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <span className="h-2 w-2 rounded-full border border-[#E8B75B] bg-transparent" />
             Favorite
           </span>
         </div>
       </div>
 
-      {/* RIGHT: Inside Settings & Inspector Panel (Obsidian-Style) */}
+      {/* RIGHT: Inside Settings & Inspector Panel */}
       {showControls && rightPanelOpen && (
-        <div className="w-full md:w-80 h-full border-t md:border-t-0 md:border-l border-border bg-white dark:bg-[#181818] flex flex-col justify-between overflow-y-auto z-20 animate-in slide-in-from-right duration-200 text-xs">
+        <div className="w-full md:w-80 h-full border-t md:border-t-0 md:border-l border-border bg-card flex flex-col justify-between overflow-y-auto z-20 text-xs">
           <div className="p-4 space-y-5">
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-border/80 pb-3">
-              <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                <SlidersHorizontal className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                <SlidersHorizontal className="h-4 w-4 text-primary" />
                 <span>Graph Settings & Tools</span>
               </div>
               <button
                 type="button"
                 onClick={() => setRightPanelOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-md"
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
                 title="Collapse Panel"
               >
                 <X className="h-4 w-4" />
@@ -647,23 +647,23 @@ export function KnowledgeGraph({
 
             {/* 1. Live Search & Node Highlight */}
             <div className="space-y-1.5">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+              <div className="text-xs font-mono text-muted-foreground">
                 Find & Highlight Nodes
               </div>
               <div className="relative">
-                <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
                 <input
                   type="text"
                   placeholder="Type to search in graph..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-8 pl-8 pr-7 rounded-lg border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800/60 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full h-8 pl-8 pr-7 rounded-md border border-border bg-secondary text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -673,76 +673,76 @@ export function KnowledgeGraph({
 
             {/* 2. Node Type Toggles */}
             <div className="space-y-2">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+              <div className="text-xs font-mono text-muted-foreground">
                 Visible Node Filters
               </div>
               <div className="space-y-1.5">
-                <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800/60 cursor-pointer">
+                <label className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary cursor-pointer transition-colors">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={visibleTypes.folder}
                       onChange={(e) => setVisibleTypes({ ...visibleTypes, folder: e.target.checked })}
-                      className="rounded h-3.5 w-3.5 text-blue-600"
+                      className="rounded h-3.5 w-3.5"
                     />
                     <span className="h-2 w-2 rounded-full bg-[#7963E9]" />
-                    <span className="font-medium text-slate-800 dark:text-neutral-200">Folders</span>
+                    <span className="font-medium text-foreground">Folders</span>
                   </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">{countsByType.folder}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{countsByType.folder}</span>
                 </label>
 
-                <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800/60 cursor-pointer">
+                <label className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary cursor-pointer transition-colors">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={visibleTypes.bookmark}
                       onChange={(e) => setVisibleTypes({ ...visibleTypes, bookmark: e.target.checked })}
-                      className="rounded h-3.5 w-3.5 text-blue-600"
+                      className="rounded h-3.5 w-3.5"
                     />
                     <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
-                    <span className="font-medium text-slate-800 dark:text-neutral-200">Bookmarks & Sites</span>
+                    <span className="font-medium text-foreground">Bookmarks & Sites</span>
                   </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">{countsByType.bookmark}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{countsByType.bookmark}</span>
                 </label>
 
-                <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800/60 cursor-pointer">
+                <label className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary cursor-pointer transition-colors">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={visibleTypes.domain}
                       onChange={(e) => setVisibleTypes({ ...visibleTypes, domain: e.target.checked })}
-                      className="rounded h-3.5 w-3.5 text-blue-600"
+                      className="rounded h-3.5 w-3.5"
                     />
                     <span className="h-2 w-2 rounded-full bg-[#4AA8E8]" />
-                    <span className="font-medium text-slate-800 dark:text-neutral-200">Web Domains</span>
+                    <span className="font-medium text-foreground">Web Domains</span>
                   </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">{countsByType.domain}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{countsByType.domain}</span>
                 </label>
 
-                <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800/60 cursor-pointer">
+                <label className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary cursor-pointer transition-colors">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={visibleTypes.tag}
                       onChange={(e) => setVisibleTypes({ ...visibleTypes, tag: e.target.checked })}
-                      className="rounded h-3.5 w-3.5 text-blue-600"
+                      className="rounded h-3.5 w-3.5"
                     />
                     <span className="h-2 w-2 rounded-full bg-[#42C99A]" />
-                    <span className="font-medium text-slate-800 dark:text-neutral-200">Tags</span>
+                    <span className="font-medium text-foreground">Tags</span>
                   </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">{countsByType.tag}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{countsByType.tag}</span>
                 </label>
 
-                <label className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-800/60 cursor-pointer">
+                <label className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary cursor-pointer transition-colors">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={favoritesOnly}
                       onChange={(e) => setFavoritesOnly(e.target.checked)}
-                      className="rounded h-3.5 w-3.5 text-amber-500"
+                      className="rounded h-3.5 w-3.5"
                     />
                     <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                    <span className="font-medium text-slate-800 dark:text-neutral-200">Favorites Only</span>
+                    <span className="font-medium text-foreground">Favorites Only</span>
                   </div>
                 </label>
               </div>
@@ -750,24 +750,24 @@ export function KnowledgeGraph({
 
             {/* 3. Physics & Display Adjustments */}
             <div className="space-y-3 pt-2 border-t border-border/80">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+              <div className="text-xs font-mono text-muted-foreground">
                 Graph Forces & Display
               </div>
 
               {/* Depth Selector */}
               {mode !== "global" && (
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600 dark:text-neutral-400 font-medium">Nesting Depth:</span>
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-neutral-800 p-0.5 rounded-lg border border-border text-[11px]">
+                  <span className="text-muted-foreground font-medium">Nesting Depth:</span>
+                  <div className="flex items-center gap-1 bg-muted p-0.5 rounded-md border border-border text-xs">
                     {[1, 2, 3].map((d) => (
                       <button
                         key={d}
                         type="button"
                         onClick={() => setDepth(d)}
-                        className={`px-2 py-0.5 rounded cursor-pointer font-mono font-medium ${
+                        className={`px-2 py-0.5 rounded-sm cursor-pointer font-mono font-medium transition-colors ${
                           depth === d
-                            ? "bg-blue-600 text-white shadow-2xs"
-                            : "text-slate-600 dark:text-neutral-400 hover:text-foreground"
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {d}
@@ -779,9 +779,9 @@ export function KnowledgeGraph({
 
               {/* Node Spacing Slider */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-slate-600 dark:text-neutral-400">
+                <div className="flex items-center justify-between text-muted-foreground">
                   <span>Node Spacing (Force):</span>
-                  <span className="font-mono text-[11px]">{nodeSpacing}</span>
+                  <span className="font-mono text-xs">{nodeSpacing}</span>
                 </div>
                 <input
                   type="range"
@@ -789,15 +789,15 @@ export function KnowledgeGraph({
                   max="100"
                   value={nodeSpacing}
                   onChange={(e) => setNodeSpacing(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                  className="w-full h-1.5 bg-muted rounded-md appearance-none cursor-pointer"
                 />
               </div>
 
               {/* Link Distance Slider */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-slate-600 dark:text-neutral-400">
+                <div className="flex items-center justify-between text-muted-foreground">
                   <span>Link Distance:</span>
-                  <span className="font-mono text-[11px]">{linkDistance}px</span>
+                  <span className="font-mono text-xs">{linkDistance}px</span>
                 </div>
                 <input
                   type="range"
@@ -805,20 +805,20 @@ export function KnowledgeGraph({
                   max="160"
                   value={linkDistance}
                   onChange={(e) => setLinkDistance(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                  className="w-full h-1.5 bg-muted rounded-md appearance-none cursor-pointer"
                 />
               </div>
 
               {/* Show Labels Toggle */}
               <div className="flex items-center justify-between pt-1">
-                <span className="text-slate-600 dark:text-neutral-400 font-medium">Always Show Labels:</span>
+                <span className="text-muted-foreground font-medium">Always Show Labels:</span>
                 <button
                   type="button"
                   onClick={() => setShowLabels(!showLabels)}
-                  className={`h-6 px-2.5 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                  className={`h-6 px-2.5 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors ${
                     showLabels
-                      ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                      : "bg-slate-100 dark:bg-neutral-800 text-slate-500"
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {showLabels ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -829,25 +829,25 @@ export function KnowledgeGraph({
 
             {/* 4. Selected Node Inspector or Graph Overview */}
             <div className="pt-2 border-t border-border/80 space-y-2">
-              <div className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wider">
+              <div className="text-xs font-mono text-muted-foreground">
                 {selectedNode ? "Selected Node Inspector" : "Graph Intelligence"}
               </div>
 
               {selectedNode ? (
-                <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 p-3 space-y-2.5">
+                <div className="rounded-md border border-border bg-card p-3 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-0.5 truncate">
-                      <span className="text-[10px] uppercase font-semibold text-blue-600 dark:text-blue-400">
+                      <span className="text-xs font-mono text-primary">
                         {selectedNode.type}
                       </span>
-                      <h4 className="font-bold text-slate-900 dark:text-white line-clamp-2">
+                      <h4 className="font-semibold text-foreground line-clamp-2">
                         {selectedNode.label}
                       </h4>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedNode(null)}
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-0.5"
+                      className="text-muted-foreground hover:text-foreground p-0.5"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -858,7 +858,7 @@ export function KnowledgeGraph({
                       href={selectedNode.data.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 truncate"
+                      className="text-xs text-primary hover:underline flex items-center gap-1 truncate"
                     >
                       <span className="truncate">{selectedNode.data.url}</span>
                       <ExternalLink className="h-3 w-3 flex-shrink-0" />
@@ -866,20 +866,20 @@ export function KnowledgeGraph({
                   )}
 
                   {selectedNode.data?.visitCount !== undefined && (
-                    <div className="text-[10px] text-muted-foreground font-mono">
+                    <div className="text-xs text-muted-foreground font-mono">
                       Visits: {selectedNode.data.visitCount}
                     </div>
                   )}
 
                   {/* Actions for Node */}
-                  <div className="flex items-center gap-1.5 pt-2 border-t border-blue-200/60 dark:border-blue-900/40">
+                  <div className="flex items-center gap-1.5 pt-2 border-t border-border">
                     {selectedNode.data?.url && (
                       <>
                         <a
                           href={selectedNode.data.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-2 py-1 rounded bg-blue-600 text-white font-medium text-[11px] hover:bg-blue-700 flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 flex items-center gap-1 cursor-pointer transition-colors"
                         >
                           <ExternalLink className="h-3 w-3" />
                           <span>Open</span>
@@ -891,7 +891,7 @@ export function KnowledgeGraph({
                             setCopiedUrl(true);
                             setTimeout(() => setCopiedUrl(false), 2000);
                           }}
-                          className="px-2 py-1 rounded border border-blue-200 dark:border-blue-800 text-slate-700 dark:text-neutral-200 text-[11px] flex items-center gap-1 hover:bg-blue-100/50 cursor-pointer"
+                          className="px-2.5 py-1 rounded-md border border-border text-foreground text-xs flex items-center gap-1 hover:bg-secondary cursor-pointer transition-colors"
                         >
                           {copiedUrl ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                           <span>{copiedUrl ? "Copied" : "Copy"}</span>
@@ -902,7 +902,7 @@ export function KnowledgeGraph({
                       <button
                         type="button"
                         onClick={() => onSelectFolder?.(selectedNode.data?.id || selectedNode.id.replace("fld_", ""))}
-                        className="px-2 py-1 rounded bg-indigo-600 text-white font-medium text-[11px] hover:bg-indigo-700 cursor-pointer"
+                        className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 cursor-pointer transition-colors"
                       >
                         Open Folder
                       </button>
@@ -910,12 +910,12 @@ export function KnowledgeGraph({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/70 dark:bg-neutral-900/40 p-3 space-y-1.5 text-muted-foreground">
-                  <div className="flex items-center gap-1.5 font-semibold text-slate-800 dark:text-neutral-200">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <div className="rounded-md border border-border bg-card p-3 space-y-1.5 text-muted-foreground">
+                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                    <Layers className="h-3.5 w-3.5" />
                     <span>Interactive Force Network</span>
                   </div>
-                  <p className="text-[11px]">
+                  <p className="text-xs">
                     Click any node to inspect details, or drag nodes to reposition. Double-click any bookmark node to launch its website directly.
                   </p>
                 </div>
@@ -924,12 +924,12 @@ export function KnowledgeGraph({
           </div>
 
           {/* Panel Footer */}
-          <div className="p-3 border-t border-border/80 bg-slate-50/50 dark:bg-neutral-900/20 flex items-center justify-between text-[11px] text-muted-foreground">
+          <div className="p-3 border-t border-border/60 bg-card flex items-center justify-between text-xs font-mono text-muted-foreground">
             <span>Obsidian Canvas Engine</span>
             <button
               type="button"
               onClick={exportImage}
-              className="hover:text-foreground flex items-center gap-1 font-medium cursor-pointer"
+              className="hover:text-foreground flex items-center gap-1 font-medium cursor-pointer transition-colors"
             >
               <Download className="h-3 w-3" />
               <span>Snapshot</span>

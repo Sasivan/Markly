@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { normalizeUrl } from "@/server/scraper/url";
 import { safeFetchHtml } from "@/server/scraper/fetcher";
-import { parseHtmlMetadata } from "@/server/scraper/parser";
+import { parseHtmlMetadata, extractCodeSummary } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
 import { BookmarkRepository } from "@/server/db/repository";
-import { suggestFolderAndTags } from "@/server/ai/suggest";
+import { suggestFolderAndTags, sanitizeGeminiModel } from "@/server/ai/suggest";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
@@ -156,7 +156,92 @@ export async function POST(req: Request) {
         finalTags = [domain.split(".")[0]];
       }
 
-      const finalDescription = customDescription?.trim() || metadata.description || undefined;
+      let finalDescription = customDescription?.trim();
+      if (!finalDescription) {
+        // Automatically generate rich structured summary by default
+        let generatedSummary = "";
+
+        // Check for AI API key (client x-ai-config header or server GEMINI_API_KEY)
+        let aiConfigHeader = req.headers.get("x-ai-config") || req.headers.get("x-gemini-api-key") || undefined;
+        if (typeof aiConfigHeader === "string" && aiConfigHeader.startsWith("%7B")) {
+          try {
+            aiConfigHeader = decodeURIComponent(aiConfigHeader);
+          } catch {}
+        }
+
+        let apiKey = "";
+        let model = "gemini-flash-latest";
+
+        if (aiConfigHeader) {
+          try {
+            const cfg = JSON.parse(aiConfigHeader);
+            apiKey = cfg.apiKey || "";
+            if (cfg.model) model = sanitizeGeminiModel(cfg.model);
+          } catch {
+            apiKey = aiConfigHeader.trim();
+          }
+        }
+
+        if (!apiKey && process.env.GEMINI_API_KEY) {
+          apiKey = process.env.GEMINI_API_KEY;
+        }
+
+        if (apiKey) {
+          try {
+            const prompt = `Write a high-quality 2-sentence overview and 3 key features (bulleted with •) for this website:
+- Title: "${metadata.title || domain}"
+- URL: "${fetchResult.finalUrl}"
+- Domain: "${domain}"
+- Summary info: "${metadata.description || ""}"
+Keep it clear, objective, and structured.`;
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 4000);
+
+            const geminiRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": apiKey,
+                },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }] }],
+                  generationConfig: {
+                    temperature: 0.2,
+                    maxOutputTokens: 300,
+                  },
+                }),
+                signal: controller.signal,
+              }
+            );
+            clearTimeout(timer);
+
+            if (geminiRes.ok) {
+              const data = await geminiRes.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text && text.trim().length > 20) {
+                generatedSummary = text.trim();
+              }
+            }
+          } catch (e) {
+            console.warn("AI summary generation during scrape fallback:", e);
+          }
+        }
+
+        // Fallback to deterministic code / HTML summary extraction (0 AI credits)
+        if (!generatedSummary) {
+          generatedSummary = extractCodeSummary(
+            fetchResult.html,
+            metadata.title || domain,
+            domain,
+            metadata.description || undefined
+          );
+        }
+
+        finalDescription = generatedSummary || metadata.description || undefined;
+      }
 
       bookmark = BookmarkRepository.createBookmark({
         url: fetchResult.finalUrl,

@@ -767,34 +767,14 @@ export function BookmarkTable({
     getRowId: (row) => row.id,
     state: {
       sorting,
-      globalFilter,
       rowSelection,
       columnVisibility,
     },
-    globalFilterFn: (row, columnId, filterValue) => {
-      const q = String(filterValue || "").toLowerCase().trim();
-      if (!q) return true;
-      const searchTokens = q.split(/\s+/).filter(Boolean);
-      const bm = row.original;
-      const searchable = [
-        bm.title || "",
-        bm.domain || "",
-        bm.url || "",
-        bm.description || "",
-        ...(bm.tags || []).map((t) => t.name),
-        bm.folderName || "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return searchTokens.every((token) => searchable.includes(token));
-    },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
       pagination: {
@@ -857,7 +837,7 @@ export function BookmarkTable({
             <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
             <Input
               type="text"
-              placeholder="Search title, URL, tags, domain..."
+              placeholder="Search title, description, domain, tags, URL..."
               value={globalFilter}
               onChange={(e) => {
                 setGlobalFilter(e.target.value);
@@ -1180,150 +1160,151 @@ export function BookmarkTable({
           ))}
         </div>
       ) : viewMode === "cards" ? (
-        /* Notion Gallery / Card View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredData.map((bm) => (
-            <div
-              key={bm.id}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-              className="rounded-xl border border-border bg-card p-3.5 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group cursor-pointer"
-            >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 truncate">
-                    <BookmarkIcon
-                      src={bm.iconUrl}
-                      alt={bm.title}
-                      domain={bm.domain}
-                      className="h-6 w-6 rounded object-contain bg-background flex-shrink-0 border border-border/40"
-                    />
-                    <span className="text-[11px] font-semibold text-muted-foreground truncate">{bm.domain}</span>
-                  </div>
+        /* Notion Gallery / Card View with Visual Snapshot Cover */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredData.map((bm) => {
+            const snapshotUrl =
+              bm.imageUrl && !bm.imageUrl.includes("avatar-")
+                ? bm.imageUrl
+                : `https://image.thum.io/get/width/600/crop/340/${bm.url}`;
 
+            return (
+              <div
+                key={bm.id}
+                onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
+                className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-neutral-700 transition-all flex flex-col justify-between group cursor-pointer"
+              >
+                {/* Notion-Style Card Cover: Visual Snapshot */}
+                <div className="relative h-36 w-full bg-slate-100 dark:bg-neutral-850 overflow-hidden border-b border-border/60">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={snapshotUrl}
+                    alt={bm.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover object-top group-hover:scale-102 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  <div className="absolute bottom-2 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono px-2 py-0.5 rounded shadow-xs truncate max-w-[80%]">
+                    {bm.domain}
+                  </div>
+                  {/* Quick Favorite Star on Cover */}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggleFavorite(bm);
                     }}
-                    className="cursor-pointer"
+                    className="absolute top-2 right-2 p-1.5 rounded-md bg-black/40 hover:bg-black/60 backdrop-blur-xs text-white transition-colors cursor-pointer"
+                    title={bm.isFavorite ? "Remove from favorites" : "Add to favorites"}
                   >
                     {bm.isFavorite ? (
-                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                      <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
                     ) : (
-                      <Star className="h-4 w-4 text-muted-foreground/30 hover:text-muted-foreground" />
+                      <Star className="h-3.5 w-3.5 text-white/80 hover:text-white" />
                     )}
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className="font-semibold text-sm hover:underline text-foreground block line-clamp-1 truncate cursor-pointer"
-                  >
-                    {bm.title}
-                  </span>
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      recordVisit(bm);
-                    }}
-                    className="text-muted-foreground hover:text-blue-500 p-0.5"
-                    title="Open in new tab"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-
-                {bm.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{bm.description}</p>
-                )}
-
-                {/* Tags */}
-                {bm.tags && bm.tags.length > 0 && (
-                  <div className="flex items-center gap-1 flex-wrap pt-1">
-                    {bm.tags.map((t) => (
+                <div className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 truncate">
+                      <BookmarkIcon
+                        src={bm.iconUrl}
+                        alt={bm.title}
+                        domain={bm.domain}
+                        className="h-5 w-5 rounded object-contain bg-background flex-shrink-0 border border-border/40"
+                      />
                       <span
-                        key={t.id}
-                        className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                        style={{ backgroundColor: `${t.color}15`, color: t.color }}
+                        className="font-semibold text-sm hover:underline text-foreground block truncate cursor-pointer flex-1"
+                        title={bm.title}
                       >
-                        #{t.name}
+                        {bm.title}
                       </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <a
+                        href={bm.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          recordVisit(bm);
+                        }}
+                        className="text-muted-foreground hover:text-blue-500 p-0.5 shrink-0"
+                        title="Open in new tab"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
 
-              {/* Card Footer */}
-              <div className="pt-3 mt-3 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1 font-medium">
-                  <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-[120px]">{getParentFolderInfo(bm).name}</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCopyLink(bm.url, bm.id);
-                    }}
-                    className="hover:text-foreground cursor-pointer"
-                    title="Copy Link"
-                  >
-                    {copiedId === bm.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCopyingBookmark(bm);
-                    }}
-                    className="hover:text-foreground cursor-pointer"
-                    title="Copy to Folder..."
-                  >
-                    <FolderPlus className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingBookmark(bm);
-                    }}
-                    className="hover:text-foreground cursor-pointer"
-                    title="Edit"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleArchive(bm);
-                    }}
-                    className={`cursor-pointer ${bm.isArchived ? "text-blue-500 hover:text-blue-600" : "hover:text-purple-600"}`}
-                    title={bm.isArchived ? `Unarchive back to ${getParentFolderInfo(bm).name}` : "Archive"}
-                  >
-                    {bm.isArchived ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                  </button>
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      recordVisit(bm);
-                    }}
-                    className="hover:text-foreground inline-flex items-center gap-0.5"
-                  >
-                    Open <ExternalLink className="h-3 w-3" />
-                  </a>
+                    {bm.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed font-sans">
+                        {bm.description}
+                      </p>
+                    )}
+
+                    {/* Tags */}
+                    {bm.tags && bm.tags.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                        {bm.tags.map((t) => (
+                          <span
+                            key={t.id}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                            style={{ backgroundColor: `${t.color}15`, color: t.color }}
+                          >
+                            #{t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="pt-2.5 mt-2 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 font-medium">
+                      <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3.5 w-3.5" />
+                      <span className="truncate max-w-[120px]">{getParentFolderInfo(bm).name}</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopyLink(bm.url, bm.id);
+                        }}
+                        className="hover:text-foreground cursor-pointer"
+                        title="Copy Link"
+                      >
+                        {copiedId === bm.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCopyingBookmark(bm);
+                        }}
+                        className="hover:text-foreground cursor-pointer"
+                        title="Copy to Folder..."
+                      >
+                        <FolderPlus className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingBookmark(bm);
+                        }}
+                        className="hover:text-foreground cursor-pointer"
+                        title="Edit Details"
+                      >
+                        <Edit2 className="h-3.5 w-3.5 text-indigo-500" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : viewMode === "list" ? (
         /* Notion-Style Document List View */

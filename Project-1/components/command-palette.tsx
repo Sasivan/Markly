@@ -39,16 +39,21 @@ export function CommandPalette({
 
   const filteredBookmarks = React.useMemo(() => {
     if (!search.trim()) return bookmarks.slice(0, 25);
-    const q = search.toLowerCase().trim();
+    const searchTokens = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
     return bookmarks
       .filter((bm) => {
-        const titleMatch = bm.title.toLowerCase().includes(q);
-        const urlMatch = bm.url.toLowerCase().includes(q);
-        const domainMatch = bm.domain.toLowerCase().includes(q);
-        const tagsMatch = bm.tags?.some((t) => t.name.toLowerCase().includes(q));
         const folder = bm.folderId ? folders.find((f) => f.id === bm.folderId) : null;
-        const folderMatch = folder?.name.toLowerCase().includes(q);
-        return Boolean(titleMatch || urlMatch || domainMatch || tagsMatch || folderMatch);
+        const searchable = [
+          bm.title || "",
+          bm.domain || "",
+          bm.url || "",
+          bm.description || "",
+          ...(bm.tags || []).map((t) => t.name),
+          folder?.name || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return searchTokens.every((token) => searchable.includes(token));
       })
       .slice(0, 25);
   }, [bookmarks, folders, search]);

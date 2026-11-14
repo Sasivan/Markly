@@ -21,6 +21,14 @@ export function getStoredAiApiKey(userId?: string | null): string | null {
   return window.localStorage.getItem(storageKey);
 }
 
+export function notifyAiQuotaUpdated(): void {
+  if (typeof window !== "undefined") {
+    try {
+      window.dispatchEvent(new CustomEvent("markly-ai-quota-updated"));
+    } catch {}
+  }
+}
+
 export function setStoredAiApiKey(apiKey: string, userId?: string | null): void {
   if (typeof window === "undefined" || !window.localStorage) {
     return;
@@ -32,6 +40,7 @@ export function setStoredAiApiKey(apiKey: string, userId?: string | null): void 
   } else {
     window.localStorage.removeItem(storageKey);
   }
+  notifyAiQuotaUpdated();
 }
 
 export function clearStoredAiApiKey(userId?: string | null): void {
@@ -42,6 +51,7 @@ export function clearStoredAiApiKey(userId?: string | null): void {
   window.localStorage.removeItem(storageKey);
   // Remove legacy global key if present to prevent unauthenticated reuse
   window.localStorage.removeItem("markly_gemini_api_key");
+  notifyAiQuotaUpdated();
 }
 
 export interface AiRequestHeaders {
@@ -171,6 +181,8 @@ export function incrementDailyAiUsage(userId?: string | null): DailyAiQuota {
   try {
     window.localStorage.setItem(storageKey, JSON.stringify({ date: today, count }));
   } catch {}
+
+  notifyAiQuotaUpdated();
 
   return {
     used: count,

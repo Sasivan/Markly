@@ -81,7 +81,16 @@ export function ProfileView({
   const [aiQuota, setAiQuota] = React.useState<DailyAiQuota>(() => getDailyAiQuota(user?.id));
 
   React.useEffect(() => {
-    setAiQuota(getDailyAiQuota(user?.id));
+    const syncQuota = () => {
+      setAiQuota(getDailyAiQuota(user?.id));
+    };
+    syncQuota();
+    window.addEventListener("markly-ai-quota-updated", syncQuota);
+    window.addEventListener("storage", syncQuota);
+    return () => {
+      window.removeEventListener("markly-ai-quota-updated", syncQuota);
+      window.removeEventListener("storage", syncQuota);
+    };
   }, [user?.id]);
 
   // Compute default avatar for removal / reset
@@ -701,21 +710,21 @@ export function ProfileView({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>AI Auto-Tagging & Metadata Quota</span>
+                <span>AI Summary &amp; Metadata Quota</span>
                 {aiQuota.hasCustomKey ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
                     Custom Key: Unlimited
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-                    Free Tier: 30 / Day
+                    Free Tier: 30 Credits / Day
                   </span>
                 )}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {aiQuota.hasCustomKey
-                  ? "Your personal Google Gemini API key is active. Bookmarks are enhanced with unlimited high-speed AI metadata."
-                  : "Every user receives 30 free AI auto-tagging and enrichment requests per day. Resets daily."}
+                  ? "Your personal Google Gemini API key is active. Site summaries and bookmark enrichment have unlimited usage."
+                  : "Every user receives 30 free AI enrichment & summary credits per day. Resets daily at midnight UTC."}
               </p>
             </div>
           </div>

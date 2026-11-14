@@ -148,14 +148,19 @@ export function BookmarkTable({
     }
     const q = (globalFilter || "").toLowerCase().trim();
     if (q) {
+      const searchTokens = q.split(/\s+/).filter(Boolean);
       result = result.filter((bm) => {
-        const titleMatch = bm.title?.toLowerCase().includes(q);
-        const urlMatch = bm.url?.toLowerCase().includes(q);
-        const domainMatch = bm.domain?.toLowerCase().includes(q);
-        const descMatch = bm.description?.toLowerCase().includes(q);
-        const tagsMatch = bm.tags?.some((t) => t.name.toLowerCase().includes(q));
-        const folderMatch = bm.folderName?.toLowerCase().includes(q);
-        return Boolean(titleMatch || urlMatch || domainMatch || descMatch || tagsMatch || folderMatch);
+        const searchable = [
+          bm.title || "",
+          bm.domain || "",
+          bm.url || "",
+          bm.description || "",
+          ...(bm.tags || []).map((t) => t.name),
+          bm.folderName || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return searchTokens.every((token) => searchable.includes(token));
       });
     }
     return result;
@@ -769,14 +774,19 @@ export function BookmarkTable({
     globalFilterFn: (row, columnId, filterValue) => {
       const q = String(filterValue || "").toLowerCase().trim();
       if (!q) return true;
+      const searchTokens = q.split(/\s+/).filter(Boolean);
       const bm = row.original;
-      const titleMatch = bm.title?.toLowerCase().includes(q);
-      const urlMatch = bm.url?.toLowerCase().includes(q);
-      const domainMatch = bm.domain?.toLowerCase().includes(q);
-      const descMatch = bm.description?.toLowerCase().includes(q);
-      const tagsMatch = bm.tags?.some((t) => t.name.toLowerCase().includes(q));
-      const folderMatch = bm.folderName?.toLowerCase().includes(q);
-      return Boolean(titleMatch || urlMatch || domainMatch || descMatch || tagsMatch || folderMatch);
+      const searchable = [
+        bm.title || "",
+        bm.domain || "",
+        bm.url || "",
+        bm.description || "",
+        ...(bm.tags || []).map((t) => t.name),
+        bm.folderName || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return searchTokens.every((token) => searchable.includes(token));
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,

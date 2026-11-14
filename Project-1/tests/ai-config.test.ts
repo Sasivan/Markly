@@ -5,6 +5,9 @@ import {
   setStoredAiApiKey,
   clearStoredAiApiKey,
   getAiRequestHeaders,
+  getDailyAiQuota,
+  incrementDailyAiUsage,
+  FREE_DAILY_AI_LIMIT,
 } from "../lib/ai-config";
 import { sanitizeGeminiModel, ALLOWED_GEMINI_MODELS } from "../server/ai/suggest";
 
@@ -100,6 +103,46 @@ describe("Phase 12 Stage 1: AI Key Security & Helper Tests", () => {
       expect(sanitizeGeminiModel("../../etc/passwd")).toBe("gemini-flash-latest");
       expect(sanitizeGeminiModel("gpt-4o-arbitrary")).toBe("gemini-flash-latest");
       expect(sanitizeGeminiModel("<script>alert(1)</script>")).toBe("gemini-flash-latest");
+    });
+  });
+
+  describe("4. Daily Free AI Quota & Limits", () => {
+    it("defaults to 30 free daily credits for a new user", () => {
+      const quota = getDailyAiQuota("usr_quota_test");
+      expect(quota.limit).toBe(FREE_DAILY_AI_LIMIT);
+      expect(quota.used).toBe(0);
+      expect(quota.remaining).toBe(30);
+      expect(quota.isQuotaExceeded).toBe(false);
+      expect(quota.hasCustomKey).toBe(false);
+    });
+
+    it("increments daily usage and detects quota exhaustion", () => {
+      for (let i = 1; i <= 30; i++) {
+        const q = incrementDailyAiUsage("usr_quota_test");
+        expect(q.used).toBe(i);
+        expect(q.remaining).toBe(30 - i);
+        if (i < 30) {
+          expect(q.isQuotaExceeded).toBe(false);
+        } else {
+          expect(q.isQuotaExceeded).toBe(true);
+        }
+      }
+
+      // Beyond limit
+      const exceeded = incrementDailyAiUsage("usr_quota_test");
+      expect(exceeded.isQuotaExceeded).toBe(true);
+      expect(exceeded.remaining).toBe(0);
+    });
+
+    it("grants unlimited access when user configures personal Gemini key", () => {
+      setStoredAiApiKey("AIzaSyPersonalKey", "usr_unlimited");
+      const quota = getDailyAiQuota("usr_unlimited");
+      expect(quota.hasCustomKey).toBe(true);
+      expect(quota.isQuotaExceeded).toBe(false);
+
+      const updated = incrementDailyAiUsage("usr_unlimited");
+      expect(updated.hasCustomKey).toBe(true);
+      expect(updated.isQuotaExceeded).toBe(false);
     });
   });
 });

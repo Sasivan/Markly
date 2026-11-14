@@ -149,10 +149,12 @@ To prevent accidental deletions, all native browser `confirm()` prompts have bee
 | Layer | Technologies |
 | :--- | :--- |
 | **Frontend Framework** | [Next.js 16.4.5](https://nextjs.org/) (App Router, Turbopack, React Server Components) |
-| **UI Library** | [React 19](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), Radix UI Primitives, Lucide Icons |
-| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL 15+, GoTrue Auth, Realtime Replication Channels) |
+| **UI Library** | [React 19](https://react.dev/), [Tailwind CSS 4](https://tailwindcss.com/), Radix UI Primitives, Lucide Icons |
+| **Smart Skeletons** | [Skullet 🦴](https://skullet.lochie.me/) (Adaptive layout-shift-free skeletons, measure-first loading animations) |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL 15+, GoTrue Auth, Realtime Replication Channels) + [SQLite](https://github.com/WiseLibs/better-sqlite3) (Fast WAL local store) |
+| **AI Integration** | [Google Gemini AI](https://ai.google.dev/) (Intelligent categorization, tag generation & descriptions with daily quota management) |
 | **Data Visualizations** | [Recharts](https://recharts.org/), [React Force Graph 2D](https://github.com/vasturiano/react-force-graph), [Graphology](https://graphology.github.io/) |
-| **Security & Utilities** | `ipaddr.js` (SSRF Guard), `cheerio` (Metadata Extraction), `sharp` (Favicon Processing) |
+| **Security & Utilities** | `ipaddr.js` (Strict SSRF Guard), `cheerio` (Safe Metadata Extraction), `sharp` (64x64 WebP Favicon Processing), `zod` |
 
 ---
 
@@ -160,10 +162,11 @@ To prevent accidental deletions, all native browser `confirm()` prompts have bee
 
 - **Session-Based Authentication Only**: Caller identity is resolved strictly via verified Supabase sessions (`supabase.auth.getUser()`). Identity is never accepted from query parameters, request bodies, or custom client cookies.
 - **Client-Side AI Keys Only**: AI API keys (such as Google Gemini) are stored strictly in the browser (`localStorage`) and sent per-request via the `x-ai-config` header. AI keys are never persisted in the database, never logged, and never stored on or returned by the server.
+- **Daily Free AI Quota**: Provides 30 free AI enrichments per calendar day for all users, tracking daily usage in the user profile. If quota is exceeded, bookmark creation continues smoothly without interruption, with an instant option to plug in a personal free Gemini key for unlimited enrichments.
 - **SSRF Mitigation**: Outbound scraping and health check requests strictly validate every hop (including redirects up to 3 hops with `redirect: "manual"`). Target domains and IP addresses are resolved and blocked if they match loopback (`127.0.0.0/8`, `::1`), private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), or Cloud metadata endpoints (`169.254.169.254`).
 - **Postgres Row-Level Security (RLS)**: Enforced directly on `profiles`, `folders`, `bookmarks`, `tags`, and `bookmark_tags`. Users cannot query, mutate, or delete data belonging to other tenant UIDs. Cross-tenant access attempts return 404.
-- **Sliding-Window Rate Limiting**: Scraper requests are rate-limited via a sliding-window tracker scoped to the authenticated session user ID.
-- **Strict Security Headers**: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
+- **Sliding-Window Rate Limiting**: Scraper, AI suggest, import, and health check endpoints are rate-limited via a sliding-window tracker scoped to the session user ID or client IP.
+- **Strict Security Headers & CSP**: CSP restricting connect-src to `'self'`, Supabase, and Google Gemini API, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
 - **Zero Client Credential Leakage**: Only public publishable anon keys are exposed to the browser. Admin service-role keys are strictly server-side.
 - **XSS Sanitization**: Cheerio parses third-party HTML strictly as plain text nodes, preventing stored script injection.
 
@@ -186,7 +189,7 @@ npm install
 
 ### 3. Initialize your Supabase Database
 1. Create a free project at [supabase.com](https://supabase.com).
-2. Markly will automatically synchronize and provision your user tables and bookmarks in real time upon connection.
+2. Run migrations located in `supabase/migrations/` (or connect via `.env.local` for automatic sync).
 
 ### 4. Configure Environment Variables
 ```bash
@@ -205,9 +208,10 @@ npm run dev
 ```
 Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-### 6. Run Automated Verification
+### 6. Run Automated Verification & Tests
 ```bash
-node scripts/verify-all.js
+npx tsc --noEmit
+npx vitest run
 ```
 
 ---
@@ -215,25 +219,53 @@ node scripts/verify-all.js
 ## 📁 Repository Structure
 
 ```text
-Markly/
-├── docs/
-│   └── screenshots/                   # High-resolution application screenshots
-├── Project-1/                         # Core Next.js Application
-│   ├── app/                           # App Router routes & API endpoints
-│   │   ├── api/bookmarks/             # Scoped CRUD & visit telemetry
-│   │   ├── api/folders/               # Nested collection management
-│   │   ├── api/auth/                  # Migration & cloud user sync
-│   │   ├── api/scrape/                # SSRF-protected metadata fetcher
-│   │   └── page.tsx                   # Main workspace shell
-│   ├── components/                    # Modular React components
-│   │   ├── auth/                      # Supabase Auth modal & context
-│   │   ├── graph/                     # Force-directed knowledge graph
-│   │   ├── home/                      # Analytics & Forgotten Bookmarks
-│   │   ├── table/                     # Bookmark list & batch operations
-│   │   └── ui/                        # Reusable dialogs, badges, inputs
-│   ├── server/                        # Backend repository & scraper engines
-│   └── scripts/                       # Verification suite
-└── README.md                          # Main repository landing page
+Project-1/
+├── app/                               # Next.js 16 App Router & APIs
+│   ├── api/
+│   │   ├── ai/suggest/                # Gemini AI tags & description suggestion
+│   │   ├── auth/                      # Session verification & Supabase sync
+│   │   ├── bookmarks/                 # Scoped CRUD, tags & visit telemetry
+│   │   ├── folders/                   # Nested collection tree endpoints
+│   │   ├── health-check/              # Dead-link checker with status badges
+│   │   ├── import/ & export/          # Multi-format HTML, JSON, CSV processing
+│   │   ├── recycle-bin/               # Trash retention & restore endpoints
+│   │   ├── scrape/                    # SSRF-protected metadata fetcher
+│   │   └── user/profile/              # Profile, avatar & username endpoints
+│   ├── globals.css                    # Tailwind CSS 4 + Skullet animation styles
+│   ├── layout.tsx                     # Root HTML & body structure
+│   ├── providers.tsx                  # React Query, Themes & Auth providers
+│   └── page.tsx                       # Markly primary workspace container
+├── components/                        # High-Performance React Components
+│   ├── add-bookmark-modal.tsx         # Modern Add modal (inline folder, paste, AI quota)
+│   ├── app-header.tsx                 # Sleek top navbar, quick actions & avatar dropdown
+│   ├── auth/                          # Supabase Auth modal, OAuth & context
+│   ├── collections/                   # Folder collections directory & quick-add
+│   ├── command-palette.tsx            # Fuzzy search across bookmarks & folders (⌘K)
+│   ├── folders/                       # Folder management panel & subfolder views
+│   ├── graph/                         # Obsidian force-directed knowledge graph
+│   ├── home/                          # Workspace home & forgotten bookmarks slider
+│   ├── profile/                       # Profile view, AI daily quota & database sync
+│   ├── sidebar/                       # Sidebar tree, quick hover '+' actions, collapsible rail
+│   ├── table/ & cards/                # Multi-view virtualized bookmark displays
+│   ├── trash/                         # PC-Style Recycle Bin with permanent retention
+│   └── ui/                            # Skullet smart skeletons, modals, badges, inputs
+├── lib/                               # Client & Shared Utilities
+│   ├── ai-config.ts                   # Daily quota tracker (30 free/day) & key manager
+│   ├── csrf.ts                        # CSRF protection & origin verification
+│   ├── rate-limit.ts                  # Sliding-window rate limiting engine
+│   └── utils.ts                       # Class merging & text helpers
+├── server/                            # Server-Side Core Architecture
+│   ├── auth/                          # requireUser session guard & CSRF checks
+│   ├── db/                            # SQLite repository & schema definitions
+│   ├── scraper/                       # SSRF guard, Cheerio parser & Sharp WebP icon pipeline
+│   └── supabase/                      # Supabase client SSR & sync managers
+├── supabase/                          # Supabase PostgreSQL Migrations
+│   └── migrations/                    # Hardened RLS schemas, search_path & constraints
+└── tests/                             # Automated Test Suites
+    ├── ai-config.test.ts              # Quota & header injection tests
+    ├── auth.test.ts                   # Authentication & permission tests
+    ├── import-export.test.ts          # Roundtrip import/export validation
+    └── scraper.test.ts                # SSRF blocking & metadata extraction tests
 ```
 
 ---

@@ -545,11 +545,27 @@ export function MarklyWorkspace({
     setAddModalOpen(true);
   };
 
-  const openAddModal = React.useCallback((urlToPrefill?: unknown) => {
-    const cleanUrl = typeof urlToPrefill === "string" ? urlToPrefill.trim() : "";
+  const [defaultFolderForAdd, setDefaultFolderForAdd] = React.useState<string | null>(null);
+
+  const openAddModal = React.useCallback((folderIdOrUrl?: unknown, urlToPrefill?: unknown) => {
+    let cleanFolderId: string | null = null;
+    let cleanUrl = "";
+
+    if (typeof folderIdOrUrl === "string") {
+      if (folderIdOrUrl.startsWith("http://") || folderIdOrUrl.startsWith("https://") || (folderIdOrUrl.includes(".") && !folderIdOrUrl.startsWith("fld_"))) {
+        cleanUrl = folderIdOrUrl.trim();
+      } else {
+        cleanFolderId = folderIdOrUrl;
+      }
+    }
+    if (typeof urlToPrefill === "string") {
+      cleanUrl = urlToPrefill.trim();
+    }
+
+    setDefaultFolderForAdd(cleanFolderId || activeFolderId || null);
     setPrefillUrl(cleanUrl);
     setAddModalOpen(true);
-  }, []);
+  }, [activeFolderId]);
 
   // Real-time Bookmark Visit / Click handler
   const handleBookmarkVisit = React.useCallback(async (bm: BookmarkWithDetails) => {
@@ -1069,6 +1085,7 @@ export function MarklyWorkspace({
         folders={folders}
         folderTree={folderTree}
         initialUrl={prefillUrl}
+        defaultFolderId={defaultFolderForAdd}
         onBookmarkAdded={handleBookmarkAdded}
         onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
         onFolderCreated={(newFolder) => {
@@ -1178,45 +1195,11 @@ export function MarklyWorkspace({
         }}
         onRefreshData={refreshData}
         onOpenSearch={() => setCommandPaletteOpen(true)}
+        onOpenAddBookmarkToFolder={(fId) => openAddModal(fId)}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {!user && !guestBannerDismissed && (
-          <div className="bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-violet-600/10 border-b border-blue-500/20 px-4 py-2 flex items-center justify-between text-xs text-slate-700 dark:text-neutral-300 flex-shrink-0 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-              <span>
-                <strong>Guest Mode (In-Memory):</strong> Links and folders saved now are stored temporarily in your browser. Sign in or create an account to sync across devices permanently.
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => openAuthModal("signup")}
-                className="px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs transition-colors cursor-pointer"
-              >
-                Create Free Account
-              </button>
-              <button
-                type="button"
-                onClick={() => openAuthModal("login")}
-                className="px-2.5 py-1 rounded-md border border-slate-300 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-medium transition-colors cursor-pointer"
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => setGuestBannerDismissed(true)}
-                className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer ml-1"
-                title="Dismiss guest banner"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Top Header without search bar (available in left panel) */}
         <AppHeader
           isSidebarCollapsed={sidebarCollapsed}
@@ -1225,7 +1208,13 @@ export function MarklyWorkspace({
           onOpenImportExport={() => setImportExportOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
           onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
-          onOpenProfile={() => setActiveView("profile")}
+          onOpenProfile={() => {
+            setActiveView("profile");
+            setActiveFolderId(null);
+            setActiveDomain(null);
+            setActiveDomainFilter(null);
+            setActiveTagFilter(null);
+          }}
           onNavigateHome={() => {
             setActiveView("home");
             setActiveFolderId(null);
@@ -1237,27 +1226,29 @@ export function MarklyWorkspace({
           activeFolder={activeFolderId ? folders.find((f) => f.id === activeFolderId) || null : null}
         />
 
-        {/* Breadcrumb Navigation Trail */}
-        <Breadcrumbs
-          activeFolderId={activeFolderId}
-          activeView={activeView}
-          folders={folders}
-          includeSubfolders={includeSubfolders}
-          onToggleIncludeSubfolders={setIncludeSubfolders}
-          onSelectFolder={(id) => {
-            setActiveFolderId(id);
-            setActiveDomainFilter(null);
-            setActiveTagFilter(null);
-          }}
-          onSelectView={(view) => {
-            setActiveView(view);
-            setActiveFolderId(null);
-            setActiveDomainFilter(null);
-            setActiveTagFilter(null);
-          }}
-          totalBookmarksCount={filteredBookmarks.length}
-          onOpenSearch={() => setCommandPaletteOpen(true)}
-        />
+        {/* Breadcrumb Navigation Trail (Shown for workspace browsing, hidden for full-page profile and recycle bin) */}
+        {activeView !== "profile" && activeView !== "trash" && (
+          <Breadcrumbs
+            activeFolderId={activeFolderId}
+            activeView={activeView}
+            folders={folders}
+            includeSubfolders={includeSubfolders}
+            onToggleIncludeSubfolders={setIncludeSubfolders}
+            onSelectFolder={(id) => {
+              setActiveFolderId(id);
+              setActiveDomainFilter(null);
+              setActiveTagFilter(null);
+            }}
+            onSelectView={(view) => {
+              setActiveView(view);
+              setActiveFolderId(null);
+              setActiveDomainFilter(null);
+              setActiveTagFilter(null);
+            }}
+            totalBookmarksCount={filteredBookmarks.length}
+            onOpenSearch={() => setCommandPaletteOpen(true)}
+          />
+        )}
 
         {/* Dashboard, Home, Graph & Table Zone */}
         <div ref={mainScrollRef} className="overflow-y-auto flex-1 p-6 space-y-6">
@@ -1344,6 +1335,7 @@ export function MarklyWorkspace({
               totalBookmarks={stats.totalBookmarks}
               totalFolders={stats.totalFolders}
               onRefreshData={refreshData}
+              onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
               onNavigateHome={() => {
                 setActiveView("home");
                 setActiveFolderId(null);
@@ -1423,6 +1415,7 @@ export function MarklyWorkspace({
                 setActiveView(v);
                 setActiveFolderId(null);
               }}
+              onOpenAddBookmarkToFolder={(fId) => openAddModal(fId)}
             />
           ) : activeView === "trash" && !activeFolderId ? (
             /* Dedicated PC-Style Recycle Bin View */
@@ -1486,6 +1479,7 @@ export function MarklyWorkspace({
                     onCustomizeFolder={(folder) => setPanelCustomizeFolder(folder)}
                     onMoveFolder={(folder) => setPanelMoveFolder(folder)}
                     onDeleteFolder={(folder) => setPanelDeleteFolder(folder)}
+                    onAddBookmarkToFolder={(fId) => openAddModal(fId)}
                   />
                 );
               })()}

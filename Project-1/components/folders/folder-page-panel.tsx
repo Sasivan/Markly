@@ -35,6 +35,7 @@ interface FolderPagePanelProps {
   onCustomizeFolder: (folder: FolderType) => void;
   onMoveFolder: (folder: FolderType) => void;
   onDeleteFolder: (folder: FolderType) => void;
+  onAddBookmarkToFolder?: (folderId: string) => void;
 }
 
 export function FolderPagePanel({
@@ -53,6 +54,7 @@ export function FolderPagePanel({
   onCustomizeFolder,
   onMoveFolder,
   onDeleteFolder,
+  onAddBookmarkToFolder,
 }: FolderPagePanelProps) {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editName, setEditName] = React.useState(currentFolder.name);
@@ -232,6 +234,19 @@ export function FolderPagePanel({
 
         {/* Right: Folder Options Toolbar */}
         <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+          {/* Quick Add Bookmark to this folder */}
+          {onAddBookmarkToFolder && (
+            <Button
+              size="sm"
+              onClick={() => onAddBookmarkToFolder(currentFolder.id)}
+              className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer flex items-center gap-1.5 shadow-xs"
+              title={`Add new bookmark directly into ${currentFolder.name}`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Bookmark</span>
+            </Button>
+          )}
+
           {/* Subfolder Toggle Icon */}
           <button
             type="button"

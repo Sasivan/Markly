@@ -8,95 +8,44 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Sparkles,
-  AlertTriangle,
-  Check,
-  ExternalLink,
-  Loader2,
-  Star,
+  Link2,
   Folder as FolderIcon,
   Tag as TagIcon,
   Plus,
+  Loader2,
+  Check,
+  AlertTriangle,
+  Star,
   ChevronDown,
   ChevronUp,
   FileText,
   Clock,
   Layers,
-  Smile,
+  Clipboard,
 } from "lucide-react";
-import confetti from "canvas-confetti";
-import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
+import type { Folder, BookmarkWithDetails, FolderTreeNode } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
-import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { IconSearchPicker } from "@/components/icons/icon-search-picker";
-import { getAiRequestHeaders, getDailyAiQuota, incrementDailyAiUsage } from "@/lib/ai-config";
+import { getAiRequestHeaders, getDailyAiQuota, incrementDailyAiUsage, type DailyAiQuota } from "@/lib/ai-config";
+import confetti from "canvas-confetti";
 
 interface AddBookmarkModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folders: Folder[];
-  folderTree?: FolderTreeNode[];
+  folderTree: FolderTreeNode[];
   initialUrl?: string;
+  defaultFolderId?: string | null;
   onBookmarkAdded?: (bookmark: BookmarkWithDetails) => void;
   onFolderCreated?: (folder: Folder) => void;
   onOpenApiKeyModal?: () => void;
 }
 
-const QUICK_TAGS = [
-  "dev",
-  "design",
-  "ai",
-  "tools",
-  "reading",
-  "product",
-  "docs",
-  "video",
-  "tutorial",
-  "reference",
-];
-
-const POPULAR_FOLDER_ICONS = [
-  "📁",
-  "💻",
-  "🎨",
-  "⚡",
-  "🚀",
-  "📚",
-  "💼",
-  "⭐",
-  "🌐",
-  "🔒",
-  "iconoir:Folder",
-  "iconoir:Code",
-  "iconoir:Palette",
-  "iconoir:Cpu",
-  "iconoir:Database",
-  "iconoir:BookmarkBook",
-];
-
-export const COLOR_PALETTE = [
-  { name: "Blue", value: "#3b82f6" },
-  { name: "Indigo", value: "#6366f1" },
-  { name: "Violet", value: "#8b5cf6" },
-  { name: "Purple", value: "#a855f7" },
-  { name: "Pink", value: "#ec4899" },
-  { name: "Rose", value: "#f43f5e" },
-  { name: "Red", value: "#ef4444" },
-  { name: "Orange", value: "#f97316" },
-  { name: "Amber", value: "#f59e0b" },
-  { name: "Yellow", value: "#eab308" },
-  { name: "Lime", value: "#84cc16" },
-  { name: "Emerald", value: "#10b981" },
-  { name: "Teal", value: "#14b8a6" },
-  { name: "Cyan", value: "#06b6d4" },
-  { name: "Slate", value: "#64748b" },
-  { name: "Zinc", value: "#71717a" },
-];
+const QUICK_TAGS = ["developer", "design", "tools", "reading", "ai", "docs", "finance"];
 
 export function AddBookmarkModal({
   open,
@@ -104,39 +53,40 @@ export function AddBookmarkModal({
   folders,
   folderTree,
   initialUrl = "",
+  defaultFolderId = null,
   onBookmarkAdded,
   onFolderCreated,
   onOpenApiKeyModal,
 }: AddBookmarkModalProps) {
   const { user } = useAuth();
   const [url, setUrl] = React.useState(initialUrl);
-  const [selectedFolderId, setSelectedFolderId] = React.useState<string>("");
+  const [selectedFolderId, setSelectedFolderId] = React.useState<string>(defaultFolderId || "");
   const [isFavorite, setIsFavorite] = React.useState(false);
   const [bookmarkStatus, setBookmarkStatus] = React.useState<"alive" | "pending" | "archived">("alive");
   const [tagsInput, setTagsInput] = React.useState("");
 
   // AI daily quota tracking (30 free requests/day; unlimited with custom Gemini key)
-  const [aiQuota, setAiQuota] = React.useState(() => getDailyAiQuota(user?.id));
+  const [aiQuota, setAiQuota] = React.useState<DailyAiQuota>(() => getDailyAiQuota(user?.id));
 
   React.useEffect(() => {
     if (open) {
       setAiQuota(getDailyAiQuota(user?.id));
+      if (defaultFolderId) {
+        setSelectedFolderId(defaultFolderId);
+      }
     }
-  }, [open, user?.id]);
+  }, [open, user?.id, defaultFolderId]);
 
   // Additional Editing State
   const [customTitle, setCustomTitle] = React.useState("");
   const [customDescription, setCustomDescription] = React.useState("");
   const [showMoreOptions, setShowMoreOptions] = React.useState(false);
 
-  // Inline Folder Creator State
+  // Simplified, Elegant Inline Folder Creator State
   const [isCreatingFolder, setIsCreatingFolder] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState("");
   const [newFolderParentId, setNewFolderParentId] = React.useState<string>("");
-  const [newFolderIcon, setNewFolderIcon] = React.useState("📁");
-  const [newFolderColor, setNewFolderColor] = React.useState("#3b82f6");
   const [folderSubmitting, setFolderSubmitting] = React.useState(false);
-  const [showIconLibrary, setShowIconLibrary] = React.useState(false);
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -185,41 +135,39 @@ export function AddBookmarkModal({
       setIsCreatingFolder(false);
       setNewFolderName("");
       setNewFolderParentId("");
-      setShowIconLibrary(false);
     }
   }, [open]);
 
-  // Handle Quick Inline Folder Creation with full customization & parent selection (0ms instant)
+  // Handle Quick Inline Folder Creation (clean, no forced emoji popup)
   const handleCreateFolderInline = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const folderName = newFolderName.trim();
     if (!folderName) return;
 
+    setFolderSubmitting(true);
     const tempFolderId = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const optimisticFolder: Folder = {
       id: tempFolderId,
       name: folderName,
       parentId: newFolderParentId || null,
-      icon: newFolderIcon || "📁",
-      color: newFolderColor || "#3b82f6",
+      icon: "📁",
+      color: "#3b82f6",
       position: folders.length,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       userId: user?.id || "",
     };
 
-    // 0ms instant UI update: select immediately & close inline form
     setSelectedFolderId(tempFolderId);
     setIsCreatingFolder(false);
     setNewFolderName("");
     setNewFolderParentId("");
-    setShowIconLibrary(false);
+    setFolderSubmitting(false);
 
     if (onFolderCreated) {
       onFolderCreated(optimisticFolder);
     }
 
-    // Persist to server in background with the exact same ID
     try {
       fetch("/api/folders", {
         method: "POST",
@@ -228,12 +176,21 @@ export function AddBookmarkModal({
           id: tempFolderId,
           name: folderName,
           parentId: optimisticFolder.parentId,
-          icon: optimisticFolder.icon,
-          color: optimisticFolder.color,
+          icon: "📁",
+          color: "#3b82f6",
         }),
       }).catch((err) => {
         console.warn("Background folder save warning:", err);
       });
+    } catch {}
+  };
+
+  const handlePasteClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        setUrl(text.trim());
+      }
     } catch {}
   };
 
@@ -421,13 +378,19 @@ export function AddBookmarkModal({
         onBookmarkAdded(finalBookmark);
       }
 
-      // Briefly display success card before closing
+      setLoading(false);
       setTimeout(() => {
         onOpenChange(false);
-      }, 800);
+      }, 500);
     } catch (err: any) {
-      // Last-chance direct save
+      console.warn("Scrape error, falling back:", err);
+      // Fallback: save basic bookmark without blocking user
       try {
+        let domain = "example.com";
+        try {
+          domain = new URL(trimmed).hostname.replace(/^www\./, "");
+        } catch {}
+
         const parsedTags = tagsInput
           .split(",")
           .map((t) => t.trim().toLowerCase())
@@ -438,8 +401,8 @@ export function AddBookmarkModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             url: trimmed,
-            title: customTitle.trim() || undefined,
-            description: customDescription.trim() || undefined,
+            title: customTitle.trim() || domain,
+            description: customDescription.trim() || "",
             folderId: selectedFolderId || null,
             isFavorite,
             isArchived: bookmarkStatus === "archived",
@@ -447,36 +410,37 @@ export function AddBookmarkModal({
             tagNames: parsedTags,
           }),
         });
+
         const fbData = await fbRes.json();
         if (fbData.success && fbData.bookmark) {
           if (onBookmarkAdded) onBookmarkAdded(fbData.bookmark);
+          setLoading(false);
           onOpenChange(false);
           return;
         }
       } catch {}
 
-      setError(err.message || "Could not bookmark URL. Please check the address.");
-    } finally {
+      setError(err.message || "Failed to save bookmark. Please try again.");
       setLoading(false);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleScrape(url, false);
+    handleScrape(url);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-5 max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-              <Sparkles className="h-4 w-4" />
+      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto p-5 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#161616] shadow-2xl">
+        <DialogHeader className="pb-2">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0 border border-blue-200 dark:border-blue-800 shadow-2xs">
+              <Plus className="h-5 w-5" />
             </div>
             <div>
               <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
-                Add Bookmark
+                Add New Bookmark
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
                 Save any link. Markly auto-fetches high-res icon, favicon, and rich metadata.
@@ -486,16 +450,16 @@ export function AddBookmarkModal({
         </DialogHeader>
 
         {/* AI Daily Quota Status Pill */}
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-colors bg-slate-50 dark:bg-neutral-900 border-slate-200 dark:border-neutral-800">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-colors bg-slate-50 dark:bg-neutral-900/60 border-slate-200 dark:border-neutral-800">
           <div className="flex items-center gap-1.5 truncate">
             <Sparkles className="h-3.5 w-3.5 text-indigo-500 flex-shrink-0" />
             {aiQuota.hasCustomKey ? (
-              <span className="text-emerald-600 dark:text-emerald-400 truncate">Custom Gemini Key Active • Unlimited AI</span>
+              <span className="text-emerald-600 dark:text-emerald-400 truncate font-semibold">Custom Key Active • Unlimited AI</span>
             ) : aiQuota.isQuotaExceeded ? (
               <span className="text-amber-600 dark:text-amber-400 truncate">Free AI quota (30/30) reached today • Saving standard metadata</span>
             ) : (
               <span className="text-slate-600 dark:text-neutral-400 truncate">
-                Free AI Autotagging: <strong className="text-indigo-600 dark:text-indigo-400">{aiQuota.remaining}</strong> of 30 uses left today
+                Free AI Autotagging: <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{aiQuota.remaining}</strong> of 30 uses left today
               </span>
             )}
           </div>
@@ -513,17 +477,28 @@ export function AddBookmarkModal({
           )}
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="space-y-3 mt-1.5">
-          {/* URL Input */}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-3.5 mt-1">
+          {/* URL Input with Quick Paste */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-800 dark:text-neutral-200">
-              Website URL
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-800 dark:text-neutral-200 flex items-center gap-1">
+                <Link2 className="h-3.5 w-3.5 text-blue-500" />
+                <span>Website URL</span>
+              </label>
+              <button
+                type="button"
+                onClick={handlePasteClipboard}
+                className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <Clipboard className="h-3 w-3" />
+                <span>Paste</span>
+              </button>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 type="text"
-                placeholder="https://github.com or paste link..."
+                placeholder="https://github.com or paste URL..."
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 autoFocus
@@ -536,18 +511,18 @@ export function AddBookmarkModal({
                 disabled={loading || !url.trim()}
                 className="text-xs h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1.5 shadow-sm"
               >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 <span>Save</span>
               </Button>
             </div>
           </div>
 
-          {/* Folder Tree Selector + Inline Add Folder Button */}
+          {/* Destination Folder Selector */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
                 <FolderIcon className="h-3.5 w-3.5 text-blue-500" />
-                <span>Destination Collection</span>
+                <span>Destination Folder</span>
               </label>
               <button
                 type="button"
@@ -555,66 +530,49 @@ export function AddBookmarkModal({
                 className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
               >
                 <Plus className="h-3 w-3" />
-                <span>{isCreatingFolder ? "Cancel New Folder" : "+ New Folder"}</span>
+                <span>{isCreatingFolder ? "Cancel" : "New Folder"}</span>
               </button>
             </div>
 
-            {/* Inline Folder Creator Card */}
-            {isCreatingFolder && (
-              <div className="p-3 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-blue-950 dark:text-blue-300 flex items-center gap-1.5">
-                    <div
-                      className="h-6 w-6 rounded-md flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${newFolderColor}25` }}
-                    >
-                      <FolderIconRenderer icon={newFolderIcon} color={newFolderColor} className="h-3.5 w-3.5" />
-                    </div>
-                    <span>Create New Collection</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreatingFolder(false)}
-                    className="text-[10px] text-muted-foreground hover:text-foreground"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                {/* Folder Name & Submit */}
+            {/* Clean, Simple Inline Folder Creator (No forced emoji grid) */}
+            {isCreatingFolder ? (
+              <div className="p-2.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 space-y-2 animate-in fade-in duration-150">
                 <div className="flex items-center gap-2">
                   <Input
                     type="text"
-                    placeholder="Folder name (e.g. Design Systems, Machine Learning)..."
+                    placeholder="Collection name (e.g. Design Systems, Docs)..."
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
-                    className="h-8.5 text-xs flex-1 bg-background"
+                    className="h-8 text-xs flex-1 bg-background"
                     autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCreateFolderInline();
+                      } else if (e.key === "Escape") {
+                        setIsCreatingFolder(false);
+                      }
+                    }}
                   />
                   <Button
                     type="button"
                     size="sm"
                     onClick={() => handleCreateFolderInline()}
                     disabled={folderSubmitting || !newFolderName.trim()}
-                    className="h-8.5 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1"
+                    className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer"
                   >
-                    {folderSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    <span>Create</span>
+                    {folderSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Create"}
                   </Button>
                 </div>
-
-                {/* Nest under Parent Folder */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
-                    <Layers className="h-3 w-3" />
-                    <span>Parent Folder (Nest Inside):</span>
-                  </label>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <Layers className="h-3 w-3" />
+                  <span>Nest inside:</span>
                   <select
                     value={newFolderParentId}
                     onChange={(e) => setNewFolderParentId(e.target.value)}
-                    className="w-full h-7.5 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    className="h-6 text-[11px] rounded border border-input bg-background px-1.5 text-foreground focus:outline-none"
                   >
-                    <option value="">📁 Root (Top-Level Folder)</option>
+                    <option value="">📁 Root (Top-Level)</option>
                     {folders.map((f) => (
                       <option key={f.id} value={f.id}>
                         ↳ {f.name}
@@ -622,81 +580,8 @@ export function AddBookmarkModal({
                     ))}
                   </select>
                 </div>
-
-                {/* Icon Selection */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
-                      <Smile className="h-3 w-3" />
-                      <span>Folder Icon:</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowIconLibrary(!showIconLibrary)}
-                      className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                    >
-                      {showIconLibrary ? "Hide 1600+ Icons" : "Browse 1600+ Icons ›"}
-                    </button>
-                  </div>
-
-                  {showIconLibrary ? (
-                    <div className="border border-input rounded-lg p-2 bg-background max-h-48 overflow-y-auto">
-                      <IconSearchPicker
-                        selectedIcon={newFolderIcon}
-                        onSelectIcon={(ic) => {
-                          setNewFolderIcon(ic);
-                          setShowIconLibrary(false);
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-1">
-                      {POPULAR_FOLDER_ICONS.map((ic) => {
-                        const isSelected = newFolderIcon === ic;
-                        return (
-                          <button
-                            key={ic}
-                            type="button"
-                            onClick={() => setNewFolderIcon(ic)}
-                            className={`h-7 w-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
-                              isSelected
-                                ? "bg-blue-500 text-white shadow-xs scale-105"
-                                : "hover:bg-slate-200 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300"
-                            }`}
-                          >
-                            <FolderIconRenderer icon={ic} className="h-4 w-4" color={isSelected ? "#ffffff" : newFolderColor} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Color Swatches */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground">
-                    Color Accent:
-                  </label>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {COLOR_PALETTE.map((c) => (
-                      <button
-                        key={c.value}
-                        type="button"
-                        onClick={() => setNewFolderColor(c.value)}
-                        className={`h-4.5 w-4.5 rounded-full transition-transform cursor-pointer ${
-                          newFolderColor === c.value ? "scale-125 ring-2 ring-blue-500 ring-offset-1" : "hover:scale-110 opacity-80 hover:opacity-100"
-                        }`}
-                        style={{ backgroundColor: c.value }}
-                        title={c.name}
-                      />
-                    ))}
-                  </div>
-                </div>
               </div>
-            )}
-
-            {/* Hierarchical Folder Tree Selector */}
-            {!isCreatingFolder && (
+            ) : (
               <FolderTreeSelect
                 folders={folders}
                 folderTree={folderTree}
@@ -707,17 +592,15 @@ export function AddBookmarkModal({
             )}
           </div>
 
-          {/* Tags with Quick Chips & Domain Suggestion */}
+          {/* Tags */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                <TagIcon className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Tags (comma-separated)</span>
-              </label>
-            </div>
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
+              <TagIcon className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Tags (comma-separated)</span>
+            </label>
             <Input
               type="text"
-              placeholder="e.g. dev, design, react, tutorial"
+              placeholder="e.g. dev, design, react, tools"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               className="text-xs h-8.5"
@@ -726,7 +609,7 @@ export function AddBookmarkModal({
 
             {/* Quick Tag Chips */}
             <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              <span className="text-[10px] text-muted-foreground mr-0.5">Quick add:</span>
+              <span className="text-[10px] text-muted-foreground mr-0.5">Suggestions:</span>
               {domainTagSuggestion && (
                 <button
                   type="button"
@@ -749,7 +632,7 @@ export function AddBookmarkModal({
             </div>
           </div>
 
-          {/* More Options Accordion (Custom Title, Notes, Reading Status) */}
+          {/* Extra options accordion */}
           <div className="pt-0.5">
             <button
               type="button"
@@ -777,28 +660,21 @@ export function AddBookmarkModal({
                 </div>
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
-                    Personal Notes / Why you saved this
+                    Personal Notes
                   </label>
                   <Input
                     type="text"
-                    placeholder="Quick notes, key insights, or project context..."
+                    placeholder="Quick notes or project context..."
                     value={customDescription}
                     onChange={(e) => setCustomDescription(e.target.value)}
                     className="text-xs h-8"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-amber-500" />
-                      <span>Reading Status & Lifecycle</span>
-                    </label>
-                    <span className="text-[10px] text-muted-foreground">
-                      {bookmarkStatus === "alive" && "Normal active bookmark in library"}
-                      {bookmarkStatus === "pending" && "Queued in Read Later reading list"}
-                      {bookmarkStatus === "archived" && "Directly filed to Archive"}
-                    </span>
-                  </div>
+                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-amber-500" />
+                    <span>Reading Status</span>
+                  </label>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -808,7 +684,6 @@ export function AddBookmarkModal({
                           ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold"
                           : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
                       }`}
-                      title="Normal active bookmark"
                     >
                       ✓ Active
                     </button>
@@ -820,7 +695,6 @@ export function AddBookmarkModal({
                           ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-semibold"
                           : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
                       }`}
-                      title="Queue in Read Later / pending review"
                     >
                       ⏳ Read Later
                     </button>
@@ -832,7 +706,6 @@ export function AddBookmarkModal({
                           ? "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-semibold"
                           : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
                       }`}
-                      title="Directly save into Archive"
                     >
                       📦 Archive
                     </button>
@@ -864,6 +737,17 @@ export function AddBookmarkModal({
             </button>
           </div>
 
+          {/* Loading Smart Skeleton State (Skullet style zero layout shift) */}
+          {loading && (
+            <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-2 animate-pulse" skullet-loading="true">
+              <div className="flex items-center gap-2.5">
+                <div className="h-6 w-6 rounded bg-slate-200 dark:bg-neutral-800 flex-shrink-0" />
+                <div className="h-4 bg-slate-200 dark:bg-neutral-800 rounded w-2/3" />
+              </div>
+              <div className="h-3 bg-slate-200 dark:bg-neutral-800 rounded w-5/6" />
+            </div>
+          )}
+
           {/* Duplicate Warning Dialog / Prompt */}
           {duplicateWarning && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-2 text-xs animate-in fade-in duration-150">
@@ -872,7 +756,7 @@ export function AddBookmarkModal({
                 <span>Already Saved</span>
               </div>
               <p className="text-muted-foreground text-[11px]">
-                This canonical URL is already saved inside folder:{" "}
+                This link is already saved inside collection:{" "}
                 <strong className="text-foreground">📁 {duplicateWarning.folderName}</strong>
               </p>
               <div className="flex items-center gap-2 pt-1">

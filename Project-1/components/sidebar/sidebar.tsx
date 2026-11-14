@@ -48,6 +48,7 @@ interface SidebarProps {
   onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
+  onOpenAddBookmarkToFolder?: (folderId: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onCreateFolder?: (name: string, icon: string, color: string, parentId?: string | null) => Promise<void>;
@@ -67,6 +68,7 @@ export function Sidebar({
   onSelectView,
   onRefreshData,
   onOpenSearch,
+  onOpenAddBookmarkToFolder,
   isCollapsed: controlledCollapsed,
   onToggleCollapse,
   onCreateFolder,
@@ -914,6 +916,7 @@ export function Sidebar({
                     setAddFolderParentId(parentId);
                     setAddFolderModalOpen(true);
                   }}
+                  onAddBookmarkToFolder={onOpenAddBookmarkToFolder}
                   onRename={handleRenameFolder}
                   onCustomize={setCustomizeFolder}
                   onDuplicate={handleDuplicateFolder}

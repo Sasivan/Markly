@@ -12,6 +12,7 @@ interface FolderTreeNodeProps {
   forceExpanded?: boolean | null;
   onSelect: (folderId: string, isParent?: boolean) => void;
   onNewSubfolder: (parentId: string) => void;
+  onAddBookmarkToFolder?: (folderId: string) => void;
   onRename: (folderId: string, newName: string) => void;
   onCustomize: (node: FolderTreeNode) => void;
   onDuplicate: (folderId: string) => void;
@@ -27,6 +28,7 @@ export function FolderTreeNodeComponent({
   forceExpanded,
   onSelect,
   onNewSubfolder,
+  onAddBookmarkToFolder,
   onRename,
   onCustomize,
   onDuplicate,
@@ -213,37 +215,64 @@ export function FolderTreeNodeComponent({
           </span>
         )}
 
-        {/* Action Menu Trigger (...) */}
+        {/* Action Menu Trigger (...) & Quick Add Bookmark */}
         {!isEditing && (
-          <div className="relative" ref={menuRef}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(!menuOpen);
-              }}
-              className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-
-            {/* Context Dropdown Menu - Solid high contrast, no glassy blur */}
-            {menuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-1.5 shadow-2xl z-50 text-xs text-slate-900 dark:text-neutral-100 animate-in zoom-in-95 opacity-100"
+          <div className="flex items-center gap-0.5">
+            {onAddBookmarkToFolder && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddBookmarkToFolder(node.id);
+                }}
+                title={`Add Bookmark to ${node.name}`}
+                className="h-5 w-5 rounded flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-blue-400 cursor-pointer"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onNewSubfolder(node.id);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(!menuOpen);
+                }}
+                className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+
+              {/* Context Dropdown Menu - Solid high contrast, no glassy blur */}
+              {menuOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border-2 border-slate-300 dark:border-neutral-700 bg-white dark:bg-[#1a1a1a] p-1.5 shadow-2xl z-50 text-xs text-slate-900 dark:text-neutral-100 animate-in zoom-in-95 opacity-100"
                 >
-                  <Plus className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                  <span>New Subfolder</span>
-                </button>
+                  {onAddBookmarkToFolder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onAddBookmarkToFolder(node.id);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                    >
+                      <Plus className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                      <span>Add Bookmark Here</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onNewSubfolder(node.id);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-left cursor-pointer transition-colors"
+                  >
+                    <Plus className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <span>New Subfolder</span>
+                  </button>
 
                 <button
                   type="button"
@@ -308,6 +337,7 @@ export function FolderTreeNodeComponent({
                 </button>
               </div>
             )}
+            </div>
           </div>
         )}
       </div>
@@ -324,6 +354,7 @@ export function FolderTreeNodeComponent({
               forceExpanded={forceExpanded}
               onSelect={onSelect}
               onNewSubfolder={onNewSubfolder}
+              onAddBookmarkToFolder={onAddBookmarkToFolder}
               onRename={onRename}
               onCustomize={onCustomize}
               onDuplicate={onDuplicate}

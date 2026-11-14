@@ -79,16 +79,22 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
       const data = await res.json();
       if (data.success) {
         setItems(data.items || []);
-        if (data.retentionDays !== undefined) {
-          const stored = typeof window !== "undefined" ? localStorage.getItem("markly_recycle_bin_retention") : null;
-          if (stored === null) {
-            setRetentionDays(data.retentionDays);
-            try {
-              localStorage.setItem("markly_recycle_bin_retention", String(data.retentionDays));
-            } catch {}
-          } else {
-            setRetentionDays(parseInt(stored, 10));
+        if (typeof window !== "undefined") {
+          const userKey = user ? `markly_recycle_bin_retention_${user.id}` : null;
+          const stored = userKey ? localStorage.getItem(userKey) || localStorage.getItem("markly_recycle_bin_retention") : localStorage.getItem("markly_recycle_bin_retention");
+          if (stored !== null) {
+            const parsed = parseInt(stored, 10);
+            if ([0, 1, 7, 15, 30].includes(parsed)) {
+              setRetentionDays(parsed);
+              return;
+            }
           }
+        }
+        if (data.retentionDays !== undefined) {
+          setRetentionDays(data.retentionDays);
+          try {
+            localStorage.setItem("markly_recycle_bin_retention", String(data.retentionDays));
+          } catch {}
         }
       }
     } catch (e) {
@@ -96,7 +102,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   React.useEffect(() => {
     fetchItems();
@@ -117,17 +123,21 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
       setRetentionDays(days);
       if (typeof window !== "undefined") {
         try {
+          if (user?.id) {
+            localStorage.setItem(`markly_recycle_bin_retention_${user.id}`, String(days));
+          }
           localStorage.setItem("markly_recycle_bin_retention", String(days));
         } catch {}
       }
-      const res = await fetch("/api/recycle-bin", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ retentionDays: days }),
-      });
-      const data = await res.json();
-      const label = days === 0 ? "Permanent (Never auto-purged)" : `${days} day${days > 1 ? "s" : ""}`;
-      setNotice({ text: `Retention policy permanently selected: ${label}.`, type: "success" });
+      try {
+        await fetch("/api/recycle-bin", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ retentionDays: days }),
+        });
+      } catch {}
+      const label = days === 0 ? "∞ Permanent (Never automatically deleted)" : `${days} day${days > 1 ? "s" : ""}`;
+      setNotice({ text: `Retention setting saved permanently: ${label}.`, type: "success" });
       setTimeout(() => setNotice(null), 3500);
     } catch {
       setNotice({ text: "Failed to update retention policy.", type: "error" });

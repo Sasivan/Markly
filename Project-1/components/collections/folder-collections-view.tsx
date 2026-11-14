@@ -31,6 +31,7 @@ interface FolderCollectionsViewProps {
   ) => Promise<void> | void;
   unsortedCount?: number;
   onSelectView?: (view: any) => void;
+  onOpenAddBookmarkToFolder?: (folderId: string) => void;
 }
 
 export function FolderCollectionsView({
@@ -47,6 +48,7 @@ export function FolderCollectionsView({
   onSaveCollection,
   unsortedCount = 0,
   onSelectView,
+  onOpenAddBookmarkToFolder,
 }: FolderCollectionsViewProps) {
   const [editingCollection, setEditingCollection] = React.useState<Folder | null>(null);
 
@@ -149,6 +151,22 @@ export function FolderCollectionsView({
                       {unsortedCount} {unsortedCount === 1 ? "site" : "sites"}
                     </Badge>
 
+                    {/* Quick Add Bookmark to this collection */}
+                    {onOpenAddBookmarkToFolder && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenAddBookmarkToFolder(unsortedFolder.id);
+                        }}
+                        className="h-7 px-2 rounded-lg flex items-center gap-1 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                        title={`Add bookmark directly to ${unsortedFolder.name}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add</span>
+                      </button>
+                    )}
+
                     {/* All-in-One Edit Collection Button */}
                     <button
                       type="button"
@@ -217,6 +235,22 @@ export function FolderCollectionsView({
                     <Badge variant="secondary" className="text-[11px] font-mono px-2 py-0.5">
                       {bookmarkCount} {bookmarkCount === 1 ? "site" : "sites"}
                     </Badge>
+
+                    {/* Quick Add Bookmark to this collection */}
+                    {onOpenAddBookmarkToFolder && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenAddBookmarkToFolder(rootNode.id);
+                        }}
+                        className="h-7 px-2 rounded-lg flex items-center gap-1 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+                        title={`Add bookmark directly to ${rootNode.name}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add</span>
+                      </button>
+                    )}
 
                     {/* All-in-One Edit Collection Button */}
                     <button

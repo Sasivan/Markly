@@ -45,6 +45,7 @@
     "recharts": "^3.2.0",
     "sharp": "^0.35.5",
     "sigma": "^4.0.5",
+    "skullet": "^0.0.3",
     "tailwind-merge": "^3.0.2",
     "zod": "^4.6.7",
     "zustand": "^5.1.0"

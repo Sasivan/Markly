@@ -158,8 +158,8 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setUserMenuOpen((prev) => !prev)}
-            title={user ? `Account Menu (${user.email})` : "Account Menu (Guest Mode)"}
-            className="flex items-center gap-2 p-0.5 pr-2 rounded-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50 dark:hover:bg-neutral-700/60 transition-all cursor-pointer shadow-2xs group"
+            title={user ? `Account Menu (${user.user_metadata?.display_name || user.email})` : "Account Menu (Guest Mode)"}
+            className="flex items-center gap-1 p-0.5 pr-1.5 rounded-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50 dark:hover:bg-neutral-700/60 transition-all cursor-pointer shadow-2xs group"
           >
             <div className="relative flex-shrink-0">
               <img
@@ -176,9 +176,6 @@ export function AppHeader({
                 }`}
               />
             </div>
-            <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-20 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {user ? (user.user_metadata?.username ? `@${user.user_metadata.username}` : user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile") : "Profile"}
-            </span>
             <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-colors" />
           </button>
 

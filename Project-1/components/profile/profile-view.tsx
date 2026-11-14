@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getDailyAiQuota, type DailyAiQuota } from "@/lib/ai-config";
 import { DicebearAvatarModal } from "./dicebear-avatar-modal";
 
 interface ProfileViewProps {
@@ -41,6 +42,7 @@ interface ProfileViewProps {
   totalFolders?: number;
   onRefreshData?: () => void;
   onNavigateHome?: () => void;
+  onOpenApiKeyModal?: () => void;
 }
 
 export function ProfileView({
@@ -48,6 +50,7 @@ export function ProfileView({
   totalFolders = 0,
   onRefreshData,
   onNavigateHome,
+  onOpenApiKeyModal,
 }: ProfileViewProps) {
   const { user, signOut, openAuthModal, isLoading } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
@@ -73,6 +76,13 @@ export function ProfileView({
   const [isEditingDetails, setIsEditingDetails] = React.useState(false);
   const [isSavingDetails, setIsSavingDetails] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
+
+  // Daily AI quota state (tracks 30 free daily requests or custom key status)
+  const [aiQuota, setAiQuota] = React.useState<DailyAiQuota>(() => getDailyAiQuota(user?.id));
+
+  React.useEffect(() => {
+    setAiQuota(getDailyAiQuota(user?.id));
+  }, [user?.id]);
 
   // Compute default avatar for removal / reset
   const defaultAvatar = React.useMemo(() => {
@@ -692,6 +702,81 @@ export function ProfileView({
           </Button>
         </div>
       )}
+
+      {/* AI Daily Usage & Quota Card */}
+      <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0 border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>AI Auto-Tagging & Metadata Quota</span>
+                {aiQuota.hasCustomKey ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                    Custom Key: Unlimited
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                    Free Tier: 30 / Day
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {aiQuota.hasCustomKey
+                  ? "Your personal Google Gemini API key is active. Bookmarks are enhanced with unlimited high-speed AI metadata."
+                  : "Every user receives 30 free AI auto-tagging and enrichment requests per day. Resets daily."}
+              </p>
+            </div>
+          </div>
+
+          {onOpenApiKeyModal && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onOpenApiKeyModal}
+              className="text-xs h-8 cursor-pointer gap-1.5 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex-shrink-0"
+            >
+              <Key className="h-3.5 w-3.5" />
+              <span>{aiQuota.hasCustomKey ? "Change Gemini Key" : "Add Custom API Key"}</span>
+            </Button>
+          )}
+        </div>
+
+        {/* Usage Progress Bar */}
+        <div className="p-3.5 rounded-xl border border-slate-100 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-slate-700 dark:text-neutral-300">
+              {aiQuota.hasCustomKey ? "Daily Usage Mode: Custom Gemini Key" : "Today's Usage:"}
+            </span>
+            <span className={aiQuota.isQuotaExceeded ? "text-amber-600 font-bold" : "text-slate-900 dark:text-white"}>
+              {aiQuota.hasCustomKey ? (
+                "Unlimited Requests (Personal Key Active)"
+              ) : (
+                `${aiQuota.used} of ${aiQuota.limit} used (${aiQuota.remaining} remaining today)`
+              )}
+            </span>
+          </div>
+
+          {!aiQuota.hasCustomKey && (
+            <div className="w-full bg-slate-200 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  aiQuota.isQuotaExceeded ? "bg-amber-500" : "bg-indigo-600 dark:bg-indigo-500"
+                }`}
+                style={{ width: `${Math.min(100, Math.round((aiQuota.used / aiQuota.limit) * 100))}%` }}
+              />
+            </div>
+          )}
+
+          <p className="text-[11px] text-muted-foreground pt-0.5">
+            {aiQuota.isQuotaExceeded
+              ? "Free daily limit reached for today. You can still save any bookmark normally; AI will resume tomorrow or immediately upon adding your own Gemini key."
+              : "Bookmarks always save cleanly even if quota is reached. Enter your own free Gemini API key anytime for unlimited uses."}
+          </p>
+        </div>
+      </div>
 
       {/* 1. Basic Details Card (Name, DOB, Location, Bio) - No UID */}
       <div className="rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 shadow-xs space-y-4">

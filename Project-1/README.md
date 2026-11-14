@@ -158,8 +158,12 @@ To prevent accidental deletions, all native browser `confirm()` prompts have bee
 
 ## 🛡️ Security Hardening
 
-- **SSRF Mitigation**: Outbound scraping requests strictly resolve destination IPs against loopback (`127.0.0.1`), private RFC1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and Cloud metadata endpoints (`169.254.169.254`).
-- **Postgres Row-Level Security (RLS)**: Enforced directly on `folders`, `bookmarks`, `tags`, and `bookmark_tags`. Users cannot query or mutate data belonging to other tenant UIDs.
+- **Session-Based Authentication Only**: Caller identity is resolved strictly via verified Supabase sessions (`supabase.auth.getUser()`). Identity is never accepted from query parameters, request bodies, or custom client cookies.
+- **Client-Side AI Keys Only**: AI API keys (such as Google Gemini) are stored strictly in the browser (`localStorage`) and sent per-request via the `x-ai-config` header. AI keys are never persisted in the database, never logged, and never stored on or returned by the server.
+- **SSRF Mitigation**: Outbound scraping and health check requests strictly validate every hop (including redirects up to 3 hops with `redirect: "manual"`). Target domains and IP addresses are resolved and blocked if they match loopback (`127.0.0.0/8`, `::1`), private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), or Cloud metadata endpoints (`169.254.169.254`).
+- **Postgres Row-Level Security (RLS)**: Enforced directly on `profiles`, `folders`, `bookmarks`, `tags`, and `bookmark_tags`. Users cannot query, mutate, or delete data belonging to other tenant UIDs. Cross-tenant access attempts return 404.
+- **Sliding-Window Rate Limiting**: Scraper requests are rate-limited via a sliding-window tracker scoped to the authenticated session user ID.
+- **Strict Security Headers**: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
 - **Zero Client Credential Leakage**: Only public publishable anon keys are exposed to the browser. Admin service-role keys are strictly server-side.
 - **XSS Sanitization**: Cheerio parses third-party HTML strictly as plain text nodes, preventing stored script injection.
 

@@ -1,47 +1,65 @@
 import { cookies } from "next/headers";
-import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { createClient } from "@/lib/supabase/server";
+import { BookmarkRepository } from "@/server/db/repository";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
-import { sqlite } from "@/server/db/client";
 import { MarklyWorkspace } from "@/components/markly-workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  try {
-    BookmarkRepository.ensureDefaultUser();
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+  const cookieStore = await cookies();
+  const initialView = (cookieStore.get("markly_active_view")?.value || "home") as any;
+  const initialFolderId = cookieStore.get("markly_active_folder_id")?.value || null;
+  const initialSidebarCollapsed = cookieStore.get("markly_sidebar_collapsed")?.value === "true";
 
-    if (userId && userId !== DEFAULT_USER_ID) {
-      try {
-        const syncRes = await SupabaseManager.ensureUserSynced(userId);
-        if (syncRes.synced && syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
-          BookmarkRepository.ensureUserStarterData(userId);
-        } else {
-          BookmarkRepository.ensureUser(userId);
-        }
-      } catch (e) {
-        console.warn("SSR sync user notice:", e);
-      }
+  const emptyStats = {
+    totalBookmarks: 0,
+    totalFolders: 0,
+    addedThisWeek: 0,
+    deadLinks: 0,
+    topDomain: "None",
+    topDomains: [],
+    tagDistribution: [],
+    timeline: [],
+  };
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      // Unauthenticated guest: empty workspace
+      return (
+        <MarklyWorkspace
+          initialFolderTree={[]}
+          initialFolders={[]}
+          initialBookmarks={[]}
+          initialStats={emptyStats}
+          initialView={initialView}
+          initialFolderId={initialFolderId}
+          initialSidebarCollapsed={initialSidebarCollapsed}
+        />
+      );
     }
 
-    const folderTree = BookmarkRepository.getFolderTree(userId) || [];
-    const allFolders = BookmarkRepository.getAllFolders(userId) || [];
-    const bookmarks = BookmarkRepository.getBookmarks({ view: "all", includeArchived: true, userId }) || [];
-    const stats = BookmarkRepository.getDashboardStats(userId) || {
-      totalBookmarks: 0,
-      totalFolders: 0,
-      addedThisWeek: 0,
-      deadLinks: 0,
-      topDomain: "None",
-      topDomains: [],
-      tagDistribution: [],
-      timeline: [],
-    };
+    // Authenticated user
+    try {
+      const syncRes = await SupabaseManager.ensureUserSynced(user.id);
+      if (syncRes.synced && syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
+        BookmarkRepository.ensureUserStarterData(user.id);
+      } else {
+        BookmarkRepository.ensureUser(user.id);
+      }
+    } catch (e) {
+      console.warn("SSR sync user notice:", e);
+    }
 
-    const initialView = (cookieStore.get("markly_active_view")?.value || "home") as any;
-    const initialFolderId = cookieStore.get("markly_active_folder_id")?.value || null;
-    const initialSidebarCollapsed = cookieStore.get("markly_sidebar_collapsed")?.value === "true";
+    const folderTree = BookmarkRepository.getFolderTree(user.id) || [];
+    const allFolders = BookmarkRepository.getAllFolders(user.id) || [];
+    const bookmarks = BookmarkRepository.getBookmarks({ view: "all", includeArchived: true, userId: user.id }) || [];
+    const stats = BookmarkRepository.getDashboardStats(user.id) || emptyStats;
 
     return (
       <MarklyWorkspace
@@ -61,16 +79,10 @@ export default async function HomePage() {
         initialFolderTree={[]}
         initialFolders={[]}
         initialBookmarks={[]}
-        initialStats={{
-          totalBookmarks: 0,
-          totalFolders: 0,
-          addedThisWeek: 0,
-          deadLinks: 0,
-          topDomain: "None",
-          topDomains: [],
-          tagDistribution: [],
-          timeline: [],
-        }}
+        initialStats={emptyStats}
+        initialView={initialView}
+        initialFolderId={initialFolderId}
+        initialSidebarCollapsed={initialSidebarCollapsed}
       />
     );
   }

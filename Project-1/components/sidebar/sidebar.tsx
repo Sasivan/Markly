@@ -213,7 +213,6 @@ export function Sidebar({
           parentId: parentId || null,
           icon: icon || "📁",
           color: color || "#3b82f6",
-          userId: user?.id,
         }),
       });
       const data = await res.json();
@@ -235,7 +234,7 @@ export function Sidebar({
       await fetch(`/api/folders/${folderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName, userId: user?.id }),
+        body: JSON.stringify({ name: newName }),
       });
       onRefreshData();
       if (typeof window !== "undefined") {
@@ -255,7 +254,7 @@ export function Sidebar({
       await fetch(`/api/folders/${folderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...updates, userId: user?.id }),
+        body: JSON.stringify(updates),
       });
       onRefreshData();
       if (typeof window !== "undefined") {
@@ -268,11 +267,9 @@ export function Sidebar({
 
   const handleDuplicateFolder = async (folderId: string) => {
     try {
-      const q = user?.id ? `?userId=${encodeURIComponent(user.id)}` : "";
-      await fetch(`/api/folders/${folderId}${q}`, {
+      await fetch(`/api/folders/${folderId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id }),
       });
       onRefreshData();
       if (typeof window !== "undefined") {
@@ -289,9 +286,7 @@ export function Sidebar({
         await onDeleteFolder(folderId, mode);
         return;
       }
-      const q = new URLSearchParams({ mode });
-      if (user?.id) q.set("userId", user.id);
-      await fetch(`/api/folders/${folderId}?${q.toString()}`, {
+      await fetch(`/api/folders/${folderId}?mode=${encodeURIComponent(mode)}`, {
         method: "DELETE",
       });
       if (activeFolderId === folderId) {
@@ -329,7 +324,6 @@ export function Sidebar({
           folderId: draggedFolderId,
           targetFolderId: targetFolderId === "root" ? null : targetFolderId,
           dropPosition: position,
-          userId: user?.id,
         }),
       });
       onRefreshData();

@@ -455,14 +455,7 @@ export function MarklyWorkspace({
   }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, recentBoundary]);
 
   const getEffectiveUserId = React.useCallback(() => {
-    if (user?.id) return user.id;
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("markly_user_id");
-      if (stored) return stored;
-      const match = document.cookie.match(/markly_user_id=([^;]+)/);
-      if (match) return match[1];
-    }
-    return null;
+    return user?.id || null;
   }, [user?.id]);
 
   // Safety check: if activeFolderId points to a folder that does not exist in folders list, reset it!
@@ -476,12 +469,7 @@ export function MarklyWorkspace({
   // Refresh data function: single unified bootstrap request for 0ms atomic state hydration
   const refreshData = React.useCallback(async () => {
     try {
-      const effectiveId = getEffectiveUserId();
-      const url = effectiveId
-        ? `/api/workspace/bootstrap?userId=${encodeURIComponent(effectiveId)}`
-        : "/api/workspace/bootstrap";
-
-      const res = await fetch(url);
+      const res = await fetch("/api/workspace/bootstrap");
       const data = await res.json();
 
       if (data.success) {
@@ -493,7 +481,7 @@ export function MarklyWorkspace({
     } catch (e) {
       console.error("Failed to refresh workspace bootstrap:", e);
     }
-  }, [getEffectiveUserId]);
+  }, []);
 
   React.useEffect(() => {
     refreshData();
@@ -563,7 +551,7 @@ export function MarklyWorkspace({
       const folderId = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const optimisticFolder: FolderType = {
         id: folderId,
-        userId: user?.id || "usr_default_markly",
+        userId: user?.id || "",
         parentId: cleanParentId,
         name: name.trim() || "New Folder",
         icon: icon || "📁",
@@ -593,7 +581,6 @@ export function MarklyWorkspace({
             parentId: cleanParentId,
             icon: icon || "📁",
             color: color || "#3b82f6",
-            userId: user?.id,
           }),
         });
         const data = await res.json();
@@ -670,14 +657,14 @@ export function MarklyWorkspace({
         await fetch(`/api/folders/${folderId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName, userId: user?.id }),
+          body: JSON.stringify({ name: newName }),
         });
       } catch (err) {
         console.error("Rename folder error:", err);
         refreshData();
       }
     },
-    [folders, bookmarks, user?.id, refreshData]
+    [folders, bookmarks, refreshData]
   );
 
   const handleCustomizeFolderOptimistic = React.useCallback(
@@ -692,14 +679,14 @@ export function MarklyWorkspace({
         await fetch(`/api/folders/${folderId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...updates, userId: user?.id }),
+          body: JSON.stringify(updates),
         });
       } catch (err) {
         console.error("Customize folder error:", err);
         refreshData();
       }
     },
-    [folders, bookmarks, user?.id, refreshData]
+    [folders, bookmarks, refreshData]
   );
 
   const handleMoveFolderOptimistic = React.useCallback(
@@ -720,7 +707,6 @@ export function MarklyWorkspace({
             folderId,
             targetFolderId: newParentId,
             dropPosition: newParentId ? "inside" : "root",
-            userId: user?.id,
           }),
         });
         refreshData();
@@ -768,7 +754,6 @@ export function MarklyWorkspace({
               folderId,
               targetFolderId: updates.parentId,
               dropPosition: updates.parentId ? "inside" : "root",
-              userId: user?.id,
             }),
           });
         }
@@ -781,7 +766,6 @@ export function MarklyWorkspace({
             icon: updates.icon,
             color: updates.color,
             parentId: updates.parentId,
-            userId: user?.id,
           }),
         });
 
@@ -793,7 +777,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [folders, bookmarks, user?.id, refreshData]
+    [folders, bookmarks, refreshData]
   );
 
   const handleDeleteBookmarkOptimistic = React.useCallback(
@@ -803,11 +787,7 @@ export function MarklyWorkspace({
 
       // 2. Await delete on server first
       try {
-        const effectiveId = getEffectiveUserId();
-        const url = effectiveId
-          ? `/api/bookmarks/${id}?userId=${encodeURIComponent(effectiveId)}`
-          : `/api/bookmarks/${id}`;
-        await fetch(url, { method: "DELETE" });
+        await fetch(`/api/bookmarks/${id}`, { method: "DELETE" });
 
         // 3. Notify Recycle Bin only AFTER server has committed the deletion
         if (typeof window !== "undefined") {
@@ -819,7 +799,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleToggleFavoriteOptimistic = React.useCallback(
@@ -830,20 +810,19 @@ export function MarklyWorkspace({
         prev.map((b) => (b.id === bm.id ? { ...b, isFavorite: nextFav } : b))
       );
 
-      // 2. Persist to API with effective userId
+      // 2. Persist to API
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch(`/api/bookmarks/${bm.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isFavorite: nextFav, userId: effectiveId }),
+          body: JSON.stringify({ isFavorite: nextFav }),
         });
       } catch (e) {
         console.error("Toggle favorite error:", e);
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleToggleArchiveOptimistic = React.useCallback(
@@ -854,20 +833,19 @@ export function MarklyWorkspace({
         prev.map((b) => (b.id === bm.id ? { ...b, isArchived: nextArchive } : b))
       );
 
-      // 2. Persist to API with effective userId
+      // 2. Persist to API
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch(`/api/bookmarks/${bm.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isArchived: nextArchive, userId: effectiveId }),
+          body: JSON.stringify({ isArchived: nextArchive }),
         });
       } catch (e) {
         console.error("Toggle archive error:", e);
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleMoveBookmarkOptimistic = React.useCallback(
@@ -877,20 +855,19 @@ export function MarklyWorkspace({
         prev.map((b) => (b.id === bookmarkId ? { ...b, folderId } : b))
       );
 
-      // 2. Persist to API with effective userId
+      // 2. Persist to API
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch(`/api/bookmarks/${bookmarkId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderId, userId: effectiveId }),
+          body: JSON.stringify({ folderId }),
         });
       } catch (e) {
         console.error("Move bookmark error:", e);
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleBulkDeleteBookmarksOptimistic = React.useCallback(
@@ -901,11 +878,10 @@ export function MarklyWorkspace({
 
       // 2. Await bulk delete on server first
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch("/api/bookmarks/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "delete", ids, userId: effectiveId }),
+          body: JSON.stringify({ action: "delete", ids }),
         });
 
         // 3. Notify Recycle Bin only AFTER server has committed the deletion
@@ -917,7 +893,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleBulkMoveBookmarksOptimistic = React.useCallback(
@@ -928,13 +904,12 @@ export function MarklyWorkspace({
         prev.map((b) => (idSet.has(b.id) ? { ...b, folderId } : b))
       );
 
-      // 2. Persist to API with effective userId
+      // 2. Persist to API
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch("/api/bookmarks/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "move", ids, folderId, userId: effectiveId }),
+          body: JSON.stringify({ action: "move", ids, folderId }),
         });
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
@@ -944,7 +919,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleBulkFavoriteBookmarksOptimistic = React.useCallback(
@@ -955,13 +930,12 @@ export function MarklyWorkspace({
         prev.map((b) => (idSet.has(b.id) ? { ...b, isFavorite } : b))
       );
 
-      // 2. Persist to API with effective userId
+      // 2. Persist to API
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch("/api/bookmarks/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "favorite", ids, isFavorite, userId: effectiveId }),
+          body: JSON.stringify({ action: "favorite", ids, isFavorite }),
         });
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
@@ -971,7 +945,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   const handleBulkArchiveBookmarksOptimistic = React.useCallback(
@@ -982,13 +956,12 @@ export function MarklyWorkspace({
         prev.map((b) => (idSet.has(b.id) ? { ...b, isArchived } : b))
       );
 
-      // 2. Persist to API with effective userId
+      // 2. Persist to API
       try {
-        const effectiveId = getEffectiveUserId();
         await fetch("/api/bookmarks/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "archive", ids, isArchived, userId: effectiveId }),
+          body: JSON.stringify({ action: "archive", ids, isArchived }),
         });
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
@@ -998,7 +971,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [getEffectiveUserId, refreshData]
+    [refreshData]
   );
 
   return (

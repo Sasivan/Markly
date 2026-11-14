@@ -1,13 +1,33 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
-import { db } from "@/server/db/client";
-import { folders } from "@/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { BookmarkRepository } from "@/server/db/repository";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+// GET /api/folders/[id]
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireUser();
+    const { id } = await params;
+
+    const folder = BookmarkRepository.getFolderById(id, user.id);
+    if (!folder) {
+      return NextResponse.json({ success: false, error: "Folder not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, folder });
+  } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
+    console.error("GET /api/folders/[id] error:", error);
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  }
+}
 
 // PATCH /api/folders/[id]
 export async function PATCH(
@@ -15,10 +35,18 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireUser();
     const { id } = await params;
     const body = await req.json();
 
-    const updated = await BookmarkRepository.updateFolder(id, {
+    if (body.parentId) {
+      const parent = BookmarkRepository.getFolderById(body.parentId, user.id);
+      if (!parent) {
+        return NextResponse.json({ success: false, error: "Parent folder not found" }, { status: 404 });
+      }
+    }
+
+    const updated = await BookmarkRepository.updateFolder(id, user.id, {
       name: body.name?.trim(),
       parentId: body.parentId !== undefined ? body.parentId : undefined,
       icon: body.icon,
@@ -26,14 +54,18 @@ export async function PATCH(
       position: body.position,
     });
 
-    if (updated?.userId) {
-      SupabaseManager.invalidateUserSyncCache(updated.userId);
+    if (!updated) {
+      return NextResponse.json({ success: false, error: "Folder not found" }, { status: 404 });
     }
+
+    SupabaseManager.invalidateUserSyncCache(user.id);
 
     return NextResponse.json({ success: true, folder: updated });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("PATCH /api/folders/[id] error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Failed to update folder" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to update folder" }, { status: 500 });
   }
 }
 
@@ -43,6 +75,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireUser();
     const { id } = await params;
 
     // Prevent deletion of permanent system folder
@@ -56,16 +89,19 @@ export async function DELETE(
     const { searchParams } = new URL(req.url);
     const mode = (searchParams.get("mode") || "move_up") as "move_up" | "delete_all";
 
-    const cookieStore = await cookies();
-    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+    const deleted = await BookmarkRepository.deleteFolder(id, user.id, mode);
+    if (!deleted) {
+      return NextResponse.json({ success: false, error: "Folder not found" }, { status: 404 });
+    }
 
-    await BookmarkRepository.deleteFolder(id, mode, userId);
-    SupabaseManager.invalidateUserSyncCache(userId);
+    SupabaseManager.invalidateUserSyncCache(user.id);
 
     return NextResponse.json({ success: true, deletedId: id, mode });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("DELETE /api/folders/[id] error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Failed to delete folder" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to delete folder" }, { status: 500 });
   }
 }
 
@@ -75,8 +111,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireUser();
     const { id } = await params;
-    const original = db.select().from(folders).where(eq(folders.id, id)).get();
+
+    const original = BookmarkRepository.getFolderById(id, user.id);
     if (!original) {
       return NextResponse.json({ success: false, error: "Folder not found" }, { status: 404 });
     }
@@ -86,11 +124,11 @@ export async function POST(
       parentId: original.parentId,
       icon: original.icon,
       color: original.color,
-      userId: original.userId,
+      userId: user.id,
     });
 
     // Also duplicate bookmarks belonging to original folder into the new copy
-    const originalBookmarks = BookmarkRepository.getBookmarks({ folderId: original.id, userId: original.userId });
+    const originalBookmarks = BookmarkRepository.getBookmarks({ folderId: original.id, userId: user.id });
     for (const b of originalBookmarks) {
       BookmarkRepository.createBookmark({
         url: b.url,
@@ -103,16 +141,17 @@ export async function POST(
         folderId: duplicated.id,
         isFavorite: b.isFavorite,
         tagNames: b.tags?.map((t) => t.name) || [],
-        userId: original.userId,
+        userId: user.id,
       });
     }
 
-    SupabaseManager.invalidateUserSyncCache(original.userId);
+    SupabaseManager.invalidateUserSyncCache(user.id);
 
     return NextResponse.json({ success: true, folder: duplicated });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("Duplicate folder error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Failed to duplicate folder" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to duplicate folder" }, { status: 500 });
   }
 }
-

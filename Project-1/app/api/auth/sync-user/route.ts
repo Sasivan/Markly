@@ -2,22 +2,22 @@ import { NextResponse } from "next/server";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { sqlite } from "@/server/db/client";
 import { BookmarkRepository } from "@/server/db/repository";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { userId } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
-    }
+    const user = await requireUser();
+    const userId = user.id;
 
     const client = SupabaseManager.getClient();
     if (!client) {
       return NextResponse.json({ success: true, message: "Offline local mode" });
     }
 
-    // Record login timestamp (cleanup removed in Stage 1 security lockdown)
+    // Record login timestamp
     BookmarkRepository.recordUserLogin(userId);
 
     // 0. Load ALL tombstoned IDs across local database to permanently prevent resurrected folders/bookmarks
@@ -130,14 +130,15 @@ export async function POST(req: Request) {
       BookmarkRepository.ensureUserStarterData(userId);
     }
 
-    // NOTE: No longer sets markly_user_id cookie — Supabase session handles auth
     return NextResponse.json({
       success: true,
       foldersCount: remoteFolders?.length || 0,
       bookmarksCount: remoteBookmarks?.length || 0,
     });
   } catch (error: any) {
-    console.error("Sync user error");
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
+    console.error("Sync user error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

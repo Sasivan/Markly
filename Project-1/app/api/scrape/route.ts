@@ -4,8 +4,13 @@ import { normalizeUrl } from "@/server/scraper/url";
 import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
-import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { BookmarkRepository } from "@/server/db/repository";
 import { suggestWithAi, suggestFolderAndTags } from "@/server/ai/suggest";
+import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const ScrapeSchema = z.object({
   url: z.string().min(1, "URL is required"),
@@ -22,6 +27,8 @@ const ScrapeSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const user = await requireUser();
+
     // 1. Rate Limiting Check — use first IP from trusted header only
     const ip = req.headers.get("x-real-ip") || "127.0.0.1";
     const rateLimit = checkRateLimit(ip, 30, 60 * 1000);
@@ -44,7 +51,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: parsed.error.issues[0]?.message || "Invalid input payload",
+          error: "Invalid input payload",
         },
         { status: 400 }
       );
@@ -67,19 +74,22 @@ export async function POST(req: Request) {
     let normResult;
     try {
       normResult = normalizeUrl(inputUrl);
-    } catch (normErr: any) {
+    } catch {
       return NextResponse.json(
-        { success: false, error: normErr.message },
+        { success: false, error: "Invalid URL provided" },
         { status: 400 }
       );
     }
 
     const { url, canonicalUrl, domain } = normResult;
 
-    // Stage 1: userId comes from body only (will be replaced with session in Stage 2)
-    // NOTE: This is intentionally not reading from cookies — the cookie path was removed
-    // as a security fix. Full session-based auth will replace this in Stage 2.
-    const userId = (typeof rawBody.userId === "string" && rawBody.userId.trim()) || DEFAULT_USER_ID;
+    // Verify folder ownership if folderId is provided
+    if (folderId) {
+      const folder = BookmarkRepository.getFolderById(folderId, user.id);
+      if (!folder) {
+        return NextResponse.json({ success: false, error: "Folder not found" }, { status: 404 });
+      }
+    }
 
     // AI config from x-ai-config header ONLY — never from cookies or env
     let aiConfig = req.headers.get("x-ai-config") || req.headers.get("x-gemini-api-key") || undefined;
@@ -91,7 +101,7 @@ export async function POST(req: Request) {
 
     // 4. Duplicate Detection Check (only when actively saving a new bookmark)
     if (saveImmediately) {
-      const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, userId);
+      const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, user.id);
       if (existingBookmark && !forceDuplicate) {
         return NextResponse.json({
           success: true,
@@ -107,7 +117,7 @@ export async function POST(req: Request) {
     let fetchResult;
     try {
       fetchResult = await safeFetchHtml(url);
-    } catch (fetchErr: any) {
+    } catch {
       console.warn("safeFetchHtml notice, falling back to minimal metadata");
       fetchResult = {
         html: `<html><head><title>${domain}</title></head><body></body></html>`,
@@ -128,7 +138,7 @@ export async function POST(req: Request) {
 
       if (!finalFolderId || finalTags.length === 0) {
         try {
-          const userFolders = BookmarkRepository.getAllFolders(userId);
+          const userFolders = BookmarkRepository.getAllFolders(user.id);
           const inputData = {
             title: metadata.title || domain,
             description: metadata.description || undefined,
@@ -172,8 +182,10 @@ export async function POST(req: Request) {
         isArchived,
         status: status || "alive",
         tagNames: finalTags,
-        userId,
+        userId: user.id,
       });
+
+      SupabaseManager.invalidateUserSyncCache(user.id);
     }
 
     return NextResponse.json({
@@ -187,7 +199,9 @@ export async function POST(req: Request) {
       bookmark,
     });
   } catch (error: any) {
-    console.error("POST /api/scrape unexpected error");
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
+    console.error("POST /api/scrape unexpected error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 }

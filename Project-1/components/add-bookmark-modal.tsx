@@ -193,7 +193,7 @@ export function AddBookmarkModal({
       position: folders.length,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      userId: user?.id || "usr_default_markly",
+      userId: user?.id || "",
     };
 
     // 0ms instant UI update: select immediately & close inline form
@@ -218,7 +218,6 @@ export function AddBookmarkModal({
           parentId: optimisticFolder.parentId,
           icon: optimisticFolder.icon,
           color: optimisticFolder.color,
-          userId: user?.id,
         }),
       }).catch((err) => {
         console.warn("Background folder save warning:", err);
@@ -283,7 +282,6 @@ export function AddBookmarkModal({
           tagNames: parsedTags,
           saveImmediately: true,
           forceDuplicate: force,
-          userId: user?.id,
           customTitle: customTitle.trim() || undefined,
           customDescription: customDescription.trim() || undefined,
         }),
@@ -317,7 +315,6 @@ export function AddBookmarkModal({
             isArchived: bookmarkStatus === "archived",
             status: bookmarkStatus,
             tagNames: parsedTags,
-            userId: user?.id,
           }),
         });
         const fbData = await fbRes.json();
@@ -376,7 +373,6 @@ export function AddBookmarkModal({
             isArchived: bookmarkStatus === "archived",
             status: bookmarkStatus,
             tagNames: parsedTags,
-            userId: user?.id,
           }),
         });
         const fbData = await fbRes.json();

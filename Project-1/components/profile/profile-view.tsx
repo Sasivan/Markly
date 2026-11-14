@@ -217,11 +217,10 @@ export function ProfileView({
       fetch("/api/user/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user?.id, displayName, avatarUrl: newUrl }),
+        body: JSON.stringify({ displayName, avatarUrl: newUrl }),
       }).catch(() => {});
 
       if (typeof window !== "undefined") {
-        document.cookie = `markly_user_avatar=${encodeURIComponent(newUrl)}; path=/; max-age=2592000; SameSite=Lax`;
         localStorage.setItem("markly_user_avatar", newUrl);
         window.dispatchEvent(new CustomEvent("markly-avatar-updated", { detail: { avatarUrl: newUrl } }));
       }
@@ -452,7 +451,7 @@ export function ProfileView({
       const res = await fetch("/api/auth/sync-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.success) {

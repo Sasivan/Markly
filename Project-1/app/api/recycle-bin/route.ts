@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { BookmarkRepository } from "@/server/db/repository";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -8,12 +8,10 @@ export const revalidate = 0;
 // GET /api/recycle-bin - List deleted items & current retention
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const cookieStore = await cookies();
-    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+    const user = await requireUser();
 
-    const items = await BookmarkRepository.getRecycleBinItems(userId);
-    const retentionDays = BookmarkRepository.getRecycleBinRetentionDays(userId);
+    const items = await BookmarkRepository.getRecycleBinItems(user.id);
+    const retentionDays = BookmarkRepository.getRecycleBinRetentionDays(user.id);
 
     return NextResponse.json({
       success: true,
@@ -22,9 +20,11 @@ export async function GET(req: Request) {
       totalCount: items.length,
     });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("GET /api/recycle-bin error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch recycle bin" },
+      { success: false, error: "Failed to fetch recycle bin" },
       { status: 500 }
     );
   }
@@ -33,17 +33,17 @@ export async function GET(req: Request) {
 // DELETE /api/recycle-bin - Empty entire recycle bin
 export async function DELETE(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const cookieStore = await cookies();
-    const userId = searchParams.get("userId") || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
+    const user = await requireUser();
 
-    await BookmarkRepository.emptyRecycleBin(userId);
+    await BookmarkRepository.emptyRecycleBin(user.id);
 
     return NextResponse.json({ success: true, message: "Recycle bin emptied" });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("DELETE /api/recycle-bin error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to empty recycle bin" },
+      { success: false, error: "Failed to empty recycle bin" },
       { status: 500 }
     );
   }
@@ -53,4 +53,3 @@ export async function DELETE(req: Request) {
 export async function PATCH() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
-

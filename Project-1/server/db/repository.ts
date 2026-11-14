@@ -318,7 +318,7 @@ export class BookmarkRepository {
   /**
    * Ensure permanent customizable Unsorted system folder exists with unique ID
    */
-  static ensureUnsortedFolder(userId: string = DEFAULT_USER_ID): Folder {
+  static ensureUnsortedFolder(userId: string): Folder {
     try {
       const unsortedId = `fld_unsorted_${userId}`;
       const now = Date.now();
@@ -367,7 +367,7 @@ export class BookmarkRepository {
   /**
    * Get all folders for user, ordered by position
    */
-  static getAllFolders(userId: string = DEFAULT_USER_ID): Folder[] {
+  static getAllFolders(userId: string): Folder[] {
     this.ensureUnsortedFolder(userId);
     const rows = sqlite.prepare(`
       SELECT 
@@ -406,9 +406,36 @@ export class BookmarkRepository {
   }
 
   /**
+   * Get a single folder by ID ensuring ownership check
+   */
+  static getFolderById(id: string, userId: string): Folder | null {
+    const r = sqlite.prepare(`
+      SELECT * FROM folders 
+      WHERE id = ? AND user_id = ?
+        AND id NOT IN (SELECT id FROM deleted_folders)
+    `).get(id, userId) as any;
+    if (!r) return null;
+    return {
+      id: r.id,
+      userId: r.user_id,
+      parentId: r.parent_id !== undefined ? r.parent_id : null,
+      name: r.name,
+      icon: r.icon,
+      color: r.color,
+      position: r.position,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      user_id: r.user_id,
+      parent_id: r.parent_id !== undefined ? r.parent_id : null,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    } as Folder;
+  }
+
+  /**
    * Get all descendant folder IDs using Recursive CTE
    */
-  static getDescendantFolderIds(folderId: string, userId: string = DEFAULT_USER_ID): string[] {
+  static getDescendantFolderIds(folderId: string, userId: string): string[] {
     const stmt = sqlite.prepare(`
       WITH RECURSIVE descendants AS (
         SELECT id FROM folders WHERE id = ? AND user_id = ?
@@ -427,7 +454,7 @@ export class BookmarkRepository {
   /**
    * Get full folder breadcrumb path (e.g. "Engineering / Frontend / React")
    */
-  static getFolderPath(folderId: string | null, userId: string = DEFAULT_USER_ID): string {
+  static getFolderPath(folderId: string | null, userId: string): string {
     if (!folderId) return "Unsorted";
 
     const stmt = sqlite.prepare(`
@@ -449,7 +476,7 @@ export class BookmarkRepository {
   /**
    * Build complete folder tree with counts
    */
-  static getFolderTree(userId: string = DEFAULT_USER_ID): FolderTreeNode[] {
+  static getFolderTree(userId: string): FolderTreeNode[] {
     const allFolders = this.getAllFolders(userId);
 
     // Get bookmark count per folder
@@ -520,9 +547,10 @@ export class BookmarkRepository {
     parentId?: string | null;
     icon?: string;
     color?: string;
-    userId?: string;
+    userId: string;
   }): Folder {
-    const userId = data.userId || DEFAULT_USER_ID;
+    const userId = data.userId;
+    if (!userId) throw new Error("userId is required");
     const id = data.id || `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
 
@@ -556,72 +584,76 @@ export class BookmarkRepository {
   }
 
   /**
-   * Update folder (name, icon, color, position, parentId)
+   * Update folder (name, icon, color, position, parentId) with user ownership check
    */
-  static async updateFolder(id: string, updates: Partial<{
-    name: string;
-    parentId: string | null;
-    icon: string;
-    color: string;
-    position: number;
-  }>): Promise<Folder> {
+  static async updateFolder(
+    id: string,
+    userId: string,
+    updates: Partial<{
+      name: string;
+      parentId: string | null;
+      icon: string;
+      color: string;
+      position: number;
+    }>
+  ): Promise<Folder | null> {
+    const existing = sqlite
+      .prepare(`SELECT id FROM folders WHERE id = ? AND user_id = ?`)
+      .get(id, userId);
+    if (!existing) return null;
+
     db.update(folders)
       .set({
         ...updates,
         updatedAt: Date.now(),
       })
-      .where(eq(folders.id, id))
+      .where(and(eq(folders.id, id), eq(folders.userId, userId)))
       .run();
 
-    const updated = db.select().from(folders).where(eq(folders.id, id)).get()!;
+    const updated = db.select().from(folders).where(and(eq(folders.id, id), eq(folders.userId, userId))).get();
     if (updated) {
       try {
         await SupabaseManager.syncFolder(updated, "upsert");
-        SupabaseManager.invalidateUserSyncCache(updated.userId);
+        SupabaseManager.invalidateUserSyncCache(userId);
       } catch (syncErr) {
         console.warn("Supabase updateFolder sync notice:", syncErr);
       }
     }
-    return updated;
+    return updated || null;
   }
 
   /**
-   * Delete folder
-   * mode: "move_up" (move bookmarks to parent folder) | "delete_all" (delete bookmarks and subfolders)
+   * Delete folder with user ownership check
    */
-  static async deleteFolder(id: string, mode: "move_up" | "delete_all" = "delete_all", userId?: string) {
-    const targetFolder = db.select().from(folders).where(eq(folders.id, id)).get();
-    const effectiveUserId = targetFolder?.userId || userId || DEFAULT_USER_ID;
-
+  static async deleteFolder(
+    id: string,
+    userId: string,
+    mode: "move_up" | "delete_all" = "delete_all"
+  ): Promise<boolean> {
+    const targetFolder = sqlite.prepare(`SELECT * FROM folders WHERE id = ? AND user_id = ?`).get(id, userId) as any;
     if (!targetFolder) {
-      // Even if already deleted locally, ensure Supabase deletion
-      await SupabaseManager.syncFolder(
-        { id, userId: effectiveUserId },
-        "delete",
-        { mode }
-      );
-      return;
+      return false;
     }
 
-    const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
+    const retentionDays = this.getRecycleBinRetentionDays(userId);
 
     // Get all descendant folders (including sub-subfolders)
-    const descendantIds = this.getDescendantFolderIds(id, effectiveUserId);
+    const descendantIds = this.getDescendantFolderIds(id, userId);
     const allFolderIdsToDelete = [id, ...descendantIds];
     const placeholders = allFolderIdsToDelete.map(() => "?").join(",");
 
     // 1. Fetch all bookmarks inside these folders before deleting them
     const bmsInside = sqlite.prepare(`
-      SELECT * FROM bookmarks WHERE folder_id IN (${placeholders})
-    `).all(...allFolderIdsToDelete) as any[];
+      SELECT * FROM bookmarks WHERE folder_id IN (${placeholders}) AND user_id = ?
+    `).all(...allFolderIdsToDelete, userId) as any[];
 
     // 2. Fetch tags for bookmarks
     const bmTagsMap: Record<string, any[]> = {};
     for (const bm of bmsInside) {
       try {
         const tags = sqlite.prepare(`
-          SELECT t.id, t.name, t.color FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = ?
-        `).all(bm.id);
+          SELECT t.id, t.name, t.color FROM bookmark_tags bt JOIN tags t ON bt.tag_id = t.id WHERE bt.bookmark_id = ? AND t.user_id = ?
+        `).all(bm.id, userId);
         bmTagsMap[bm.id] = tags;
       } catch {}
     }
@@ -633,7 +665,7 @@ export class BookmarkRepository {
         VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         `rb_bm_${bm.id}`,
-        effectiveUserId,
+        userId,
         bm.id,
         bm.title,
         bm.folder_id,
@@ -658,12 +690,12 @@ export class BookmarkRepository {
 
     // 5. Delete the bookmarks from SQLite active table
     sqlite.prepare(`
-      DELETE FROM bookmarks WHERE folder_id IN (${placeholders})
-    `).run(...allFolderIdsToDelete);
+      DELETE FROM bookmarks WHERE folder_id IN (${placeholders}) AND user_id = ?
+    `).run(...allFolderIdsToDelete, userId);
 
     // 6. Save each folder to Recycle Bin (including snapshot of its contained bookmarks)
     for (const fId of allFolderIdsToDelete) {
-      const f = db.select().from(folders).where(eq(folders.id, fId)).get();
+      const f = sqlite.prepare(`SELECT * FROM folders WHERE id = ? AND user_id = ?`).get(fId, userId) as any;
       if (f) {
         const folderBookmarks = bmsInside.filter((b) => b.folder_id === f.id);
         sqlite.prepare(`
@@ -671,10 +703,10 @@ export class BookmarkRepository {
           VALUES (?, ?, 'folder', ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           `rb_fld_${f.id}`,
-          effectiveUserId,
+          userId,
           f.id,
           f.name,
-          f.parentId,
+          f.parent_id,
           f.icon,
           f.color,
           JSON.stringify({ ...f, bookmarks: folderBookmarks }),
@@ -695,23 +727,23 @@ export class BookmarkRepository {
 
     // 7. Delete folders from local SQLite active table
     sqlite.prepare(`
-      DELETE FROM folders WHERE id IN (${placeholders})
-    `).run(...allFolderIdsToDelete);
+      DELETE FROM folders WHERE id IN (${placeholders}) AND user_id = ?
+    `).run(...allFolderIdsToDelete, userId);
 
-    SupabaseManager.invalidateUserSyncCache(effectiveUserId);
-    return;
+    SupabaseManager.invalidateUserSyncCache(userId);
+    return true;
   }
 
   /**
    * Find duplicate bookmark by canonical URL
    */
-  static findDuplicate(canonicalUrl: string, userId: string = DEFAULT_USER_ID): (Bookmark & { folderName?: string }) | null {
+  static findDuplicate(canonicalUrl: string, userId: string): (Bookmark & { folderName?: string }) | null {
     const item = db.select().from(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.canonicalUrl, canonicalUrl))).get();
     if (!item) return null;
 
     let folderName = "Unsorted";
     if (item.folderId) {
-      const folder = db.select().from(folders).where(eq(folders.id, item.folderId)).get();
+      const folder = db.select().from(folders).where(and(eq(folders.id, item.folderId), eq(folders.userId, userId))).get();
       if (folder) folderName = folder.name;
     }
 
@@ -722,7 +754,7 @@ export class BookmarkRepository {
    * Get filtered and enriched bookmarks
    */
   static getBookmarks(options: {
-    userId?: string;
+    userId: string;
     folderId?: string | null;
     includeSubfolders?: boolean;
     includeArchived?: boolean;
@@ -731,8 +763,9 @@ export class BookmarkRepository {
     status?: "alive" | "dead" | "pending";
     tag?: string;
     search?: string;
-  } = {}): BookmarkWithDetails[] {
-    const userId = options.userId || DEFAULT_USER_ID;
+  }): BookmarkWithDetails[] {
+    const userId = options.userId;
+    if (!userId) throw new Error("userId is required");
 
     let query = `
       SELECT 
@@ -931,9 +964,10 @@ export class BookmarkRepository {
     isArchived?: boolean;
     status?: "alive" | "dead" | "pending";
     tagNames?: string[];
-    userId?: string;
+    userId: string;
   }): BookmarkWithDetails {
-    const userId = data.userId || DEFAULT_USER_ID;
+    const userId = data.userId;
+    if (!userId) throw new Error("userId is required");
     const id = `bm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
 
@@ -951,12 +985,12 @@ export class BookmarkRepository {
       (data.tagNames || []).join(" "),
     ].join(" ").toLowerCase();
 
-    // Verify folderId exists to strictly prevent "FOREIGN KEY constraint failed"
+    // Verify folderId exists and belongs to this user
     let validFolderId: string | null = null;
     if (data.folderId && typeof data.folderId === "string") {
       const cleanFid = data.folderId.trim();
       if (cleanFid !== "" && cleanFid !== "null" && cleanFid !== "undefined") {
-        const found = sqlite.prepare(`SELECT id FROM folders WHERE id = ?`).get(cleanFid) as { id: string } | undefined;
+        const found = sqlite.prepare(`SELECT id FROM folders WHERE id = ? AND user_id = ?`).get(cleanFid, userId) as { id: string } | undefined;
         if (found) {
           validFolderId = found.id;
         }
@@ -993,7 +1027,7 @@ export class BookmarkRepository {
       this.attachTagsToBookmark(id, data.tagNames, userId);
     }
 
-    const created = this.getBookmarkById(id);
+    const created = this.getBookmarkById(id, userId);
     if (created) {
       SupabaseManager.syncBookmark(created, "upsert").catch(() => {});
       SupabaseManager.invalidateUserSyncCache(userId);
@@ -1004,7 +1038,7 @@ export class BookmarkRepository {
   /**
    * Attach tags helper
    */
-  static attachTagsToBookmark(bookmarkId: string, tagNames: string[], userId: string = DEFAULT_USER_ID) {
+  static attachTagsToBookmark(bookmarkId: string, tagNames: string[], userId: string) {
     const colors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4"];
 
     for (let i = 0; i < tagNames.length; i++) {
@@ -1033,10 +1067,11 @@ export class BookmarkRepository {
   }
 
   /**
-   * Update bookmark
+   * Update bookmark with user ownership check
    */
   static updateBookmark(
     id: string,
+    userId: string,
     updates: Partial<{
       title: string;
       description: string | null;
@@ -1052,9 +1087,11 @@ export class BookmarkRepository {
       visitCount: number;
       lastVisitedAt: number | null;
       tagNames: string[];
-    }>,
-    userId: string = DEFAULT_USER_ID
-  ) {
+    }>
+  ): BookmarkWithDetails | null {
+    const existing = sqlite.prepare(`SELECT id FROM bookmarks WHERE id = ? AND user_id = ?`).get(id, userId);
+    if (!existing) return null;
+
     const { tagNames, ...bmUpdates } = updates;
 
     if (bmUpdates.url) {
@@ -1074,7 +1111,7 @@ export class BookmarkRepository {
       if (bmUpdates.folderId && typeof bmUpdates.folderId === "string") {
         const cleanFid = bmUpdates.folderId.trim();
         if (cleanFid !== "" && cleanFid !== "null" && cleanFid !== "undefined") {
-          const found = sqlite.prepare(`SELECT id FROM folders WHERE id = ?`).get(cleanFid) as { id: string } | undefined;
+          const found = sqlite.prepare(`SELECT id FROM folders WHERE id = ? AND user_id = ?`).get(cleanFid, userId) as { id: string } | undefined;
           bmUpdates.folderId = found ? found.id : null;
         } else {
           bmUpdates.folderId = null;
@@ -1087,7 +1124,7 @@ export class BookmarkRepository {
     if (Object.keys(bmUpdates).length > 0) {
       db.update(bookmarks)
         .set(bmUpdates)
-        .where(eq(bookmarks.id, id))
+        .where(and(eq(bookmarks.id, id), eq(bookmarks.userId, userId)))
         .run();
     }
 
@@ -1099,94 +1136,73 @@ export class BookmarkRepository {
       }
     }
 
-    const updated = this.getBookmarkById(id);
+    const updated = this.getBookmarkById(id, userId);
     if (updated) {
       SupabaseManager.syncBookmark(updated, "upsert").catch(() => {});
-      SupabaseManager.invalidateUserSyncCache(updated.userId);
+      SupabaseManager.invalidateUserSyncCache(userId);
     }
+    return updated || null;
   }
 
   /**
-   * Delete single bookmark and move to Recycle Bin
+   * Delete single bookmark and move to Recycle Bin with user ownership check
    */
-  static async deleteBookmark(id: string, userId?: string) {
+  static async deleteBookmark(id: string, userId: string): Promise<boolean> {
     try {
-      const b = db.select().from(bookmarks).where(eq(bookmarks.id, id)).get();
-      const effectiveUserId = b?.userId || userId || DEFAULT_USER_ID;
+      const b = sqlite.prepare(`SELECT * FROM bookmarks WHERE id = ? AND user_id = ?`).get(id, userId) as any;
+      if (!b) return false;
 
-      const retentionDays = this.getRecycleBinRetentionDays(effectiveUserId);
+      const retentionDays = this.getRecycleBinRetentionDays(userId);
       const client = SupabaseManager.getClient();
 
-      if (b) {
-        // Fetch attached tags
-        const tagRows = sqlite.prepare(`
-          SELECT t.id, t.name, t.color
-          FROM bookmark_tags bt
-          JOIN tags t ON bt.tag_id = t.id
-          WHERE bt.bookmark_id = ?
-        `).all(id);
+      // Fetch attached tags
+      const tagRows = sqlite.prepare(`
+        SELECT t.id, t.name, t.color
+        FROM bookmark_tags bt
+        JOIN tags t ON bt.tag_id = t.id
+        WHERE bt.bookmark_id = ? AND t.user_id = ?
+      `).all(id, userId);
 
-        // 1. Move to Recycle Bin with full restore snapshot
-        sqlite.prepare(`
-          INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
-          VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          `rb_bm_${id}`,
-          effectiveUserId,
-          id,
-          b.title,
-          b.folderId,
-          b.iconUrl,
-          null,
-          JSON.stringify({ ...b, tags: tagRows }),
-          Date.now(),
-          retentionDays
-        );
-      } else if (client) {
-        // Hydrate from Supabase if not present in this lambda's local SQLite
-        try {
-          const { data: remoteB } = await client.from("bookmarks").select("*").eq("id", id).single();
-          if (remoteB) {
-            sqlite.prepare(`
-              INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
-              VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-              `rb_bm_${remoteB.id}`,
-              remoteB.user_id || effectiveUserId,
-              id,
-              remoteB.title || "Untitled",
-              remoteB.folder_id,
-              remoteB.icon_url,
-              null,
-              JSON.stringify(remoteB),
-              Date.now(),
-              retentionDays
-            );
-          }
-        } catch {}
-      }
+      // 1. Move to Recycle Bin with full restore snapshot
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO recycle_bin (id, user_id, item_type, item_id, title, original_folder_id, icon, color, item_data, deleted_at, retention_days)
+        VALUES (?, ?, 'bookmark', ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        `rb_bm_${id}`,
+        userId,
+        id,
+        b.title,
+        b.folder_id,
+        b.icon_url,
+        null,
+        JSON.stringify({ ...b, tags: tagRows }),
+        Date.now(),
+        retentionDays
+      );
 
-      // 2. Remove from active SQLite bookmarks FIRST (guarantees local deletion even if Supabase is slow)
-      db.delete(bookmarks).where(eq(bookmarks.id, id)).run();
+      // 2. Remove from active SQLite bookmarks
+      sqlite.prepare(`DELETE FROM bookmarks WHERE id = ? AND user_id = ?`).run(id, userId);
 
-      // 4. Soft-delete in Supabase by setting status = 'trash' (shared across all lambdas!)
+      // 3. Soft-delete in Supabase by setting status = 'trash'
       if (client) {
         try {
-          await client.from("bookmarks").update({ status: "trash" }).eq("id", id);
+          await client.from("bookmarks").update({ status: "trash" }).eq("id", id).eq("user_id", userId);
         } catch (sErr) {
           console.warn("Supabase soft-delete bookmark notice:", sErr);
         }
       }
-      SupabaseManager.invalidateUserSyncCache(effectiveUserId);
+      SupabaseManager.invalidateUserSyncCache(userId);
+      return true;
     } catch (e) {
       console.error("deleteBookmark error:", e);
+      return false;
     }
   }
 
   /**
    * Get retention setting in days (1, 7, 15, or 30 days - default 30)
    */
-  static getRecycleBinRetentionDays(userId: string = DEFAULT_USER_ID): number {
+  static getRecycleBinRetentionDays(userId: string): number {
     try {
       const row = sqlite
         .prepare(`SELECT value FROM app_settings WHERE key = 'recycle_bin_retention_days'`)
@@ -1220,7 +1236,7 @@ export class BookmarkRepository {
   /**
    * Fetch all recycle bin items for a user, purging any expired items
    */
-  static async getRecycleBinItems(userId: string = DEFAULT_USER_ID): Promise<any[]> {
+  static async getRecycleBinItems(userId: string): Promise<any[]> {
     try {
       // 1. Purge expired items automatically
       const retentionDays = this.getRecycleBinRetentionDays(userId);
@@ -1229,7 +1245,7 @@ export class BookmarkRepository {
       sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ? AND deleted_at < ?`).run(userId, cutoff);
 
       // 2. Multi-instance cloud reconciliation: always hydrate soft-deleted bookmarks & folders from Supabase
-      if (userId && userId !== DEFAULT_USER_ID) {
+      if (userId) {
         try {
           const client = SupabaseManager.getClient();
           if (client) {
@@ -1321,20 +1337,20 @@ export class BookmarkRepository {
   }
 
   /**
-   * Restore an item from Recycle Bin
+   * Restore an item from Recycle Bin with user ownership check
    */
-  static async restoreRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
-    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ?`).get(id) as any;
+  static async restoreRecycleBinItem(id: string, userId: string) {
+    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE (id = ? OR item_id = ?) AND user_id = ?`).get(id, id, userId) as any;
     if (!item) return { success: false, error: "Item not found in Recycle Bin" };
 
     const data = JSON.parse(item.item_data);
     const client = SupabaseManager.getClient();
 
     if (item.item_type === "folder") {
-      // Check if parent still exists
+      // Check if parent still exists and belongs to this user
       let parentId = data.parentId || null;
       if (parentId) {
-        const parentExists = db.select({ id: folders.id }).from(folders).where(eq(folders.id, parentId)).get();
+        const parentExists = sqlite.prepare(`SELECT id FROM folders WHERE id = ? AND user_id = ?`).get(parentId, userId);
         if (!parentExists) parentId = null;
       }
 
@@ -1344,7 +1360,7 @@ export class BookmarkRepository {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         data.id,
-        item.user_id,
+        userId,
         parentId,
         data.name,
         data.icon || "📁",
@@ -1363,7 +1379,7 @@ export class BookmarkRepository {
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
               b.id,
-              item.user_id,
+              userId,
               data.id,
               b.url,
               b.canonical_url || b.canonicalUrl || b.url,
@@ -1381,8 +1397,8 @@ export class BookmarkRepository {
               b.created_at || b.createdAt || Date.now(),
               b.search_text || b.searchText || null
             );
-            sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(b.id);
-            sqlite.prepare(`DELETE FROM recycle_bin WHERE item_id = ? AND item_type = 'bookmark'`).run(b.id);
+            sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ? AND user_id = ?`).run(b.id, userId);
+            sqlite.prepare(`DELETE FROM recycle_bin WHERE item_id = ? AND item_type = 'bookmark' AND user_id = ?`).run(b.id, userId);
           } catch (bmRestoreErr) {
             console.warn("Restore folder child bookmark error:", bmRestoreErr);
           }
@@ -1390,30 +1406,30 @@ export class BookmarkRepository {
       }
 
       // Remove from tombstones
-      sqlite.prepare(`DELETE FROM deleted_folders WHERE id = ?`).run(data.id);
-      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
+      sqlite.prepare(`DELETE FROM deleted_folders WHERE id = ? AND user_id = ?`).run(data.id, userId);
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ? AND user_id = ?`).run(id, userId);
 
       // Sync restore to Supabase
       if (client) {
         try {
-          await client.from("folders").update({ name: data.name, parent_id: parentId }).eq("id", data.id);
+          await client.from("folders").update({ name: data.name, parent_id: parentId }).eq("id", data.id).eq("user_id", userId);
           if (Array.isArray(data.bookmarks) && data.bookmarks.length > 0) {
             const bIds = data.bookmarks.map((b: any) => b.id);
-            await client.from("bookmarks").update({ status: "alive" }).in("id", bIds);
+            await client.from("bookmarks").update({ status: "alive" }).in("id", bIds).eq("user_id", userId);
           }
         } catch (sfErr) {
           console.warn("Supabase folder restore notice:", sfErr);
         }
       }
 
-      const restored = db.select().from(folders).where(eq(folders.id, data.id)).get();
-      SupabaseManager.invalidateUserSyncCache(item.user_id);
+      const restored = this.getFolderById(data.id, userId);
+      SupabaseManager.invalidateUserSyncCache(userId);
       return { success: true, item: restored, type: "folder" };
     } else {
       // Bookmark restore: check if original folder exists, otherwise restore to Unsorted (Inbox)
       let folderId = data.folderId || null;
       if (folderId) {
-        const folderExists = db.select({ id: folders.id }).from(folders).where(eq(folders.id, folderId)).get();
+        const folderExists = sqlite.prepare(`SELECT id FROM folders WHERE id = ? AND user_id = ?`).get(folderId, userId);
         if (!folderExists) folderId = null;
       }
 
@@ -1422,7 +1438,7 @@ export class BookmarkRepository {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         data.id,
-        item.user_id,
+        userId,
         folderId,
         data.url,
         data.canonicalUrl || data.url,
@@ -1447,7 +1463,7 @@ export class BookmarkRepository {
           sqlite.prepare(`
             INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at)
             VALUES (?, ?, ?, ?, ?)
-          `).run(t.id, item.user_id, t.name, t.color || "#3b82f6", Date.now());
+          `).run(t.id, userId, t.name, t.color || "#3b82f6", Date.now());
 
           sqlite.prepare(`
             INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id)
@@ -1457,57 +1473,59 @@ export class BookmarkRepository {
       }
 
       // Remove from tombstones
-      sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ?`).run(data.id);
-      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ?`).run(id);
+      sqlite.prepare(`DELETE FROM deleted_bookmarks WHERE id = ? AND user_id = ?`).run(data.id, userId);
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ? AND user_id = ?`).run(id, userId);
 
       if (client) {
         try {
-          await client.from("bookmarks").update({ status: "alive", folder_id: folderId }).eq("id", data.id);
+          await client.from("bookmarks").update({ status: "alive", folder_id: folderId }).eq("id", data.id).eq("user_id", userId);
         } catch {}
       }
 
-      const restored = this.getBookmarkById(data.id);
-      SupabaseManager.invalidateUserSyncCache(item.user_id);
+      const restored = this.getBookmarkById(data.id, userId);
+      SupabaseManager.invalidateUserSyncCache(userId);
       return { success: true, item: restored, type: "bookmark" };
     }
   }
 
   /**
-   * Permanently delete a single item from Recycle Bin
+   * Permanently delete a single item from Recycle Bin with user ownership check
    */
-  static async permanentlyDeleteRecycleBinItem(id: string, userId: string = DEFAULT_USER_ID) {
-    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE id = ? OR item_id = ?`).get(id, id) as any;
+  static async permanentlyDeleteRecycleBinItem(id: string, userId: string): Promise<boolean> {
+    const item = sqlite.prepare(`SELECT * FROM recycle_bin WHERE (id = ? OR item_id = ?) AND user_id = ?`).get(id, id, userId) as any;
+    if (!item) return false;
+
     const client = SupabaseManager.getClient();
-    const isFolder = item ? item.item_type === "folder" : id.startsWith("rb_fld_");
-    const rawId = item?.item_id || id.replace(/^rb_(bm|fld)_/, "");
-    const effectiveUserId = item?.user_id || userId;
+    const isFolder = item.item_type === "folder";
+    const rawId = item.item_id || id.replace(/^rb_(bm|fld)_/, "");
 
     if (isFolder) {
-      sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(rawId, effectiveUserId, Date.now());
-      sqlite.prepare(`DELETE FROM recycle_bin WHERE original_folder_id = ? OR id = ? OR item_id = ?`).run(rawId, id, rawId);
+      sqlite.prepare(`INSERT OR REPLACE INTO deleted_folders (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(rawId, userId, Date.now());
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE (original_folder_id = ? OR id = ? OR item_id = ?) AND user_id = ?`).run(rawId, id, rawId, userId);
       if (client) {
         try {
-          await client.from("folders").delete().eq("id", rawId);
-          await client.from("bookmarks").delete().eq("folder_id", rawId);
+          await client.from("folders").delete().eq("id", rawId).eq("user_id", userId);
+          await client.from("bookmarks").delete().eq("folder_id", rawId).eq("user_id", userId);
         } catch {}
       }
     } else {
-      sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(rawId, effectiveUserId, Date.now());
-      sqlite.prepare(`DELETE FROM recycle_bin WHERE id = ? OR item_id = ?`).run(id, rawId);
+      sqlite.prepare(`INSERT OR REPLACE INTO deleted_bookmarks (id, user_id, deleted_at) VALUES (?, ?, ?)`).run(rawId, userId, Date.now());
+      sqlite.prepare(`DELETE FROM recycle_bin WHERE (id = ? OR item_id = ?) AND user_id = ?`).run(id, rawId, userId);
       if (client) {
         try {
-          await client.from("bookmarks").delete().eq("id", rawId);
+          await client.from("bookmarks").delete().eq("id", rawId).eq("user_id", userId);
         } catch {}
       }
     }
 
-    SupabaseManager.invalidateUserSyncCache(effectiveUserId);
+    SupabaseManager.invalidateUserSyncCache(userId);
+    return true;
   }
 
   /**
-   * Empty entire recycle bin
+   * Empty entire recycle bin for a specific user
    */
-  static async emptyRecycleBin(userId: string = DEFAULT_USER_ID) {
+  static async emptyRecycleBin(userId: string): Promise<void> {
     const items = sqlite.prepare(`SELECT * FROM recycle_bin WHERE user_id = ?`).all(userId) as any[];
     const client = SupabaseManager.getClient();
     const folderIds: string[] = [];
@@ -1536,14 +1554,18 @@ export class BookmarkRepository {
   }
 
   /**
-   * Bulk actions on bookmarks
+   * Bulk actions on bookmarks with user ownership check
    */
-  static async bulkUpdate(ids: string[], updates: Partial<{
-    folderId: string | null;
-    isFavorite: boolean;
-    isArchived: boolean;
-    status: "alive" | "dead";
-  }>, userId: string = DEFAULT_USER_ID) {
+  static async bulkUpdate(
+    ids: string[],
+    updates: Partial<{
+      folderId: string | null;
+      isFavorite: boolean;
+      isArchived: boolean;
+      status: "alive" | "dead";
+    }>,
+    userId: string
+  ): Promise<void> {
     if (ids.length === 0) return;
     const placeholders = ids.map(() => "?").join(",");
 
@@ -1569,12 +1591,12 @@ export class BookmarkRepository {
 
     if (setClauses.length === 0) return;
 
-    params.push(...ids);
+    params.push(...ids, userId);
 
     const query = `
       UPDATE bookmarks
       SET ${setClauses.join(", ")}
-      WHERE id IN (${placeholders})
+      WHERE id IN (${placeholders}) AND user_id = ?
     `;
 
     sqlite.prepare(query).run(...params);
@@ -1589,7 +1611,7 @@ export class BookmarkRepository {
         if (updates.isArchived !== undefined) supaPayload.is_archived = updates.isArchived;
         if (updates.status !== undefined) supaPayload.status = updates.status;
 
-        await client.from("bookmarks").update(supaPayload).in("id", ids);
+        await client.from("bookmarks").update(supaPayload).in("id", ids).eq("user_id", userId);
       } catch (err) {
         console.warn("bulkUpdate Supabase error:", err);
       }
@@ -1598,7 +1620,7 @@ export class BookmarkRepository {
     SupabaseManager.invalidateUserSyncCache(userId);
   }
 
-  static async bulkDelete(ids: string[], userId: string = DEFAULT_USER_ID) {
+  static async bulkDelete(ids: string[], userId: string): Promise<void> {
     if (ids.length === 0) return;
     for (const id of ids) {
       await this.deleteBookmark(id, userId);
@@ -1609,7 +1631,7 @@ export class BookmarkRepository {
   /**
    * Analytics & Dashboard statistics
    */
-  static getDashboardStats(userId: string = DEFAULT_USER_ID, folderId?: string | null, includeSubfolders: boolean = false) {
+  static getDashboardStats(userId: string, folderId?: string | null, includeSubfolders: boolean = false) {
     let folderIds: string[] = [];
     if (folderId) {
       folderIds = includeSubfolders ? this.getDescendantFolderIds(folderId, userId) : [folderId];
@@ -1702,7 +1724,7 @@ export class BookmarkRepository {
   /**
    * Domain-specific analytics for Website Insights
    */
-  static getDomainStats(domain: string, userId: string = DEFAULT_USER_ID) {
+  static getDomainStats(domain: string, userId: string) {
     const cleanDomain = domain.toLowerCase().replace(/^www\./, "");
     const allBookmarks = this.getBookmarks({ userId, domain: cleanDomain });
 
@@ -1767,9 +1789,9 @@ export class BookmarkRepository {
   }
 
   /**
-   * Get a single bookmark with tags by its ID (across any user)
+   * Get a single bookmark with tags by its ID ensuring user ownership
    */
-  static getBookmarkById(bookmarkId: string): BookmarkWithDetails | undefined {
+  static getBookmarkById(bookmarkId: string, userId: string): BookmarkWithDetails | undefined {
     const r = sqlite.prepare(`
       SELECT 
         b.id, b.user_id, b.folder_id, b.url, b.canonical_url, b.title, b.description,
@@ -1778,8 +1800,8 @@ export class BookmarkRepository {
         f.name as folder_name
       FROM bookmarks b
       LEFT JOIN folders f ON b.folder_id = f.id
-      WHERE b.id = ?
-    `).get(bookmarkId) as any;
+      WHERE b.id = ? AND b.user_id = ?
+    `).get(bookmarkId, userId) as any;
 
     if (!r) return undefined;
 
@@ -1787,8 +1809,8 @@ export class BookmarkRepository {
       SELECT t.id, t.user_id, t.name, t.color, t.created_at
       FROM bookmark_tags bt
       JOIN tags t ON bt.tag_id = t.id
-      WHERE bt.bookmark_id = ?
-    `).all(bookmarkId) as any[];
+      WHERE bt.bookmark_id = ? AND t.user_id = ?
+    `).all(bookmarkId, userId) as any[];
 
     const tags: Tag[] = tagRows.map((tr) => ({
       id: tr.id,
@@ -1823,16 +1845,18 @@ export class BookmarkRepository {
   }
 
   /**
-   * Record a bookmark visit (increments visitCount, sets lastVisitedAt and lastClickedAt)
+   * Record a bookmark visit (increments visitCount, sets lastVisitedAt and lastClickedAt) with user ownership check
    */
-  static async recordVisit(bookmarkId: string): Promise<boolean> {
+  static async recordVisit(bookmarkId: string, userId: string): Promise<boolean> {
+    const existing = sqlite.prepare(`SELECT id, visit_count FROM bookmarks WHERE id = ? AND user_id = ?`).get(bookmarkId, userId) as any;
+    if (!existing) return false;
+
     const now = Date.now();
     const info = sqlite
-      .prepare(`UPDATE bookmarks SET visit_count = COALESCE(visit_count, 0) + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ?`)
-      .run(now, now, bookmarkId);
+      .prepare(`UPDATE bookmarks SET visit_count = COALESCE(visit_count, 0) + 1, last_visited_at = ?, last_clicked_at = ? WHERE id = ? AND user_id = ?`)
+      .run(now, now, bookmarkId, userId);
 
-    const countRow = sqlite.prepare(`SELECT visit_count FROM bookmarks WHERE id = ?`).get(bookmarkId) as { visit_count: number } | undefined;
-    const currentCount = countRow?.visit_count ?? 1;
+    const currentCount = (existing.visit_count || 0) + 1;
 
     const client = SupabaseManager.getClient();
     if (client) {
@@ -1844,17 +1868,14 @@ export class BookmarkRepository {
             last_visited_at: now,
             last_clicked_at: now,
           })
-          .eq("id", bookmarkId);
+          .eq("id", bookmarkId)
+          .eq("user_id", userId);
       } catch (err) {
         console.warn("recordVisit Supabase update notice:", err);
       }
     }
 
-    const bm = this.getBookmarkById(bookmarkId);
-    if (bm?.userId) {
-      SupabaseManager.invalidateUserSyncCache(bm.userId);
-    }
-
+    SupabaseManager.invalidateUserSyncCache(userId);
     return info.changes > 0;
   }
 
@@ -1866,9 +1887,9 @@ export class BookmarkRepository {
     folderId?: string | null;
     domain?: string | null;
     depth?: number;
-    userId?: string;
+    userId: string;
   }) {
-    const userId = options.userId || DEFAULT_USER_ID;
+    const userId = options.userId;
     const depth = options.depth || 1;
 
     const flatFolders = this.getAllFolders(userId);
@@ -2054,7 +2075,7 @@ export class BookmarkRepository {
   /**
    * Get all tags for user
    */
-  static getTags(userId: string = DEFAULT_USER_ID): Tag[] {
+  static getTags(userId: string): Tag[] {
     return db.select().from(tags).where(eq(tags.userId, userId)).orderBy(asc(tags.name)).all();
   }
 }

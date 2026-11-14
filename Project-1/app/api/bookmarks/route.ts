@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { BookmarkRepository } from "@/server/db/repository";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(req: Request) {
   try {
+    const user = await requireUser();
     const { searchParams } = new URL(req.url);
     const folderId = searchParams.get("folderId");
     // When a folder is clicked, default to strictly that specific folder only
@@ -20,22 +21,16 @@ export async function GET(req: Request) {
     const tag = searchParams.get("tag") || undefined;
     const search = searchParams.get("search") || undefined;
 
-    const cookieStore = await cookies();
-    const queryUserId = searchParams.get("userId");
-    const userId = queryUserId || cookieStore.get("markly_user_id")?.value || DEFAULT_USER_ID;
-
     // Coherently sync from Supabase if cache is stale or lambda instance is fresh
-    if (userId && userId !== DEFAULT_USER_ID) {
-      try {
-        const syncRes = await SupabaseManager.ensureUserSynced(userId);
-        if (syncRes.synced && syncRes.bookmarksCount === 0 && syncRes.foldersCount === 0) {
-          BookmarkRepository.ensureUserStarterData(userId);
-        } else {
-          BookmarkRepository.ensureUser(userId);
-        }
-      } catch (err) {
-        console.warn("Bookmark cache check warning:", err);
+    try {
+      const syncRes = await SupabaseManager.ensureUserSynced(user.id);
+      if (syncRes.synced && syncRes.bookmarksCount === 0 && syncRes.foldersCount === 0) {
+        BookmarkRepository.ensureUserStarterData(user.id);
+      } else {
+        BookmarkRepository.ensureUser(user.id);
       }
+    } catch (err) {
+      console.warn("Bookmark cache check warning:", err);
     }
 
     const bookmarks = BookmarkRepository.getBookmarks({
@@ -47,11 +42,13 @@ export async function GET(req: Request) {
       status,
       tag,
       search,
-      userId,
+      userId: user.id,
     });
 
     return NextResponse.json({ success: true, count: bookmarks.length, bookmarks });
   } catch (error) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("GET /api/bookmarks error:", error);
     return NextResponse.json({ success: false, error: "Failed to fetch bookmarks" }, { status: 500 });
   }
@@ -59,6 +56,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const user = await requireUser();
     const body = await req.json();
     let rawUrl = (body.url || "").trim();
     if (!rawUrl || rawUrl === "https://" || rawUrl === "http://") {
@@ -76,9 +74,6 @@ export async function POST(req: Request) {
     const folderId = body.folderId === "null" || !body.folderId ? null : body.folderId;
     const tagNames = Array.isArray(body.tagNames) ? body.tagNames : [];
 
-    const cookieStore = await cookies();
-    const userId = body.userId || cookieStore.get("markly_user_id")?.value || "usr_default_markly";
-
     const bookmark = BookmarkRepository.createBookmark({
       url: rawUrl,
       canonicalUrl: rawUrl,
@@ -90,10 +85,10 @@ export async function POST(req: Request) {
       folderId,
       isFavorite: Boolean(body.isFavorite),
       tagNames,
-      userId,
+      userId: user.id,
     });
 
-    SupabaseManager.invalidateUserSyncCache(userId);
+    SupabaseManager.invalidateUserSyncCache(user.id);
 
     return NextResponse.json({
       success: true,
@@ -101,9 +96,11 @@ export async function POST(req: Request) {
       id: bookmark.id,
     });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("POST /api/bookmarks error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to create bookmark" },
+      { success: false, error: "Failed to create bookmark" },
       { status: 500 }
     );
   }

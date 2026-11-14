@@ -59,21 +59,12 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const [expandedFolderId, setExpandedFolderId] = React.useState<string | null>(null);
 
   const getEffectiveUserId = React.useCallback(() => {
-    if (user?.id) return user.id;
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("markly_user_id");
-      if (stored) return stored;
-      const match = document.cookie.match(/markly_user_id=([^;]+)/);
-      if (match) return match[1];
-    }
-    return null;
+    return user?.id || null;
   }, [user?.id]);
 
   const fetchItems = React.useCallback(async () => {
     try {
-      const effectiveId = getEffectiveUserId();
-      const url = effectiveId ? `/api/recycle-bin?userId=${encodeURIComponent(effectiveId)}` : "/api/recycle-bin";
-      const res = await fetch(url);
+      const res = await fetch("/api/recycle-bin");
       const data = await res.json();
       if (data.success) {
         setItems(data.items || []);
@@ -86,7 +77,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
     } finally {
       setLoading(false);
     }
-  }, [getEffectiveUserId]);
+  }, []);
 
   React.useEffect(() => {
     fetchItems();
@@ -124,9 +115,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handleRestore = async (item: RecycleBinItem) => {
     setActionLoadingId(item.id);
     try {
-      const effectiveId = getEffectiveUserId();
-      const url = `/api/recycle-bin/${item.id}${effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : ""}`;
-      const res = await fetch(url, { method: "POST" });
+      const res = await fetch(`/api/recycle-bin/${item.id}`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -149,9 +138,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handlePermanentDelete = async (item: RecycleBinItem) => {
     setActionLoadingId(item.id);
     try {
-      const effectiveId = getEffectiveUserId();
-      const url = `/api/recycle-bin/${item.id}${effectiveId ? `?userId=${encodeURIComponent(effectiveId)}` : ""}`;
-      const res = await fetch(url, { method: "DELETE" });
+      const res = await fetch(`/api/recycle-bin/${item.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -171,9 +158,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handleEmptyRecycleBin = async () => {
     setEmptying(true);
     try {
-      const effectiveId = getEffectiveUserId();
-      const url = effectiveId ? `/api/recycle-bin?userId=${encodeURIComponent(effectiveId)}` : "/api/recycle-bin";
-      const res = await fetch(url, { method: "DELETE" });
+      const res = await fetch("/api/recycle-bin", { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         setItems([]);

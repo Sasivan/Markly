@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { suggestWithAi } from "@/server/ai/suggest";
+import { BookmarkRepository } from "@/server/db/repository";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
+    const user = await requireUser();
     const body = await req.json();
     const { title, description, domain, url } = body;
 
@@ -19,13 +25,15 @@ export async function POST(req: Request) {
       } catch {}
     }
 
+    const folders = BookmarkRepository.getAllFolders(user.id);
+
     const suggestions = await suggestWithAi(
       {
         title: title || "",
         description: description || "",
         domain: domain || "",
         url,
-        folders: [],
+        folders: folders.map((f) => ({ id: f.id, name: f.name })),
       },
       aiConfig
     );
@@ -35,7 +43,9 @@ export async function POST(req: Request) {
       suggestions,
     });
   } catch (err: any) {
-    console.error("AI suggest error");
+    const authRes = handleAuthError(err);
+    if (authRes) return authRes;
+    console.error("AI suggest error:", err);
     return NextResponse.json(
       { success: false, error: "Failed to generate suggestions" },
       { status: 500 }

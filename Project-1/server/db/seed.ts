@@ -17,34 +17,34 @@ export function runSeed() {
 
   // Create Folders with 3-level nesting
   // Level 1: Engineering
-  const fEngineering = BookmarkRepository.createFolder({ name: "Engineering", icon: "💻", color: "#3b82f6" });
+  const fEngineering = BookmarkRepository.createFolder({ name: "Engineering", icon: "💻", color: "#3b82f6", userId: DEFAULT_USER_ID });
   // Level 2: Frontend under Engineering
-  const fFrontend = BookmarkRepository.createFolder({ name: "Frontend", parentId: fEngineering.id, icon: "⚛️", color: "#60a5fa" });
+  const fFrontend = BookmarkRepository.createFolder({ name: "Frontend", parentId: fEngineering.id, icon: "⚛️", color: "#60a5fa", userId: DEFAULT_USER_ID });
   // Level 3: React & Next.js under Frontend
-  const fReact = BookmarkRepository.createFolder({ name: "React & Next.js", parentId: fFrontend.id, icon: "⚡", color: "#93c5fd" });
+  const fReact = BookmarkRepository.createFolder({ name: "React & Next.js", parentId: fFrontend.id, icon: "⚡", color: "#93c5fd", userId: DEFAULT_USER_ID });
   // Level 3: CSS & UI under Frontend
-  const fCSS = BookmarkRepository.createFolder({ name: "CSS & UI Systems", parentId: fFrontend.id, icon: "🎨", color: "#93c5fd" });
+  const fCSS = BookmarkRepository.createFolder({ name: "CSS & UI Systems", parentId: fFrontend.id, icon: "🎨", color: "#93c5fd", userId: DEFAULT_USER_ID });
 
   // Level 2: Backend under Engineering
-  const fBackend = BookmarkRepository.createFolder({ name: "Backend & Systems", parentId: fEngineering.id, icon: "⚙️", color: "#3b82f6" });
+  const fBackend = BookmarkRepository.createFolder({ name: "Backend & Systems", parentId: fEngineering.id, icon: "⚙️", color: "#3b82f6", userId: DEFAULT_USER_ID });
   // Level 3: Databases under Backend
-  const fDatabases = BookmarkRepository.createFolder({ name: "Databases & Storage", parentId: fBackend.id, icon: "🗄️", color: "#93c5fd" });
+  const fDatabases = BookmarkRepository.createFolder({ name: "Databases & Storage", parentId: fBackend.id, icon: "🗄️", color: "#93c5fd", userId: DEFAULT_USER_ID });
 
   // Level 2: AI & LLMs under Engineering
-  const fAI = BookmarkRepository.createFolder({ name: "AI & Machine Learning", parentId: fEngineering.id, icon: "🤖", color: "#8b5cf6" });
+  const fAI = BookmarkRepository.createFolder({ name: "AI & Machine Learning", parentId: fEngineering.id, icon: "🤖", color: "#8b5cf6", userId: DEFAULT_USER_ID });
 
   // Level 1: Design & Creative
-  const fDesign = BookmarkRepository.createFolder({ name: "Design & Creative", icon: "🎯", color: "#ec4899" });
-  const fInspiration = BookmarkRepository.createFolder({ name: "Inspiration & Showcase", parentId: fDesign.id, icon: "✨", color: "#f472b6" });
-  const fTypography = BookmarkRepository.createFolder({ name: "Typography & Assets", parentId: fDesign.id, icon: "🔤", color: "#f472b6" });
+  const fDesign = BookmarkRepository.createFolder({ name: "Design & Creative", icon: "🎯", color: "#ec4899", userId: DEFAULT_USER_ID });
+  const fInspiration = BookmarkRepository.createFolder({ name: "Inspiration & Showcase", parentId: fDesign.id, icon: "✨", color: "#f472b6", userId: DEFAULT_USER_ID });
+  const fTypography = BookmarkRepository.createFolder({ name: "Typography & Assets", parentId: fDesign.id, icon: "🔤", color: "#f472b6", userId: DEFAULT_USER_ID });
 
   // Level 1: Productivity & Tools
-  const fProductivity = BookmarkRepository.createFolder({ name: "Productivity & Workflow", icon: "⚡", color: "#10b981" });
-  const fNotes = BookmarkRepository.createFolder({ name: "Notes & Knowledge", parentId: fProductivity.id, icon: "📓", color: "#34d399" });
-  const fDevTools = BookmarkRepository.createFolder({ name: "Developer Tools", parentId: fProductivity.id, icon: "🛠️", color: "#34d399" });
+  const fProductivity = BookmarkRepository.createFolder({ name: "Productivity & Workflow", icon: "⚡", color: "#10b981", userId: DEFAULT_USER_ID });
+  const fNotes = BookmarkRepository.createFolder({ name: "Notes & Knowledge", parentId: fProductivity.id, icon: "📓", color: "#34d399", userId: DEFAULT_USER_ID });
+  const fDevTools = BookmarkRepository.createFolder({ name: "Developer Tools", parentId: fProductivity.id, icon: "🛠️", color: "#34d399", userId: DEFAULT_USER_ID });
 
   // Level 1: Reading & Research
-  const fReading = BookmarkRepository.createFolder({ name: "Reading & Research", icon: "📚", color: "#f59e0b" });
+  const fReading = BookmarkRepository.createFolder({ name: "Reading & Research", icon: "📚", color: "#f59e0b", userId: DEFAULT_USER_ID });
 
   console.log("📁 Created 13 nested folders across 3 hierarchy levels.");
 

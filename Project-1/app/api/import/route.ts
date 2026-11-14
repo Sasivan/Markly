@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 import { parseNetscapeHtml } from "@/server/import-export/netscape";
 import { normalizeUrl } from "@/server/scraper/url";
+import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { requireUser, handleAuthError } from "@/server/auth/require-user";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
+    const user = await requireUser();
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
@@ -19,7 +25,7 @@ export async function POST(req: Request) {
     let createdFoldersCount = 0;
 
     // Map existing folders
-    const existingFolders = BookmarkRepository.getAllFolders();
+    const existingFolders = BookmarkRepository.getAllFolders(user.id);
     const folderMap = new Map<string, string>();
     for (const f of existingFolders) {
       folderMap.set(f.name.toLowerCase(), f.id);
@@ -31,7 +37,7 @@ export async function POST(req: Request) {
       // Create missing folders
       for (const fName of parsed.folders) {
         if (!folderMap.has(fName.toLowerCase())) {
-          const newFolder = BookmarkRepository.createFolder({ name: fName });
+          const newFolder = BookmarkRepository.createFolder({ name: fName, userId: user.id });
           folderMap.set(fName.toLowerCase(), newFolder.id);
           createdFoldersCount++;
         }
@@ -42,7 +48,7 @@ export async function POST(req: Request) {
         try {
           const { url, canonicalUrl, domain } = normalizeUrl(item.url);
           // Check duplicate
-          const dup = BookmarkRepository.findDuplicate(canonicalUrl);
+          const dup = BookmarkRepository.findDuplicate(canonicalUrl, user.id);
           if (dup) continue;
 
           const fId = item.folderName ? folderMap.get(item.folderName.toLowerCase()) || null : null;
@@ -54,6 +60,7 @@ export async function POST(req: Request) {
             domain,
             folderId: fId,
             tagNames: item.tags,
+            userId: user.id,
           });
           importedCount++;
         } catch {
@@ -68,8 +75,13 @@ export async function POST(req: Request) {
         if (!b.url) continue;
         try {
           const { url, canonicalUrl, domain } = normalizeUrl(b.url);
-          const dup = BookmarkRepository.findDuplicate(canonicalUrl);
+          const dup = BookmarkRepository.findDuplicate(canonicalUrl, user.id);
           if (dup) continue;
+
+          let targetFolderId: string | null = null;
+          if (b.folderId && folderMap.has(b.folderId)) {
+            targetFolderId = b.folderId;
+          }
 
           BookmarkRepository.createBookmark({
             url,
@@ -78,9 +90,10 @@ export async function POST(req: Request) {
             description: b.description,
             domain,
             iconUrl: b.iconUrl,
-            folderId: b.folderId || null,
+            folderId: targetFolderId,
             isFavorite: Boolean(b.isFavorite),
             tagNames: Array.isArray(b.tags) ? b.tags.map((t: any) => (typeof t === "string" ? t : t.name)) : [],
+            userId: user.id,
           });
           importedCount++;
         } catch {
@@ -94,6 +107,8 @@ export async function POST(req: Request) {
       );
     }
 
+    SupabaseManager.invalidateUserSyncCache(user.id);
+
     return NextResponse.json({
       success: true,
       importedCount,
@@ -101,8 +116,9 @@ export async function POST(req: Request) {
       message: `Successfully imported ${importedCount} bookmarks into Markly.`,
     });
   } catch (error: any) {
+    const authRes = handleAuthError(error);
+    if (authRes) return authRes;
     console.error("POST /api/import error:", error);
-    return NextResponse.json({ success: false, error: error.message || "Failed to parse import file" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to parse import file" }, { status: 500 });
   }
 }
-

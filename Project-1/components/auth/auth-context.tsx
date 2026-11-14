@@ -20,27 +20,6 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-// Helper to set 30-day cookie and local storage
-function persistUserSession(userId: string) {
-  if (typeof document !== "undefined") {
-    // 30 days = 2592000 seconds
-    document.cookie = `markly_user_id=${userId}; path=/; max-age=2592000; SameSite=Lax`;
-    try {
-      localStorage.setItem("markly_user_id", userId);
-    } catch {}
-  }
-}
-
-// Helper to remove session cookie and local storage
-function clearUserSession() {
-  if (typeof document !== "undefined") {
-    document.cookie = "markly_user_id=; path=/; max-age=0; SameSite=Lax";
-    try {
-      localStorage.removeItem("markly_user_id");
-    } catch {}
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [session, setSession] = React.useState<Session | null>(null);
@@ -54,15 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     async function initSession() {
       try {
-        // 1. Immediately refresh 30-day cookie from localStorage if present
-        if (typeof window !== "undefined") {
-          const cachedUserId = localStorage.getItem("markly_user_id");
-          if (cachedUserId) {
-            persistUserSession(cachedUserId);
-          }
-        }
-
-        // 2. Check if OAuth returned tokens in the URL hash (#access_token=...)
+        // 1. Check if OAuth returned tokens in the URL hash (#access_token=...)
         if (typeof window !== "undefined" && window.location.hash.includes("access_token")) {
           const hashString = window.location.hash.startsWith("#")
             ? window.location.hash.substring(1)
@@ -72,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const refreshToken = hashParams.get("refresh_token");
 
           if (accessToken && refreshToken) {
-            const { data: oauthSession, error: oauthErr } = await supabase.auth.setSession({
+            const { data: oauthSession } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
@@ -81,16 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const u = oauthSession.session.user;
               setUser(u);
               setSession(oauthSession.session);
-              persistUserSession(u.id);
 
-              // Clean URL hash so the user doesn't see the ugly access token in the address bar!
+              // Clean URL hash so the user doesn't see access token in address bar
               window.history.replaceState(null, "", window.location.pathname);
 
-              // Auto-sync user data in the background
+              // Auto-sync user data in the background (session cookie identifies user)
               fetch("/api/auth/sync-user", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId: u.id }),
               }).catch(() => {});
 
               setIsLoading(false);
@@ -99,12 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 3. Normal session restore via Supabase
-        const { data, error } = await supabase.auth.getSession();
+        // 2. Normal session restore via Supabase
+        const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
           setUser(data.session.user);
           setSession(data.session);
-          persistUserSession(data.session.user.id);
 
           // Clean hash if present
           if (typeof window !== "undefined" && window.location.hash.includes("access_token")) {
@@ -120,18 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initSession();
 
-    // 4. Auth state subscription (token refresh, sign in, sign out)
+    // 3. Auth state subscription (token refresh, sign in, sign out)
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      // ONLY clear session when event is explicitly SIGNED_OUT!
-      // Never clear on INITIAL_SESSION or undefined to prevent losing login on page refresh!
       if (event === "SIGNED_OUT") {
-        clearUserSession();
         setUser(null);
         setSession(null);
       } else if (newSession?.user?.id) {
         setSession(newSession);
         setUser(newSession.user);
-        persistUserSession(newSession.user.id);
       }
       setIsLoading(false);
     });
@@ -200,14 +163,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         setUser(data.user);
         setSession(data.session);
-        persistUserSession(data.user.id);
         closeAuthModal();
 
         // Trigger automatic sync for this user
         fetch("/api/auth/sync-user", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: data.user.id }),
         }).catch(() => {});
       }
 
@@ -269,7 +229,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         setUser(data.user);
         setSession(data.session);
-        persistUserSession(data.user.id);
 
         // If session was not directly returned (e.g. Supabase email confirmation mode), attempt immediate sign in
         if (!data.session) {
@@ -277,15 +236,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (loginAttempt.data?.session?.user) {
             setUser(loginAttempt.data.session.user);
             setSession(loginAttempt.data.session);
-            persistUserSession(loginAttempt.data.session.user.id);
           }
         }
 
         // Trigger automatic sync & minimal starter pack creation
         fetch("/api/auth/sync-user", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: data.user.id }),
         }).catch(() => {});
 
         closeAuthModal();
@@ -322,7 +278,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Sign Out
   const signOut = async () => {
     try {
-      clearUserSession();
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);

@@ -22,17 +22,17 @@ BEGIN
     cleaned_uname := cleaned_uname || '_usr';
   END IF;
   IF pg_catalog.length(cleaned_uname) > 30 THEN
-    cleaned_uname := pg_catalog.substring(cleaned_uname FROM 1 FOR 30);
+    cleaned_uname := pg_catalog.substring(cleaned_uname, 1, 30);
   END IF;
 
   -- Ensure auto-generated usernames do not collide with reserved names
   IF cleaned_uname IN ('admin', 'root', 'markly', 'support', 'help', 'guest', 'system', 'anonymous') THEN
-    cleaned_uname := pg_catalog.substring(cleaned_uname FROM 1 FOR 23) || '_' || pg_catalog.substring(NEW.id::text FROM 1 FOR 6);
+    cleaned_uname := pg_catalog.substring(cleaned_uname, 1, 23) || '_' || pg_catalog.substring(NEW.id::text, 1, 6);
   END IF;
 
   -- Handle collision gracefully
   IF EXISTS (SELECT 1 FROM public.profiles WHERE username = cleaned_uname AND id != NEW.id) THEN
-    cleaned_uname := pg_catalog.substring(cleaned_uname FROM 1 FOR 23) || '_' || pg_catalog.substring(NEW.id::text FROM 1 FOR 6);
+    cleaned_uname := pg_catalog.substring(cleaned_uname, 1, 23) || '_' || pg_catalog.substring(NEW.id::text, 1, 6);
   END IF;
 
   INSERT INTO public.profiles (id, username, display_name, avatar_url, created_at, updated_at)

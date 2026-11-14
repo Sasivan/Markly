@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import fs from "fs";
+import path from "path";
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "../server/db/repository";
 import { validateHostForSSRF } from "../server/scraper/ssrf";
 import { safeFetchHtml } from "../server/scraper/fetcher";
 import { validateCsrfOrigin } from "../server/auth/csrf";
+import { checkRateLimit, getTrustedClientIp } from "../server/scraper/ratelimit";
 
 // Mock Supabase Server client for testing
 let mockUser: { id: string; email?: string } | null = null;
@@ -46,6 +49,10 @@ import * as ExportRoute from "../app/api/export/route";
 import * as UserProfileRoute from "../app/api/user/profile/route";
 import * as SyncUserRoute from "../app/api/auth/sync-user/route";
 import * as ResolveIdentifierRoute from "../app/api/auth/resolve-identifier/route";
+import * as LoginRoute from "../app/api/auth/login/route";
+import * as CheckUsernameRoute from "../app/api/auth/check-username/route";
+import * as AiSuggestRoute from "../app/api/ai/suggest/route";
+import * as ImportRoute from "../app/api/import/route";
 
 describe("Phase 10 Security Hardening Tests", () => {
   beforeEach(() => {
@@ -449,6 +456,120 @@ describe("Phase 10 Security Hardening Tests", () => {
         { params: Promise.resolve({ id: "bm_1" }) }
       );
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe("6. Phase 12 Stage 2: Consistent CSRF Audit & Rate Limiting", () => {
+    it("fails if any mutating route skips requireUser(req)", () => {
+      const apiDir = path.resolve(__dirname, "../app/api");
+
+      function findRoutes(dir: string): string[] {
+        let results: string[] = [];
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            results = results.concat(findRoutes(fullPath));
+          } else if (entry.name === "route.ts") {
+            results.push(fullPath);
+          }
+        }
+        return results;
+      }
+
+      const allRoutes = findRoutes(apiDir);
+      const violations: string[] = [];
+
+      for (const routeFile of allRoutes) {
+        const content = fs.readFileSync(routeFile, "utf-8");
+        const rel = path.relative(apiDir, routeFile).replace(/\\/g, "/");
+
+        // Skip public unauthenticated login and 410 gone resolve-identifier
+        if (rel.includes("auth/login") || rel.includes("auth/resolve-identifier")) {
+          continue;
+        }
+
+        const hasMutating = /export\s+async\s+function\s+(POST|PATCH|DELETE|PUT)/.test(content);
+        if (hasMutating) {
+          // Must call requireUser with request parameter (requireUser(req))
+          const callsRequireUserWithReq = /requireUser\s*\(\s*(req|request)\s*\)/.test(content);
+          if (!callsRequireUserWithReq) {
+            violations.push(`${rel} defines mutating methods but does not pass req to requireUser(req)`);
+          }
+        }
+      }
+
+      expect(violations).toEqual([]);
+    });
+
+    it("getTrustedClientIp prioritizes platform-trusted headers and rejects client-spoofed leftmost XFF", () => {
+      // 1. Cloudflare header
+      const cfReq = new Request("http://localhost", {
+        headers: {
+          "cf-connecting-ip": "203.0.113.195",
+          "x-forwarded-for": "10.0.0.1, 192.168.1.1",
+        },
+      });
+      expect(getTrustedClientIp(cfReq)).toBe("203.0.113.195");
+
+      // 2. Nginx x-real-ip
+      const nginxReq = new Request("http://localhost", {
+        headers: {
+          "x-real-ip": "198.51.100.4",
+          "x-forwarded-for": "10.0.0.1",
+        },
+      });
+      expect(getTrustedClientIp(nginxReq)).toBe("198.51.100.4");
+
+      // 3. Multi-hop XFF: takes rightmost (closest to proxy), never the client-supplied leftmost
+      const multiHopReq = new Request("http://localhost", {
+        headers: {
+          "x-forwarded-for": "client.spoofed.ip, 198.51.100.99",
+        },
+      });
+      expect(getTrustedClientIp(multiHopReq)).toBe("198.51.100.99");
+    });
+
+    it("enforces login rate limit (10 attempts per minute)", () => {
+      const testIp = `test-login-ip-${Date.now()}`;
+      for (let i = 0; i < 10; i++) {
+        expect(checkRateLimit(`login:ip:${testIp}`, 10, 60 * 1000).allowed).toBe(true);
+      }
+      // 11th request must be blocked
+      const blocked = checkRateLimit(`login:ip:${testIp}`, 10, 60 * 1000);
+      expect(blocked.allowed).toBe(false);
+      expect(blocked.resetInSec).toBeGreaterThan(0);
+    });
+
+    it("enforces check-username rate limit (20 checks per minute)", () => {
+      const testIp = `test-user-ip-${Date.now()}`;
+      for (let i = 0; i < 20; i++) {
+        expect(checkRateLimit(`check-username:ip:${testIp}`, 20, 60 * 1000).allowed).toBe(true);
+      }
+      expect(checkRateLimit(`check-username:ip:${testIp}`, 20, 60 * 1000).allowed).toBe(false);
+    });
+
+    it("enforces ai/suggest rate limit (20 per minute per user)", () => {
+      const testUser = `test-user-ai-${Date.now()}`;
+      for (let i = 0; i < 20; i++) {
+        expect(checkRateLimit(`ai-suggest:user:${testUser}`, 20, 60 * 1000).allowed).toBe(true);
+      }
+      expect(checkRateLimit(`ai-suggest:user:${testUser}`, 20, 60 * 1000).allowed).toBe(false);
+    });
+
+    it("enforces import rate limit (5 per minute per user)", () => {
+      const testUser = `test-user-import-${Date.now()}`;
+      for (let i = 0; i < 5; i++) {
+        expect(checkRateLimit(`import:user:${testUser}`, 5, 60 * 1000).allowed).toBe(true);
+      }
+      expect(checkRateLimit(`import:user:${testUser}`, 5, 60 * 1000).allowed).toBe(false);
+    });
+
+    it("enforces health-check rate limit (2 per minute per user)", () => {
+      const testUser = `test-user-hc-${Date.now()}`;
+      expect(checkRateLimit(`health-check:user:${testUser}`, 2, 60 * 1000).allowed).toBe(true);
+      expect(checkRateLimit(`health-check:user:${testUser}`, 2, 60 * 1000).allowed).toBe(true);
+      expect(checkRateLimit(`health-check:user:${testUser}`, 2, 60 * 1000).allowed).toBe(false);
     });
   });
 });

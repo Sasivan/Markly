@@ -20,9 +20,58 @@ if (typeof setInterval !== "undefined") {
 }
 
 /**
+ * Extracts the trusted client IP from platform-verified headers.
+ * Never trusts a client-spoofed leftmost X-Forwarded-For value.
+ * Priority:
+ * 1. cf-connecting-ip (Cloudflare)
+ * 2. x-real-ip (Nginx / standard reverse proxy)
+ * 3. x-vercel-proxied-for (Vercel edge)
+ * 4. fly-client-ip (Fly.io)
+ * 5. Rightmost entry of x-forwarded-for (appended by closest upstream proxy)
+ * 6. Fallback: "127.0.0.1"
+ */
+export function getTrustedClientIp(
+  reqOrHeaders: Request | Headers | { get(name: string): string | null }
+): string {
+  const getHeader = (name: string): string | null => {
+    if ("headers" in reqOrHeaders && typeof (reqOrHeaders as any).headers?.get === "function") {
+      return (reqOrHeaders as any).headers.get(name);
+    }
+    if (typeof (reqOrHeaders as any).get === "function") {
+      return (reqOrHeaders as any).get(name);
+    }
+    return null;
+  };
+
+  const cf = getHeader("cf-connecting-ip");
+  if (cf?.trim()) return cf.trim();
+
+  const realIp = getHeader("x-real-ip");
+  if (realIp?.trim()) return realIp.trim();
+
+  const vercel = getHeader("x-vercel-proxied-for");
+  if (vercel?.trim()) return vercel.trim();
+
+  const fly = getHeader("fly-client-ip");
+  if (fly?.trim()) return fly.trim();
+
+  // If x-forwarded-for is present, take the rightmost IP (closest to server), never the client-supplied leftmost
+  const xff = getHeader("x-forwarded-for");
+  if (xff?.trim()) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      return parts[parts.length - 1];
+    }
+  }
+
+  return "127.0.0.1";
+}
+
+/**
  * Sliding window rate limiter:
  * Tracks exact timestamps within the window for the given identifier (session user ID or trusted IP).
- * Default: 30 requests per 60-second window.
+ * NOTE: Operates in-memory (per-instance). If Upstash KV or external Redis is configured,
+ * it acts as an additional layer of local DDoS protection.
  */
 export function checkRateLimit(
   identifier: string,

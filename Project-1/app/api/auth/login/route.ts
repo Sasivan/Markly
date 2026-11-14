@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { BookmarkRepository } from "@/server/db/repository";
+import { checkRateLimit, getTrustedClientIp } from "@/server/scraper/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,24 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { success: false, error: "Username/email and password are required." },
         { status: 400 }
+      );
+    }
+
+    // Rate limiting: 10 attempts per minute per IP and per identifier
+    const clientIp = getTrustedClientIp(req);
+    const ipLimit = checkRateLimit(`login:ip:${clientIp}`, 10, 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many login attempts. Please wait 60 seconds." },
+        { status: 429 }
+      );
+    }
+
+    const idLimit = checkRateLimit(`login:id:${identifier.toLowerCase()}`, 10, 60 * 1000);
+    if (!idLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many login attempts for this account. Please wait 60 seconds." },
+        { status: 429 }
       );
     }
 

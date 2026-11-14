@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const { id } = await params;
     const success = await BookmarkRepository.recordVisit(id, user.id);
     if (!success) {

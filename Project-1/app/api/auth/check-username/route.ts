@@ -1,14 +1,37 @@
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, getTrustedClientIp } from "@/server/scraper/ratelimit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
+    // 1. Rate limiting: 20 checks per minute per IP
+    const clientIp = getTrustedClientIp(req);
+    const ipLimit = checkRateLimit(`check-username:ip:${clientIp}`, 20, 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { available: false, error: "Too many username checks. Please wait a minute." },
+        { status: 429 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const username = searchParams.get("username")?.trim().toLowerCase();
-    const excludeUserId = searchParams.get("userId") || undefined;
+
+    // 2. Identify session user securely — never trust client-supplied ?userId=
+    let excludeUserId: string | undefined = undefined;
+    try {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.id) {
+        excludeUserId = user.id;
+      }
+    } catch {}
 
     if (!username) {
       return NextResponse.json({ available: false, error: "Username is required" }, { status: 400 });

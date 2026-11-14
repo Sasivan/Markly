@@ -9,7 +9,7 @@ export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const userId = user.id;
 
     const client = SupabaseManager.getClient();

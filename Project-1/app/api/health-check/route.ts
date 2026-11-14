@@ -3,6 +3,7 @@ import { BookmarkRepository } from "@/server/db/repository";
 import { validateHostForSSRF } from "@/server/scraper/ssrf";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { checkRateLimit } from "@/server/scraper/ratelimit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -80,9 +81,26 @@ async function checkBookmarkAlive(initialUrl: string): Promise<boolean> {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
 
-    const bookmarks = BookmarkRepository.getBookmarks({ userId: user.id });
+    // Rate limiting: max 2 health checks per minute per user
+    const rateLimit = checkRateLimit(`health-check:user:${user.id}`, 2, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many health check requests. Please wait a minute." },
+        { status: 429 }
+      );
+    }
+
+    // Cap at 50 bookmarks per run, oldest-checked first
+    const allBookmarks = BookmarkRepository.getBookmarks({ userId: user.id });
+    const sorted = [...allBookmarks].sort((a, b) => {
+      const timeA = a.lastVisitedAt || a.createdAt || 0;
+      const timeB = b.lastVisitedAt || b.createdAt || 0;
+      return timeA - timeB;
+    });
+    const bookmarks = sorted.slice(0, 50);
+
     let checkedCount = 0;
     let deadCount = 0;
     let aliveCount = 0;

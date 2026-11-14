@@ -4,6 +4,7 @@ import { parseNetscapeHtml } from "@/server/import-export/netscape";
 import { normalizeUrl } from "@/server/scraper/url";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { checkRateLimit } from "@/server/scraper/ratelimit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,6 +12,15 @@ export const revalidate = 0;
 export async function POST(req: Request) {
   try {
     const user = await requireUser(req);
+
+    // Rate limiting: 5 imports per minute per user
+    const rateLimit = checkRateLimit(`import:user:${user.id}`, 5, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many import requests. Please wait a minute." },
+        { status: 429 }
+      );
+    }
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 

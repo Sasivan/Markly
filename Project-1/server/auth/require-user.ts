@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { validateCsrfOrigin } from "./csrf";
@@ -28,9 +29,22 @@ export class CsrfError extends Error {
 }
 
 export async function requireUser(req?: Request): Promise<User> {
-  // If request object is passed, enforce CSRF defense on mutating actions
-  if (req && !validateCsrfOrigin(req)) {
-    throw new CsrfError("Forbidden", 403);
+  // Enforce CSRF verification on every authenticated route.
+  // Prefer the Request object if passed, otherwise read headers() directly from Next.js request store.
+  if (req) {
+    if (!validateCsrfOrigin(req)) {
+      throw new CsrfError("Forbidden", 403);
+    }
+  } else {
+    try {
+      const headerList = await headers();
+      if (!validateCsrfOrigin(headerList)) {
+        throw new CsrfError("Forbidden", 403);
+      }
+    } catch (e: any) {
+      if (e instanceof CsrfError) throw e;
+      // Ignore request scope error when called outside Next.js request context
+    }
   }
 
   try {

@@ -2,34 +2,54 @@
  * CSRF Defense utility for mutating HTTP endpoints (POST, PUT, PATCH, DELETE).
  *
  * Browsers automatically attach `Origin` and `Sec-Fetch-Site` headers to cross-origin requests.
- * 1. If `sec-fetch-site` is present:
+ * 1. Safe idempotent methods (GET, HEAD, OPTIONS) are exempt unless explicitly verified.
+ * 2. If `sec-fetch-site` is present:
  *    - "cross-site": untrusted cross-origin request -> BLOCKED.
  *    - "same-origin", "same-site", "none": trusted -> ALLOWED.
- * 2. If `origin` header is present:
+ * 3. If `origin` header is present:
  *    - Compare origin hostname/port with `host`, `x-forwarded-host`, and `NEXT_PUBLIC_APP_URL`.
  *    - If mismatched -> BLOCKED.
- * 3. If neither `origin` nor `referer` is present:
+ * 4. If neither `origin` nor `referer` is present:
  *    - Allowed (non-browser clients, server-side fetch, vitest test runner).
  */
-export function validateCsrfOrigin(req: Request): boolean {
-  const method = req.method.toUpperCase();
-  // Safe idempotent methods do not mutate state
-  if (["GET", "HEAD", "OPTIONS"].includes(method)) {
-    return true;
+export function validateCsrfOrigin(
+  reqOrHeaders: Request | Headers | { get(name: string): string | null; method?: string }
+): boolean {
+  // If a Request object is passed, check method. Safe GET/HEAD/OPTIONS are exempt.
+  if ("method" in reqOrHeaders && typeof reqOrHeaders.method === "string") {
+    const method = reqOrHeaders.method.toUpperCase();
+    if (["GET", "HEAD", "OPTIONS"].includes(method)) {
+      return true;
+    }
   }
 
+  const getHeader = (name: string): string | null => {
+    if ("headers" in reqOrHeaders && typeof (reqOrHeaders as any).headers?.get === "function") {
+      return (reqOrHeaders as any).headers.get(name);
+    }
+    if (typeof (reqOrHeaders as any).get === "function") {
+      return (reqOrHeaders as any).get(name);
+    }
+    return null;
+  };
+
   // 1. Check Sec-Fetch-Site header (standard modern browser header)
-  const secFetchSite = req.headers.get("sec-fetch-site");
+  const secFetchSite = getHeader("sec-fetch-site");
   if (secFetchSite === "cross-site") {
+    // If it is a top-level document navigation (e.g. user clicked a standard link), allow
+    const secFetchMode = getHeader("sec-fetch-mode");
+    if (secFetchMode === "navigate") {
+      return true;
+    }
     return false;
   }
 
   // 2. Check Origin header
-  const origin = req.headers.get("origin");
+  const origin = getHeader("origin");
   if (origin) {
     try {
       const originUrl = new URL(origin);
-      const hostHeader = req.headers.get("x-forwarded-host") || req.headers.get("host");
+      const hostHeader = getHeader("x-forwarded-host") || getHeader("host");
 
       if (hostHeader) {
         const cleanHostHeader = hostHeader.toLowerCase().trim();
@@ -67,11 +87,11 @@ export function validateCsrfOrigin(req: Request): boolean {
   }
 
   // 3. Fallback to Referer header if Origin was not sent
-  const referer = req.headers.get("referer");
+  const referer = getHeader("referer");
   if (referer) {
     try {
       const refererUrl = new URL(referer);
-      const hostHeader = req.headers.get("x-forwarded-host") || req.headers.get("host");
+      const hostHeader = getHeader("x-forwarded-host") || getHeader("host");
 
       if (hostHeader) {
         const cleanHostHeader = hostHeader.toLowerCase().trim();

@@ -30,6 +30,7 @@ interface FolderCollectionsViewProps {
   onRenameFolder?: (folderId: string, newName: string) => void;
   onCustomizeFolder?: (folder: Folder) => void;
   onMoveFolder?: (folder: Folder) => void;
+  onCopyFolder?: (folder: Folder) => void;
   onDeleteFolder?: (folder: Folder) => void;
   onSaveCollection?: (
     folderId: string,
@@ -168,6 +169,7 @@ export function FolderCollectionsView({
   onRenameFolder,
   onCustomizeFolder,
   onMoveFolder,
+  onCopyFolder,
   onDeleteFolder,
   onSaveCollection,
   unsortedCount = 0,
@@ -830,6 +832,10 @@ export function FolderCollectionsView({
         onNewSubfolder={(parentId) => {
           setEditingCollection(null);
           onNewSubfolder?.(parentId);
+        }}
+        onCopyFolder={(f) => {
+          setEditingCollection(null);
+          onCopyFolder?.(f);
         }}
         onDeleteFolder={(f) => {
           setEditingCollection(null);

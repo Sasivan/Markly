@@ -28,7 +28,9 @@ import { AddFolderModal } from "@/components/sidebar/add-folder-modal";
 import { FolderCustomizeModal } from "@/components/sidebar/folder-customize-modal";
 import { DeleteFolderModal } from "@/components/sidebar/delete-folder-modal";
 import { MoveFolderModal } from "@/components/sidebar/move-folder-modal";
+import { CopyFolderModal } from "@/components/sidebar/copy-folder-modal";
 import { EditBookmarkModal } from "@/components/table/edit-bookmark-modal";
+import { SitePreviewModal } from "@/components/modals/site-preview-modal";
 import { ApiKeyModal } from "@/components/ai/api-key-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { DomainInsightsView } from "@/components/domain/domain-insights-view";
@@ -194,6 +196,10 @@ export function MarklyWorkspace({
   const [panelCustomizeFolder, setPanelCustomizeFolder] = React.useState<FolderType | null>(null);
   const [panelDeleteFolder, setPanelDeleteFolder] = React.useState<FolderType | null>(null);
   const [panelMoveFolder, setPanelMoveFolder] = React.useState<FolderType | null>(null);
+  const [panelCopyFolder, setPanelCopyFolder] = React.useState<FolderType | null>(null);
+
+  // Universal Notion-Style Site Peek / Preview Modal state
+  const [sitePreviewBookmark, setSitePreviewBookmark] = React.useState<BookmarkWithDetails | null>(null);
 
   // Hydration ref to avoid overwriting URL query params on initial mount
   const isHydratedRef = React.useRef(false);
@@ -788,6 +794,29 @@ export function MarklyWorkspace({
     [folders, bookmarks, user, refreshData]
   );
 
+  const handleCopyFolder = React.useCallback(
+    async (folderId: string, targetParentId: string | null, customName?: string) => {
+      try {
+        const res = await fetch(`/api/folders/${folderId}/copy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ targetParentId, name: customName }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          refreshData();
+          setPanelCopyFolder(null);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        }
+      } catch (err) {
+        console.error("Copy folder error:", err);
+      }
+    },
+    [refreshData]
+  );
+
   const handleSaveCollectionOptimistic = React.useCallback(
     async (
       folderId: string,
@@ -1174,6 +1203,34 @@ export function MarklyWorkspace({
         onMoveFolder={handleMoveFolderOptimistic}
       />
 
+      {/* Copy Folder Modal for Folder Page Panel & Collections */}
+      <CopyFolderModal
+        folder={panelCopyFolder}
+        isOpen={Boolean(panelCopyFolder)}
+        onClose={() => setPanelCopyFolder(null)}
+        folders={folders}
+        folderTree={folderTree}
+        onCopyFolder={handleCopyFolder}
+      />
+
+      {/* Universal Notion-Style Site Peek / Preview Modal */}
+      <SitePreviewModal
+        bookmark={sitePreviewBookmark}
+        folders={folders}
+        open={Boolean(sitePreviewBookmark)}
+        onOpenChange={(open) => !open && setSitePreviewBookmark(null)}
+        onRecordVisit={handleBookmarkVisit}
+        onToggleFavorite={handleToggleFavoriteOptimistic}
+        onToggleArchive={handleToggleArchiveOptimistic}
+        onEditBookmark={(bm) => setEditingBookmark(bm)}
+        onDeleteBookmark={handleDeleteBookmarkOptimistic}
+        onMoveBookmark={(bmId, fId) => handleMoveBookmarkOptimistic(bmId, fId)}
+        onUpdateBookmark={(updated) => {
+          setBookmarks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+          setSitePreviewBookmark(updated);
+        }}
+      />
+
       {/* Sidebar with recursive folder tree & drag-and-drop */}
       <Sidebar
         folderTree={folderTree}
@@ -1394,6 +1451,7 @@ export function MarklyWorkspace({
               onToggleArchive={handleToggleArchiveOptimistic}
               onRefreshData={refreshData}
               onDeleteBookmark={handleDeleteBookmarkOptimistic}
+              onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
             />
           ) : activeView === "collections" && !activeFolderId ? (
             /* Dedicated Folder Collections Directory */
@@ -1423,6 +1481,7 @@ export function MarklyWorkspace({
               onRenameFolder={handleRenameFolderOptimistic}
               onCustomizeFolder={(f) => setPanelCustomizeFolder(f)}
               onMoveFolder={(f) => setPanelMoveFolder(f)}
+              onCopyFolder={(f) => setPanelCopyFolder(f)}
               onDeleteFolder={(f) => setPanelDeleteFolder(f)}
               onSaveCollection={handleSaveCollectionOptimistic}
               unsortedCount={bookmarks.filter((b) => !b.isArchived && !b.folderId).length}
@@ -1501,6 +1560,7 @@ export function MarklyWorkspace({
                     onRenameFolder={handleRenameFolderOptimistic}
                     onCustomizeFolder={(folder) => setPanelCustomizeFolder(folder)}
                     onMoveFolder={(folder) => setPanelMoveFolder(folder)}
+                    onCopyFolder={(folder) => setPanelCopyFolder(folder)}
                     onDeleteFolder={(folder) => setPanelDeleteFolder(folder)}
                     onAddBookmarkToFolder={(fId) => openAddModal(fId)}
                   />
@@ -1690,6 +1750,7 @@ export function MarklyWorkspace({
                 onToggleFavorite={handleToggleFavoriteOptimistic}
                 onToggleArchive={handleToggleArchiveOptimistic}
                 onMoveBookmark={handleMoveBookmarkOptimistic}
+                onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
                 controlledViewMode={folderViewMode}
                 onControlledViewModeChange={setFolderViewMode}
               />

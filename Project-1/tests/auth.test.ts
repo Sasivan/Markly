@@ -38,6 +38,10 @@ import * as BookmarkVisitRoute from "../app/api/bookmarks/[id]/visit/route";
 import * as BookmarkBulkRoute from "../app/api/bookmarks/bulk/route";
 import * as FoldersRoute from "../app/api/folders/route";
 import * as FolderItemRoute from "../app/api/folders/[id]/route";
+import * as FolderCopyRoute from "../app/api/folders/[id]/copy/route";
+import * as BookmarkCopyRoute from "../app/api/bookmarks/[id]/copy/route";
+import * as BookmarkBulkCopyRoute from "../app/api/bookmarks/bulk-copy/route";
+import * as BookmarkAiSummaryRoute from "../app/api/bookmarks/[id]/ai-summary/route";
 import * as FolderReorderRoute from "../app/api/folders/reorder/route";
 import * as RecycleBinRoute from "../app/api/recycle-bin/route";
 import * as RecycleBinItemRoute from "../app/api/recycle-bin/[id]/route";
@@ -139,6 +143,40 @@ describe("Phase 10 Security Hardening Tests", () => {
       const res = await FolderItemRoute.GET(new Request("http://localhost/api/folders/fld_1"), {
         params: Promise.resolve({ id: "fld_1" }),
       });
+      expect(res.status).toBe(401);
+    });
+
+    it("POST /api/folders/[id]/copy returns 401 without session", async () => {
+      const res = await FolderCopyRoute.POST(
+        new Request("http://localhost/api/folders/fld_1/copy", { method: "POST" }),
+        { params: Promise.resolve({ id: "fld_1" }) }
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it("POST /api/bookmarks/[id]/copy returns 401 without session", async () => {
+      const res = await BookmarkCopyRoute.POST(
+        new Request("http://localhost/api/bookmarks/bm_1/copy", { method: "POST" }),
+        { params: Promise.resolve({ id: "bm_1" }) }
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it("POST /api/bookmarks/bulk-copy returns 401 without session", async () => {
+      const res = await BookmarkBulkCopyRoute.POST(
+        new Request("http://localhost/api/bookmarks/bulk-copy", {
+          method: "POST",
+          body: JSON.stringify({ ids: ["bm_1"] }),
+        })
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it("POST /api/bookmarks/[id]/ai-summary returns 401 without session", async () => {
+      const res = await BookmarkAiSummaryRoute.POST(
+        new Request("http://localhost/api/bookmarks/bm_1/ai-summary", { method: "POST" }),
+        { params: Promise.resolve({ id: "bm_1" }) }
+      );
       expect(res.status).toBe(401);
     });
 

@@ -58,7 +58,7 @@ function getExpirationInfo(deletedAt: number, currentRetention: number) {
   const remainingHours = Math.max(1, Math.ceil(remainingMs / (1000 * 60 * 60)));
   const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
 
-  if (remainingDays <= 1) {
+  if (currentRetention === 1 || remainingDays <= 1) {
     return {
       label: `Expires in ${remainingHours}h`,
       isExpiringSoon: true,
@@ -293,7 +293,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
           </div>
 
           {/* Retention Options & Empty Actions */}
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
             {/* Retention Selector */}
             <div className="flex items-center gap-1.5 p-1 rounded-xl bg-card dark:bg-[#1a1a1a] border border-border text-xs shadow-2xs">
               <span className="text-[11px] font-medium text-muted-foreground px-2 flex items-center gap-1">

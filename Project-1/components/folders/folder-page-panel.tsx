@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Check,
   X,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -34,6 +35,7 @@ interface FolderPagePanelProps {
   onRenameFolder: (folderId: string, newName: string) => void;
   onCustomizeFolder: (folder: FolderType) => void;
   onMoveFolder: (folder: FolderType) => void;
+  onCopyFolder?: (folder: FolderType) => void;
   onDeleteFolder: (folder: FolderType) => void;
   onAddBookmarkToFolder?: (folderId: string) => void;
 }
@@ -53,6 +55,7 @@ export function FolderPagePanel({
   onRenameFolder,
   onCustomizeFolder,
   onMoveFolder,
+  onCopyFolder,
   onDeleteFolder,
   onAddBookmarkToFolder,
 }: FolderPagePanelProps) {
@@ -294,6 +297,20 @@ export function FolderPagePanel({
             <FolderInput className="h-3.5 w-3.5 text-amber-500" />
             <span>Move</span>
           </Button>
+
+          {/* Copy Folder Button */}
+          {onCopyFolder && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onCopyFolder(currentFolder)}
+              className="h-8 px-2.5 text-xs font-semibold gap-1.5 cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200 shadow-2xs"
+              title="Copy this folder and its contents to another project folder"
+            >
+              <Copy className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Copy</span>
+            </Button>
+          )}
 
           {/* Customize Icon & Color Button */}
           <Button

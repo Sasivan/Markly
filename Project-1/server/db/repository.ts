@@ -623,6 +623,172 @@ export class BookmarkRepository {
   }
 
   /**
+   * Deep copy a folder and all its descendant subfolders and bookmarks into targetParentId (or root if null)
+   */
+  static async copyFolder(
+    folderId: string,
+    targetParentId: string | null,
+    userId: string,
+    customName?: string
+  ): Promise<Folder> {
+    const sourceFolder = this.getFolderById(folderId, userId);
+    if (!sourceFolder) {
+      throw new Error("Source folder not found or unauthorized");
+    }
+
+    // If targetParentId provided, ensure target exists, belongs to user, and is NOT inside source's descendant tree
+    if (targetParentId) {
+      const targetFolder = this.getFolderById(targetParentId, userId);
+      if (!targetFolder) {
+        throw new Error("Target destination folder not found");
+      }
+      const descendantIds = this.getDescendantFolderIds(folderId, userId);
+      if (targetParentId === folderId || descendantIds.includes(targetParentId)) {
+        throw new Error("Cannot copy a folder inside itself or one of its subfolders");
+      }
+    }
+
+    // Determine copy name
+    let newName = customName?.trim();
+    if (!newName) {
+      if (sourceFolder.parentId === targetParentId) {
+        newName = `${sourceFolder.name} (Copy)`;
+      } else {
+        newName = sourceFolder.name;
+      }
+    }
+
+    // 1. Create root copy folder
+    const copiedFolder = this.createFolder({
+      name: newName,
+      parentId: targetParentId,
+      icon: sourceFolder.icon,
+      color: sourceFolder.color,
+      userId,
+    });
+
+    // Helper: copy all bookmarks directly in srcFolderId to destFolderId
+    const copyDirectBookmarks = (srcFolderId: string, destFolderId: string) => {
+      const rawBms = sqlite
+        .prepare(`SELECT id FROM bookmarks WHERE folder_id = ? AND user_id = ? AND is_archived = 0`)
+        .all(srcFolderId, userId) as { id: string }[];
+
+      for (const row of rawBms) {
+        const fullBm = this.getBookmarkById(row.id, userId);
+        if (!fullBm) continue;
+        this.createBookmark({
+          userId,
+          folderId: destFolderId,
+          url: fullBm.url,
+          title: fullBm.title,
+          description: fullBm.description || undefined,
+          iconUrl: fullBm.iconUrl || undefined,
+          imageUrl: fullBm.imageUrl || undefined,
+          domain: fullBm.domain,
+          isFavorite: fullBm.isFavorite,
+          status: fullBm.status,
+          tagNames: fullBm.tags.map((t) => t.name),
+        });
+      }
+    };
+
+    // Helper: recursively copy subfolder hierarchy
+    const copySubfoldersRecursive = (srcParentId: string, destParentId: string) => {
+      const children = sqlite
+        .prepare(`SELECT * FROM folders WHERE parent_id = ? AND user_id = ? ORDER BY position ASC, created_at ASC`)
+        .all(srcParentId, userId) as Folder[];
+
+      for (const child of children) {
+        const childCopy = this.createFolder({
+          name: child.name,
+          parentId: destParentId,
+          icon: child.icon,
+          color: child.color,
+          userId,
+        });
+        copyDirectBookmarks(child.id, childCopy.id);
+        copySubfoldersRecursive(child.id, childCopy.id);
+      }
+    };
+
+    // Copy direct bookmarks in root folder
+    copyDirectBookmarks(sourceFolder.id, copiedFolder.id);
+
+    // Recursively copy subfolder hierarchy
+    copySubfoldersRecursive(sourceFolder.id, copiedFolder.id);
+
+    SupabaseManager.invalidateUserSyncCache(userId);
+    return copiedFolder;
+  }
+
+  /**
+   * Copy a bookmark to a target folder
+   */
+  static copyBookmark(
+    bookmarkId: string,
+    targetFolderId: string | null,
+    userId: string
+  ): BookmarkWithDetails {
+    const sourceBm = this.getBookmarkById(bookmarkId, userId);
+    if (!sourceBm) {
+      throw new Error("Bookmark not found or unauthorized");
+    }
+
+    if (targetFolderId) {
+      const targetFolder = this.getFolderById(targetFolderId, userId);
+      if (!targetFolder) {
+        throw new Error("Target folder not found");
+      }
+    }
+
+    const created = this.createBookmark({
+      userId,
+      folderId: targetFolderId,
+      url: sourceBm.url,
+      title: sourceBm.title,
+      description: sourceBm.description || undefined,
+      iconUrl: sourceBm.iconUrl || undefined,
+      imageUrl: sourceBm.imageUrl || undefined,
+      domain: sourceBm.domain,
+      isFavorite: sourceBm.isFavorite,
+      status: sourceBm.status,
+      tagNames: sourceBm.tags.map((t) => t.name),
+    });
+
+    SupabaseManager.invalidateUserSyncCache(userId);
+    return created;
+  }
+
+  /**
+   * Bulk copy bookmarks to a target folder
+   */
+  static bulkCopyBookmarks(
+    bookmarkIds: string[],
+    targetFolderId: string | null,
+    userId: string
+  ): { copiedCount: number } {
+    if (targetFolderId) {
+      const targetFolder = this.getFolderById(targetFolderId, userId);
+      if (!targetFolder) {
+        throw new Error("Target folder not found");
+      }
+    }
+
+    let copiedCount = 0;
+    for (const id of bookmarkIds) {
+      try {
+        this.copyBookmark(id, targetFolderId, userId);
+        copiedCount++;
+      } catch (e) {
+        console.warn(`Failed to copy bookmark ${id}:`, e);
+      }
+    }
+
+    SupabaseManager.invalidateUserSyncCache(userId);
+    return { copiedCount };
+  }
+
+  /**
    * Delete folder with user ownership check
    */
   static async deleteFolder(
@@ -953,7 +1119,7 @@ export class BookmarkRepository {
    */
   static createBookmark(data: {
     url: string;
-    canonicalUrl: string;
+    canonicalUrl?: string;
     title: string;
     description?: string;
     iconUrl?: string;
@@ -972,6 +1138,16 @@ export class BookmarkRepository {
     const now = Date.now();
 
     let canonicalUrl = data.canonicalUrl;
+    if (!canonicalUrl && data.url) {
+      try {
+        const u = new URL(data.url);
+        canonicalUrl = `${u.origin}${u.pathname}`.replace(/\/$/, "");
+      } catch {
+        canonicalUrl = data.url;
+      }
+    }
+    canonicalUrl = canonicalUrl || data.url;
+
     const existing = db.select({ id: bookmarks.id }).from(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.canonicalUrl, canonicalUrl))).get();
     if (existing) {
       canonicalUrl = `${canonicalUrl}#copy_${Date.now().toString(36)}`;

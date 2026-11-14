@@ -18,6 +18,7 @@ interface FolderTreeNodeProps {
   onDuplicate: (folderId: string) => void;
   onDelete: (node: FolderTreeNode) => void;
   onMove?: (node: FolderTreeNode) => void;
+  onCopy?: (node: FolderTreeNode) => void;
   onDropFolder: (draggedFolderId: string, targetFolderId: string, position: "inside" | "before" | "after") => void;
 }
 
@@ -34,6 +35,7 @@ export function FolderTreeNodeComponent({
   onDuplicate,
   onDelete,
   onMove,
+  onCopy,
   onDropFolder,
 }: FolderTreeNodeProps) {
   const [expanded, setExpanded] = React.useState(true);
@@ -298,6 +300,20 @@ export function FolderTreeNodeComponent({
                   <span>Move Folder</span>
                 </button>
 
+                {onCopy && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onCopy(node);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-800 dark:text-neutral-200 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium text-left cursor-pointer transition-colors"
+                  >
+                    <Copy className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                    <span>Copy to...</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -360,6 +376,7 @@ export function FolderTreeNodeComponent({
               onDuplicate={onDuplicate}
               onDelete={onDelete}
               onMove={onMove}
+              onCopy={onCopy}
               onDropFolder={onDropFolder}
             />
           ))}

@@ -63,6 +63,7 @@ interface BookmarkTableProps {
   onToggleFavorite?: (bookmark: BookmarkWithDetails) => void;
   onToggleArchive?: (bookmark: BookmarkWithDetails) => void;
   onMoveBookmark?: (bookmarkId: string, folderId: string | null) => void;
+  onOpenPreview?: (bm: BookmarkWithDetails) => void;
   controlledViewMode?: "table" | "board" | "cards" | "list" | "compact";
   onControlledViewModeChange?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
 }
@@ -83,6 +84,7 @@ export function BookmarkTable({
   onToggleFavorite,
   onToggleArchive,
   onMoveBookmark,
+  onOpenPreview,
   controlledViewMode,
   onControlledViewModeChange,
 }: BookmarkTableProps) {
@@ -492,22 +494,38 @@ export function BookmarkTable({
         cell: ({ row }) => {
           const bm = row.original;
           return (
-            <div className="flex items-center gap-2.5 max-w-md">
+            <div className="flex items-center gap-2.5 max-w-md group/title">
               <BookmarkIcon
                 src={bm.iconUrl}
                 alt={bm.title}
                 domain={bm.domain}
                 className="h-5 w-5 rounded object-contain bg-background flex-shrink-0 border border-border/40"
               />
-              <div className="truncate">
+              <div className="truncate flex items-center gap-1.5 min-w-0">
+                <span
+                  onClick={(e) => {
+                    if (onOpenPreview) {
+                      e.stopPropagation();
+                      onOpenPreview(bm);
+                    }
+                  }}
+                  className="font-medium hover:underline text-foreground truncate block cursor-pointer"
+                  title="Click to preview site details"
+                >
+                  {bm.title}
+                </span>
                 <a
                   href={bm.url}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => recordVisit(bm)}
-                  className="font-medium hover:underline text-foreground truncate block"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    recordVisit(bm);
+                  }}
+                  className="text-muted-foreground hover:text-blue-500 opacity-0 group-hover/title:opacity-100 transition-opacity flex-shrink-0"
+                  title="Open site in new tab"
                 >
-                  {bm.title}
+                  <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>
@@ -924,8 +942,10 @@ export function BookmarkTable({
                   table.getRowModel().rows.map((row) => (
                     <tr
                       key={row.id}
-                      className={`hover:bg-muted/20 transition-colors group ${row.getIsSelected() ? "bg-primary/5" : ""
-                        }`}
+                      onClick={() => onOpenPreview?.(row.original)}
+                      className={`hover:bg-muted/30 transition-colors group cursor-pointer ${
+                        row.getIsSelected() ? "bg-primary/5" : ""
+                      }`}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="py-2.5 px-3">
@@ -968,7 +988,8 @@ export function BookmarkTable({
                   col.bookmarks.map((bm) => (
                     <div
                       key={bm.id}
-                      className="group p-2.5 rounded-lg border border-border/80 bg-background hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs space-y-1.5"
+                      onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
+                      className="group p-2.5 rounded-lg border border-border/80 bg-background hover:border-slate-300 dark:hover:border-neutral-700 hover:shadow-xs transition-all text-xs space-y-1.5 cursor-pointer"
                     >
                       <div className="flex items-start justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -978,15 +999,11 @@ export function BookmarkTable({
                             alt={bm.title}
                             className="h-4 w-4 rounded object-contain flex-shrink-0"
                           />
-                          <a
-                            href={bm.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => recordVisit(bm)}
-                            className="font-semibold text-xs text-foreground truncate hover:underline"
+                          <span
+                            className="font-semibold text-xs text-foreground truncate hover:underline cursor-pointer"
                           >
                             {bm.title}
-                          </a>
+                          </span>
                         </div>
                         <button
                           type="button"
@@ -1070,7 +1087,8 @@ export function BookmarkTable({
           {filteredData.map((bm) => (
             <div
               key={bm.id}
-              className="rounded-xl border border-border bg-card p-3.5 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group"
+              onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
+              className="rounded-xl border border-border bg-card p-3.5 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between group cursor-pointer"
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
@@ -1100,15 +1118,26 @@ export function BookmarkTable({
                   </button>
                 </div>
 
-                <a
-                  href={bm.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => recordVisit(bm)}
-                  className="font-semibold text-sm hover:underline text-foreground block line-clamp-1"
-                >
-                  {bm.title}
-                </a>
+                <div className="flex items-center justify-between gap-2">
+                  <span
+                    className="font-semibold text-sm hover:underline text-foreground block line-clamp-1 truncate cursor-pointer"
+                  >
+                    {bm.title}
+                  </span>
+                  <a
+                    href={bm.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      recordVisit(bm);
+                    }}
+                    className="text-muted-foreground hover:text-blue-500 p-0.5"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
 
                 {bm.description && (
                   <p className="text-xs text-muted-foreground line-clamp-2">{bm.description}</p>
@@ -1181,12 +1210,16 @@ export function BookmarkTable({
           {filteredData.map((bm) => (
             <div
               key={bm.id}
-              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/20 text-xs group transition-colors"
+              onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
+              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
                 <button
                   type="button"
-                  onClick={() => handleToggleFavorite(bm)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleFavorite(bm);
+                  }}
                   className="cursor-pointer flex-shrink-0"
                 >
                   <Star className={`h-4 w-4 ${bm.isFavorite ? "text-amber-500 fill-amber-500" : "text-muted-foreground/25 group-hover:text-muted-foreground"}`} />
@@ -1199,15 +1232,11 @@ export function BookmarkTable({
                   className="h-4.5 w-4.5 rounded object-contain flex-shrink-0"
                 />
 
-                <a
-                  href={bm.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => recordVisit(bm)}
-                  className="font-semibold text-xs text-foreground hover:underline truncate"
+                <span
+                  className="font-semibold text-xs text-foreground hover:underline truncate cursor-pointer"
                 >
                   {bm.title}
-                </a>
+                </span>
 
                 <span className="text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40 font-mono hidden md:inline truncate">
                   {bm.domain}
@@ -1228,7 +1257,10 @@ export function BookmarkTable({
                 )}
               </div>
 
-              <div className="flex items-center gap-3 text-muted-foreground text-[11px] flex-shrink-0">
+              <div
+                className="flex items-center gap-3 text-muted-foreground text-[11px] flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <span className="inline-flex items-center gap-1 font-medium text-slate-600 dark:text-neutral-400">
                   <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3.5 w-3.5" />
                   <span className="truncate max-w-[110px] hidden sm:inline">{getParentFolderInfo(bm).name}</span>
@@ -1282,12 +1314,16 @@ export function BookmarkTable({
           {filteredData.map((bm) => (
             <div
               key={bm.id}
-              className="flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors"
+              onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
+              className="flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-2 truncate min-w-0 flex-1">
                 <button
                   type="button"
-                  onClick={() => handleToggleFavorite(bm)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleFavorite(bm);
+                  }}
                   className="cursor-pointer flex-shrink-0"
                 >
                   <Star className={`h-3 w-3 ${bm.isFavorite ? "text-amber-500 fill-amber-500" : "text-muted-foreground/20 group-hover:text-muted-foreground"}`} />
@@ -1300,22 +1336,21 @@ export function BookmarkTable({
                   className="h-3.5 w-3.5 rounded object-contain flex-shrink-0"
                 />
 
-                <a
-                  href={bm.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => recordVisit(bm)}
-                  className="font-medium hover:underline text-foreground truncate max-w-sm sm:max-w-md"
+                <span
+                  className="font-medium hover:underline text-foreground truncate max-w-sm sm:max-w-md cursor-pointer"
                 >
                   {bm.title}
-                </a>
+                </span>
 
                 <span className="text-[10px] text-muted-foreground font-mono truncate hidden md:inline">
                   {bm.domain}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 text-muted-foreground text-[10px] flex-shrink-0">
+              <div
+                className="flex items-center gap-2 text-muted-foreground text-[10px] flex-shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <span className="hidden sm:inline-flex items-center gap-1">
                   <FolderIconRenderer icon={getParentFolderInfo(bm).icon} color={getParentFolderInfo(bm).color} className="h-3 w-3" />
                   <span className="truncate max-w-[90px]">{getParentFolderInfo(bm).name}</span>

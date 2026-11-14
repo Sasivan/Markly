@@ -17,6 +17,7 @@ import {
   Folder as FolderIcon,
   FolderInput,
   Plus,
+  Copy,
   Trash2,
   ShieldCheck,
   Check,
@@ -41,6 +42,7 @@ interface EditCollectionModalProps {
     }
   ) => Promise<void> | void;
   onNewSubfolder?: (parentId: string) => void;
+  onCopyFolder?: (folder: Folder) => void;
   onDeleteFolder?: (folder: Folder) => void;
 }
 
@@ -71,6 +73,7 @@ export function EditCollectionModal({
   onOpenChange,
   onSave,
   onNewSubfolder,
+  onCopyFolder,
   onDeleteFolder,
 }: EditCollectionModalProps) {
   const [name, setName] = React.useState("");
@@ -263,6 +266,22 @@ export function EditCollectionModal({
                 >
                   <Plus className="h-3 w-3 text-indigo-500" />
                   <span>Add Subfolder</span>
+                </Button>
+              )}
+
+              {onCopyFolder && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onCopyFolder(folder);
+                  }}
+                  className="text-xs h-7 px-2.5 cursor-pointer text-slate-700 dark:text-neutral-300 gap-1"
+                >
+                  <Copy className="h-3 w-3 text-indigo-500" />
+                  <span>Copy</span>
                 </Button>
               )}
 

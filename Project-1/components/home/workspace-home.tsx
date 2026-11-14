@@ -48,6 +48,7 @@ interface WorkspaceHomeProps {
   onRecordVisit?: (bm: BookmarkWithDetails) => void;
   onDeleteBookmark?: (id: string, title?: string) => void;
   onToggleArchive?: (bm: BookmarkWithDetails) => void;
+  onOpenPreview?: (bm: BookmarkWithDetails) => void;
 }
 
 export function WorkspaceHome({
@@ -65,6 +66,7 @@ export function WorkspaceHome({
   onRecordVisit,
   onDeleteBookmark,
   onToggleArchive,
+  onOpenPreview,
 }: WorkspaceHomeProps) {
   const { user } = useAuth();
   // Realtime visit handler
@@ -509,7 +511,8 @@ export function WorkspaceHome({
           {quickAccessList.map((bm) => (
             <div
               key={bm.id}
-              className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs hover:border-blue-400 dark:hover:border-blue-700 transition-colors flex items-center justify-between gap-3 group"
+              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+              className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#1a1a1a] p-3 shadow-xs hover:border-blue-400 dark:hover:border-blue-700 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
             >
               <div className="flex items-center gap-2.5 truncate min-w-0">
                 <BookmarkIcon
@@ -519,15 +522,11 @@ export function WorkspaceHome({
                   className="h-6 w-6 rounded object-contain bg-background flex-shrink-0 border border-border/40"
                 />
                 <div className="truncate">
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => handleSiteVisit(bm)}
-                    className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                  <span
+                    className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block cursor-pointer"
                   >
                     {bm.title}
-                  </a>
+                  </span>
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                     <span className="truncate max-w-[110px]">{bm.domain}</span>
                     <span>•</span>
@@ -536,7 +535,7 @@ export function WorkspaceHome({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 {onToggleArchive && (
                   <button
                     type="button"
@@ -622,7 +621,11 @@ export function WorkspaceHome({
               {recentlyVisited.map((bm) => {
                 const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
                 return (
-                  <div key={bm.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors">
+                  <div
+                    key={bm.id}
+                    onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+                    className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer group"
+                  >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <BookmarkIcon
                         src={bm.iconUrl}
@@ -631,15 +634,11 @@ export function WorkspaceHome({
                         className="h-5 w-5 rounded object-contain flex-shrink-0"
                       />
                       <div className="truncate">
-                        <a
-                          href={bm.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={() => handleSiteVisit(bm)}
-                          className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                        <span
+                          className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block cursor-pointer"
                         >
                           {bm.title}
-                        </a>
+                        </span>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                           <span className="font-mono text-indigo-600 dark:text-indigo-400 font-medium">
                             {lastTime ? `Visited ${formatTimeAgo(lastTime)}` : "Not visited yet"}
@@ -650,7 +649,7 @@ export function WorkspaceHome({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       {onDeleteBookmark && (
                         <button
                           type="button"
@@ -716,7 +715,11 @@ export function WorkspaceHome({
               </div>
             ) : (
               favorites.map((bm) => (
-                <div key={bm.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors">
+                <div
+                  key={bm.id}
+                  onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+                  className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer group"
+                >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <BookmarkIcon
                       src={bm.iconUrl}
@@ -725,15 +728,11 @@ export function WorkspaceHome({
                       className="h-5 w-5 rounded object-contain flex-shrink-0"
                     />
                     <div className="truncate">
-                      <a
-                        href={bm.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => handleSiteVisit(bm)}
-                        className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block"
+                      <span
+                        className="text-xs font-semibold hover:underline text-slate-900 dark:text-white truncate block cursor-pointer"
                       >
                         {bm.title}
-                      </a>
+                      </span>
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                         <span className="truncate max-w-[110px]">{bm.domain}</span>
                         <span>•</span>
@@ -742,7 +741,7 @@ export function WorkspaceHome({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                     {onToggleArchive && (
                       <button
                         type="button"
@@ -808,9 +807,9 @@ export function WorkspaceHome({
             {unorganized.map((bm) => (
               <div
                 key={bm.id}
-                onClick={() => onEditBookmark?.(bm)}
+                onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
                 className="rounded-xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#1a1a1a] p-3.5 shadow-xs flex flex-col justify-between gap-3 cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 transition-all hover:shadow-sm group"
-                title="Click to organize folder & tags"
+                title="Click to view details and preview"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
@@ -994,8 +993,12 @@ export function WorkspaceHome({
                     }}
                     onMouseLeave={() => setHoveredSpot(null)}
                     onClick={() => {
-                      handleSiteVisit(dot.bookmark);
-                      window.open(dot.bookmark.url, "_blank");
+                      if (onOpenPreview) {
+                        onOpenPreview(dot.bookmark);
+                      } else {
+                        handleSiteVisit(dot.bookmark);
+                        window.open(dot.bookmark.url, "_blank");
+                      }
                     }}
                   >
                     {isHovered && (

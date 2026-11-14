@@ -35,6 +35,7 @@ import { DeleteFolderModal } from "./delete-folder-modal";
 import { FolderCustomizeModal } from "./folder-customize-modal";
 import { AddFolderModal } from "./add-folder-modal";
 import { MoveFolderModal } from "./move-folder-modal";
+import { CopyFolderModal } from "./copy-folder-modal";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { Folder as FolderType, FolderTreeNode } from "@/server/db/schema";
 
@@ -137,6 +138,7 @@ export function Sidebar({
   const [customizeFolder, setCustomizeFolder] = React.useState<FolderType | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<FolderType | null>(null);
   const [moveTarget, setMoveTarget] = React.useState<FolderTreeNode | null>(null);
+  const [copyTarget, setCopyTarget] = React.useState<FolderTreeNode | null>(null);
   const [isRootDragOver, setIsRootDragOver] = React.useState(false);
 
   // Custom avatar live listener
@@ -340,6 +342,23 @@ export function Sidebar({
 
   const handleMoveFolder = async (folderId: string, newParentId: string | null) => {
     await handleDropFolder(folderId, newParentId || "root", newParentId ? "inside" : "root");
+  };
+
+  const handleCopyFolder = async (folderId: string, targetParentId: string | null, customName?: string) => {
+    try {
+      const res = await fetch(`/api/folders/${folderId}/copy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetParentId, name: customName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onRefreshData();
+        setCopyTarget(null);
+      }
+    } catch (err) {
+      console.error("Failed to copy folder:", err);
+    }
   };
 
   const handleRootDragOver = (e: React.DragEvent) => {
@@ -616,6 +635,16 @@ export function Sidebar({
         folders={folders}
         folderTree={folderTree}
         onMoveFolder={handleMoveFolder}
+      />
+
+      {/* Copy Folder Dialog */}
+      <CopyFolderModal
+        folder={copyTarget}
+        isOpen={Boolean(copyTarget)}
+        onClose={() => setCopyTarget(null)}
+        folders={folders}
+        folderTree={folderTree}
+        onCopyFolder={handleCopyFolder}
       />
 
       {/* Sidebar Container */}
@@ -939,6 +968,7 @@ export function Sidebar({
                   onDuplicate={handleDuplicateFolder}
                   onDelete={setDeleteTarget}
                   onMove={setMoveTarget}
+                  onCopy={setCopyTarget}
                   onDropFolder={handleDropFolder}
                 />
               ))}

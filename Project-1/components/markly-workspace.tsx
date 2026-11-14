@@ -118,7 +118,8 @@ export function MarklyWorkspace({
   initialFolderId = null,
   initialSidebarCollapsed = false,
 }: MarklyWorkspaceProps) {
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
+  const [guestBannerDismissed, setGuestBannerDismissed] = React.useState(false);
   const [folderTree, setFolderTree] = React.useState<FolderTreeNode[]>(initialFolderTree);
   const [folders, setFolders] = React.useState<FolderType[]>(initialFolders);
   const [bookmarks, setBookmarks] = React.useState<BookmarkWithDetails[]>(initialBookmarks);
@@ -454,10 +455,6 @@ export function MarklyWorkspace({
     return list;
   }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, recentBoundary]);
 
-  const getEffectiveUserId = React.useCallback(() => {
-    return user?.id || null;
-  }, [user?.id]);
-
   // Safety check: if activeFolderId points to a folder that does not exist in folders list, reset it!
   React.useEffect(() => {
     if (activeFolderId && folders.length > 0 && !folders.some((f) => f.id === activeFolderId)) {
@@ -468,6 +465,7 @@ export function MarklyWorkspace({
 
   // Refresh data function: single unified bootstrap request for 0ms atomic state hydration
   const refreshData = React.useCallback(async () => {
+    if (!user) return; // Do not fetch from server in guest mode
     try {
       const res = await fetch("/api/workspace/bootstrap");
       const data = await res.json();
@@ -481,11 +479,45 @@ export function MarklyWorkspace({
     } catch (e) {
       console.error("Failed to refresh workspace bootstrap:", e);
     }
-  }, []);
+  }, [user]);
+
+  // Sync guest bookmarks to cloud upon login
+  const prevUserRef = React.useRef(user);
+  React.useEffect(() => {
+    if (!prevUserRef.current && user) {
+      const guestBookmarks = bookmarks.filter((b) => b.id.startsWith("bm_guest_"));
+      if (guestBookmarks.length > 0) {
+        Promise.all(
+          guestBookmarks.map((gb) =>
+            fetch("/api/bookmarks", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                url: gb.url,
+                title: gb.title,
+                description: gb.description,
+                folderId: gb.folderId && !gb.folderId.startsWith("fld_guest_") ? gb.folderId : null,
+                isFavorite: gb.isFavorite,
+                isArchived: gb.isArchived,
+                tagNames: gb.tags?.map((t) => t.name) || [],
+              }),
+            }).catch(() => {})
+          )
+        ).then(() => {
+          refreshData();
+        });
+      } else {
+        refreshData();
+      }
+    }
+    prevUserRef.current = user;
+  }, [user, bookmarks, refreshData]);
 
   React.useEffect(() => {
-    refreshData();
-  }, [getEffectiveUserId, refreshData]);
+    if (user) {
+      refreshData();
+    }
+  }, [user, refreshData]);
 
   // Sync all open tabs & views on any CRUD operation
   React.useEffect(() => {
@@ -536,22 +568,24 @@ export function MarklyWorkspace({
       )
     );
 
+    if (!user) return; // Guest mode in-memory only
+
     // 2. Persist to SQLite and sync to Supabase in the background
     try {
       await fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true });
     } catch (err) {
       console.error("Visit recording error:", err);
     }
-  }, []);
+  }, [user]);
 
   // 0ms Optimistic Folder Operations for instant tree & UI updates
   const handleCreateFolderOptimistic = React.useCallback(
     async (name: string, icon: string, color: string, parentId?: string | null) => {
       const cleanParentId = (parentId === "null" || parentId === "" || !parentId) ? null : parentId;
-      const folderId = `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const folderId = user ? `fld_${Date.now()}_${Math.random().toString(36).substring(2, 7)}` : `fld_guest_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const optimisticFolder: FolderType = {
         id: folderId,
-        userId: user?.id || "",
+        userId: user?.id || "guest",
         parentId: cleanParentId,
         name: name.trim() || "New Folder",
         icon: icon || "📁",
@@ -570,7 +604,9 @@ export function MarklyWorkspace({
       setActiveFolderId(folderId);
       setActiveView("all");
 
-      // 2. Persist to SQLite in the background with the exact same ID
+      if (!user) return; // Guest mode in-memory only
+
+      // 2. Persist to API in the background with the exact same ID
       try {
         const res = await fetch("/api/folders", {
           method: "POST",
@@ -627,12 +663,11 @@ export function MarklyWorkspace({
         } catch {}
       }
 
-      // 3. Persist deletion to SQLite and Supabase in background
+      if (!user) return; // Guest mode in-memory only
+
+      // 3. Persist deletion in background
       try {
-        const effectiveId = getEffectiveUserId();
-        const q = new URLSearchParams({ mode: "delete_all" });
-        if (effectiveId) q.set("userId", effectiveId);
-        await fetch(`/api/folders/${folderId}?${q.toString()}`, { method: "DELETE" });
+        await fetch(`/api/folders/${folderId}?mode=delete_all`, { method: "DELETE" });
 
         // 4. Notify any open views that recycle bin was updated only AFTER server has committed deletion
         if (typeof window !== "undefined") {
@@ -644,7 +679,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [folders, bookmarks, activeFolderId, getEffectiveUserId, refreshData]
+    [folders, bookmarks, activeFolderId, user, refreshData]
   );
 
   const handleRenameFolderOptimistic = React.useCallback(
@@ -652,6 +687,8 @@ export function MarklyWorkspace({
       const updated = folders.map((f) => (f.id === folderId ? { ...f, name: newName, updatedAt: Date.now() } : f));
       setFolders(updated);
       setFolderTree(buildTreeFromFolders(updated, bookmarks));
+
+      if (!user) return; // Guest mode in-memory only
 
       try {
         await fetch(`/api/folders/${folderId}`, {
@@ -664,7 +701,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [folders, bookmarks, refreshData]
+    [folders, bookmarks, user, refreshData]
   );
 
   const handleCustomizeFolderOptimistic = React.useCallback(
@@ -674,6 +711,8 @@ export function MarklyWorkspace({
       );
       setFolders(updated);
       setFolderTree(buildTreeFromFolders(updated, bookmarks));
+
+      if (!user) return; // Guest mode in-memory only
 
       try {
         await fetch(`/api/folders/${folderId}`, {
@@ -686,7 +725,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [folders, bookmarks, refreshData]
+    [folders, bookmarks, user, refreshData]
   );
 
   const handleMoveFolderOptimistic = React.useCallback(
@@ -698,6 +737,8 @@ export function MarklyWorkspace({
       );
       setFolders(updated);
       setFolderTree(buildTreeFromFolders(updated, bookmarks));
+
+      if (!user) return; // Guest mode in-memory only
 
       try {
         await fetch("/api/folders/reorder", {
@@ -718,7 +759,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [folders, bookmarks, user?.id, refreshData]
+    [folders, bookmarks, user, refreshData]
   );
 
   const handleSaveCollectionOptimistic = React.useCallback(
@@ -742,6 +783,8 @@ export function MarklyWorkspace({
       );
       setFolders(updated);
       setFolderTree(buildTreeFromFolders(updated, bookmarks));
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -777,13 +820,15 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [folders, bookmarks, refreshData]
+    [folders, bookmarks, user, refreshData]
   );
 
   const handleDeleteBookmarkOptimistic = React.useCallback(
     async (id: string) => {
       // 1. Immediately drop from state in 0ms (instantly removes from Quick Access, Recently Visited, and Table)
       setBookmarks((prev) => prev.filter((b) => b.id !== id));
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Await delete on server first
       try {
@@ -799,7 +844,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleToggleFavoriteOptimistic = React.useCallback(
@@ -809,6 +854,8 @@ export function MarklyWorkspace({
       setBookmarks((prev) =>
         prev.map((b) => (b.id === bm.id ? { ...b, isFavorite: nextFav } : b))
       );
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -822,7 +869,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleToggleArchiveOptimistic = React.useCallback(
@@ -832,6 +879,8 @@ export function MarklyWorkspace({
       setBookmarks((prev) =>
         prev.map((b) => (b.id === bm.id ? { ...b, isArchived: nextArchive } : b))
       );
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -845,7 +894,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleMoveBookmarkOptimistic = React.useCallback(
@@ -854,6 +903,8 @@ export function MarklyWorkspace({
       setBookmarks((prev) =>
         prev.map((b) => (b.id === bookmarkId ? { ...b, folderId } : b))
       );
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -867,7 +918,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleBulkDeleteBookmarksOptimistic = React.useCallback(
@@ -875,6 +926,8 @@ export function MarklyWorkspace({
       const idSet = new Set(ids);
       // 1. Immediately drop from state in 0ms
       setBookmarks((prev) => prev.filter((b) => !idSet.has(b.id)));
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Await bulk delete on server first
       try {
@@ -893,7 +946,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleBulkMoveBookmarksOptimistic = React.useCallback(
@@ -903,6 +956,8 @@ export function MarklyWorkspace({
       setBookmarks((prev) =>
         prev.map((b) => (idSet.has(b.id) ? { ...b, folderId } : b))
       );
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -919,7 +974,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleBulkFavoriteBookmarksOptimistic = React.useCallback(
@@ -929,6 +984,8 @@ export function MarklyWorkspace({
       setBookmarks((prev) =>
         prev.map((b) => (idSet.has(b.id) ? { ...b, isFavorite } : b))
       );
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -945,7 +1002,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   const handleBulkArchiveBookmarksOptimistic = React.useCallback(
@@ -955,6 +1012,8 @@ export function MarklyWorkspace({
       setBookmarks((prev) =>
         prev.map((b) => (idSet.has(b.id) ? { ...b, isArchived } : b))
       );
+
+      if (!user) return; // Guest mode in-memory only
 
       // 2. Persist to API
       try {
@@ -971,7 +1030,7 @@ export function MarklyWorkspace({
         refreshData();
       }
     },
-    [refreshData]
+    [user, refreshData]
   );
 
   return (
@@ -1122,6 +1181,41 @@ export function MarklyWorkspace({
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
+        {!user && !guestBannerDismissed && (
+          <div className="bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-violet-600/10 border-b border-blue-500/20 px-4 py-2 flex items-center justify-between text-xs text-slate-700 dark:text-neutral-300 flex-shrink-0 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>
+                <strong>Guest Mode (In-Memory):</strong> Links and folders saved now are stored temporarily in your browser. Sign in or create an account to sync across devices permanently.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openAuthModal("signup")}
+                className="px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs transition-colors cursor-pointer"
+              >
+                Create Free Account
+              </button>
+              <button
+                type="button"
+                onClick={() => openAuthModal("login")}
+                className="px-2.5 py-1 rounded-md border border-slate-300 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 font-medium transition-colors cursor-pointer"
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuestBannerDismissed(true)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors cursor-pointer ml-1"
+                title="Dismiss guest banner"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Top Header without search bar (available in left panel) */}
         <AppHeader
           isSidebarCollapsed={sidebarCollapsed}

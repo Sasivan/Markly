@@ -11,7 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const { id } = await params;
 
     const result = await BookmarkRepository.restoreRecycleBinItem(id, user.id);
@@ -38,7 +38,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const { id } = await params;
 
     const deleted = await BookmarkRepository.permanentlyDeleteRecycleBinItem(id, user.id);

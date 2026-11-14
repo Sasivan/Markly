@@ -44,7 +44,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const body = await req.json();
     const { displayName, avatarUrl } = body;
 

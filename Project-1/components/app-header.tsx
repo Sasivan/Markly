@@ -11,6 +11,9 @@ import {
   User,
   LogOut,
   KeyRound,
+  ShieldAlert,
+  ChevronDown,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -42,8 +45,22 @@ export function AppHeader({
   activeView = "home",
   activeFolder,
 }: AppHeaderProps) {
-  const { user, signOut, openAuthModal } = useAuth();
+  const { user, signOut, signOutAllDevices, openAuthModal } = useAuth();
   const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    if (userMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [userMenuOpen]);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -136,12 +153,12 @@ export function AppHeader({
         {/* 5. Icon Mode (Theme Toggle) */}
         <ThemeToggle />
 
-        {/* 5. User Profile Avatar & Sign In */}
-        <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-neutral-700">
+        {/* 5. User Profile Avatar & Dropdown Menu */}
+        <div ref={userMenuRef} className="relative flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-neutral-700">
           <button
             type="button"
-            onClick={onOpenProfile}
-            title={user ? `View Profile & Settings (${user.email})` : "View Profile (Local Mode)"}
+            onClick={() => setUserMenuOpen((prev) => !prev)}
+            title={user ? `Account Menu (${user.email})` : "Account Menu (Guest Mode)"}
             className="flex items-center gap-2 p-0.5 pr-2 rounded-full border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-slate-50 dark:hover:bg-neutral-700/60 transition-all cursor-pointer shadow-2xs group"
           >
             <div className="relative flex-shrink-0">
@@ -162,6 +179,7 @@ export function AppHeader({
             <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-24 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {user ? (user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile") : "Profile"}
             </span>
+            <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-colors" />
           </button>
 
           {!user && (
@@ -175,6 +193,110 @@ export function AppHeader({
               <User className="h-3 w-3 text-blue-500" />
               <span>Sign In</span>
             </Button>
+          )}
+
+          {/* User Popover / Dropdown Menu */}
+          {userMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              {user ? (
+                <div className="space-y-1">
+                  <div className="px-2.5 py-2 border-b border-slate-100 dark:border-neutral-800 mb-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {user.user_metadata?.display_name || user.email?.split("@")[0] || "User"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                    <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      <CheckCircle2 className="h-3 w-3" />
+                      <span>Authenticated Session</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onOpenProfile?.();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-left"
+                  >
+                    <User className="h-4 w-4 text-blue-500" />
+                    <span>Account Profile & Settings</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onOpenApiKeyModal?.();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-left"
+                  >
+                    <KeyRound className="h-4 w-4 text-indigo-500" />
+                    <span>AI Settings & Gemini Key</span>
+                  </button>
+
+                  <div className="border-t border-slate-100 dark:border-neutral-800 my-1 pt-1" />
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setUserMenuOpen(false);
+                      await signOut();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors text-left"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out (This Device)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setUserMenuOpen(false);
+                      await signOutAllDevices();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer transition-colors text-left"
+                    title="Revokes session tokens on all devices"
+                  >
+                    <ShieldAlert className="h-4 w-4" />
+                    <span>Sign Out All Devices</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="px-2.5 py-2 border-b border-slate-100 dark:border-neutral-800 mb-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">Guest Session</p>
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                      Temporary in-memory browsing
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      openAuthModal("login");
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer transition-colors text-left"
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Sign In to Your Account</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      openAuthModal("signup");
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-left"
+                  >
+                    <Sparkles className="h-4 w-4 text-violet-500" />
+                    <span>Create Free Account</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

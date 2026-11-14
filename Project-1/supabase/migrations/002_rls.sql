@@ -56,3 +56,4 @@ CREATE POLICY "Users can manage own bookmark_tags"
       AND b.user_id = auth.uid()::text
     )
   );
+

@@ -56,7 +56,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const body = await req.json();
     let rawUrl = (body.url || "").trim();
     if (!rawUrl || rawUrl === "https://" || rawUrl === "http://") {

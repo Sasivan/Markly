@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 // DELETE /api/recycle-bin - Empty entire recycle bin
 export async function DELETE(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
 
     await BookmarkRepository.emptyRecycleBin(user.id);
 
@@ -52,7 +52,7 @@ export async function DELETE(req: Request) {
 // PATCH /api/recycle-bin - Update retention days (1, 7, 15, 30)
 export async function PATCH(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const body = await req.json();
     const { retentionDays } = body;
 

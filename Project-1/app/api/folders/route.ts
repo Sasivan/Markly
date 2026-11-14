@@ -35,7 +35,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const body = await req.json();
     if (!body.name || typeof body.name !== "string") {
       return NextResponse.json({ success: false, error: "Folder name is required" }, { status: 400 });

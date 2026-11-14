@@ -16,6 +16,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, pass: string, username?: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   signInWithOAuth: (provider: "google" | "github") => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
+  signOutAllDevices: () => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -270,6 +271,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Sign Out All Devices (Global Scope Session Revocation)
+  const signOutAllDevices = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+      setUser(null);
+      setSession(null);
+    } catch (e) {
+      console.error("Sign out all devices error:", e);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -284,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUpWithEmail,
         signInWithOAuth,
         signOut,
+        signOutAllDevices,
       }}
     >
       {children}

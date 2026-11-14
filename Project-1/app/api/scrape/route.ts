@@ -27,7 +27,7 @@ const ScrapeSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
 
     // 1. Sliding Window Rate Limiting — scoped to session user ID (never trusts x-forwarded-for)
     const rateLimitKey = user.id ? `user:${user.id}` : (req.headers.get("x-real-ip") || "127.0.0.1");

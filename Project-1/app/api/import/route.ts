@@ -10,7 +10,7 @@ export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 

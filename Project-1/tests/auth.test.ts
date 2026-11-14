@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { BookmarkRepository } from "../server/db/repository";
 import { validateHostForSSRF } from "../server/scraper/ssrf";
 import { safeFetchHtml } from "../server/scraper/fetcher";
+import { validateCsrfOrigin } from "../server/auth/csrf";
 
 // Mock Supabase Server client for testing
 let mockUser: { id: string; email?: string } | null = null;
@@ -378,4 +379,77 @@ describe("Phase 10 Security Hardening Tests", () => {
       await expect(safeFetchHtml("http://169.254.169.254/latest/meta-data/")).rejects.toThrow(/SSRF Guard/);
     });
   });
+
+  describe("5. CSRF Defense for Mutating Routes", () => {
+    it("blocks cross-site Sec-Fetch-Site requests", () => {
+      const req = new Request("http://localhost:3000/api/bookmarks", {
+        method: "POST",
+        headers: { "sec-fetch-site": "cross-site" },
+      });
+      expect(validateCsrfOrigin(req)).toBe(false);
+    });
+
+    it("blocks untrusted Origin header mismatch", () => {
+      const req = new Request("http://localhost:3000/api/bookmarks", {
+        method: "POST",
+        headers: {
+          host: "markly.app",
+          origin: "https://evil-attacker.com",
+        },
+      });
+      expect(validateCsrfOrigin(req)).toBe(false);
+    });
+
+    it("allows matching Origin and Host", () => {
+      const req = new Request("https://markly.app/api/bookmarks", {
+        method: "POST",
+        headers: {
+          host: "markly.app",
+          origin: "https://markly.app",
+        },
+      });
+      expect(validateCsrfOrigin(req)).toBe(true);
+    });
+
+    it("allows safe GET/HEAD requests regardless of Origin", () => {
+      const req = new Request("https://markly.app/api/bookmarks", {
+        method: "GET",
+        headers: { origin: "https://other-site.com" },
+      });
+      expect(validateCsrfOrigin(req)).toBe(true);
+    });
+
+    it("POST /api/bookmarks blocks cross-origin attack with 403 Forbidden even with authenticated session", async () => {
+      mockUser = { id: "usr_alice", email: "alice@example.com" };
+      const res = await BookmarksRoute.POST(
+        new Request("http://localhost:3000/api/bookmarks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            host: "localhost:3000",
+            origin: "https://evil-attacker.com",
+          },
+          body: JSON.stringify({ url: "https://malicious.com" }),
+        })
+      );
+      expect(res.status).toBe(403);
+      const data = await res.json();
+      expect(data.error).toBe("Forbidden");
+    });
+
+    it("DELETE /api/bookmarks/[id] blocks cross-site Sec-Fetch-Site with 403 Forbidden", async () => {
+      mockUser = { id: "usr_alice", email: "alice@example.com" };
+      const res = await BookmarkItemRoute.DELETE(
+        new Request("http://localhost:3000/api/bookmarks/bm_1", {
+          method: "DELETE",
+          headers: {
+            "sec-fetch-site": "cross-site",
+          },
+        }),
+        { params: Promise.resolve({ id: "bm_1" }) }
+      );
+      expect(res.status).toBe(403);
+    });
+  });
 });
+

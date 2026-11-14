@@ -35,7 +35,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const { id } = await params;
     const body = await req.json();
 
@@ -79,7 +79,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(req);
     const { id } = await params;
 
     const deleted = await BookmarkRepository.deleteBookmark(id, user.id);

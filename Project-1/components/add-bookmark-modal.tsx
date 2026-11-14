@@ -269,6 +269,54 @@ export function AddBookmarkModal({
         .map((t) => t.trim().toLowerCase())
         .filter(Boolean);
 
+      // Guest Mode: Create bookmark in memory without failing on server auth
+      if (!user) {
+        let domain = "example.com";
+        try {
+          domain = new URL(trimmed).hostname.replace(/^www\./, "");
+        } catch {}
+
+        const guestBookmark: BookmarkWithDetails = {
+          id: `bm_guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          userId: "guest",
+          folderId: selectedFolderId || null,
+          url: trimmed,
+          canonicalUrl: trimmed,
+          title: customTitle.trim() || domain,
+          description: customDescription.trim() || "",
+          iconUrl: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+          imageUrl: null,
+          domain,
+          isFavorite,
+          isArchived: bookmarkStatus === "archived",
+          status: bookmarkStatus === "archived" ? "alive" : (bookmarkStatus as "alive" | "dead" | "pending"),
+          visitCount: 0,
+          lastVisitedAt: null,
+          lastClickedAt: null,
+          searchText: `${customTitle.trim()} ${customDescription.trim()} ${domain}`.toLowerCase(),
+          createdAt: Date.now(),
+          tags: parsedTags.map((name) => ({ id: `tag_${name}`, name, userId: "guest", color: "#3b82f6", createdAt: Date.now() })),
+        };
+
+        try {
+          confetti({
+            particleCount: 45,
+            spread: 60,
+            origin: { y: 0.65 },
+            colors: ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b"],
+          });
+        } catch {}
+
+        if (onBookmarkAdded) {
+          onBookmarkAdded(guestBookmark);
+        }
+        setLoading(false);
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 400);
+        return;
+      }
+
       const res = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

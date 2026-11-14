@@ -4,7 +4,7 @@ import { BookmarkRepository } from "@/server/db/repository";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 import { sanitizeGeminiModel } from "@/server/ai/suggest";
 import { safeFetchHtml } from "@/server/scraper/fetcher";
-import { parseHtmlMetadata } from "@/server/scraper/parser";
+import { parseHtmlMetadata, extractCodeSummary } from "@/server/scraper/parser";
 
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 
@@ -44,17 +44,16 @@ export async function POST(
     let summaryText = "";
 
     if (mode === "scrape") {
-      // 0 AI Credits: Scrape metadata or use existing description
+      // 0 AI Credits: Built-in library/code extraction from HTML
       try {
         const fetchRes = await safeFetchHtml(bm.url);
         if (fetchRes.html) {
-          const meta = await parseHtmlMetadata(fetchRes.html, fetchRes.finalUrl || bm.url, bm.domain);
-          summaryText = meta.description || bm.description || `${bm.title} (${bm.domain})`;
+          summaryText = extractCodeSummary(fetchRes.html, bm.title, bm.domain, bm.description || undefined);
         } else {
-          summaryText = bm.description || `${bm.title} (${bm.domain})`;
+          summaryText = bm.description || `${bm.title} is an active web resource hosted on ${bm.domain}.`;
         }
       } catch {
-        summaryText = bm.description || `${bm.title} (${bm.domain})`;
+        summaryText = bm.description || `${bm.title} is an active web resource hosted on ${bm.domain}.`;
       }
     } else {
       // AI Generation mode

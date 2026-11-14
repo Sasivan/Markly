@@ -39,11 +39,45 @@ export async function parseHtmlMetadata(html: string, pageUrl: string, domain: s
   const rawTitle = ogTitle || docTitle || twitterTitle || domain;
   const title = rawTitle.replace(/\s+/g, " ").trim();
 
-  // 2. Description Extraction
+  // 2. Comprehensive Description Extraction in Code (0 AI Credits)
   const ogDesc = $('meta[property="og:description"]').attr("content");
   const metaDesc = $('meta[name="description"]').attr("content");
-  const twitterDesc = $('meta[name="twitter:description"]').attr("content");
-  const rawDesc = ogDesc || metaDesc || twitterDesc || "";
+  const twitterDesc = $('meta[name="twitter:description"]').attr("content") || $('meta[property="twitter:description"]').attr("content");
+  
+  // Extract JSON-LD description if available
+  let jsonLdDesc = "";
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const text = $(el).text();
+      const parsed = JSON.parse(text);
+      if (typeof parsed.description === "string" && parsed.description.trim()) {
+        jsonLdDesc = parsed.description.trim();
+      } else if (Array.isArray(parsed["@graph"])) {
+        const item = parsed["@graph"].find((g: any) => typeof g.description === "string" && g.description.trim());
+        if (item?.description) jsonLdDesc = item.description.trim();
+      }
+    } catch {}
+  });
+
+  // Paragraph extraction fallback (if meta description is missing)
+  let paragraphExtract = "";
+  if (!ogDesc && !metaDesc && !jsonLdDesc) {
+    const paragraphs: string[] = [];
+    $("article p, main p, [role='main'] p, section p, .content p, p").each((_, el) => {
+      const pText = $(el).text().replace(/\s+/g, " ").trim();
+      if (
+        pText.length > 40 &&
+        !/cookie|privacy policy|terms of service|copyright|rights reserved|javascript/i.test(pText)
+      ) {
+        paragraphs.push(pText);
+      }
+    });
+    if (paragraphs.length > 0) {
+      paragraphExtract = paragraphs.slice(0, 2).join(" ");
+    }
+  }
+
+  const rawDesc = ogDesc || jsonLdDesc || metaDesc || twitterDesc || paragraphExtract || "";
   const description = rawDesc.replace(/\s+/g, " ").trim();
 
   // 3. Image URL Extraction
@@ -225,4 +259,70 @@ export async function parseHtmlMetadata(html: string, pageUrl: string, domain: s
     domain,
   };
 }
+
+/**
+ * Fast, deterministic algorithmic knowledge summarizer in code (0 AI credits).
+ * Uses Cheerio to extract lead paragraphs, headings, and key points directly from HTML.
+ */
+export function extractCodeSummary(
+  html: string,
+  title: string,
+  domain: string,
+  existingDesc?: string
+): string {
+  try {
+    const $ = cheerio.load(html);
+    const ogDesc = $('meta[property="og:description"]').attr("content")?.trim();
+    const metaDesc = $('meta[name="description"]').attr("content")?.trim();
+    const baseDesc = existingDesc?.trim() || ogDesc || metaDesc || "";
+
+    // Extract headings for topic highlights
+    const headings: string[] = [];
+    $("h1, h2, h3").each((_, el) => {
+      const hText = $(el).text().replace(/\s+/g, " ").trim();
+      if (hText.length > 5 && hText.length < 80 && !headings.includes(hText)) {
+        headings.push(hText);
+      }
+    });
+
+    // Extract meaningful article / main paragraphs
+    const paragraphs: string[] = [];
+    $("article p, main p, [role='main'] p, section p, .content p, p").each((_, el) => {
+      const pText = $(el).text().replace(/\s+/g, " ").trim();
+      if (
+        pText.length > 40 &&
+        pText.length < 350 &&
+        !/cookie|privacy policy|terms of service|copyright|rights reserved|javascript|browser/i.test(pText)
+      ) {
+        paragraphs.push(pText);
+      }
+    });
+
+    const leadParagraph = paragraphs.find((p) => p !== baseDesc) || "";
+    const mainOverview =
+      baseDesc || leadParagraph || `${title} is a web resource hosted on ${domain}.`;
+
+    // Extract bullet points from list items or headings
+    const listItems: string[] = [];
+    $("ul li, ol li").each((_, el) => {
+      const liText = $(el).text().replace(/\s+/g, " ").trim();
+      if (liText.length > 15 && liText.length < 120 && !listItems.includes(liText)) {
+        listItems.push(liText);
+      }
+    });
+
+    const selectedHighlights =
+      listItems.length >= 2 ? listItems.slice(0, 3) : headings.slice(0, 3);
+
+    let formatted = mainOverview;
+    if (selectedHighlights.length > 0) {
+      formatted += `\n\n• ${selectedHighlights.join("\n• ")}`;
+    }
+
+    return formatted;
+  } catch {
+    return existingDesc || `${title} (${domain})`;
+  }
+}
+
 

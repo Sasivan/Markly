@@ -5,7 +5,7 @@ import { safeFetchHtml } from "@/server/scraper/fetcher";
 import { parseHtmlMetadata } from "@/server/scraper/parser";
 import { checkRateLimit } from "@/server/scraper/ratelimit";
 import { BookmarkRepository } from "@/server/db/repository";
-import { suggestWithAi, suggestFolderAndTags } from "@/server/ai/suggest";
+import { suggestFolderAndTags } from "@/server/ai/suggest";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
@@ -91,14 +91,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // AI config from x-ai-config header ONLY — never from cookies or env
-    let aiConfig = req.headers.get("x-ai-config") || req.headers.get("x-gemini-api-key") || undefined;
-    if (typeof aiConfig === "string" && aiConfig.startsWith("%7B")) {
-      try {
-        aiConfig = decodeURIComponent(aiConfig);
-      } catch {}
-    }
-
     // 4. Duplicate Detection Check (only when actively saving a new bookmark)
     if (saveImmediately) {
       const existingBookmark = BookmarkRepository.findDuplicate(canonicalUrl, user.id);
@@ -135,43 +127,36 @@ export async function POST(req: Request) {
     if (saveImmediately) {
       let finalFolderId = folderId || null;
       let finalTags = tagNames && tagNames.length > 0 ? tagNames : [];
-      let aiSummary: string | undefined = undefined;
 
-      try {
-        const userFolders = BookmarkRepository.getAllFolders(user.id);
-        const inputData = {
-          title: metadata.title || domain,
-          description: metadata.description || undefined,
-          domain,
-          url: fetchResult.finalUrl,
-          folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
-        };
+      // Built-in library/code categorization (0 AI credits, instant & deterministic)
+      if (!finalFolderId || finalTags.length === 0) {
+        try {
+          const userFolders = BookmarkRepository.getAllFolders(user.id);
+          const inputData = {
+            title: metadata.title || domain,
+            description: metadata.description || undefined,
+            domain,
+            url: fetchResult.finalUrl,
+            folders: userFolders.map((f) => ({ id: f.id, name: f.name })),
+          };
 
-        const aiPromise = suggestWithAi(inputData, aiConfig);
-        const timeoutFallback = new Promise<any>((resolve) =>
-          setTimeout(() => resolve(suggestFolderAndTags(inputData)), 2500)
-        );
-
-        const aiSuggestions = await Promise.race([aiPromise, timeoutFallback]);
-
-        if (!finalFolderId && aiSuggestions.suggestedFolderId) {
-          finalFolderId = aiSuggestions.suggestedFolderId;
+          const heuristic = suggestFolderAndTags(inputData);
+          if (!finalFolderId && heuristic.suggestedFolderId) {
+            finalFolderId = heuristic.suggestedFolderId;
+          }
+          if (finalTags.length === 0 && heuristic.suggestedTags?.length > 0) {
+            finalTags = heuristic.suggestedTags;
+          }
+        } catch {
+          // Graceful fallback to domain tag
         }
-        if (finalTags.length === 0 && aiSuggestions.suggestedTags?.length > 0) {
-          finalTags = aiSuggestions.suggestedTags;
-        }
-        if (aiSuggestions.summary) {
-          aiSummary = aiSuggestions.summary;
-        }
-      } catch {
-        // Graceful fallback to domain tag
       }
 
       if (finalTags.length === 0) {
         finalTags = [domain.split(".")[0]];
       }
 
-      const finalDescription = customDescription?.trim() || aiSummary || metadata.description || undefined;
+      const finalDescription = customDescription?.trim() || metadata.description || undefined;
 
       bookmark = BookmarkRepository.createBookmark({
         url: fetchResult.finalUrl,

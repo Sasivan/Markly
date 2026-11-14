@@ -31,6 +31,7 @@ import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { GlobalHomepageAnalytics } from "./global-homepage-analytics";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
+import { useAuth } from "@/components/auth/auth-context";
 
 interface WorkspaceHomeProps {
   bookmarks: BookmarkWithDetails[];
@@ -65,6 +66,7 @@ export function WorkspaceHome({
   onDeleteBookmark,
   onToggleArchive,
 }: WorkspaceHomeProps) {
+  const { user } = useAuth();
   // Realtime visit handler
   const handleSiteVisit = async (bm: BookmarkWithDetails) => {
     if (onRecordVisit) {
@@ -439,9 +441,13 @@ export function WorkspaceHome({
             <Bookmark className="h-7 w-7" />
           </div>
           <div className="max-w-md mx-auto space-y-1">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Your Cloud Database is Ready & Clean</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              {user ? "Your Cloud Database is Ready & Clean" : "Welcome to Markly"}
+            </h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              You are signed in with a fresh personal database synced with Supabase. Add your first bookmark or import existing bookmarks to get started!
+              {user
+                ? "You are signed in with a fresh personal database synced with Supabase. Add your first bookmark or import existing bookmarks to get started!"
+                : "You are browsing in guest mode. Add bookmarks to test locally, or sign in to sync your library across devices permanently."}
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">

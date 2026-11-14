@@ -1,10 +1,27 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { sqlite } from "@/server/db/client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const ProfileUpdateSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .max(60, "Display name must be at most 60 characters")
+    .optional(),
+  avatarUrl: z
+    .string()
+    .trim()
+    .max(500, "Avatar URL must be at most 500 characters")
+    .refine((url) => !url || url.startsWith("https://"), {
+      message: "Avatar URL must use HTTPS",
+    })
+    .optional(),
+});
 
 export async function GET() {
   try {
@@ -46,7 +63,16 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser(req);
     const body = await req.json();
-    const { displayName, avatarUrl } = body;
+
+    const parseResult = ProfileUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { success: false, error: parseResult.error.issues[0]?.message || "Invalid profile data" },
+        { status: 400 }
+      );
+    }
+
+    const { displayName, avatarUrl } = parseResult.data;
 
     const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),

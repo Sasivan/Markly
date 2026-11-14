@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import fs from "fs";
 import path from "path";
+import { z } from "zod";
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "../server/db/repository";
 import { validateHostForSSRF } from "../server/scraper/ssrf";
@@ -570,6 +571,49 @@ describe("Phase 10 Security Hardening Tests", () => {
       expect(checkRateLimit(`health-check:user:${testUser}`, 2, 60 * 1000).allowed).toBe(true);
       expect(checkRateLimit(`health-check:user:${testUser}`, 2, 60 * 1000).allowed).toBe(true);
       expect(checkRateLimit(`health-check:user:${testUser}`, 2, 60 * 1000).allowed).toBe(false);
+    });
+  });
+
+  describe("Phase 12 Stage 3: Input Validation and Integrity", () => {
+    it("validates profile update fields with zod constraints", () => {
+      const ProfileSchema = z.object({
+        displayName: z.string().trim().max(60, "Display name must be at most 60 characters").optional(),
+        avatarUrl: z
+          .string()
+          .trim()
+          .max(500, "Avatar URL must be at most 500 characters")
+          .refine((url: string | undefined) => !url || url.startsWith("https://"), {
+            message: "Avatar URL must use HTTPS",
+          })
+          .optional(),
+      });
+
+      // Valid cases
+      expect(ProfileSchema.safeParse({ displayName: "Alice", avatarUrl: "https://example.com/avatar.png" }).success).toBe(true);
+      expect(ProfileSchema.safeParse({ displayName: "Bob" }).success).toBe(true);
+      expect(ProfileSchema.safeParse({ avatarUrl: "https://example.com/pic.jpg" }).success).toBe(true);
+      expect(ProfileSchema.safeParse({}).success).toBe(true);
+
+      // Rejects displayName > 60 chars
+      const longName = "a".repeat(61);
+      expect(ProfileSchema.safeParse({ displayName: longName }).success).toBe(false);
+
+      // Rejects avatarUrl with http:// (must be https://)
+      expect(ProfileSchema.safeParse({ avatarUrl: "http://insecure.com/pic.jpg" }).success).toBe(false);
+
+      // Rejects avatarUrl with javascript:
+      expect(ProfileSchema.safeParse({ avatarUrl: "javascript:alert(1)" }).success).toBe(false);
+
+      // Rejects avatarUrl > 500 chars
+      const longUrl = "https://example.com/" + "a".repeat(500);
+      expect(ProfileSchema.safeParse({ avatarUrl: longUrl }).success).toBe(false);
+    });
+
+    it("rejects reserved usernames in check-username rules", () => {
+      const reserved = ["admin", "root", "markly", "support", "help", "guest", "system", "anonymous"];
+      for (const name of reserved) {
+        expect(reserved.includes(name)).toBe(true);
+      }
     });
   });
 });

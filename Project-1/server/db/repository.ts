@@ -804,7 +804,7 @@ export class BookmarkRepository {
         query += ` AND (b.folder_id = ? OR b.folder_id = '__UNSORTED__' OR b.folder_id IS NULL OR b.folder_id = '')`;
         params.push(options.folderId);
       } else {
-        const hasChildren = sqlite.prepare("SELECT 1 FROM folders WHERE parent_id = ?").get(options.folderId);
+        const hasChildren = sqlite.prepare("SELECT 1 FROM folders WHERE parent_id = ? AND user_id = ?").get(options.folderId, userId);
         if (options.includeSubfolders || hasChildren) {
           const folderIds = this.getDescendantFolderIds(options.folderId, userId);
           if (folderIds.length > 0) {

@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,9 +25,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Production Dependency Audit
+        run: npm audit --omit=dev
+
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Scan for Hardcoded Emails and UUIDs
+        run: |
+          echo "Checking for hardcoded UUIDs in app/, server/, and components/..."
+          if grep -r -E "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" app/ server/ components/; then
+            echo "::error::Hardcoded UUID detected in production source tree!"
+            exit 1
+          fi
+
+          echo "Checking for hardcoded personal emails in app/, server/, and components/..."
+          if grep -r -E -i "[a-zA-Z0-9._%+-]+@(gmail|yahoo|hotmail|outlook|icloud|proton|aol)\.[a-zA-Z]{2,}" app/ server/ components/; then
+            echo "::error::Hardcoded personal email detected in production source tree!"
+            exit 1
+          fi
+
       - name: Type Check
         run: npx tsc --noEmit
 
       - name: Run Unit Tests
         run: npx vitest run
-

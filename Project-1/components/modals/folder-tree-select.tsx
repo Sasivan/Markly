@@ -239,14 +239,14 @@ export function FolderTreeSelect({
 
             {/* Descendant count badge */}
             {node.bookmarkCount !== undefined && node.bookmarkCount > 0 && (
-              <span className="text-[10px] text-muted-foreground ml-0.5 opacity-70">
+              <span className="text-xs font-mono text-muted-foreground ml-0.5 opacity-70">
                 ({node.bookmarkCount})
               </span>
             )}
           </div>
 
           {/* Checkmark when selected */}
-          {isSelected && <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />}
+          {isSelected && <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />}
         </div>
 
         {/* Subfolders */}
@@ -266,9 +266,9 @@ export function FolderTreeSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-input bg-background hover:bg-slate-50 dark:hover:bg-neutral-850 transition-all text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer shadow-xs ${
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-input bg-background hover:bg-secondary transition-colors text-xs focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer shadow-xs ${
           disabled ? "opacity-50 cursor-not-allowed" : ""
-        } ${isOpen ? "ring-2 ring-blue-500/40 border-blue-500" : ""}`}
+        } ${isOpen ? "ring-1 ring-ring border-primary" : ""}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {!isUnsortedSelected && selectedFolder ? (
@@ -284,11 +284,11 @@ export function FolderTreeSelect({
                 />
               </div>
               <div className="flex items-baseline gap-1.5 truncate">
-                <span className="font-semibold text-slate-900 dark:text-white truncate">
+                <span className="font-medium text-foreground truncate">
                   {selectedFolder.name}
                 </span>
                 {selectedBreadcrumb && (
-                  <span className="text-[10px] text-muted-foreground truncate opacity-75">
+                  <span className="text-xs font-mono text-muted-foreground truncate opacity-75">
                     in {selectedBreadcrumb}
                   </span>
                 )}
@@ -301,15 +301,15 @@ export function FolderTreeSelect({
                 style={{ backgroundColor: `${(unsortedFolder?.color || "#8b5cf6")}20` }}
               >
                 <FolderIconRenderer
-                  icon={unsortedFolder?.icon || "📥"}
+                  icon={unsortedFolder?.icon || "inbox"}
                   color={unsortedFolder?.color || "#8b5cf6"}
                   className="h-3.5 w-3.5"
                 />
               </div>
-              <span className="font-semibold text-slate-800 dark:text-neutral-200 truncate">
+              <span className="font-medium text-foreground truncate">
                 {unsortedFolder?.name || "Unsorted"}
               </span>
-              <span className="text-[10px] text-muted-foreground font-mono">
+              <span className="text-xs text-muted-foreground font-mono">
                 (Inbox)
               </span>
             </>
@@ -321,9 +321,9 @@ export function FolderTreeSelect({
 
       {/* Flyout / Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xl overflow-hidden p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150 max-h-80 flex flex-col">
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border border-border bg-popover text-popover-foreground shadow-md overflow-hidden p-2 space-y-2 max-h-80 flex flex-col">
           {/* Search & Action Row */}
-          <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100 dark:border-neutral-800 flex-shrink-0">
+          <div className="flex items-center gap-1.5 pb-1 border-b border-border/60 flex-shrink-0">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
@@ -332,7 +332,7 @@ export function FolderTreeSelect({
                 placeholder="Search collections..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-7 pr-6 py-1.5 text-xs rounded-md bg-slate-100 dark:bg-neutral-800 border-none text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full pl-7 pr-6 py-1.5 text-xs rounded-md bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               {searchQuery && (
                 <button
@@ -349,7 +349,7 @@ export function FolderTreeSelect({
               <button
                 type="button"
                 onClick={expandAll}
-                className="px-1.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-neutral-800 rounded transition-colors"
+                className="px-1.5 py-1 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
                 title="Expand All"
               >
                 Expand
@@ -357,7 +357,7 @@ export function FolderTreeSelect({
               <button
                 type="button"
                 onClick={collapseAll}
-                className="px-1.5 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-neutral-800 rounded transition-colors"
+                className="px-1.5 py-1 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
                 title="Collapse All"
               >
                 Collapse
@@ -375,21 +375,21 @@ export function FolderTreeSelect({
               }}
               className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors text-xs ${
                 isUnsortedSelected
-                  ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 font-semibold"
-                  : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover:bg-secondary text-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
                 <FolderIconRenderer
-                  icon={unsortedFolder?.icon || "📥"}
+                  icon={unsortedFolder?.icon || "inbox"}
                   color={unsortedFolder?.color || "#8b5cf6"}
                   className="h-4 w-4 flex-shrink-0"
                 />
                 <span className="font-medium text-xs">{unsortedFolder?.name || "Unsorted"}</span>
-                <span className="text-[10px] text-muted-foreground font-mono">(Inbox)</span>
+                <span className="text-xs text-muted-foreground font-mono">(Inbox)</span>
               </div>
               {isUnsortedSelected && (
-                <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />
               )}
             </div>
 
@@ -397,7 +397,7 @@ export function FolderTreeSelect({
             {displayTree.length > 0 ? (
               displayTree.map((node) => renderTreeNode(node, 0))
             ) : (
-              <div className="py-4 text-center text-xs text-muted-foreground">
+              <div className="py-4 text-center text-xs text-muted-foreground font-mono">
                 No folders found matching &quot;{searchQuery}&quot;
               </div>
             )}

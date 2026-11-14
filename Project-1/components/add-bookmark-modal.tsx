@@ -150,7 +150,7 @@ export function AddBookmarkModal({
       id: tempFolderId,
       name: folderName,
       parentId: newFolderParentId || null,
-      icon: "📁",
+      icon: "folder",
       color: "#3b82f6",
       position: folders.length,
       createdAt: Date.now(),
@@ -176,7 +176,7 @@ export function AddBookmarkModal({
           id: tempFolderId,
           name: folderName,
           parentId: optimisticFolder.parentId,
-          icon: "📁",
+          icon: "folder",
           color: "#3b82f6",
         }),
       }).catch((err) => {
@@ -432,14 +432,14 @@ export function AddBookmarkModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto overflow-x-hidden p-5 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#161616] shadow-2xl">
+      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto overflow-x-hidden p-5 rounded-lg border border-border bg-card shadow-lg">
         <DialogHeader className="pb-2">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0 border border-blue-200 dark:border-blue-800 shadow-2xs">
+            <div className="h-9 w-9 rounded-md bg-secondary text-primary flex items-center justify-center flex-shrink-0 border border-border">
               <Plus className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
+              <DialogTitle className="text-base font-semibold text-foreground">
                 Add New Bookmark
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
@@ -450,16 +450,16 @@ export function AddBookmarkModal({
         </DialogHeader>
 
         {/* AI Daily Quota Status Pill */}
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-colors bg-slate-50 dark:bg-neutral-900/60 border-slate-200 dark:border-neutral-800">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-md border text-xs font-mono bg-secondary/50 border-border">
           <div className="flex items-center gap-1.5 truncate">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-500 flex-shrink-0" />
+            <Sparkles className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
             {aiQuota.hasCustomKey ? (
-              <span className="text-emerald-600 dark:text-emerald-400 truncate font-semibold">Custom Key Active • Unlimited AI</span>
+              <span className="text-foreground truncate font-medium">Custom Key Active • Unlimited AI</span>
             ) : aiQuota.isQuotaExceeded ? (
-              <span className="text-amber-600 dark:text-amber-400 truncate">Free AI quota (30/30) reached today • Saving standard metadata</span>
+              <span className="text-muted-foreground truncate">Daily quota (30/30) reached • Standard metadata</span>
             ) : (
-              <span className="text-slate-600 dark:text-neutral-400 truncate">
-                Free AI Autotagging: <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{aiQuota.remaining}</strong> of 30 uses left today
+              <span className="text-muted-foreground truncate">
+                AI Autotagging: <strong className="text-foreground font-semibold">{aiQuota.remaining}</strong> of 30 uses left today
               </span>
             )}
           </div>
@@ -470,7 +470,7 @@ export function AddBookmarkModal({
                 onOpenChange(false);
                 onOpenApiKeyModal();
               }}
-              className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-semibold ml-2 flex-shrink-0"
+              className="text-xs text-primary hover:underline cursor-pointer font-medium ml-2 flex-shrink-0"
             >
               {aiQuota.hasCustomKey ? "Manage Key" : "Add Key"}
             </button>
@@ -482,14 +482,14 @@ export function AddBookmarkModal({
           {/* URL Input with Quick Paste */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-800 dark:text-neutral-200 flex items-center gap-1">
-                <Link2 className="h-3.5 w-3.5 text-blue-500" />
+              <label className="text-xs font-medium text-foreground flex items-center gap-1">
+                <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Website URL</span>
               </label>
               <button
                 type="button"
                 onClick={handlePasteClipboard}
-                className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
               >
                 <Clipboard className="h-3 w-3" />
                 <span>Paste</span>
@@ -509,7 +509,7 @@ export function AddBookmarkModal({
                 type="submit"
                 size="sm"
                 disabled={loading || !url.trim()}
-                className="text-xs h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1.5 shadow-sm"
+                className="text-xs h-9 px-4 cursor-pointer flex items-center gap-1.5"
               >
                 {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 <span>Save</span>
@@ -520,23 +520,23 @@ export function AddBookmarkModal({
           {/* Destination Folder Selector */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                <FolderIcon className="h-3.5 w-3.5 text-blue-500" />
+              <label className="text-xs font-medium text-foreground flex items-center gap-1">
+                <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Destination Folder</span>
               </label>
               <button
                 type="button"
                 onClick={() => setIsCreatingFolder(!isCreatingFolder)}
-                className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
               >
                 <Plus className="h-3 w-3" />
                 <span>{isCreatingFolder ? "Cancel" : "New Folder"}</span>
               </button>
             </div>
 
-            {/* Clean, Simple Inline Folder Creator (No forced emoji grid) */}
+            {/* Clean, Simple Inline Folder Creator */}
             {isCreatingFolder ? (
-              <div className="p-2.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 space-y-2 animate-in fade-in duration-150">
+              <div className="p-2.5 rounded-md border border-border bg-secondary/50 space-y-2">
                 <div className="flex items-center gap-2">
                   <Input
                     type="text"
@@ -559,20 +559,20 @@ export function AddBookmarkModal({
                     size="sm"
                     onClick={() => handleCreateFolderInline()}
                     disabled={folderSubmitting || !newFolderName.trim()}
-                    className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer"
+                    className="h-8 px-3 text-xs cursor-pointer"
                   >
                     {folderSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Create"}
                   </Button>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
                   <Layers className="h-3 w-3" />
                   <span>Nest inside:</span>
                   <select
                     value={newFolderParentId}
                     onChange={(e) => setNewFolderParentId(e.target.value)}
-                    className="h-6 text-[11px] rounded border border-input bg-background px-1.5 text-foreground focus:outline-none"
+                    className="h-6 text-xs rounded-md border border-input bg-background px-1.5 text-foreground focus:outline-none"
                   >
-                    <option value="">📁 Root (Top-Level)</option>
+                    <option value="">Root (Top-Level)</option>
                     {folders.map((f) => (
                       <option key={f.id} value={f.id}>
                         ↳ {f.name}
@@ -594,8 +594,8 @@ export function AddBookmarkModal({
 
           {/* Tags */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-              <TagIcon className="h-3.5 w-3.5 text-indigo-500" />
+            <label className="text-xs font-medium text-foreground flex items-center gap-1">
+              <TagIcon className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Tags (comma-separated)</span>
             </label>
             <Input
@@ -603,18 +603,18 @@ export function AddBookmarkModal({
               placeholder="e.g. dev, design, react, tools"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
-              className="text-xs h-8.5"
+              className="text-xs h-8"
               disabled={loading}
             />
 
             {/* Quick Tag Chips */}
             <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              <span className="text-[10px] text-muted-foreground mr-0.5">Suggestions:</span>
+              <span className="text-xs font-mono text-muted-foreground mr-0.5">Suggestions:</span>
               {domainTagSuggestion && (
                 <button
                   type="button"
                   onClick={() => handleAddTagChip(domainTagSuggestion)}
-                  className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 hover:brightness-110 transition-colors cursor-pointer"
+                  className="px-1.5 py-0.5 rounded-sm text-xs font-mono bg-secondary text-foreground hover:bg-secondary/80 transition-colors cursor-pointer"
                 >
                   +{domainTagSuggestion}
                 </button>
@@ -624,7 +624,7 @@ export function AddBookmarkModal({
                   key={tag}
                   type="button"
                   onClick={() => handleAddTagChip(tag)}
-                  className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 hover:bg-blue-100 hover:text-blue-700 dark:bg-neutral-800 dark:hover:bg-blue-950/60 dark:hover:text-blue-300 text-slate-600 dark:text-neutral-400 transition-colors cursor-pointer"
+                  className="px-1.5 py-0.5 rounded-sm text-xs font-mono bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors cursor-pointer"
                 >
                   +{tag}
                 </button>
@@ -637,17 +637,17 @@ export function AddBookmarkModal({
             <button
               type="button"
               onClick={() => setShowMoreOptions(!showMoreOptions)}
-              className="text-xs text-slate-600 dark:text-neutral-400 hover:text-foreground flex items-center gap-1.5 cursor-pointer font-medium py-1"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 cursor-pointer font-medium py-1"
             >
-              <FileText className="h-3.5 w-3.5 text-slate-500" />
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
               <span>{showMoreOptions ? "Hide extra editing options" : "Custom Title, Notes & Status (Optional)"}</span>
               {showMoreOptions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
 
             {showMoreOptions && (
-              <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-neutral-800 animate-in fade-in duration-150">
+              <div className="space-y-2.5 pt-2 border-t border-border">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  <label className="text-xs font-medium text-foreground">
                     Custom Title
                   </label>
                   <Input
@@ -659,7 +659,7 @@ export function AddBookmarkModal({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  <label className="text-xs font-medium text-foreground">
                     Personal Notes
                   </label>
                   <Input
@@ -671,8 +671,8 @@ export function AddBookmarkModal({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300 flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-amber-500" />
+                  <label className="text-xs font-medium text-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
                     <span>Reading Status</span>
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -681,33 +681,33 @@ export function AddBookmarkModal({
                       onClick={() => setBookmarkStatus("alive")}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors ${
                         bookmarkStatus === "alive"
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold"
-                          : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border bg-card hover:bg-secondary text-muted-foreground"
                       }`}
                     >
-                      ✓ Active
+                      Active
                     </button>
                     <button
                       type="button"
                       onClick={() => setBookmarkStatus("pending")}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors ${
                         bookmarkStatus === "pending"
-                          ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-semibold"
-                          : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border bg-card hover:bg-secondary text-muted-foreground"
                       }`}
                     >
-                      ⏳ Read Later
+                      Read Later
                     </button>
                     <button
                       type="button"
                       onClick={() => setBookmarkStatus("archived")}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border cursor-pointer transition-colors ${
                         bookmarkStatus === "archived"
-                          ? "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-semibold"
-                          : "border-input bg-background hover:bg-muted/50 text-muted-foreground"
+                          ? "border-primary bg-primary/10 text-primary font-medium"
+                          : "border-border bg-card hover:bg-secondary text-muted-foreground"
                       }`}
                     >
-                      📦 Archive
+                      Archive
                     </button>
                   </div>
                 </div>
@@ -720,51 +720,51 @@ export function AddBookmarkModal({
             <button
               type="button"
               onClick={() => setIsFavorite(!isFavorite)}
-              className="flex items-center gap-2 text-xs text-slate-700 dark:text-neutral-300 hover:text-foreground cursor-pointer font-medium select-none"
+              className="flex items-center gap-2 text-xs text-foreground hover:text-primary cursor-pointer font-medium select-none"
             >
               <div
                 className={`h-6 w-6 rounded-md flex items-center justify-center transition-colors ${
                   isFavorite
-                    ? "bg-amber-100 dark:bg-amber-950/60 text-amber-500 ring-1 ring-amber-400"
-                    : "bg-slate-100 dark:bg-neutral-800 text-slate-400"
+                    ? "bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/30"
+                    : "bg-secondary text-muted-foreground"
                 }`}
               >
                 <Star className={`h-4 w-4 ${isFavorite ? "fill-amber-500 text-amber-500" : ""}`} />
               </div>
-              <span className={isFavorite ? "font-semibold text-amber-600 dark:text-amber-400" : ""}>
-                {isFavorite ? "Starred as Favorite ⭐" : "Mark as Starred Favorite"}
+              <span className={isFavorite ? "font-medium text-foreground" : ""}>
+                {isFavorite ? "Starred as favorite" : "Mark as favorite"}
               </span>
             </button>
           </div>
 
-          {/* Loading Smart Skeleton State (Skullet style zero layout shift) */}
+          {/* Loading Smart Skeleton State */}
           {loading && (
-            <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-2 animate-pulse" skullet-loading="true">
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2 animate-pulse" skullet-loading="true">
               <div className="flex items-center gap-2.5">
-                <div className="h-6 w-6 rounded bg-slate-200 dark:bg-neutral-800 flex-shrink-0" />
-                <div className="h-4 bg-slate-200 dark:bg-neutral-800 rounded w-2/3" />
+                <div className="h-6 w-6 rounded bg-muted flex-shrink-0" />
+                <div className="h-4 bg-muted rounded w-2/3" />
               </div>
-              <div className="h-3 bg-slate-200 dark:bg-neutral-800 rounded w-5/6" />
+              <div className="h-3 bg-muted rounded w-5/6" />
             </div>
           )}
 
           {/* Duplicate Warning Dialog / Prompt */}
           {duplicateWarning && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-2 text-xs animate-in fade-in duration-150">
-              <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-semibold">
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-2 text-xs">
+              <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                 <span>Already Saved</span>
               </div>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-xs">
                 This link is already saved inside collection:{" "}
-                <strong className="text-foreground">📁 {duplicateWarning.folderName}</strong>
+                <strong className="text-foreground">{duplicateWarning.folderName}</strong>
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="text-xs h-7.5 px-3 cursor-pointer"
+                  className="text-xs h-7 px-3 cursor-pointer"
                   onClick={() => handleScrape(url, true)}
                 >
                   Save Anyway
@@ -773,7 +773,7 @@ export function AddBookmarkModal({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-xs h-7.5 cursor-pointer text-muted-foreground"
+                  className="text-xs h-7 cursor-pointer text-muted-foreground"
                   onClick={() => onOpenChange(false)}
                 >
                   Cancel
@@ -784,8 +784,8 @@ export function AddBookmarkModal({
 
           {/* Success Scraped Preview */}
           {scrapedData && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center gap-3 text-xs animate-in fade-in duration-150">
-              <div className="h-8 w-8 rounded-lg bg-white dark:bg-neutral-800 flex items-center justify-center border border-emerald-200 dark:border-emerald-800 flex-shrink-0 shadow-xs">
+            <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center gap-3 text-xs">
+              <div className="h-8 w-8 rounded-md bg-card flex items-center justify-center border border-border flex-shrink-0">
                 {scrapedData.iconUrl ? (
                   <img src={scrapedData.iconUrl} alt="Favicon" className="h-5 w-5 object-contain" />
                 ) : (
@@ -793,11 +793,11 @@ export function AddBookmarkModal({
                 )}
               </div>
               <div className="truncate flex-1">
-                <div className="font-semibold text-emerald-900 dark:text-emerald-200 truncate">
+                <div className="font-medium text-foreground truncate">
                   {scrapedData.title}
                 </div>
-                <div className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 truncate">
-                  Saved successfully to {folders.find((f) => f.id === selectedFolderId)?.name || "Unsorted (Inbox)"}
+                <div className="text-xs font-mono text-muted-foreground truncate">
+                  Saved to {folders.find((f) => f.id === selectedFolderId)?.name || "Unsorted (Inbox)"}
                 </div>
               </div>
             </div>
@@ -805,7 +805,7 @@ export function AddBookmarkModal({
 
           {/* Error Message */}
           {error && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2 animate-in fade-in duration-150">
+            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
             </div>

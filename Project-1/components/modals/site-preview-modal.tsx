@@ -192,17 +192,17 @@ export function SitePreviewModal({
 
         {/* Structured Bullets / Highlights */}
         {bullets.length > 0 && (
-          <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-neutral-800/80 space-y-2.5">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-wider block">
-              Key Features &amp; Highlights
+          <div className="mt-4 pt-3.5 border-t border-border/60 space-y-2.5">
+            <span className="text-xs font-mono text-muted-foreground block">
+              Key Features & Highlights
             </span>
             <ul className="space-y-2">
               {bullets.map((b, idx) => (
                 <li
                   key={idx}
-                  className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-neutral-300 leading-relaxed"
+                  className="flex items-start gap-2.5 text-xs sm:text-sm text-foreground leading-relaxed"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 mt-2 shrink-0" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />
                   <span>{parseInlineMarkdown(b)}</span>
                 </li>
               ))}
@@ -220,16 +220,16 @@ export function SitePreviewModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-[#141414] border-slate-200 dark:border-neutral-800 shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-card border-border shadow-lg rounded-lg">
           <DialogHeader className="sr-only">
             <DialogTitle>{bookmark.title} - Site Details</DialogTitle>
           </DialogHeader>
 
-          {/* Top Header Bar - Clean Non-Overlapping Layout */}
-          <div className="px-5 sm:px-6 py-3.5 border-b border-slate-100 dark:border-neutral-800/80 flex items-center justify-between gap-3 bg-slate-50/70 dark:bg-neutral-900/50">
-            {/* Left Zone: Favicon & Title (Takes maximum available space with clear truncation) */}
+          {/* Top Header Bar */}
+          <div className="px-5 sm:px-6 py-3.5 border-b border-border/60 flex items-center justify-between gap-3 bg-card">
+            {/* Left Zone: Favicon & Title */}
             <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-              <div className="h-9 w-9 rounded-xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 flex items-center justify-center shrink-0 shadow-2xs">
+              <div className="h-9 w-9 rounded-md bg-secondary border border-border flex items-center justify-center shrink-0">
                 <BookmarkIcon
                   src={bookmark.iconUrl}
                   alt={bookmark.title}
@@ -240,7 +240,7 @@ export function SitePreviewModal({
 
               <div className="min-w-0 flex-1">
                 {/* Clickable Title Link */}
-                <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
                   <a
                     href={bookmark.url}
                     target="_blank"
@@ -250,7 +250,7 @@ export function SitePreviewModal({
                         onRecordVisit?.(bookmark);
                       } catch {}
                     }}
-                    className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline inline-flex items-center gap-1.5 truncate max-w-full"
+                    className="hover:text-primary hover:underline inline-flex items-center gap-1.5 truncate max-w-full"
                     title={`Open ${bookmark.url} in new tab`}
                   >
                     <span className="truncate">{bookmark.title}</span>
@@ -269,17 +269,17 @@ export function SitePreviewModal({
                         onRecordVisit?.(bookmark);
                       } catch {}
                     }}
-                    className="text-xs text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 font-mono truncate hover:underline"
+                    className="text-xs text-muted-foreground hover:text-primary font-mono truncate hover:underline"
                     title={`Visit ${bookmark.domain}`}
                   >
                     {bookmark.domain}
                   </a>
                   <Badge
                     variant="outline"
-                    className={`text-[10px] px-1.5 py-0 border shrink-0 ${
+                    className={`text-xs font-mono px-1.5 py-0 border shrink-0 ${
                       bookmark.status === "dead"
                         ? "border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/10"
-                        : "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                        : "border-border text-muted-foreground bg-secondary"
                     }`}
                   >
                     {bookmark.status === "dead" ? "Broken Link" : "Active"}
@@ -288,7 +288,7 @@ export function SitePreviewModal({
               </div>
             </div>
 
-            {/* Right Zone: Action Buttons & Dedicated Close Button */}
+            {/* Right Zone: Action Buttons */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {/* Favorite toggle */}
               <Button
@@ -296,7 +296,7 @@ export function SitePreviewModal({
                 variant="outline"
                 size="sm"
                 onClick={() => onToggleFavorite?.(bookmark)}
-                className="h-8 px-2 sm:px-2.5 text-xs gap-1.5 cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
+                className="h-8 px-2 sm:px-2.5 text-xs gap-1.5 cursor-pointer border-border hover:bg-secondary"
                 title={bookmark.isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <Star
@@ -317,7 +317,7 @@ export function SitePreviewModal({
                 variant="outline"
                 size="sm"
                 onClick={handleCopyLink}
-                className="h-8 px-2 sm:px-2.5 text-xs gap-1.5 cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800"
+                className="h-8 px-2 sm:px-2.5 text-xs gap-1.5 cursor-pointer border-border hover:bg-secondary"
                 title="Copy website URL"
               >
                 {copiedUrl ? (
@@ -343,7 +343,7 @@ export function SitePreviewModal({
                     onRecordVisit?.(bookmark);
                   } catch {}
                 }}
-                className="inline-flex items-center justify-center h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-md bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1.5 shadow-2xs transition-colors shrink-0"
+                className="inline-flex items-center justify-center h-8 px-2.5 sm:px-3 text-xs font-medium rounded-md bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer gap-1.5 transition-colors shrink-0"
                 title="Open website in new browser tab"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -356,7 +356,7 @@ export function SitePreviewModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => onOpenChange(false)}
-                className="h-8 w-8 p-0 cursor-pointer text-muted-foreground hover:text-foreground shrink-0 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800"
+                className="h-8 w-8 p-0 cursor-pointer text-muted-foreground hover:text-foreground shrink-0 rounded-md hover:bg-secondary"
                 title="Close dialog"
               >
                 <X className="h-4 w-4" />
@@ -364,19 +364,19 @@ export function SitePreviewModal({
             </div>
           </div>
 
-          {/* Modal Body - Notion Details, Visual Snapshot, and Rich Knowledge Document */}
+          {/* Modal Body */}
           <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
             {/* Visual Snapshot Card Above Description */}
-            <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-neutral-800 bg-slate-100 dark:bg-neutral-900 aspect-21/9 max-h-52 shadow-2xs group">
+            <div className="relative rounded-md overflow-hidden border border-border bg-card aspect-21/9 max-h-52 group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={snapshotUrl}
                 alt={bookmark.title}
-                className="w-full h-full object-cover object-top group-hover:scale-101 transition-transform duration-300"
+                className="w-full h-full object-cover object-top"
                 onError={() => setSnapshotError(true)}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5">
-                <span className="text-white text-xs font-medium bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded">
+                <span className="text-white text-xs font-mono bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-sm">
                   {bookmark.domain}
                 </span>
                 <a
@@ -388,7 +388,7 @@ export function SitePreviewModal({
                       onRecordVisit?.(bookmark);
                     } catch {}
                   }}
-                  className="text-[11px] text-white/90 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded flex items-center gap-1.5 transition-colors"
+                  className="text-xs font-mono text-white/90 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-sm flex items-center gap-1.5 transition-colors"
                 >
                   <span>Visit Live Site</span>
                   <ExternalLink className="h-3 w-3" />
@@ -397,11 +397,11 @@ export function SitePreviewModal({
             </div>
 
             {/* Notion-Style Properties Bar */}
-            <div className="rounded-xl border border-slate-200/80 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 p-3.5 space-y-2.5 text-xs">
+            <div className="rounded-md border border-border bg-card p-3.5 space-y-2.5 text-xs">
               {/* Row 1: Direct URL */}
               <div className="flex items-center gap-3">
-                <span className="w-16 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 shrink-0">
-                  <Globe className="h-3.5 w-3.5 text-slate-500" />
+                <span className="w-16 text-xs font-mono text-muted-foreground flex items-center gap-1.5 shrink-0">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>URL</span>
                 </span>
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -414,7 +414,7 @@ export function SitePreviewModal({
                         onRecordVisit?.(bookmark);
                       } catch {}
                     }}
-                    className="font-mono text-xs text-blue-600 dark:text-blue-400 hover:underline truncate inline-flex items-center gap-1"
+                    className="font-mono text-xs text-primary hover:underline truncate inline-flex items-center gap-1"
                     title={`Open ${bookmark.url}`}
                   >
                     <span className="truncate">{bookmark.url}</span>
@@ -425,11 +425,11 @@ export function SitePreviewModal({
 
               {/* Row 2: Folder Location */}
               <div className="flex items-center gap-3">
-                <span className="w-16 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 shrink-0">
-                  <FolderIcon className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="w-16 text-xs font-mono text-muted-foreground flex items-center gap-1.5 shrink-0">
+                  <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>Folder</span>
                 </span>
-                <div className="flex items-center gap-1.5 font-semibold text-foreground truncate">
+                <div className="flex items-center gap-1.5 font-medium text-foreground truncate">
                   {currentFolder ? (
                     <>
                       <FolderIconRenderer
@@ -447,8 +447,8 @@ export function SitePreviewModal({
 
               {/* Row 3: Tags */}
               <div className="flex items-center gap-3">
-                <span className="w-16 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 shrink-0">
-                  <TagIcon className="h-3.5 w-3.5 text-violet-500" />
+                <span className="w-16 text-xs font-mono text-muted-foreground flex items-center gap-1.5 shrink-0">
+                  <TagIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>Tags</span>
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -457,30 +457,30 @@ export function SitePreviewModal({
                       <Badge
                         key={tag.id}
                         variant="secondary"
-                        className="text-[10px] font-medium px-2 py-0.5 bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-none"
+                        className="text-xs font-mono px-2 py-0.5 bg-secondary text-foreground border-none"
                       >
                         #{tag.name}
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground text-[11px]">No tags assigned</span>
+                    <span className="text-muted-foreground text-xs font-mono">No tags assigned</span>
                   )}
                 </div>
               </div>
 
               {/* Row 4: Grid stats (Visits & Saved Date) */}
-              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100 dark:border-neutral-800">
+              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                  <span className="text-[11px] text-muted-foreground">Visits:</span>
-                  <span className="font-semibold text-foreground font-mono">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-mono text-muted-foreground">Visits:</span>
+                  <span className="font-mono text-xs text-foreground">
                     {bookmark.visitCount} {bookmark.visitCount === 1 ? "open" : "opens"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  <span className="text-[11px] text-muted-foreground">Saved:</span>
-                  <span className="font-semibold text-foreground">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-mono text-muted-foreground">Saved:</span>
+                  <span className="font-mono text-xs text-foreground">
                     {new Date(bookmark.createdAt).toLocaleDateString()}
                   </span>
                 </div>
@@ -488,13 +488,13 @@ export function SitePreviewModal({
             </div>
 
             {/* Structured Knowledge Document Section */}
-            <div className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] p-5 space-y-3.5 shadow-xs">
+            <div className="rounded-md border border-border bg-card p-4 space-y-3">
               {/* Section Header */}
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-neutral-800/80 flex-wrap">
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60 flex-wrap">
                 <div className="flex items-center gap-2.5">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-indigo-500" />
-                    <span>Site Overview &amp; Knowledge</span>
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span>Site Overview & Knowledge</span>
                   </h3>
                   {saveSuccess && (
                     <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
@@ -503,7 +503,7 @@ export function SitePreviewModal({
                   )}
                 </div>
 
-                {/* Toolbar: Copy & Edit Notes only (No manual AI/metadata buttons) */}
+                {/* Toolbar */}
                 <div className="flex items-center gap-2">
                   {description && (
                     <Button
@@ -517,12 +517,12 @@ export function SitePreviewModal({
                       {copiedNotes ? (
                         <>
                           <Check className="h-3 w-3 text-emerald-600" />
-                          <span className="text-emerald-600 text-[11px]">Copied</span>
+                          <span className="text-emerald-600 text-xs font-mono">Copied</span>
                         </>
                       ) : (
                         <>
                           <Copy className="h-3 w-3" />
-                          <span className="text-[11px]">Copy</span>
+                          <span className="text-xs font-mono">Copy</span>
                         </>
                       )}
                     </Button>
@@ -537,22 +537,22 @@ export function SitePreviewModal({
                     title="Edit description manually"
                   >
                     <Edit2 className="h-3 w-3" />
-                    <span className="text-[11px]">Edit</span>
+                    <span className="text-xs font-mono">Edit</span>
                   </Button>
                 </div>
               </div>
 
               {/* Document Reader Mode vs. Inline Editor */}
               {isEditingDescription ? (
-                <div className="space-y-3 animate-in fade-in">
+                <div className="space-y-3">
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Write detailed notes or description for this site..."
                     rows={8}
-                    className="w-full text-xs sm:text-sm p-4 bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans text-foreground"
+                    className="w-full text-xs sm:text-sm p-3.5 bg-background border border-border rounded-md leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-ring font-sans text-foreground"
                   />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
                     <span>
                       {description.trim().split(/\s+/).filter(Boolean).length} words
                     </span>
@@ -574,7 +574,7 @@ export function SitePreviewModal({
                         size="sm"
                         onClick={handleSaveDescription}
                         disabled={isSaving}
-                        className="h-7 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-1.5"
+                        className="h-7 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer gap-1.5"
                       >
                         {isSaving ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -594,9 +594,9 @@ export function SitePreviewModal({
 
               {/* Document Footer Info */}
               {!isEditingDescription && description && (
-                <div className="pt-3 border-t border-slate-100 dark:border-neutral-800/80 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs font-mono text-muted-foreground">
                   <span>{wordCount} words • Saved in Database</span>
-                  <span className="font-mono text-[10px]">
+                  <span className="font-mono text-xs">
                     Status: {bookmark.status}
                   </span>
                 </div>
@@ -605,7 +605,7 @@ export function SitePreviewModal({
           </div>
 
           {/* Modal Bottom Action Bar */}
-          <div className="px-5 sm:px-6 py-3 border-t border-slate-100 dark:border-neutral-800 bg-slate-50/80 dark:bg-neutral-900/80 flex items-center justify-between gap-3 flex-wrap">
+          <div className="px-5 sm:px-6 py-3 border-t border-border/60 bg-card flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               {/* Copy Site to Folder button */}
               <Button
@@ -613,9 +613,9 @@ export function SitePreviewModal({
                 variant="outline"
                 size="sm"
                 onClick={() => setCopyModalOpen(true)}
-                className="h-8 text-xs cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 gap-1.5"
+                className="h-8 text-xs cursor-pointer border-border hover:bg-secondary text-foreground gap-1.5"
               >
-                <FolderPlus className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>Copy to Folder...</span>
               </Button>
 
@@ -625,7 +625,7 @@ export function SitePreviewModal({
                 variant="outline"
                 size="sm"
                 onClick={() => onToggleArchive?.(bookmark)}
-                className="h-8 text-xs cursor-pointer border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-700 dark:text-neutral-300 gap-1.5"
+                className="h-8 text-xs cursor-pointer border-border hover:bg-secondary text-foreground gap-1.5"
               >
                 <Archive className="h-3.5 w-3.5" />
                 <span>{bookmark.isArchived ? "Unarchive" : "Archive"}</span>

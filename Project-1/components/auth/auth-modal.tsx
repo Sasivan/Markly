@@ -178,24 +178,24 @@ export function AuthModal() {
 
   return (
     <Dialog open={isAuthModalOpen} onOpenChange={closeAuthModal}>
-      <DialogContent className="max-w-md p-0 overflow-hidden bg-white dark:bg-[#181818] border-2 border-slate-200 dark:border-neutral-800 shadow-2xl rounded-3xl animate-in zoom-in-95">
-        {/* Top Decorative Header */}
-        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-6 text-white text-center relative">
-          <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-bold text-2xl mx-auto shadow-inner border border-white/30 mb-3">
+      <DialogContent className="max-w-md p-0 overflow-hidden bg-card border border-border shadow-lg rounded-lg">
+        {/* Top Header */}
+        <div className="bg-secondary/50 border-b border-border/60 p-6 text-foreground text-center relative">
+          <div className="h-10 w-10 rounded-md bg-card border border-border flex items-center justify-center font-bold text-lg text-primary mx-auto mb-3 shadow-xs">
             M
           </div>
-          <h2 className="text-xl font-bold tracking-tight">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
             {mode === "login" ? "Welcome Back to Markly" : "Create Your Markly Account"}
           </h2>
-          <p className="text-xs text-white/80 mt-1 max-w-xs mx-auto">
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
             {mode === "login"
               ? "Sign in to access and sync your bookmarks in real-time."
               : "Sign up to get your own cloud database with real-time Supabase sync."}
           </p>
 
           {/* Mode Switcher Tabs */}
-          <div className="flex items-center justify-center mt-5">
-            <div className="flex bg-black/20 p-1 rounded-xl backdrop-blur-md border border-white/10 w-full max-w-xs">
+          <div className="flex items-center justify-center mt-4">
+            <div className="flex bg-muted p-0.5 rounded-md border border-border w-full max-w-xs">
               <button
                 type="button"
                 onClick={() => {
@@ -203,10 +203,10 @@ export function AuthModal() {
                   setPassword("");
                   setErrorMessage(null);
                 }}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all ${
+                className={`flex-1 py-1 text-xs font-medium rounded-sm cursor-pointer transition-colors ${
                   mode === "login"
-                    ? "bg-white text-slate-900 shadow-md font-bold"
-                    : "text-white/80 hover:text-white"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Sign In
@@ -218,10 +218,10 @@ export function AuthModal() {
                   setPassword("");
                   setErrorMessage(null);
                 }}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-all ${
+                className={`flex-1 py-1 text-xs font-medium rounded-sm cursor-pointer transition-colors ${
                   mode === "signup"
-                    ? "bg-white text-slate-900 shadow-md font-bold"
-                    : "text-white/80 hover:text-white"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Sign Up
@@ -240,9 +240,8 @@ export function AuthModal() {
               size="sm"
               onClick={() => handleOAuth("google")}
               disabled={isLoading}
-              className="h-9 cursor-pointer gap-2 text-xs font-semibold border-slate-200 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-800"
+              className="h-9 cursor-pointer gap-2 text-xs font-medium border-border hover:bg-secondary"
             >
-              {/* Google Colorful G Icon */}
               <svg className="h-4 w-4" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -270,9 +269,8 @@ export function AuthModal() {
               size="sm"
               onClick={() => handleOAuth("github")}
               disabled={isLoading}
-              className="h-9 cursor-pointer gap-2 text-xs font-semibold border-slate-200 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-800"
+              className="h-9 cursor-pointer gap-2 text-xs font-medium border-border hover:bg-secondary"
             >
-              {/* GitHub Octocat Icon */}
               <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
               </svg>
@@ -282,10 +280,10 @@ export function AuthModal() {
 
           <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-slate-200 dark:border-neutral-800" />
+              <span className="w-full border-t border-border" />
             </div>
-            <div className="relative flex justify-center text-[10px] uppercase">
-              <span className="bg-white dark:bg-[#181818] px-2 text-muted-foreground font-semibold">
+            <div className="relative flex justify-center text-xs font-mono">
+              <span className="bg-card px-2 text-muted-foreground">
                 Or with username & password
               </span>
             </div>
@@ -298,19 +296,19 @@ export function AuthModal() {
                 {/* Unique Username Field with Real-Time Verification */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                    <label className="text-xs font-medium text-foreground">
                       Unique Username
                     </label>
-                    <span className="text-[10px] text-muted-foreground font-mono">Used to log in</span>
+                    <span className="text-xs text-muted-foreground font-mono">Used to log in</span>
                   </div>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground">@</span>
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-medium text-muted-foreground">@</span>
                     <Input
                       type="text"
                       placeholder="e.g. alexrivera"
                       value={signupUsername}
                       onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
-                      className={`pl-7 pr-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900 font-mono transition-colors ${
+                      className={`pl-7 pr-8 h-8 text-xs bg-background font-mono transition-colors ${
                         usernameStatus.state === "available"
                           ? "border-emerald-500 focus-visible:ring-emerald-500/30"
                           : usernameStatus.state === "unavailable"
@@ -321,7 +319,7 @@ export function AuthModal() {
                     />
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                       {usernameStatus.state === "checking" && (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                       )}
                       {usernameStatus.state === "available" && (
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -333,12 +331,12 @@ export function AuthModal() {
                   </div>
                   {usernameStatus.message && (
                     <div
-                      className={`flex items-center gap-1.5 text-[11px] font-medium pt-0.5 animate-in fade-in duration-200 ${
+                      className={`flex items-center gap-1.5 text-xs font-mono pt-0.5 ${
                         usernameStatus.state === "available"
                           ? "text-emerald-600 dark:text-emerald-400"
                           : usernameStatus.state === "unavailable"
                           ? "text-rose-600 dark:text-rose-400"
-                          : "text-indigo-500"
+                          : "text-primary"
                       }`}
                     >
                       {usernameStatus.state === "checking" && (
@@ -357,7 +355,7 @@ export function AuthModal() {
 
                 {/* Email Address */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  <label className="text-xs font-medium text-foreground">
                     Email Address
                   </label>
                   <div className="relative">
@@ -367,7 +365,7 @@ export function AuthModal() {
                       placeholder="you@example.com"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                      className="pl-8 h-8 text-xs bg-background"
                       required
                     />
                   </div>
@@ -375,7 +373,7 @@ export function AuthModal() {
 
                 {/* Optional Display Name */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                  <label className="text-xs font-medium text-foreground">
                     Display Name (Optional)
                   </label>
                   <div className="relative">
@@ -385,7 +383,7 @@ export function AuthModal() {
                       placeholder="e.g. Alex Rivera"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                      className="pl-8 h-8 text-xs bg-background"
                     />
                   </div>
                 </div>
@@ -393,7 +391,7 @@ export function AuthModal() {
             ) : (
               /* Sign In Identifier: Username or Email */
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+                <label className="text-xs font-medium text-foreground">
                   Username or Email
                 </label>
                 <div className="relative">
@@ -403,7 +401,7 @@ export function AuthModal() {
                     placeholder="Enter your username or email"
                     value={emailOrUser}
                     onChange={(e) => setEmailOrUser(e.target.value)}
-                    className="pl-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                    className="pl-8 h-8 text-xs bg-background"
                     required
                   />
                 </div>
@@ -411,7 +409,7 @@ export function AuthModal() {
             )}
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-700 dark:text-neutral-300">
+              <label className="text-xs font-medium text-foreground">
                 Password
               </label>
               <div className="relative">
@@ -424,7 +422,7 @@ export function AuthModal() {
                   data-form-type="other"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-8 pr-8 h-8 text-xs bg-slate-50 dark:bg-neutral-900"
+                  className="pl-8 pr-8 h-8 text-xs bg-background"
                   required
                 />
                 <button
@@ -440,7 +438,7 @@ export function AuthModal() {
 
             {/* Error Message */}
             {errorMessage && (
-              <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex flex-col gap-1.5">
+              <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                   <span>{errorMessage}</span>
@@ -452,7 +450,7 @@ export function AuthModal() {
                       setMode("login");
                       setErrorMessage(null);
                     }}
-                    className="text-xs text-blue-600 dark:text-blue-400 font-bold underline text-left cursor-pointer hover:opacity-80 ml-6"
+                    className="text-xs text-primary font-medium underline text-left cursor-pointer hover:opacity-80 ml-6"
                   >
                     Click here to Sign In instead &rarr;
                   </button>
@@ -462,7 +460,7 @@ export function AuthModal() {
 
             {/* Success Message */}
             {successMessage && (
-              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+              <div className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0" />
                 <span>{successMessage}</span>
               </div>
@@ -471,7 +469,7 @@ export function AuthModal() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-9 mt-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-md gap-1.5"
+              className="w-full h-9 mt-2 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-xs gap-1.5"
             >
               {isLoading ? (
                 <>
@@ -488,8 +486,8 @@ export function AuthModal() {
           </form>
 
           {/* Privacy & Cloud Notice */}
-          <div className="pt-2 text-center text-[10px] text-muted-foreground flex items-center justify-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+          <div className="pt-2 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Supabase Cloud Database & 100% Offline Local Backup</span>
           </div>
         </div>

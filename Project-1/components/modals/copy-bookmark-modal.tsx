@@ -105,11 +105,11 @@ export function CopyBookmarkModal({
     return (
       <div key={node.id} className="relative">
         <div
-          className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs group transition-colors ${
+          className={`flex items-center justify-between px-2.5 py-1.5 rounded-md cursor-pointer text-xs group transition-colors ${
             isSelected
-              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-100 font-semibold border border-emerald-300 dark:border-emerald-800"
-              : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200"
-          } ${depth > 0 ? "border-l-2 border-slate-200 dark:border-neutral-700 ml-2.5" : ""}`}
+              ? "bg-primary/10 text-primary font-medium border border-primary/20"
+              : "hover:bg-secondary text-foreground"
+          } ${depth > 0 ? "border-l border-border ml-2.5" : ""}`}
           style={{ paddingLeft: `${Math.max(8, depth * 14)}px` }}
           onClick={() => setSelectedFolderId(node.id)}
         >
@@ -144,7 +144,7 @@ export function CopyBookmarkModal({
             <span className="truncate text-xs">{node.name}</span>
           </div>
 
-          {isSelected && <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+          {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
         </div>
 
         {hasChildren && isExpanded && (
@@ -158,16 +158,16 @@ export function CopyBookmarkModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#181818] border border-slate-200 dark:border-neutral-800 shadow-2xl p-5 flex flex-col space-y-4 text-slate-900 dark:text-neutral-100">
+      <div className="w-full max-w-md rounded-lg bg-card border border-border shadow-lg p-5 flex flex-col space-y-4 text-foreground">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-neutral-800">
+        <div className="flex items-center justify-between pb-3 border-b border-border/60">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-md bg-secondary text-primary flex items-center justify-center">
               <Copy className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold">Copy Site to Folder</h2>
-              <p className="text-[11px] text-muted-foreground truncate max-w-[280px]">
+              <h2 className="text-sm font-semibold">Copy Site to Folder</h2>
+              <p className="text-xs text-muted-foreground truncate max-w-70">
                 {bookmark.title}
               </p>
             </div>
@@ -175,7 +175,7 @@ export function CopyBookmarkModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer"
+            className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -183,7 +183,7 @@ export function CopyBookmarkModal({
 
         {/* Copy Title Input */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300">
+          <label className="text-xs font-medium text-foreground">
             Copy Title
           </label>
           <Input
@@ -196,7 +196,7 @@ export function CopyBookmarkModal({
 
         {/* Destination Folder Selector */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-700 dark:text-neutral-300">
+          <label className="text-xs font-medium text-foreground">
             Select Destination Folder
           </label>
 
@@ -207,7 +207,7 @@ export function CopyBookmarkModal({
               placeholder="Search destination folders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-700 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full pl-8 pr-7 py-1.5 text-xs rounded-md bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             {searchQuery && (
               <button
@@ -220,24 +220,24 @@ export function CopyBookmarkModal({
             )}
           </div>
 
-          <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-neutral-800 p-1.5 space-y-0.5">
+          <div className="max-h-52 overflow-y-auto rounded-md border border-border p-1.5 space-y-0.5">
             {/* Unsorted Option */}
             <div
               onClick={() => setSelectedFolderId(null)}
-              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${
+              className={`flex items-center justify-between px-2.5 py-1.5 rounded-md cursor-pointer text-xs transition-colors ${
                 selectedFolderId === null
-                  ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-100 font-semibold border border-emerald-300 dark:border-emerald-800"
-                  : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200"
+                  ? "bg-primary/10 text-primary font-medium border border-primary/20"
+                  : "hover:bg-secondary text-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-base leading-none">📥</span>
+                <FolderIconRenderer icon="inbox" className="h-4 w-4" />
                 <span>Unsorted (Inbox)</span>
               </div>
-              {selectedFolderId === null && <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
+              {selectedFolderId === null && <Check className="h-3.5 w-3.5 text-primary" />}
             </div>
 
-            <div className="h-px bg-slate-100 dark:bg-neutral-800 my-1" />
+            <div className="h-px bg-border/60 my-1" />
 
             {/* Folder Hierarchy */}
             {folderTree.map((root) => renderFolderItem(root, 0))}
@@ -245,7 +245,7 @@ export function CopyBookmarkModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-neutral-800">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
           <Button
             type="button"
             variant="outline"
@@ -261,7 +261,7 @@ export function CopyBookmarkModal({
             size="sm"
             onClick={handleCopy}
             disabled={isSubmitting}
-            className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-1.5"
+            className="text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer gap-1.5"
           >
             {isSubmitting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

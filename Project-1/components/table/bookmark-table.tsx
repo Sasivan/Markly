@@ -121,11 +121,26 @@ export function BookmarkTable({
   // Column visibility dropdown
   const [colMenuOpen, setColMenuOpen] = React.useState(false);
 
-  // Filter data by status if active
+  // Filter data by status and search filter across all views (Table, Board, Cards, List, Compact)
   const filteredData = React.useMemo(() => {
-    if (statusFilter === "all") return data;
-    return data.filter((item) => item.status === statusFilter);
-  }, [data, statusFilter]);
+    let result = data;
+    if (statusFilter !== "all") {
+      result = result.filter((item) => item.status === statusFilter);
+    }
+    const q = (globalFilter || "").toLowerCase().trim();
+    if (q) {
+      result = result.filter((bm) => {
+        const titleMatch = bm.title?.toLowerCase().includes(q);
+        const urlMatch = bm.url?.toLowerCase().includes(q);
+        const domainMatch = bm.domain?.toLowerCase().includes(q);
+        const descMatch = bm.description?.toLowerCase().includes(q);
+        const tagsMatch = bm.tags?.some((t) => t.name.toLowerCase().includes(q));
+        const folderMatch = bm.folderName?.toLowerCase().includes(q);
+        return Boolean(titleMatch || urlMatch || domainMatch || descMatch || tagsMatch || folderMatch);
+      });
+    }
+    return result;
+  }, [data, statusFilter, globalFilter]);
 
   // Notion-style Board / Kanban Columns
   const kanbanColumns = React.useMemo(() => {
@@ -679,6 +694,18 @@ export function BookmarkTable({
       globalFilter,
       rowSelection,
       columnVisibility,
+    },
+    globalFilterFn: (row, columnId, filterValue) => {
+      const q = String(filterValue || "").toLowerCase().trim();
+      if (!q) return true;
+      const bm = row.original;
+      const titleMatch = bm.title?.toLowerCase().includes(q);
+      const urlMatch = bm.url?.toLowerCase().includes(q);
+      const domainMatch = bm.domain?.toLowerCase().includes(q);
+      const descMatch = bm.description?.toLowerCase().includes(q);
+      const tagsMatch = bm.tags?.some((t) => t.name.toLowerCase().includes(q));
+      const folderMatch = bm.folderName?.toLowerCase().includes(q);
+      return Boolean(titleMatch || urlMatch || domainMatch || descMatch || tagsMatch || folderMatch);
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,

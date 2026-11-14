@@ -1200,26 +1200,35 @@ export class BookmarkRepository {
   }
 
   /**
-   * Get retention setting in days (1, 7, 15, or 30 days - default 30)
+   * Get retention setting in days (0 for permanent/never, 1, 7, 15, or 30 days - default 30)
    */
-  static getRecycleBinRetentionDays(userId: string): number {
+  static getRecycleBinRetentionDays(userId?: string): number {
     try {
+      if (userId) {
+        const userRow = sqlite
+          .prepare(`SELECT value FROM app_settings WHERE key = ?`)
+          .get(`recycle_bin_retention_days_${userId}`) as { value: string } | undefined;
+        if (userRow?.value !== undefined) {
+          const parsed = parseInt(userRow.value, 10);
+          if ([0, 1, 7, 15, 30].includes(parsed)) return parsed;
+        }
+      }
       const row = sqlite
         .prepare(`SELECT value FROM app_settings WHERE key = 'recycle_bin_retention_days'`)
         .get() as { value: string } | undefined;
-      if (row?.value) {
+      if (row?.value !== undefined) {
         const parsed = parseInt(row.value, 10);
-        if ([1, 7, 15, 30].includes(parsed)) return parsed;
+        if ([0, 1, 7, 15, 30].includes(parsed)) return parsed;
       }
     } catch {}
     return 30;
   }
 
   /**
-   * Set retention setting in days (1, 7, 15, 30)
+   * Set retention setting in days (0 for permanent/never, 1, 7, 15, 30)
    */
-  static setRecycleBinRetentionDays(days: number): void {
-    const validDays = [1, 7, 15, 30].includes(days) ? days : 30;
+  static setRecycleBinRetentionDays(days: number, userId?: string): void {
+    const validDays = [0, 1, 7, 15, 30].includes(days) ? days : 30;
     try {
       sqlite
         .prepare(`
@@ -1228,6 +1237,16 @@ export class BookmarkRepository {
           ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
         `)
         .run(String(validDays), Date.now());
+
+      if (userId) {
+        sqlite
+          .prepare(`
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+          `)
+          .run(`recycle_bin_retention_days_${userId}`, String(validDays), Date.now());
+      }
     } catch (e) {
       console.warn("Failed to update recycle bin retention:", e);
     }
@@ -1238,11 +1257,13 @@ export class BookmarkRepository {
    */
   static async getRecycleBinItems(userId: string): Promise<any[]> {
     try {
-      // 1. Purge expired items automatically
+      // 1. Purge expired items automatically (if not set to permanent / 0 days)
       const retentionDays = this.getRecycleBinRetentionDays(userId);
-      const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
-      const cutoff = Date.now() - retentionMs;
-      sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ? AND deleted_at < ?`).run(userId, cutoff);
+      if (retentionDays > 0) {
+        const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+        const cutoff = Date.now() - retentionMs;
+        sqlite.prepare(`DELETE FROM recycle_bin WHERE user_id = ? AND deleted_at < ?`).run(userId, cutoff);
+      }
 
       // 2. Multi-instance cloud reconciliation: always hydrate soft-deleted bookmarks & folders from Supabase
       if (userId) {

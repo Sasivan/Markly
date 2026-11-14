@@ -60,3 +60,125 @@ export function getAiRequestHeaders(userId?: string | null): AiRequestHeaders {
   }
   return {};
 }
+
+export interface DailyAiQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  hasCustomKey: boolean;
+  isQuotaExceeded: boolean;
+}
+
+export const FREE_DAILY_AI_LIMIT = 30;
+
+/**
+ * Returns the current daily free AI quota state for a user.
+ * Users with custom API keys have unlimited access.
+ * Free tier users receive 30 AI enrichment requests per calendar day.
+ */
+export function getDailyAiQuota(userId?: string | null): DailyAiQuota {
+  const customKey = getStoredAiApiKey(userId);
+  if (customKey && customKey.trim()) {
+    return {
+      used: 0,
+      limit: FREE_DAILY_AI_LIMIT,
+      remaining: FREE_DAILY_AI_LIMIT,
+      hasCustomKey: true,
+      isQuotaExceeded: false,
+    };
+  }
+
+  if (typeof window === "undefined" || !window.localStorage) {
+    return {
+      used: 0,
+      limit: FREE_DAILY_AI_LIMIT,
+      remaining: FREE_DAILY_AI_LIMIT,
+      hasCustomKey: false,
+      isQuotaExceeded: false,
+    };
+  }
+
+  const storageKey = `markly_ai_daily_${userId || "guest"}`;
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.date === today) {
+        const used = Math.min(Number(parsed.count) || 0, FREE_DAILY_AI_LIMIT);
+        return {
+          used,
+          limit: FREE_DAILY_AI_LIMIT,
+          remaining: Math.max(0, FREE_DAILY_AI_LIMIT - used),
+          hasCustomKey: false,
+          isQuotaExceeded: used >= FREE_DAILY_AI_LIMIT,
+        };
+      }
+    }
+  } catch {}
+
+  return {
+    used: 0,
+    limit: FREE_DAILY_AI_LIMIT,
+    remaining: FREE_DAILY_AI_LIMIT,
+    hasCustomKey: false,
+    isQuotaExceeded: false,
+  };
+}
+
+/**
+ * Records an AI usage event for free tier users and returns updated quota.
+ * Custom key users are not limited.
+ */
+export function incrementDailyAiUsage(userId?: string | null): DailyAiQuota {
+  const customKey = getStoredAiApiKey(userId);
+  if (customKey && customKey.trim()) {
+    return {
+      used: 0,
+      limit: FREE_DAILY_AI_LIMIT,
+      remaining: FREE_DAILY_AI_LIMIT,
+      hasCustomKey: true,
+      isQuotaExceeded: false,
+    };
+  }
+
+  if (typeof window === "undefined" || !window.localStorage) {
+    return {
+      used: 1,
+      limit: FREE_DAILY_AI_LIMIT,
+      remaining: FREE_DAILY_AI_LIMIT - 1,
+      hasCustomKey: false,
+      isQuotaExceeded: false,
+    };
+  }
+
+  const storageKey = `markly_ai_daily_${userId || "guest"}`;
+  const today = new Date().toISOString().slice(0, 10);
+  let count = 0;
+
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.date === today) {
+        count = Number(parsed.count) || 0;
+      }
+    }
+  } catch {}
+
+  count += 1;
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify({ date: today, count }));
+  } catch {}
+
+  return {
+    used: count,
+    limit: FREE_DAILY_AI_LIMIT,
+    remaining: Math.max(0, FREE_DAILY_AI_LIMIT - count),
+    hasCustomKey: false,
+    isQuotaExceeded: count >= FREE_DAILY_AI_LIMIT,
+  };
+}
+
+

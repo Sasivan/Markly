@@ -48,7 +48,18 @@ interface RecycleBinViewProps {
 export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBinViewProps) {
   const { user } = useAuth();
   const [items, setItems] = React.useState<RecycleBinItem[]>([]);
-  const [retentionDays, setRetentionDays] = React.useState<number>(30);
+  const [retentionDays, setRetentionDays] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_recycle_bin_retention");
+        if (stored !== null) {
+          const parsed = parseInt(stored, 10);
+          if ([0, 1, 7, 15, 30].includes(parsed)) return parsed;
+        }
+      } catch {}
+    }
+    return 30;
+  });
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<"all" | "folder" | "bookmark">("all");
@@ -68,8 +79,16 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
       const data = await res.json();
       if (data.success) {
         setItems(data.items || []);
-        if (data.retentionDays) {
-          setRetentionDays(data.retentionDays);
+        if (data.retentionDays !== undefined) {
+          const stored = typeof window !== "undefined" ? localStorage.getItem("markly_recycle_bin_retention") : null;
+          if (stored === null) {
+            setRetentionDays(data.retentionDays);
+            try {
+              localStorage.setItem("markly_recycle_bin_retention", String(data.retentionDays));
+            } catch {}
+          } else {
+            setRetentionDays(parseInt(stored, 10));
+          }
         }
       }
     } catch (e) {
@@ -96,19 +115,22 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
   const handleUpdateRetention = async (days: number) => {
     try {
       setRetentionDays(days);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("markly_recycle_bin_retention", String(days));
+        } catch {}
+      }
       const res = await fetch("/api/recycle-bin", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ retentionDays: days }),
       });
       const data = await res.json();
-      if (data.success) {
-        setNotice({ text: `Retention period updated to ${days} day${days > 1 ? "s" : ""}.`, type: "success" });
-        fetchItems();
-        setTimeout(() => setNotice(null), 3500);
-      }
+      const label = days === 0 ? "Permanent (Never auto-purged)" : `${days} day${days > 1 ? "s" : ""}`;
+      setNotice({ text: `Retention policy permanently selected: ${label}.`, type: "success" });
+      setTimeout(() => setNotice(null), 3500);
     } catch {
-      setNotice({ text: "Failed to update retention days.", type: "error" });
+      setNotice({ text: "Failed to update retention policy.", type: "error" });
     }
   };
 
@@ -231,6 +253,18 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
                   {days}d
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => handleUpdateRetention(0)}
+                title="Select permanent retention so items are never automatically purged"
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                  retentionDays === 0
+                    ? "bg-emerald-600 text-white shadow-xs scale-102 font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <span>∞ Permanent</span>
+              </button>
             </div>
 
             {/* Empty Recycle Bin Button */}
@@ -367,7 +401,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
             </div>
             <h3 className="font-bold text-base text-foreground">Recycle Bin is empty</h3>
             <p className="text-xs text-muted-foreground max-w-sm mt-1">
-              Whenever you delete a folder or website, it stays safely protected here for {retentionDays} days and can be restored back anytime.
+              Whenever you delete a folder or website, it stays safely protected here {retentionDays === 0 ? "permanently" : `for ${retentionDays} days`} and can be restored back anytime.
             </p>
             <Button
               variant="outline"

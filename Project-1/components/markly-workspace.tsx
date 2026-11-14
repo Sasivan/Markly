@@ -1070,6 +1070,7 @@ export function MarklyWorkspace({
         folderTree={folderTree}
         initialUrl={prefillUrl}
         onBookmarkAdded={handleBookmarkAdded}
+        onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
         onFolderCreated={(newFolder) => {
           setFolders((prev) => {
             const next = [...prev, newFolder];

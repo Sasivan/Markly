@@ -49,7 +49,7 @@ export async function DELETE(req: Request) {
   }
 }
 
-// PATCH /api/recycle-bin - Update retention days (1, 7, 15, 30)
+// PATCH /api/recycle-bin - Update retention days (0 for permanent/never, 1, 7, 15, 30)
 export async function PATCH(req: Request) {
   try {
     const user = await requireUser(req);
@@ -57,14 +57,14 @@ export async function PATCH(req: Request) {
     const { retentionDays } = body;
 
     const days = parseInt(retentionDays, 10);
-    if (![1, 7, 15, 30].includes(days)) {
+    if (![0, 1, 7, 15, 30].includes(days)) {
       return NextResponse.json(
-        { success: false, error: "Invalid retention days. Must be 1, 7, 15, or 30." },
+        { success: false, error: "Invalid retention days. Must be 0 (permanent), 1, 7, 15, or 30." },
         { status: 400 }
       );
     }
 
-    BookmarkRepository.setRecycleBinRetentionDays(days);
+    BookmarkRepository.setRecycleBinRetentionDays(days, user.id);
 
     return NextResponse.json({ success: true, retentionDays: days });
   } catch (error: any) {

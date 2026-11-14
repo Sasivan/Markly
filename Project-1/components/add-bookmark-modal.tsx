@@ -34,7 +34,7 @@ import { useAuth } from "@/components/auth/auth-context";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
-import { getAiRequestHeaders } from "@/lib/ai-config";
+import { getAiRequestHeaders, getDailyAiQuota, incrementDailyAiUsage } from "@/lib/ai-config";
 
 interface AddBookmarkModalProps {
   open: boolean;
@@ -44,6 +44,7 @@ interface AddBookmarkModalProps {
   initialUrl?: string;
   onBookmarkAdded?: (bookmark: BookmarkWithDetails) => void;
   onFolderCreated?: (folder: Folder) => void;
+  onOpenApiKeyModal?: () => void;
 }
 
 const QUICK_TAGS = [
@@ -105,6 +106,7 @@ export function AddBookmarkModal({
   initialUrl = "",
   onBookmarkAdded,
   onFolderCreated,
+  onOpenApiKeyModal,
 }: AddBookmarkModalProps) {
   const { user } = useAuth();
   const [url, setUrl] = React.useState(initialUrl);
@@ -112,6 +114,15 @@ export function AddBookmarkModal({
   const [isFavorite, setIsFavorite] = React.useState(false);
   const [bookmarkStatus, setBookmarkStatus] = React.useState<"alive" | "pending" | "archived">("alive");
   const [tagsInput, setTagsInput] = React.useState("");
+
+  // AI daily quota tracking (30 free requests/day; unlimited with custom Gemini key)
+  const [aiQuota, setAiQuota] = React.useState(() => getDailyAiQuota(user?.id));
+
+  React.useEffect(() => {
+    if (open) {
+      setAiQuota(getDailyAiQuota(user?.id));
+    }
+  }, [open, user?.id]);
 
   // Additional Editing State
   const [customTitle, setCustomTitle] = React.useState("");
@@ -318,12 +329,16 @@ export function AddBookmarkModal({
         return;
       }
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (aiQuota.hasCustomKey || !aiQuota.isQuotaExceeded) {
+        Object.assign(headers, getAiRequestHeaders(user?.id));
+      }
+
       const res = await fetch("/api/scrape", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAiRequestHeaders(user?.id),
-        },
+        headers,
         signal: AbortSignal.timeout(4500),
         body: JSON.stringify({
           url: trimmed,
@@ -397,6 +412,11 @@ export function AddBookmarkModal({
         });
       } catch {}
 
+      if (!aiQuota.hasCustomKey && !aiQuota.isQuotaExceeded) {
+        const nextQuota = incrementDailyAiUsage(user?.id);
+        setAiQuota(nextQuota);
+      }
+
       if (finalBookmark && onBookmarkAdded) {
         onBookmarkAdded(finalBookmark);
       }
@@ -464,6 +484,34 @@ export function AddBookmarkModal({
             </div>
           </div>
         </DialogHeader>
+
+        {/* AI Daily Quota Status Pill */}
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-colors bg-slate-50 dark:bg-neutral-900 border-slate-200 dark:border-neutral-800">
+          <div className="flex items-center gap-1.5 truncate">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-500 flex-shrink-0" />
+            {aiQuota.hasCustomKey ? (
+              <span className="text-emerald-600 dark:text-emerald-400 truncate">Custom Gemini Key Active • Unlimited AI</span>
+            ) : aiQuota.isQuotaExceeded ? (
+              <span className="text-amber-600 dark:text-amber-400 truncate">Free AI quota (30/30) reached today • Saving standard metadata</span>
+            ) : (
+              <span className="text-slate-600 dark:text-neutral-400 truncate">
+                Free AI Autotagging: <strong className="text-indigo-600 dark:text-indigo-400">{aiQuota.remaining}</strong> of 30 uses left today
+              </span>
+            )}
+          </div>
+          {onOpenApiKeyModal && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                onOpenApiKeyModal();
+              }}
+              className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-semibold ml-2 flex-shrink-0"
+            >
+              {aiQuota.hasCustomKey ? "Manage Key" : "Add Key"}
+            </button>
+          )}
+        </div>
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="space-y-3 mt-1.5">

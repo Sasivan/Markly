@@ -277,6 +277,16 @@ export function ProfileView({
           },
         });
         if (error) throw error;
+
+        // Sync with server profile database & SQLite cache
+        fetch("/api/user/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            displayName: displayName.trim(),
+            avatarUrl: avatarUrl.trim() || undefined,
+          }),
+        }).catch(() => {});
       } else if (typeof window !== "undefined") {
         localStorage.setItem(
           "markly_guest_profile",
@@ -346,6 +356,16 @@ export function ProfileView({
           },
         });
         if (error) throw error;
+
+        // Sync with server profile database & SQLite cache
+        fetch("/api/user/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            displayName: displayName.trim(),
+            avatarUrl: avatarUrl.trim() || undefined,
+          }),
+        }).catch(() => {});
       }
 
       setIsEditingUsername(false);

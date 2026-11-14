@@ -176,8 +176,8 @@ export function AppHeader({
                 }`}
               />
             </div>
-            <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-24 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {user ? (user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile") : "Profile"}
+            <span className="text-xs font-semibold text-slate-800 dark:text-neutral-200 truncate max-w-20 hidden sm:inline group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              {user ? (user.user_metadata?.username ? `@${user.user_metadata.username}` : user.user_metadata?.display_name || user.email?.split("@")[0] || "Profile") : "Profile"}
             </span>
             <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-colors" />
           </button>
@@ -197,12 +197,12 @@ export function AppHeader({
 
           {/* User Popover / Dropdown Menu */}
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               {user ? (
                 <div className="space-y-1">
                   <div className="px-2.5 py-2 border-b border-slate-100 dark:border-neutral-800 mb-1">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      {user.user_metadata?.display_name || user.email?.split("@")[0] || "User"}
+                      {user.user_metadata?.display_name || user.user_metadata?.username || user.email?.split("@")[0] || "User"}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                     <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
@@ -217,22 +217,10 @@ export function AppHeader({
                       setUserMenuOpen(false);
                       onOpenProfile?.();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-left"
                   >
                     <User className="h-4 w-4 text-blue-500" />
                     <span>Account Profile & Settings</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      onOpenApiKeyModal?.();
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer transition-colors text-left"
-                  >
-                    <KeyRound className="h-4 w-4 text-indigo-500" />
-                    <span>AI Settings & Gemini Key</span>
                   </button>
 
                   <div className="border-t border-slate-100 dark:border-neutral-800 my-1 pt-1" />

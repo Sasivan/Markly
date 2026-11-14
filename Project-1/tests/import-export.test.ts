@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { exportToNetscapeHtml, parseNetscapeHtml } from "../server/import-export/netscape";
-import { exportToCsv } from "../server/import-export/csv";
+import { exportToCsv, parseCsv } from "../server/import-export/csv";
 import type { BookmarkWithDetails, Folder } from "../server/db/schema";
 
 describe("Netscape Bookmark HTML Engine", () => {
@@ -96,6 +96,24 @@ describe("CSV Export Engine", () => {
     const csv = exportToCsv([mockBookmark]);
     expect(csv).toContain("Title,URL,Folder,Domain,Tags,Favorite,Status,Visits,Created At");
     expect(csv).toContain('""quotes"" and, commas"');
+  });
+
+  it("parses CSV text back into structured bookmarks and folders", () => {
+    const rawCsv = `Title,URL,Folder,Domain,Tags,Favorite,Status,Visits,Created At
+"React Documentation","https://react.dev","Frontend","react.dev","react, docs","Yes","alive","10","2026-11-14"
+"Vite Fast Bundler","https://vite.dev","Frontend","vite.dev","bundler, vite","No","alive","5","2026-11-14"`;
+
+    const parsed = parseCsv(rawCsv);
+    expect(parsed.length).toBe(2);
+    expect(parsed[0].title).toBe("React Documentation");
+    expect(parsed[0].url).toBe("https://react.dev");
+    expect(parsed[0].folderName).toBe("Frontend");
+    expect(parsed[0].tags).toEqual(["react", "docs"]);
+    expect(parsed[0].isFavorite).toBe(true);
+
+    expect(parsed[1].title).toBe("Vite Fast Bundler");
+    expect(parsed[1].url).toBe("https://vite.dev");
+    expect(parsed[1].isFavorite).toBe(false);
   });
 });
 

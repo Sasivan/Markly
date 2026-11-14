@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 import { parseNetscapeHtml } from "@/server/import-export/netscape";
+import { parseCsv } from "@/server/import-export/csv";
 import { normalizeUrl } from "@/server/scraper/url";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
@@ -110,9 +111,45 @@ export async function POST(req: Request) {
           continue;
         }
       }
+    } else if (filename.endsWith(".csv") || text.toLowerCase().startsWith("title,url")) {
+      const items = parseCsv(text);
+      for (const item of items) {
+        try {
+          const { url, canonicalUrl, domain } = normalizeUrl(item.url);
+          const dup = BookmarkRepository.findDuplicate(canonicalUrl, user.id);
+          if (dup) continue;
+
+          let fId: string | null = null;
+          if (item.folderName) {
+            const key = item.folderName.toLowerCase();
+            if (folderMap.has(key)) {
+              fId = folderMap.get(key) || null;
+            } else {
+              const newFolder = BookmarkRepository.createFolder({ name: item.folderName, userId: user.id });
+              folderMap.set(key, newFolder.id);
+              fId = newFolder.id;
+              createdFoldersCount++;
+            }
+          }
+
+          BookmarkRepository.createBookmark({
+            url,
+            canonicalUrl,
+            title: item.title || domain,
+            domain,
+            folderId: fId,
+            isFavorite: Boolean(item.isFavorite),
+            tagNames: item.tags || [],
+            userId: user.id,
+          });
+          importedCount++;
+        } catch {
+          continue;
+        }
+      }
     } else {
       return NextResponse.json(
-        { success: false, error: "Unsupported file format. Please upload HTML bookmarks or JSON." },
+        { success: false, error: "Unsupported file format. Please upload HTML bookmarks, JSON, or CSV." },
         { status: 400 }
       );
     }

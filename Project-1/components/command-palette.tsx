@@ -37,6 +37,22 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const [search, setSearch] = React.useState("");
 
+  const filteredBookmarks = React.useMemo(() => {
+    if (!search.trim()) return bookmarks.slice(0, 25);
+    const q = search.toLowerCase().trim();
+    return bookmarks
+      .filter((bm) => {
+        const titleMatch = bm.title.toLowerCase().includes(q);
+        const urlMatch = bm.url.toLowerCase().includes(q);
+        const domainMatch = bm.domain.toLowerCase().includes(q);
+        const tagsMatch = bm.tags?.some((t) => t.name.toLowerCase().includes(q));
+        const folder = bm.folderId ? folders.find((f) => f.id === bm.folderId) : null;
+        const folderMatch = folder?.name.toLowerCase().includes(q);
+        return Boolean(titleMatch || urlMatch || domainMatch || tagsMatch || folderMatch);
+      })
+      .slice(0, 25);
+  }, [bookmarks, folders, search]);
+
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName))) {
@@ -194,13 +210,13 @@ export function CommandPalette({
 
             {/* Bookmarks */}
             <Command.Group heading="Bookmarks" className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 px-2 py-1 mt-1">
-              {bookmarks.slice(0, 20).map((bm) => {
+              {filteredBookmarks.map((bm) => {
                 const folder = bm.folderId ? folders.find((f) => f.id === bm.folderId) : null;
 
                 return (
                   <Command.Item
                     key={bm.id}
-                    value={`${bm.title} ${bm.domain} ${bm.url} ${folder?.name || "unsorted"}`}
+                    value={`${bm.title} ${bm.domain} ${bm.url} ${folder?.name || "unsorted"} ${bm.tags?.map((t) => t.name).join(" ") || ""}`}
                     onSelect={() => {
                       // Clicking anywhere on row opens the exact folder location!
                       if (bm.folderId) {

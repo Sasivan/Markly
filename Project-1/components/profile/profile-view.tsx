@@ -794,11 +794,7 @@ export function ProfileView({
               <Button
                 size="sm"
                 onClick={handleSaveProfile}
-                disabled={
-                  isSavingDetails ||
-                  usernameCheck.state === "unavailable" ||
-                  usernameCheck.state === "checking"
-                }
+                disabled={isSavingDetails}
                 className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer gap-1.5"
               >
                 <Save className="h-3 w-3" />
@@ -825,21 +821,6 @@ export function ProfileView({
               </div>
               <div className="text-xs font-semibold text-slate-900 dark:text-white">
                 {displayName || "Not set"}
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50/60 dark:bg-neutral-900/40 space-y-1">
-              <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                <span className="font-mono text-indigo-500 font-bold">@</span>
-                <span>Unique Username</span>
-              </div>
-              <div className="text-xs font-semibold text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
-                <span>{username ? `@${username}` : "Not set"}</span>
-                {username && (
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-sans font-medium">
-                    Verified
-                  </span>
-                )}
               </div>
             </div>
 

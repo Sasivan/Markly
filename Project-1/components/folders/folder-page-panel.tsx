@@ -14,9 +14,6 @@ import {
   ArrowRight,
   Check,
   X,
-  Table as TableIcon,
-  LayoutGrid,
-  Rows3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -39,8 +36,6 @@ interface FolderPagePanelProps {
   onMoveFolder: (folder: FolderType) => void;
   onDeleteFolder: (folder: FolderType) => void;
   onAddBookmarkToFolder?: (folderId: string) => void;
-  viewMode?: "table" | "board" | "cards" | "list" | "compact";
-  onChangeViewMode?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
 }
 
 export function FolderPagePanel({
@@ -60,8 +55,6 @@ export function FolderPagePanel({
   onMoveFolder,
   onDeleteFolder,
   onAddBookmarkToFolder,
-  viewMode = "table",
-  onChangeViewMode,
 }: FolderPagePanelProps) {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editName, setEditName] = React.useState(currentFolder.name);
@@ -241,53 +234,16 @@ export function FolderPagePanel({
 
         {/* Right: Folder Options Toolbar */}
         <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-          {/* Quick Add Bookmark to this folder */}
+          {/* Quick Add Bookmark to this folder (Icon-Only + Button) */}
           {onAddBookmarkToFolder && (
             <Button
               size="sm"
               onClick={() => onAddBookmarkToFolder(currentFolder.id)}
-              className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer flex items-center gap-1.5 shadow-xs"
-              title={`Add new bookmark directly into ${currentFolder.name}`}
+              className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 text-white font-medium cursor-pointer flex items-center justify-center shadow-xs rounded-lg"
+              title={`Add new bookmark into ${currentFolder.name}`}
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Add Bookmark</span>
+              <Plus className="h-4 w-4" />
             </Button>
-          )}
-
-          {/* Multi-View Mode Switcher */}
-          {onChangeViewMode && (
-            <div className="flex items-center bg-slate-100 dark:bg-neutral-850 p-0.5 rounded-lg border border-slate-200 dark:border-neutral-700 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => onChangeViewMode("table")}
-                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                  viewMode === "table" ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Spreadsheet Table View"
-              >
-                <TableIcon className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangeViewMode("cards")}
-                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                  viewMode === "cards" ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Visual Card Gallery View"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangeViewMode("compact")}
-                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                  viewMode === "compact" ? "bg-white dark:bg-neutral-700 text-foreground shadow-2xs font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Ultra-Compact Dense View"
-              >
-                <Rows3 className="h-3.5 w-3.5" />
-              </button>
-            </div>
           )}
 
           {/* Subfolder Toggle Icon */}

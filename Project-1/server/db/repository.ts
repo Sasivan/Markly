@@ -1246,6 +1246,10 @@ export class BookmarkRepository {
             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
           `)
           .run(`recycle_bin_retention_days_${userId}`, String(validDays), Date.now());
+
+        sqlite.prepare(`UPDATE recycle_bin SET retention_days = ? WHERE user_id = ?`).run(validDays, userId);
+      } else {
+        sqlite.prepare(`UPDATE recycle_bin SET retention_days = ?`).run(validDays);
       }
     } catch (e) {
       console.warn("Failed to update recycle bin retention:", e);
@@ -1328,11 +1332,16 @@ export class BookmarkRepository {
 
       const now = Date.now();
       return rows.map((r) => {
-        const itemRetentionMs = (r.retention_days || retentionDays) * 24 * 60 * 60 * 1000;
-        const expiresAt = r.deleted_at + itemRetentionMs;
-        const remainingMs = Math.max(0, expiresAt - now);
-        const expiresInDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
-        const expiresInHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+        const effectiveDays = retentionDays;
+        let expiresInDays = 9999;
+        let expiresInHours = 99999;
+        if (effectiveDays > 0) {
+          const itemRetentionMs = effectiveDays * 24 * 60 * 60 * 1000;
+          const expiresAt = r.deleted_at + itemRetentionMs;
+          const remainingMs = Math.max(0, expiresAt - now);
+          expiresInDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+          expiresInHours = Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)));
+        }
 
         return {
           id: r.id,
@@ -1346,7 +1355,7 @@ export class BookmarkRepository {
           color: r.color,
           itemData: r.item_data,
           deletedAt: r.deleted_at,
-          retentionDays: r.retention_days,
+          retentionDays: effectiveDays,
           expiresInDays,
           expiresInHours,
         };

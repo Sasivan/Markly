@@ -134,7 +134,7 @@ export function MarklyWorkspace({
   const [includeSubfolders, setIncludeSubfolders] = React.useState(true); // Default true: include subfolders for smooth navigation
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
-  const [recentBoundary, setRecentBoundary] = React.useState<"top20" | "today" | "7d" | "30d" | "all">("top20");
+  const [recentBoundary, setRecentBoundary] = React.useState<"1d" | "7d" | "15d" | "30d" | "all" | "top20" | "today">("1d");
 
   // Sidebar collapse state: collapsed by default for all users when opening website
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(() => {
@@ -426,13 +426,17 @@ export function MarklyWorkspace({
       // Apply boundary filter
       const now = Date.now();
       let boundedList = visitedOnly;
-      if (recentBoundary === "today") {
+      if (recentBoundary === "1d" || recentBoundary === "today") {
         boundedList = visitedOnly.filter(
           (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 24 * 60 * 60 * 1000
         );
       } else if (recentBoundary === "7d") {
         boundedList = visitedOnly.filter(
           (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 7 * 24 * 60 * 60 * 1000
+        );
+      } else if (recentBoundary === "15d") {
+        boundedList = visitedOnly.filter(
+          (b) => Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0) >= now - 15 * 24 * 60 * 60 * 1000
         );
       } else if (recentBoundary === "30d") {
         boundedList = visitedOnly.filter(
@@ -1499,8 +1503,6 @@ export function MarklyWorkspace({
                     onMoveFolder={(folder) => setPanelMoveFolder(folder)}
                     onDeleteFolder={(folder) => setPanelDeleteFolder(folder)}
                     onAddBookmarkToFolder={(fId) => openAddModal(fId)}
-                    viewMode={folderViewMode}
-                    onChangeViewMode={setFolderViewMode}
                   />
                 );
               })()}
@@ -1606,21 +1608,25 @@ export function MarklyWorkspace({
                     </div>
                   </div>
 
-                  {/* Predefined Recency Boundary Selector */}
-                  <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto text-xs shadow-2xs">
+                  {/* Predefined Recency Day Boundary Selector */}
+                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto text-xs shadow-2xs">
+                    <span className="text-[11px] font-medium text-muted-foreground px-2 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Activity:</span>
+                    </span>
                     {[
-                      { id: "top20", label: "Top 20" },
-                      { id: "today", label: "Past 24h" },
-                      { id: "7d", label: "Past 7 Days" },
-                      { id: "30d", label: "Past 30 Days" },
+                      { id: "1d", label: "1d" },
+                      { id: "7d", label: "7d" },
+                      { id: "15d", label: "15d" },
+                      { id: "30d", label: "30d" },
                       { id: "all", label: "All Visited" },
                     ].map((tab) => (
                       <button
                         key={tab.id}
                         type="button"
                         onClick={() => setRecentBoundary(tab.id as any)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                          recentBoundary === tab.id
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                          recentBoundary === tab.id || (tab.id === "1d" && (recentBoundary === "today" || recentBoundary === "top20"))
                             ? "bg-blue-600 text-white shadow-xs scale-102 font-bold"
                             : "text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-neutral-800"
                         }`}

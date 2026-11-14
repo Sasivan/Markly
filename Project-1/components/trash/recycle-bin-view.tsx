@@ -45,6 +45,31 @@ interface RecycleBinViewProps {
   onNavigateView: (view: any) => void;
 }
 
+function getExpirationInfo(deletedAt: number, currentRetention: number) {
+  if (currentRetention === 0) {
+    return {
+      label: "Never expires",
+      isExpiringSoon: false,
+    };
+  }
+  const totalMs = currentRetention * 24 * 60 * 60 * 1000;
+  const elapsedMs = Date.now() - (deletedAt || Date.now());
+  const remainingMs = Math.max(0, totalMs - elapsedMs);
+  const remainingHours = Math.max(1, Math.ceil(remainingMs / (1000 * 60 * 60)));
+  const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+
+  if (remainingDays <= 1) {
+    return {
+      label: `Expires in ${remainingHours}h`,
+      isExpiringSoon: true,
+    };
+  }
+  return {
+    label: `Expires in ${remainingDays}d`,
+    isExpiringSoon: false,
+  };
+}
+
 export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBinViewProps) {
   const { user } = useAuth();
   const [items, setItems] = React.useState<RecycleBinItem[]>([]);
@@ -268,7 +293,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
           </div>
 
           {/* Retention Options & Empty Actions */}
-          <div className="flex flex-wrap items-center justify-between gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
             {/* Retention Selector */}
             <div className="flex items-center gap-1.5 p-1 rounded-xl bg-card dark:bg-[#1a1a1a] border border-border text-xs shadow-2xs">
               <span className="text-[11px] font-medium text-muted-foreground px-2 flex items-center gap-1">
@@ -282,7 +307,7 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
                   onClick={() => handleUpdateRetention(days)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
                     retentionDays === days
-                      ? "bg-rose-500 text-white shadow-xs scale-102"
+                      ? "bg-rose-500 text-white shadow-xs scale-102 font-bold"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
@@ -303,13 +328,13 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
               </button>
             </div>
 
-            {/* Empty Recycle Bin Button - Separated with clean position */}
+            {/* Empty Recycle Bin Button - Horizontally aligned next to Save for */}
             {items.length > 0 && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowEmptyConfirm(true)}
-                className="h-8.5 px-3.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 shadow-xs border border-rose-600 hover:bg-rose-700 active:scale-95 transition-all"
+                className="h-8.5 px-3.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 shadow-xs bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all shrink-0"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Empty Bin</span>
@@ -550,20 +575,25 @@ export function RecycleBinView({ onRefreshWorkspace, onNavigateView }: RecycleBi
 
                     {/* Right: Expiration Countdown & Action Buttons */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* Expiration Badge */}
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] font-semibold px-2 py-0.5 border ${
-                          isExpiringSoon
-                            ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10"
-                            : "border-slate-200 dark:border-neutral-800 text-muted-foreground bg-slate-50 dark:bg-neutral-850/40"
-                        }`}
-                      >
-                        <Clock className="h-3 w-3 mr-1" />
-                        {item.expiresInDays <= 0
-                          ? `Expires in ${item.expiresInHours}h`
-                          : `Expires in ${item.expiresInDays}d`}
-                      </Badge>
+                      {/* Dynamic Expiration Badge */}
+                      {(() => {
+                        const { label, isExpiringSoon: expiringSoon } = getExpirationInfo(item.deletedAt, retentionDays);
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-semibold px-2 py-0.5 border ${
+                              expiringSoon
+                                ? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10"
+                                : retentionDays === 0
+                                ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5"
+                                : "border-slate-200 dark:border-neutral-800 text-muted-foreground bg-slate-50 dark:bg-neutral-850/40"
+                            }`}
+                          >
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{label}</span>
+                          </Badge>
+                        );
+                      })()}
 
                       {/* Restore Button */}
                       <Button

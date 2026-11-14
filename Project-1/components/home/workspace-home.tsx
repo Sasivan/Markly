@@ -597,21 +597,18 @@ export function WorkspaceHome({
                 </span>
               )}
             </div>
-            {/* Interactive Timeline Navigation Bar */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-neutral-850 border border-slate-200 dark:border-neutral-750 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  onSelectFolder(null);
-                  onSelectView("recent");
-                }}
-                className="px-2.5 py-1 rounded-lg bg-white dark:bg-neutral-750 text-indigo-600 dark:text-indigo-400 font-bold shadow-2xs hover:bg-slate-50 dark:hover:bg-neutral-700 transition-all flex items-center gap-1.5 cursor-pointer text-[11px]"
-                title="Open chronological visit timeline & analytics"
-              >
-                <span>Activity Timeline Bar</span>
-                <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
+            {/* Clean View All Navigation Link */}
+            <button
+              type="button"
+              onClick={() => {
+                onSelectFolder(null);
+                onSelectView("recent");
+              }}
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium flex items-center gap-1"
+            >
+              <span>View All</span>
+              <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
 
           {recentlyVisited.length === 0 ? (

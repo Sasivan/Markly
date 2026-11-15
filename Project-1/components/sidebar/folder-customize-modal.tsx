@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { Sparkles, Dices, RefreshCw } from "lucide-react";
+import { Sparkles, Dices, RefreshCw, Columns2, Rows2 } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 
 interface FolderCustomizeModalProps {
@@ -55,6 +55,25 @@ export function FolderCustomizeModal({
   const [selectedColor, setSelectedColor] = React.useState("#3b82f6");
   const [saving, setSaving] = React.useState(false);
 
+  // Modal format: horizontal (2-col side-by-side) vs vertical (stacked)
+  const [modalFormat, setModalFormat] = React.useState<"vertical" | "horizontal">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_folder_modal_format");
+        if (stored === "vertical" || stored === "horizontal") return stored;
+        return window.innerWidth >= 768 ? "horizontal" : "vertical";
+      } catch {}
+    }
+    return "horizontal";
+  });
+
+  const toggleModalFormat = (format: "vertical" | "horizontal") => {
+    setModalFormat(format);
+    try {
+      localStorage.setItem("markly_folder_modal_format", format);
+    } catch {}
+  };
+
   const handleRandomHarmonicColor = () => {
     // Generate aesthetic harmonious color
     const hue = Math.floor(Math.random() * 360);
@@ -99,139 +118,313 @@ export function FolderCustomizeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-5 max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div
-              className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
-              style={{ backgroundColor: `${selectedColor}20` }}
-            >
-              <FolderIconRenderer icon={selectedIcon} className="h-5 w-5" color={selectedColor} />
+      <DialogContent
+        className={`${
+          modalFormat === "horizontal"
+            ? "sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
+            : "sm:max-w-md max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
+        }`}
+      >
+        <DialogHeader className="pb-2 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
+                style={{ backgroundColor: `${selectedColor}20` }}
+              >
+                <FolderIconRenderer icon={selectedIcon} className="h-5 w-5" color={selectedColor} />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  Customize folder
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Search icons and customize folder appearance
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-medium text-foreground">
-                Customize folder
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Search icons and customize folder appearance
-              </DialogDescription>
+
+            {/* Layout format toggle button */}
+            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] font-medium shrink-0 ml-3">
+              <button
+                type="button"
+                onClick={() => toggleModalFormat("vertical")}
+                title="Vertical stacked layout"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  modalFormat === "vertical"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Rows2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleModalFormat("horizontal")}
+                title="Horizontal side-by-side layout"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  modalFormat === "horizontal"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Columns2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-xs">
-          <div className="space-y-1.5">
-            <label className="font-medium text-foreground">
-              Folder name
-            </label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-8 text-xs bg-background border border-border"
-              autoFocus
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+          <div className="overflow-y-auto flex-1 pr-1.5 py-3">
+            {modalFormat === "horizontal" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Left Column: Folder Name, Harmonic Generator, Live Preview */}
+                <div className="space-y-4">
+                  {/* Live preview */}
+                  <div className="p-3 rounded-xl border border-border bg-secondary/30 flex items-center gap-3">
+                    <div
+                      className="h-10 w-10 rounded-lg flex items-center justify-center text-xl shrink-0 border border-border shadow-2xs"
+                      style={{ backgroundColor: `${selectedColor}20` }}
+                    >
+                      <FolderIconRenderer icon={selectedIcon} className="h-5 w-5" color={selectedColor} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-foreground truncate">
+                        {name || folder.name || "Folder Preview"}
+                      </div>
+                      <div className="text-[11px] font-mono text-muted-foreground truncate">
+                        {selectedIcon} • {selectedColor}
+                      </div>
+                    </div>
+                  </div>
 
-          <div className="space-y-1.5">
-            <label className="font-medium text-foreground">
-              Search & select icon
-            </label>
-            <IconSearchPicker
-              selectedIcon={selectedIcon}
-              onSelectIcon={setSelectedIcon}
-            />
-          </div>
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-foreground">
+                      Folder name
+                    </label>
+                    <Input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="h-8 text-xs bg-background border border-border"
+                      autoFocus
+                    />
+                  </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="font-medium text-foreground">
-                Color palette & badge
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleRandomHarmonicColor}
-                  className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                  title="Generate random harmonious color"
-                >
-                  <Sparkles className="h-3 w-3 text-primary" />
-                  <span>Generate</span>
-                </button>
-                <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                  <span>Custom:</span>
-                  <input
-                    type="color"
-                    value={selectedColor.startsWith("#") && selectedColor.length === 7 ? selectedColor : "#3b82f6"}
-                    onChange={(e) => setSelectedColor(e.target.value)}
-                    className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
-                    title="Pick custom color"
-                  />
-                </label>
-                <input
-                  type="text"
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
-                  placeholder="#3b82f6"
-                />
-              </div>
-            </div>
-
-            {/* Standard Swatches */}
-            <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
-              {COLOR_PALETTE.map((c) => (
-                <button
-                  type="button"
-                  key={c.value}
-                  onClick={() => setSelectedColor(c.value)}
-                  className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
-                    selectedColor.toLowerCase() === c.value.toLowerCase()
-                      ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                      : "opacity-85 hover:opacity-100"
-                  }`}
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-
-            {/* Harmonic Palettes Generator */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                <Dices className="h-3 w-3 text-primary" />
-                <span>Harmonic Palettes Generator</span>
-              </span>
-              <div className="grid grid-cols-3 gap-1.5">
-                {HARMONIC_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    onClick={() => {
-                      const randomColor = preset.colors[Math.floor(Math.random() * preset.colors.length)];
-                      setSelectedColor(randomColor);
-                    }}
-                    className="p-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary flex flex-col gap-1 text-left cursor-pointer transition-colors"
-                  >
-                    <span className="text-[10px] font-medium text-foreground">{preset.name}</span>
-                    <div className="flex gap-0.5">
-                      {preset.colors.slice(0, 5).map((col, i) => (
-                        <span key={i} className="h-2 flex-1 rounded-xs" style={{ backgroundColor: col }} />
+                  {/* Harmonic Palettes Generator */}
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Dices className="h-3 w-3 text-primary" />
+                      <span>Harmonic Palettes Generator</span>
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {HARMONIC_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            const randomColor = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+                            setSelectedColor(randomColor);
+                          }}
+                          className="p-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary flex flex-col gap-1 text-left cursor-pointer transition-colors"
+                        >
+                          <span className="text-[10px] font-medium text-foreground">{preset.name}</span>
+                          <div className="flex gap-0.5">
+                            {preset.colors.slice(0, 5).map((col, i) => (
+                              <span key={i} className="h-2 flex-1 rounded-xs" style={{ backgroundColor: col }} />
+                            ))}
+                          </div>
+                        </button>
                       ))}
                     </div>
-                  </button>
-                ))}
+                  </div>
+                </div>
+
+                {/* Right Column: Icon Picker & Color Swatches */}
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-foreground">
+                      Search & select icon
+                    </label>
+                    <IconSearchPicker
+                      selectedIcon={selectedIcon}
+                      onSelectIcon={setSelectedIcon}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="font-medium text-foreground">
+                        Color palette & badge
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleRandomHarmonicColor}
+                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          title="Generate random harmonious color"
+                        >
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          <span>Generate</span>
+                        </button>
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                          <span>Custom:</span>
+                          <input
+                            type="color"
+                            value={selectedColor.startsWith("#") && selectedColor.length === 7 ? selectedColor : "#3b82f6"}
+                            onChange={(e) => setSelectedColor(e.target.value)}
+                            className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
+                            title="Pick custom color"
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedColor}
+                          onChange={(e) => setSelectedColor(e.target.value)}
+                          className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
+                          placeholder="#3b82f6"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Standard Swatches */}
+                    <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
+                      {COLOR_PALETTE.map((c) => (
+                        <button
+                          type="button"
+                          key={c.value}
+                          onClick={() => setSelectedColor(c.value)}
+                          className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
+                            selectedColor.toLowerCase() === c.value.toLowerCase()
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                              : "opacity-85 hover:opacity-100"
+                          }`}
+                          style={{ backgroundColor: c.value }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Vertical Stacked Layout */
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="font-medium text-foreground">
+                    Folder name
+                  </label>
+                  <Input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-8 text-xs bg-background border border-border"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-medium text-foreground">
+                    Search & select icon
+                  </label>
+                  <IconSearchPicker
+                    selectedIcon={selectedIcon}
+                    onSelectIcon={setSelectedIcon}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-medium text-foreground">
+                      Color palette & badge
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRandomHarmonicColor}
+                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        title="Generate random harmonious color"
+                      >
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        <span>Generate</span>
+                      </button>
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                        <span>Custom:</span>
+                        <input
+                          type="color"
+                          value={selectedColor.startsWith("#") && selectedColor.length === 7 ? selectedColor : "#3b82f6"}
+                          onChange={(e) => setSelectedColor(e.target.value)}
+                          className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
+                          title="Pick custom color"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedColor}
+                        onChange={(e) => setSelectedColor(e.target.value)}
+                        className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
+                        placeholder="#3b82f6"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Standard Swatches */}
+                  <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
+                    {COLOR_PALETTE.map((c) => (
+                      <button
+                        type="button"
+                        key={c.value}
+                        onClick={() => setSelectedColor(c.value)}
+                        className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
+                          selectedColor.toLowerCase() === c.value.toLowerCase()
+                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                            : "opacity-85 hover:opacity-100"
+                        }`}
+                        style={{ backgroundColor: c.value }}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Harmonic Palettes Generator */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Dices className="h-3 w-3 text-primary" />
+                      <span>Harmonic Palettes Generator</span>
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {HARMONIC_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            const randomColor = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+                            setSelectedColor(randomColor);
+                          }}
+                          className="p-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary flex flex-col gap-1 text-left cursor-pointer transition-colors"
+                        >
+                          <span className="text-[10px] font-medium text-foreground">{preset.name}</span>
+                          <div className="flex gap-0.5">
+                            {preset.colors.slice(0, 5).map((col, i) => (
+                              <span key={i} className="h-2 flex-1 rounded-xs" style={{ backgroundColor: col }} />
+                            ))}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 mt-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs h-8"
+              className="text-xs h-8 cursor-pointer"
             >
               Cancel
             </Button>
@@ -240,7 +433,7 @@ export function FolderCustomizeModal({
               variant="default"
               size="sm"
               disabled={saving || !name.trim()}
-              className="text-xs h-8"
+              className="text-xs h-8 cursor-pointer"
             >
               {saving ? "Saving..." : "Save changes"}
             </Button>

@@ -9,7 +9,31 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Check, GripVertical } from "lucide-react";
+import {
+  SlidersHorizontal,
+  RotateCcw,
+  Check,
+  GripVertical,
+  Eye,
+  EyeOff,
+  Activity,
+  FileEdit,
+  Folder,
+  Clock,
+  Star,
+  Inbox,
+  Hash,
+  Zap,
+  TrendingUp,
+  Compass,
+  PieChart,
+  Globe,
+  BarChart3,
+  Maximize2,
+  Minimize2,
+  MoveLeft,
+  MoveRight,
+} from "lucide-react";
 
 export type HomeWidgetKey =
   | "heatmap"
@@ -64,6 +88,8 @@ export function HomeLayoutModal({
   onResetDefaults,
 }: HomeLayoutModalProps) {
   const [localWidgets, setLocalWidgets] = React.useState<HomeWidgetConfig[]>(widgets);
+  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     setLocalWidgets(widgets);
@@ -81,30 +107,38 @@ export function HomeLayoutModal({
     );
   };
 
-  const moveWidget = (index: number, direction: "up" | "down") => {
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= localWidgets.length) return;
-
-    const copy = [...localWidgets];
-    const [moved] = copy.splice(index, 1);
-    copy.splice(targetIndex, 0, moved);
-    setLocalWidgets(copy);
+  // Reorder widget by moving directly to target slot (1 box right, 2 boxes right, or N slots across)
+  const moveWidgetToSlot = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= localWidgets.length) return;
+    setLocalWidgets((prev) => {
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIndex, 1);
+      copy.splice(toIndex, 0, moved);
+      return copy;
+    });
   };
-
-  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
+    setDragOverIndex(null);
     if (draggedIndex === null || draggedIndex === targetIndex) return;
 
     setLocalWidgets((prev) => {
@@ -116,86 +150,186 @@ export function HomeLayoutModal({
     setDraggedIndex(null);
   };
 
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   const handleSave = () => {
     onSaveWidgets(localWidgets);
     onOpenChange(false);
   };
 
+  const getWidgetIcon = (id: HomeWidgetKey) => {
+    switch (id) {
+      case "heatmap":
+        return <Activity className="h-4 w-4 text-emerald-500 shrink-0" />;
+      case "scratchpad":
+        return <FileEdit className="h-4 w-4 text-primary shrink-0" />;
+      case "folders":
+        return <Folder className="h-4 w-4 text-blue-500 shrink-0" />;
+      case "recent":
+        return <Clock className="h-4 w-4 text-cyan-500 shrink-0" />;
+      case "favorites":
+        return <Star className="h-4 w-4 text-amber-500 shrink-0" />;
+      case "unsorted":
+        return <Inbox className="h-4 w-4 text-purple-500 shrink-0" />;
+      case "tags":
+        return <Hash className="h-4 w-4 text-pink-500 shrink-0" />;
+      case "spectrum":
+        return <Zap className="h-4 w-4 text-indigo-500 shrink-0" />;
+      case "analytics_velocity":
+        return <TrendingUp className="h-4 w-4 text-emerald-500 shrink-0" />;
+      case "analytics_domains":
+        return <Globe className="h-4 w-4 text-blue-500 shrink-0" />;
+      case "analytics_radar":
+        return <Compass className="h-4 w-4 text-violet-500 shrink-0" />;
+      case "analytics_tags":
+        return <PieChart className="h-4 w-4 text-orange-500 shrink-0" />;
+      default:
+        return <BarChart3 className="h-4 w-4 text-primary shrink-0" />;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border border-border p-5 shadow-xl">
-        <DialogHeader className="space-y-1 pb-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <SlidersHorizontal className="h-4 w-4" />
+      <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col bg-card border border-border p-5 text-foreground overflow-hidden">
+        <DialogHeader className="space-y-1 pb-2.5 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+                <SlidersHorizontal className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  Homepage Box Layout & Reordering
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Interactive multi-column board. Drag any box to any slot (1 box right, 2 boxes right, or across N positions) to reorder your real homepage flow.
+                </DialogDescription>
+              </div>
             </div>
-            <DialogTitle className="text-base font-semibold text-foreground">
-              Customize Homepage Layout
-            </DialogTitle>
+
+            <span className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border hidden sm:inline-block">
+              {localWidgets.filter((w) => w.visible).length} / {localWidgets.length} visible
+            </span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Drag rows or use arrow buttons to reorder, and toggle visibility. (Resize each box directly on the homepage).
-          </DialogDescription>
         </DialogHeader>
 
-        {/* Widgets list (Drag-and-Drop) */}
-        <div className="space-y-2 py-3 max-h-[50vh] overflow-y-auto">
-          {localWidgets.map((widget, index) => (
-            <div
-              key={widget.id}
-              draggable={true}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={(e) => handleDrop(e, index)}
-              className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors cursor-grab active:cursor-grabbing ${
-                draggedIndex === index ? "opacity-40 border-dashed border-primary" : ""
-              } ${
-                widget.visible
-                  ? "bg-secondary/40 border-border"
-                  : "bg-secondary/10 border-border/40 opacity-60"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={widget.visible}
-                    onChange={() => toggleVisibility(widget.id)}
-                    className="rounded border-border text-primary focus:ring-ring cursor-pointer h-4 w-4"
-                  />
-                  <span className={`font-medium ${widget.visible ? "text-foreground" : "text-muted-foreground line-through"}`}>
-                    {widget.label}
-                  </span>
-                </label>
-              </div>
+        {/* Visual Multi-Column Layout Grid (N-to-N Drag and Drop) */}
+        <div className="overflow-y-auto flex-1 pr-1.5 py-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            {localWidgets.map((widget, index) => {
+              const isDragging = draggedIndex === index;
+              const isOver = dragOverIndex === index && draggedIndex !== index;
 
-              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  onClick={() => moveWidget(index, "up")}
-                  disabled={index === 0}
-                  className="h-6 w-6 rounded border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer transition-colors"
-                  title="Move section up"
+              return (
+                <div
+                  key={widget.id}
+                  draggable={true}
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`group relative p-3 rounded-xl border text-xs transition-all select-none cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 min-h-[96px] ${
+                    isDragging
+                      ? "opacity-30 border-dashed border-primary scale-95"
+                      : isOver
+                      ? "ring-2 ring-primary border-primary bg-primary/10 scale-[1.02] shadow-md"
+                      : widget.visible
+                      ? "bg-secondary/40 border-border hover:border-border-hover hover:bg-secondary/70 shadow-2xs"
+                      : "bg-muted/20 border-border/40 opacity-55"
+                  }`}
                 >
-                  <ArrowUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveWidget(index, "down")}
-                  disabled={index === localWidgets.length - 1}
-                  className="h-6 w-6 rounded border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer transition-colors"
-                  title="Move section down"
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          ))}
+                  {/* Top Bar: Icon, Name, and Position Badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="p-1 rounded-md bg-background border border-border shrink-0 shadow-2xs">
+                        {getWidgetIcon(widget.id)}
+                      </div>
+                      <div className="min-w-0">
+                        <span className={`font-semibold text-xs truncate block ${widget.visible ? "text-foreground" : "text-muted-foreground line-through"}`}>
+                          {widget.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          Slot #{index + 1}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <GripVertical className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground cursor-grab" />
+                    </div>
+                  </div>
+
+                  {/* Bottom Controls Bar: Visibility, Span, and Quick Shift */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px]">
+                    {/* Visibility Switch */}
+                    <button
+                      type="button"
+                      onClick={() => toggleVisibility(widget.id)}
+                      className={`px-2 py-0.5 rounded-md border flex items-center gap-1 cursor-pointer transition-colors ${
+                        widget.visible
+                          ? "bg-background border-border text-foreground hover:bg-accent"
+                          : "bg-destructive/10 border-destructive/20 text-destructive hover:bg-destructive/20"
+                      }`}
+                      title={widget.visible ? "Hide this box" : "Show this box"}
+                    >
+                      {widget.visible ? <Eye className="h-3 w-3 text-primary" /> : <EyeOff className="h-3 w-3" />}
+                      <span>{widget.visible ? "Active" : "Hidden"}</span>
+                    </button>
+
+                    {/* Width / Span Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => toggleSpan(widget.id)}
+                      className="px-2 py-0.5 rounded-md border border-border bg-background hover:bg-accent text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors font-mono"
+                      title={widget.span === "2" ? "Full width (100%) - click to make half width" : "Half width (50%) - click to make full width"}
+                    >
+                      {widget.span === "2" ? (
+                        <>
+                          <Maximize2 className="h-3 w-3 text-primary" />
+                          <span>100%</span>
+                        </>
+                      ) : (
+                        <>
+                          <Minimize2 className="h-3 w-3 text-muted-foreground" />
+                          <span>50%</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Quick Shift 1 Box Left / Right */}
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveWidgetToSlot(index, index - 1)}
+                        disabled={index === 0}
+                        className="h-6 w-6 rounded border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer transition-colors"
+                        title="Shift 1 box left"
+                      >
+                        <MoveLeft className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveWidgetToSlot(index, index + 1)}
+                        disabled={index === localWidgets.length - 1}
+                        className="h-6 w-6 rounded border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer transition-colors"
+                        title="Shift 1 box right"
+                      >
+                        <MoveRight className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Footer actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
+        {/* Footer Actions */}
+        <div className="flex items-center justify-between pt-3 border-t border-border mt-2">
           <Button
             type="button"
             variant="ghost"
@@ -233,4 +367,3 @@ export function HomeLayoutModal({
     </Dialog>
   );
 }
-

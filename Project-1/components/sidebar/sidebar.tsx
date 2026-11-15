@@ -596,7 +596,7 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Sparkles className="h-4 w-4 text-purple-400" />
+            <Sparkles className="h-4 w-4" />
           </button>
 
           {/* All Sites Option */}
@@ -912,7 +912,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Compass className={`h-4 w-4 ${activeView === "home" && !activeFolderId ? "text-primary" : "text-muted-foreground"} flex-shrink-0`} />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Compass className={`h-4 w-4 ${activeView === "home" && !activeFolderId ? "text-primary" : "text-muted-foreground"}`} />
+            </div>
             <span className="truncate">Home</span>
           </button>
 
@@ -922,7 +924,9 @@ export function Sidebar({
             onClick={onOpenSearch}
             className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors text-muted-foreground hover:bg-accent/60 hover:text-foreground"
           >
-            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Search</span>
             <kbd className="ml-auto text-xs bg-muted border border-border px-1.5 py-0.5 rounded font-mono text-muted-foreground">⌘K</kbd>
           </button>
@@ -940,7 +944,9 @@ export function Sidebar({
                   className="group flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg cursor-pointer text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
                 >
                   <div className="flex items-center gap-2 truncate min-w-0">
-                    <Bookmark className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                      <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
                     <span className="truncate">{item.name}</span>
                   </div>
                   <button
@@ -969,7 +975,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">All sites</span>
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">{totalBookmarksCount}</span>
           </button>
@@ -987,7 +995,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Star className={`h-4 w-4 flex-shrink-0 ${activeView === "favorites" ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Star className={`h-4 w-4 ${activeView === "favorites" ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
+            </div>
             <span className="truncate">Favorites</span>
           </button>
 
@@ -1004,7 +1014,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <History className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <History className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Recently visited</span>
           </button>
 
@@ -1021,7 +1033,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Sparkles className="h-4 w-4 text-purple-400 flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Smart collections</span>
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
               {smartCollections.length}
@@ -1041,7 +1055,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Layers className="h-4 w-4 text-blue-400 flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Tab sessions & stash</span>
           </button>
 
@@ -1058,7 +1074,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Share2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Shared</span>
             {sharedCount > 0 && (
               <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
@@ -1080,7 +1098,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Folder className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Folder collections</span>
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
               {folders.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_")).length}
@@ -1100,7 +1120,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Knowledge graph</span>
           </button>
 
@@ -1117,7 +1139,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Archive className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Archive className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Archive</span>
           </button>
 
@@ -1134,7 +1158,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <Trash2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <Trash2 className="h-4 w-4" />
+            </div>
             <span className="truncate">Recycle bin</span>
           </button>
         </div>
@@ -1321,7 +1347,9 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
-            <MessageSquarePlus className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <MessageSquarePlus className="h-4 w-4 text-muted-foreground" />
+            </div>
             <span className="truncate">Feedback & support</span>
           </button>
         </div>

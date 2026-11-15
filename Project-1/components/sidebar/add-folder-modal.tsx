@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Columns2, Rows2 } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 
 interface AddFolderModalProps {
@@ -48,6 +48,25 @@ export function AddFolderModal({
   const [color, setColor] = React.useState("#3b82f6");
   const [saving, setSaving] = React.useState(false);
 
+  // Modal format: horizontal (2-col side-by-side) vs vertical (stacked)
+  const [modalFormat, setModalFormat] = React.useState<"vertical" | "horizontal">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_folder_modal_format");
+        if (stored === "vertical" || stored === "horizontal") return stored;
+        return window.innerWidth >= 768 ? "horizontal" : "vertical";
+      } catch {}
+    }
+    return "horizontal";
+  });
+
+  const toggleModalFormat = (format: "vertical" | "horizontal") => {
+    setModalFormat(format);
+    try {
+      localStorage.setItem("markly_folder_modal_format", format);
+    } catch {}
+  };
+
   const handleRandomHarmonicColor = () => {
     const hue = Math.floor(Math.random() * 360);
     const sat = 75;
@@ -85,109 +104,253 @@ export function AddFolderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-5 max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div
-              className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
-              style={{ backgroundColor: `${color}20` }}
-            >
-              <FolderIconRenderer icon={icon} className="h-5 w-5" color={color} />
+      <DialogContent
+        className={`${
+          modalFormat === "horizontal"
+            ? "sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
+            : "sm:max-w-md max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
+        }`}
+      >
+        <DialogHeader className="pb-2 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
+                style={{ backgroundColor: `${color}20` }}
+              >
+                <FolderIconRenderer icon={icon} className="h-5 w-5" color={color} />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  {parentFolder ? `New subfolder in "${parentFolder.name}"` : "Create new folder"}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Choose a name, search icons, and pick a color accent
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-medium text-foreground">
-                {parentFolder ? `New subfolder in "${parentFolder.name}"` : "Create new folder"}
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Choose a name, search icons, and pick a color accent
-              </DialogDescription>
+
+            {/* Layout format toggle button */}
+            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] font-medium shrink-0 ml-3">
+              <button
+                type="button"
+                onClick={() => toggleModalFormat("vertical")}
+                title="Vertical stacked layout"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  modalFormat === "vertical"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Rows2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleModalFormat("horizontal")}
+                title="Horizontal side-by-side layout"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  modalFormat === "horizontal"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Columns2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-xs">
-          <div className="space-y-1.5">
-            <label className="font-medium text-foreground">
-              Folder name
-            </label>
-            <Input
-              type="text"
-              placeholder="e.g. Machine Learning, React Tools, Articles..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-8 text-xs bg-background border border-border"
-              autoFocus
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+          <div className="overflow-y-auto flex-1 pr-1.5 py-3">
+            {modalFormat === "horizontal" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Left Column: Name & Live Preview */}
+                <div className="space-y-4">
+                  {/* Live preview */}
+                  <div className="p-3 rounded-xl border border-border bg-secondary/30 flex items-center gap-3">
+                    <div
+                      className="h-10 w-10 rounded-lg flex items-center justify-center text-xl shrink-0 border border-border shadow-2xs"
+                      style={{ backgroundColor: `${color}20` }}
+                    >
+                      <FolderIconRenderer icon={icon} className="h-5 w-5" color={color} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-foreground truncate">
+                        {name || "New Folder Preview"}
+                      </div>
+                      <div className="text-[11px] font-mono text-muted-foreground truncate">
+                        {icon} • {color}
+                      </div>
+                    </div>
+                  </div>
 
-          <div className="space-y-1.5">
-            <label className="font-medium text-foreground">
-              Search & select icon
-            </label>
-            <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
-          </div>
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-foreground">
+                      Folder name
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Machine Learning, React Tools, Articles..."
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="h-8 text-xs bg-background border border-border"
+                      autoFocus
+                      required
+                    />
+                  </div>
+                </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="font-medium text-foreground">
-                Color palette & accent
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleRandomHarmonicColor}
-                  className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                  title="Generate random harmonious color"
-                >
-                  <Sparkles className="h-3 w-3 text-primary" />
-                  <span>Generate</span>
-                </button>
-                <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                  <span>Custom:</span>
-                  <input
-                    type="color"
-                    value={color.startsWith("#") && color.length === 7 ? color : "#3b82f6"}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
-                    title="Pick custom color"
-                  />
-                </label>
-                <input
-                  type="text"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
-                  placeholder="#3b82f6"
-                />
+                {/* Right Column: Icon Picker & Color Swatches */}
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-foreground">
+                      Search & select icon
+                    </label>
+                    <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-medium text-foreground">
+                        Color palette & accent
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleRandomHarmonicColor}
+                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          title="Generate random harmonious color"
+                        >
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          <span>Generate</span>
+                        </button>
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                          <span>Custom:</span>
+                          <input
+                            type="color"
+                            value={color.startsWith("#") && color.length === 7 ? color : "#3b82f6"}
+                            onChange={(e) => setColor(e.target.value)}
+                            className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
+                            title="Pick custom color"
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={color}
+                          onChange={(e) => setColor(e.target.value)}
+                          className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
+                          placeholder="#3b82f6"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
+                      {COLOR_PALETTE.map((c) => (
+                        <button
+                          type="button"
+                          key={c.value}
+                          onClick={() => setColor(c.value)}
+                          className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
+                            color.toLowerCase() === c.value.toLowerCase()
+                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                              : "opacity-85 hover:opacity-100"
+                          }`}
+                          style={{ backgroundColor: c.value }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Vertical Stacked Layout */
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="font-medium text-foreground">
+                    Folder name
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Machine Learning, React Tools, Articles..."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-8 text-xs bg-background border border-border"
+                    autoFocus
+                    required
+                  />
+                </div>
 
-            <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
-              {COLOR_PALETTE.map((c) => (
-                <button
-                  type="button"
-                  key={c.value}
-                  onClick={() => setColor(c.value)}
-                  className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
-                    color.toLowerCase() === c.value.toLowerCase()
-                      ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                      : "opacity-85 hover:opacity-100"
-                  }`}
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                />
-              ))}
-            </div>
+                <div className="space-y-1.5">
+                  <label className="font-medium text-foreground">
+                    Search & select icon
+                  </label>
+                  <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-medium text-foreground">
+                      Color palette & accent
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRandomHarmonicColor}
+                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        title="Generate random harmonious color"
+                      >
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        <span>Generate</span>
+                      </button>
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                        <span>Custom:</span>
+                        <input
+                          type="color"
+                          value={color.startsWith("#") && color.length === 7 ? color : "#3b82f6"}
+                          onChange={(e) => setColor(e.target.value)}
+                          className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
+                          title="Pick custom color"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
+                        placeholder="#3b82f6"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
+                    {COLOR_PALETTE.map((c) => (
+                      <button
+                        type="button"
+                        key={c.value}
+                        onClick={() => setColor(c.value)}
+                        className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
+                          color.toLowerCase() === c.value.toLowerCase()
+                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                            : "opacity-85 hover:opacity-100"
+                        }`}
+                        style={{ backgroundColor: c.value }}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 mt-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs h-8"
+              className="text-xs h-8 cursor-pointer"
             >
               Cancel
             </Button>
@@ -196,7 +359,7 @@ export function AddFolderModal({
               variant="default"
               size="sm"
               disabled={saving || !name.trim()}
-              className="text-xs h-8"
+              className="text-xs h-8 cursor-pointer"
             >
               {saving ? "Creating..." : "Create folder"}
             </Button>

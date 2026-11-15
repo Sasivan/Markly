@@ -8,8 +8,6 @@ import {
   LayoutGrid,
   List,
   Rows3,
-  ArrowUp,
-  ArrowDown,
   ArrowRight,
   Star,
   ExternalLink,
@@ -34,10 +32,10 @@ interface DashboardWidgetBoxProps {
   availableViews?: WidgetViewMode[];
   onViewModeChange?: (mode: WidgetViewMode) => void;
   onToggleSpan?: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  isFirst: boolean;
-  isLast: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
   onViewAll?: () => void;
   viewAllLabel?: string;
   extraHeaderAction?: React.ReactNode;
@@ -299,28 +297,8 @@ export function DashboardWidgetBox({
             </div>
           )}
 
-          {/* Move Up / Move Down Position Controls */}
+          {/* Quick Snap: Half Width (50%) vs Full Width (100%) */}
           <div className="flex items-center gap-0.5 opacity-60 group-hover/box:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={onMoveUp}
-              disabled={isFirst}
-              className="h-6 w-6 rounded border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer transition-colors"
-              title="Move box up"
-            >
-              <ArrowUp className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onClick={onMoveDown}
-              disabled={isLast}
-              className="h-6 w-6 rounded border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer transition-colors"
-              title="Move box down"
-            >
-              <ArrowDown className="h-3 w-3" />
-            </button>
-
-            {/* Quick Snap: Half Width (50%) vs Full Width (100%) */}
             <button
               type="button"
               onClick={() => {

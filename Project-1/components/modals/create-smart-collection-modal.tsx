@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles, Loader2, Check, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, Check, AlertCircle, Plus, Trash2, Columns2, Rows2, Eye } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -135,19 +135,74 @@ export function CreateSmartCollectionModal({
     }
   };
 
+  // Modal format: horizontal (2-col side-by-side) vs vertical (stacked)
+  const [modalFormat, setModalFormat] = React.useState<"vertical" | "horizontal">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_smart_modal_format");
+        if (stored === "vertical" || stored === "horizontal") return stored;
+        return window.innerWidth >= 768 ? "horizontal" : "vertical";
+      } catch {}
+    }
+    return "horizontal";
+  });
+
+  const toggleModalFormat = (format: "vertical" | "horizontal") => {
+    setModalFormat(format);
+    try {
+      localStorage.setItem("markly_smart_modal_format", format);
+    } catch {}
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-card border-border p-5 text-foreground space-y-4">
-        <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center border border-purple-500/20">
-              <Sparkles className="h-4 w-4" />
+      <DialogContent
+        className={`${
+          modalFormat === "horizontal"
+            ? "sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
+            : "sm:max-w-lg max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
+        }`}
+      >
+        <DialogHeader className="space-y-1 pb-2 border-b border-border/60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-secondary text-primary flex items-center justify-center border border-border">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold">New Smart Dynamic Collection</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Virtual rule-based collections that automatically group bookmarks in real time.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-semibold">New Smart Dynamic Collection</DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Virtual rule-based collections that automatically group bookmarks in real time.
-              </DialogDescription>
+
+            {/* Layout format toggle button */}
+            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] font-medium shrink-0 ml-3">
+              <button
+                type="button"
+                onClick={() => toggleModalFormat("vertical")}
+                title="Vertical stacked layout"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  modalFormat === "vertical"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Rows2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleModalFormat("horizontal")}
+                title="Horizontal side-by-side layout"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  modalFormat === "horizontal"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Columns2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         </DialogHeader>
@@ -159,182 +214,412 @@ export function CreateSmartCollectionModal({
           </div>
         )}
 
-        {/* Quick Presets */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-muted-foreground">Quick Presets:</span>
-            <button
-              type="button"
-              onClick={handleSaveAsCustomPreset}
-              className="text-[11px] text-primary hover:underline cursor-pointer flex items-center gap-1 font-medium"
-              title="Save current rule and name as quick preset"
-            >
-              <Plus className="h-3 w-3" />
-              <span>{presetSaved ? "✓ Saved Preset!" : "Save Current as Preset"}</span>
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[...PRESETS, ...customPresets].map((p, idx) => (
-              <button
-                key={`${p.name}-${idx}`}
-                type="button"
-                onClick={() => handleApplyPreset(p)}
-                className="px-2 py-1 rounded-md text-[11px] border border-border bg-secondary/50 hover:bg-secondary text-foreground cursor-pointer transition-colors flex items-center gap-1.5"
-              >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
-                <span>{p.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <form onSubmit={handleCreate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="overflow-y-auto flex-1 pr-1.5 py-2">
+            {modalFormat === "horizontal" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Left Column: Quick Presets, Collection Name, Filter Field & Rule Value */}
+                <div className="space-y-3.5">
+                  {/* Quick Presets */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-muted-foreground">Quick Presets:</span>
+                      <button
+                        type="button"
+                        onClick={handleSaveAsCustomPreset}
+                        className="text-[11px] text-primary hover:underline cursor-pointer flex items-center gap-1 font-medium"
+                        title="Save current rule and name as quick preset"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>{presetSaved ? "✓ Saved Preset!" : "Save Current as Preset"}</span>
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...PRESETS, ...customPresets].map((p, idx) => (
+                        <button
+                          key={`${p.name}-${idx}`}
+                          type="button"
+                          onClick={() => handleApplyPreset(p)}
+                          className="px-2 py-1 rounded-md text-[11px] border border-border bg-secondary/50 hover:bg-secondary text-foreground cursor-pointer transition-colors flex items-center gap-1.5"
+                        >
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
+                          <span>{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-        <form onSubmit={handleCreate} className="space-y-3.5 text-xs">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Collection Name</label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Starred Dev Tools"
-              className="h-8 text-xs bg-background"
-              autoFocus
-              disabled={loading}
-            />
-          </div>
+                  {/* Collection Name */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-foreground">Collection Name</label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Starred Dev Tools"
+                      className="h-8 text-xs bg-background"
+                      autoFocus
+                      disabled={loading}
+                    />
+                  </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Filter Field</label>
-              <select
-                value={ruleField}
-                onChange={(e) => {
-                  const val = e.target.value as any;
-                  setRuleField(val);
-                  if (val === "favorite") setRuleValue("starred");
-                  else if (val === "status") setRuleValue("dead");
-                  else if (val === "notes") setRuleValue("has_notes");
-                  else if (val === "visitCount") setRuleValue("5");
-                  else if (val === "recency") setRuleValue("7");
-                  else setRuleValue("");
-                }}
-                className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="favorite">Starred Status</option>
-                <option value="description">Description (Contains)</option>
-                <option value="title">Title (Contains)</option>
-                <option value="domain">Domain Name</option>
-                <option value="tags">Tag Name</option>
-                <option value="url">URL (Contains)</option>
-                <option value="status">Health Status</option>
-                <option value="notes">Has Personal Notes</option>
-                <option value="visitCount">Visit Count / Engagement</option>
-                <option value="recency">Date Added Recency</option>
-              </select>
-            </div>
+                  {/* Filter Field & Rule Value */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-foreground">Filter Field</label>
+                      <select
+                        value={ruleField}
+                        onChange={(e) => {
+                          const val = e.target.value as any;
+                          setRuleField(val);
+                          if (val === "favorite") setRuleValue("starred");
+                          else if (val === "status") setRuleValue("dead");
+                          else if (val === "notes") setRuleValue("has_notes");
+                          else if (val === "visitCount") setRuleValue("5");
+                          else if (val === "recency") setRuleValue("7");
+                          else setRuleValue("");
+                        }}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="favorite">Starred Status</option>
+                        <option value="description">Description (Contains)</option>
+                        <option value="title">Title (Contains)</option>
+                        <option value="domain">Domain Name</option>
+                        <option value="tags">Tag Name</option>
+                        <option value="url">URL (Contains)</option>
+                        <option value="status">Health Status</option>
+                        <option value="notes">Has Personal Notes</option>
+                        <option value="visitCount">Visit Count / Engagement</option>
+                        <option value="recency">Date Added Recency</option>
+                      </select>
+                    </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Rule Value</label>
-              {ruleField === "favorite" ? (
-                <select
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="starred">Starred Only</option>
-                  <option value="unstarred">Unstarred Only</option>
-                </select>
-              ) : ruleField === "status" ? (
-                <select
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="dead">Broken / Dead Links</option>
-                  <option value="alive">Active / Healthy</option>
-                </select>
-              ) : ruleField === "notes" ? (
-                <select
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="has_notes">Has Personal Notes</option>
-                </select>
-              ) : ruleField === "visitCount" ? (
-                <select
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="5">Frequent (≥5 visits)</option>
-                  <option value="2">Active (≥2 visits)</option>
-                  <option value="1">Visited At Least Once (≥1 visit)</option>
-                  <option value="0">Unvisited / Dormant (0 visits)</option>
-                </select>
-              ) : ruleField === "recency" ? (
-                <select
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="1">Added in Past 24 Hours</option>
-                  <option value="7">Added in Past 7 Days</option>
-                  <option value="30">Added in Past 30 Days</option>
-                  <option value="90">Added in Past 90 Days</option>
-                </select>
-              ) : (
-                <Input
-                  value={ruleValue}
-                  onChange={(e) => setRuleValue(e.target.value)}
-                  placeholder={
-                    ruleField === "domain"
-                      ? "github.com"
-                      : ruleField === "description"
-                      ? "Search text inside description..."
-                      : ruleField === "title"
-                      ? "Search text inside title..."
-                      : ruleField === "url"
-                      ? "e.g. docs, blog, youtube"
-                      : "ai, design"
-                  }
-                  className="h-8 text-xs bg-background"
-                />
-              )}
-            </div>
-          </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-foreground">Rule Value</label>
+                      {ruleField === "favorite" ? (
+                        <select
+                          value={ruleValue}
+                          onChange={(e) => setRuleValue(e.target.value)}
+                          className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="starred">Starred Only</option>
+                          <option value="unstarred">Unstarred Only</option>
+                        </select>
+                      ) : ruleField === "status" ? (
+                        <select
+                          value={ruleValue}
+                          onChange={(e) => setRuleValue(e.target.value)}
+                          className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="dead">Broken / Dead Links</option>
+                          <option value="alive">Active / Healthy</option>
+                        </select>
+                      ) : ruleField === "notes" ? (
+                        <select
+                          value={ruleValue}
+                          onChange={(e) => setRuleValue(e.target.value)}
+                          className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="has_notes">Has Personal Notes</option>
+                        </select>
+                      ) : ruleField === "visitCount" ? (
+                        <select
+                          value={ruleValue}
+                          onChange={(e) => setRuleValue(e.target.value)}
+                          className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="5">Frequent (≥5 visits)</option>
+                          <option value="2">Active (≥2 visits)</option>
+                          <option value="1">Visited At Least Once (≥1 visit)</option>
+                          <option value="0">Unvisited / Dormant (0 visits)</option>
+                        </select>
+                      ) : ruleField === "recency" ? (
+                        <select
+                          value={ruleValue}
+                          onChange={(e) => setRuleValue(e.target.value)}
+                          className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="1">Added in Past 24 Hours</option>
+                          <option value="7">Added in Past 7 Days</option>
+                          <option value="30">Added in Past 30 Days</option>
+                          <option value="90">Added in Past 90 Days</option>
+                        </select>
+                      ) : (
+                        <Input
+                          value={ruleValue}
+                          onChange={(e) => setRuleValue(e.target.value)}
+                          placeholder={
+                            ruleField === "domain"
+                              ? "github.com"
+                              : ruleField === "description"
+                              ? "Search text inside description..."
+                              : ruleField === "title"
+                              ? "Search text inside title..."
+                              : ruleField === "url"
+                              ? "e.g. docs, blog, youtube"
+                              : "ai, design"
+                          }
+                          className="h-8 text-xs bg-background"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-          {/* Icon Picker */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Collection Icon</label>
-            <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
-          </div>
+                {/* Right Column: Live Badge Preview, Icon Picker, Color Palette */}
+                <div className="space-y-3.5">
+                  {/* Live Badge Preview Card */}
+                  <div className="p-2.5 rounded-xl border border-border bg-secondary/30 flex items-center gap-3">
+                    <div
+                      className="h-9 w-9 rounded-lg flex items-center justify-center border border-border shrink-0 shadow-2xs"
+                      style={{ backgroundColor: `${color}20` }}
+                    >
+                      <FolderIconRenderer icon={icon} className="h-4.5 w-4.5" color={color} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-foreground truncate">
+                        {name || "Collection Preview"}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        Rule: {ruleField} = {ruleValue || "(any)"}
+                      </div>
+                    </div>
+                  </div>
 
-          {/* Color Palette Selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Theme Color</label>
-            <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
-              {COLOR_PALETTE.map((c) => {
-                const isSelected = color === c.value;
-                return (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setColor(c.value)}
-                    title={c.name}
-                    className={`h-6 w-6 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                      isSelected
-                        ? "scale-110 shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-background"
-                        : "hover:scale-105 opacity-80 hover:opacity-100"
-                    }`}
-                    style={{ backgroundColor: c.value }}
+                  {/* Icon Picker */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Collection Icon</label>
+                    <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
+                  </div>
+
+                  {/* Color Palette Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Theme Color</label>
+                    <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
+                      {COLOR_PALETTE.map((c) => {
+                        const isSelected = color === c.value;
+                        return (
+                          <button
+                            key={c.value}
+                            type="button"
+                            onClick={() => setColor(c.value)}
+                            title={c.name}
+                            className={`h-6 w-6 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                              isSelected
+                                ? "scale-110 shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                : "hover:scale-105 opacity-80 hover:opacity-100"
+                            }`}
+                            style={{ backgroundColor: c.value }}
+                          >
+                            {isSelected && <Check className="h-3 w-3 text-white drop-shadow-xs" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Vertical Stacked Layout */
+              <div className="space-y-3.5 text-xs">
+                {/* Live Badge Preview Card */}
+                <div className="p-2.5 rounded-xl border border-border bg-secondary/30 flex items-center gap-3">
+                  <div
+                    className="h-9 w-9 rounded-lg flex items-center justify-center border border-border shrink-0 shadow-2xs"
+                    style={{ backgroundColor: `${color}20` }}
                   >
-                    {isSelected && <Check className="h-3 w-3 text-white drop-shadow-xs" />}
-                  </button>
-                );
-              })}
-            </div>
+                    <FolderIconRenderer icon={icon} className="h-4.5 w-4.5" color={color} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-foreground truncate">
+                      {name || "Collection Preview"}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      Rule: {ruleField} = {ruleValue || "(any)"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-muted-foreground">Quick Presets:</span>
+                    <button
+                      type="button"
+                      onClick={handleSaveAsCustomPreset}
+                      className="text-[11px] text-primary hover:underline cursor-pointer flex items-center gap-1 font-medium"
+                      title="Save current rule and name as quick preset"
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span>{presetSaved ? "✓ Saved Preset!" : "Save Current as Preset"}</span>
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...PRESETS, ...customPresets].map((p, idx) => (
+                      <button
+                        key={`${p.name}-${idx}`}
+                        type="button"
+                        onClick={() => handleApplyPreset(p)}
+                        className="px-2 py-1 rounded-md text-[11px] border border-border bg-secondary/50 hover:bg-secondary text-foreground cursor-pointer transition-colors flex items-center gap-1.5"
+                      >
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
+                        <span>{p.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Collection Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-foreground">Collection Name</label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Starred Dev Tools"
+                    className="h-8 text-xs bg-background"
+                    autoFocus
+                    disabled={loading}
+                  />
+                </div>
+
+                {/* Filter Field & Rule Value */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-foreground">Filter Field</label>
+                    <select
+                      value={ruleField}
+                      onChange={(e) => {
+                        const val = e.target.value as any;
+                        setRuleField(val);
+                        if (val === "favorite") setRuleValue("starred");
+                        else if (val === "status") setRuleValue("dead");
+                        else if (val === "notes") setRuleValue("has_notes");
+                        else if (val === "visitCount") setRuleValue("5");
+                        else if (val === "recency") setRuleValue("7");
+                        else setRuleValue("");
+                      }}
+                      className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="favorite">Starred Status</option>
+                      <option value="description">Description (Contains)</option>
+                      <option value="title">Title (Contains)</option>
+                      <option value="domain">Domain Name</option>
+                      <option value="tags">Tag Name</option>
+                      <option value="url">URL (Contains)</option>
+                      <option value="status">Health Status</option>
+                      <option value="notes">Has Personal Notes</option>
+                      <option value="visitCount">Visit Count / Engagement</option>
+                      <option value="recency">Date Added Recency</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-foreground">Rule Value</label>
+                    {ruleField === "favorite" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={(e) => setRuleValue(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="starred">Starred Only</option>
+                        <option value="unstarred">Unstarred Only</option>
+                      </select>
+                    ) : ruleField === "status" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={(e) => setRuleValue(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="dead">Broken / Dead Links</option>
+                        <option value="alive">Active / Healthy</option>
+                      </select>
+                    ) : ruleField === "notes" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={(e) => setRuleValue(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="has_notes">Has Personal Notes</option>
+                      </select>
+                    ) : ruleField === "visitCount" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={(e) => setRuleValue(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="5">Frequent (≥5 visits)</option>
+                        <option value="2">Active (≥2 visits)</option>
+                        <option value="1">Visited At Least Once (≥1 visit)</option>
+                        <option value="0">Unvisited / Dormant (0 visits)</option>
+                      </select>
+                    ) : ruleField === "recency" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={(e) => setRuleValue(e.target.value)}
+                        className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="1">Added in Past 24 Hours</option>
+                        <option value="7">Added in Past 7 Days</option>
+                        <option value="30">Added in Past 30 Days</option>
+                        <option value="90">Added in Past 90 Days</option>
+                      </select>
+                    ) : (
+                      <Input
+                        value={ruleValue}
+                        onChange={(e) => setRuleValue(e.target.value)}
+                        placeholder={
+                          ruleField === "domain"
+                            ? "github.com"
+                            : ruleField === "description"
+                            ? "Search text inside description..."
+                            : ruleField === "title"
+                            ? "Search text inside title..."
+                            : ruleField === "url"
+                            ? "e.g. docs, blog, youtube"
+                            : "ai, design"
+                        }
+                        className="h-8 text-xs bg-background"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Icon Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">Collection Icon</label>
+                  <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
+                </div>
+
+                {/* Color Palette Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">Theme Color</label>
+                  <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
+                    {COLOR_PALETTE.map((c) => {
+                      const isSelected = color === c.value;
+                      return (
+                        <button
+                          key={c.value}
+                          type="button"
+                          onClick={() => setColor(c.value)}
+                          title={c.name}
+                          className={`h-6 w-6 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                            isSelected
+                              ? "scale-110 shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-background"
+                              : "hover:scale-105 opacity-80 hover:opacity-100"
+                          }`}
+                          style={{ backgroundColor: c.value }}
+                        >
+                          {isSelected && <Check className="h-3 w-3 text-white drop-shadow-xs" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+          {/* Fixed Footer */}
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border mt-2">
             <Button
               type="button"
               variant="outline"

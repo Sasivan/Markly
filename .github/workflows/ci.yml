@@ -57,29 +57,23 @@ jobs:
 
       - name: Verify SQLite Native Addon
         run: |
-          node -e "try { const db = require('better-sqlite3'); console.log('better-sqlite3 OK'); } catch(e) { console.error('SQLITE_FAIL:', e.message); console.log('::error title=SQLiteBindingFail::' + e.message); process.exit(1); }"
+          node -e "const Database = require('better-sqlite3'); const db = new Database('/tmp/test-verify.db'); console.log('SQLITE TEST:', db.prepare('SELECT 1 as val').get());"
 
       - name: Run Unit Tests
         env:
           CI: "true"
           DATABASE_MODE: sqlite
-          DATABASE_SQLITE_PATH: ":memory:"
+          DATABASE_SQLITE_PATH: "/tmp/markly-test.db"
           NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key-for-unit-tests"
           ADMIN_EMAIL: "admin@example.com"
         run: |
-          for f in tests/descriptive-search.test.ts tests/ai-config.test.ts tests/scraper.test.ts tests/import-export.test.ts tests/feedback.test.ts tests/folder-copy.test.ts tests/auth.test.ts; do
-            echo "======================================"
-            echo "RUNNING: $f"
-            echo "======================================"
-            if ! npx vitest run "$f" > single-test.log 2>&1; then
-              cat single-test.log
-              FAIL_MSG=$(head -n 25 single-test.log | tr '\r\n' '  ')
-              echo "::error title=FailedTest::$f - $FAIL_MSG"
-              exit 1
-            fi
-            echo "$f passed successfully!"
-          done
+          if ! npm test -- --reporter=verbose > test-results.log 2>&1; then
+            cat test-results.log
+            ERR=$(tail -n 25 test-results.log | tr '\r\n' '  ')
+            echo "::error title=VitestError::$ERR"
+            exit 1
+          fi
 
       - name: Build Next.js Application
         run: npm run build

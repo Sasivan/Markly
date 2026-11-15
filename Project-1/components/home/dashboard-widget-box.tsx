@@ -78,6 +78,95 @@ export function DashboardWidgetBox({
     return false;
   });
 
+  // User-Customizable Box Width (Persisted in localStorage, 25% to 100%)
+  const [boxWidth, setBoxWidth] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_box_w_" + id);
+        if (stored) {
+          const val = Number(stored);
+          if (!isNaN(val) && val >= 25 && val <= 100) return val;
+        }
+      } catch {}
+    }
+    return span === "2" ? 100 : 50;
+  });
+
+  // User-Customizable Box Height (Persisted in localStorage)
+  const [boxHeight, setBoxHeight] = React.useState<number | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_box_h_" + id);
+        if (stored) {
+          const val = Number(stored);
+          if (!isNaN(val) && val >= 140 && val <= 1600) return val;
+        }
+      } catch {}
+    }
+    return null;
+  });
+
+  const boxRef = React.useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = React.useState<"width" | "height" | "both" | null>(null);
+
+  const startResize = React.useCallback(
+    (direction: "width" | "height" | "both", startEvent: React.MouseEvent) => {
+      startEvent.preventDefault();
+      startEvent.stopPropagation();
+      setIsResizing(direction);
+
+      const startX = startEvent.clientX;
+      const startY = startEvent.clientY;
+      const boxElem = boxRef.current;
+      if (!boxElem) return;
+
+      const parentElem = boxElem.parentElement;
+      const parentWidth = parentElem ? parentElem.getBoundingClientRect().width : window.innerWidth;
+      const initialBoxRect = boxElem.getBoundingClientRect();
+      const initialWidthPx = initialBoxRect.width;
+      const initialHeightPx = initialBoxRect.height;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (direction === "width" || direction === "both") {
+          const deltaX = moveEvent.clientX - startX;
+          const newWidthPx = Math.max(280, initialWidthPx + deltaX);
+          const rawPercent = Math.min(100, Math.max(25, Math.round((newWidthPx / parentWidth) * 100)));
+          const snapped = rawPercent >= 93 ? 100 : Math.abs(rawPercent - 50) <= 3 ? 50 : rawPercent;
+          setBoxWidth(snapped);
+        }
+
+        if (direction === "height" || direction === "both") {
+          const deltaY = moveEvent.clientY - startY;
+          const newHeightPx = Math.min(1600, Math.max(140, Math.round(initialHeightPx + deltaY)));
+          setBoxHeight(newHeightPx);
+        }
+      };
+
+      const onMouseUp = () => {
+        setIsResizing(null);
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+
+        try {
+          setBoxWidth((currW) => {
+            localStorage.setItem("markly_box_w_" + id, String(currW));
+            return currW;
+          });
+          setBoxHeight((currH) => {
+            if (currH !== null) {
+              localStorage.setItem("markly_box_h_" + id, String(currH));
+            }
+            return currH;
+          });
+        } catch {}
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    },
+    [id]
+  );
+
   const [viewBoxMenuOpen, setViewBoxMenuOpen] = React.useState(false);
   const viewBoxMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -106,13 +195,19 @@ export function DashboardWidgetBox({
 
   return (
     <div
+      ref={boxRef}
       draggable={true}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-all duration-200 group/box ${
-        span === "2" ? "lg:col-span-2" : "lg:col-span-1"
-      } resize-y min-h-[140px]`}
+      style={{
+        width: boxWidth >= 95 ? "100%" : `calc(${boxWidth}% - 7px)`,
+        height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
+        minHeight: isCollapsed ? undefined : "140px",
+      }}
+      className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-[border-color,background-color] duration-150 group/box relative max-md:!w-full flex-shrink-0 flex-grow-0 ${
+        isResizing ? "ring-2 ring-primary/40 select-none" : ""
+      }`}
     >
       {/* Box Header Toolbar */}
       <div className="px-3 py-2 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-2 select-none">
@@ -224,6 +319,26 @@ export function DashboardWidgetBox({
             >
               <ArrowDown className="h-3 w-3" />
             </button>
+
+            {/* Quick Snap: Half Width (50%) vs Full Width (100%) */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextW = boxWidth >= 90 ? 50 : 100;
+                setBoxWidth(nextW);
+                try {
+                  localStorage.setItem("markly_box_w_" + id, String(nextW));
+                } catch {}
+              }}
+              className="h-6 w-6 rounded border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title={boxWidth >= 90 ? "Snap to Half Width (50%)" : "Expand to Full Width (100%)"}
+            >
+              {boxWidth >= 90 ? (
+                <Minimize2 className="h-3 w-3" />
+              ) : (
+                <Maximize2 className="h-3 w-3" />
+              )}
+            </button>
           </div>
 
           {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}
@@ -244,6 +359,56 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div className="flex-1 animate-in fade-in duration-150">
           {children}
+        </div>
+      )}
+
+      {/* Right Edge: Left-to-Right Horizontal Width Resize Handle */}
+      <div
+        onMouseDown={(e) => startResize("width", e)}
+        onDoubleClick={() => {
+          const nextW = boxWidth >= 90 ? 50 : 100;
+          setBoxWidth(nextW);
+          try {
+            localStorage.setItem("markly_box_w_" + id, String(nextW));
+          } catch {}
+        }}
+        className="absolute top-0 right-0 bottom-0 w-2.5 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+        title="Drag left-to-right to resize box width (Double-click to toggle 50% / 100%)"
+      >
+        <div
+          className={`w-[2.5px] h-10 rounded-full transition-colors ${
+            isResizing === "width" || isResizing === "both"
+              ? "bg-primary"
+              : "bg-border/80 hover:bg-primary/80"
+          }`}
+        />
+      </div>
+
+      {/* Bottom Edge: Height Resize Handle */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={(e) => startResize("height", e)}
+          className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag up/down to resize box height"
+        >
+          <div
+            className={`h-[2.5px] w-12 rounded-full transition-colors ${
+              isResizing === "height" || isResizing === "both"
+                ? "bg-primary"
+                : "bg-border/80 hover:bg-primary/80"
+            }`}
+          />
+        </div>
+      )}
+
+      {/* Bottom-Right Corner: Bi-Directional Resize Grip */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={(e) => startResize("both", e)}
+          className="absolute bottom-0.5 right-0.5 w-4 h-4 cursor-nwse-resize z-30 flex items-end justify-end p-0.5 opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag corner to resize both width and height"
+        >
+          <div className="w-2.5 h-2.5 border-r-2 border-b-2 border-muted-foreground/60 hover:border-primary transition-colors" />
         </div>
       )}
     </div>

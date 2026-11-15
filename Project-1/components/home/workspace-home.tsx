@@ -100,51 +100,6 @@ export function WorkspaceHome({
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
 
-  // Notion-Style 2-Column Draggable Divider Split (Persisted in localStorage)
-  const [colSplit, setColSplit] = React.useState<number>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("markly_home_col_split");
-        if (stored) {
-          const val = Number(stored);
-          if (!isNaN(val) && val >= 25 && val <= 75) return val;
-        }
-      } catch {}
-    }
-    return 50;
-  });
-
-  const [isColDragging, setIsColDragging] = React.useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  const startColDrag = React.useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsColDragging(true);
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const relativeX = moveEvent.clientX - rect.left;
-      const newPercent = Math.min(75, Math.max(25, Math.round((relativeX / rect.width) * 100)));
-      setColSplit(newPercent);
-    };
-
-    const onMouseUp = () => {
-      setIsColDragging(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      try {
-        setColSplit((curr) => {
-          localStorage.setItem("markly_home_col_split", String(curr));
-          return curr;
-        });
-      } catch {}
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }, []);
-
   // Instant global search on homepage
   const [homeSearch, setHomeSearch] = React.useState("");
 
@@ -1500,115 +1455,11 @@ export function WorkspaceHome({
           );
         }
 
-        // Partition visible widgets into blocks: full-width (span 2) vs groups of half-width (span 1)
-        type WidgetBlock =
-          | { type: "full"; widget: HomeWidgetConfig; idx: number }
-          | { type: "half_group"; widgets: { widget: HomeWidgetConfig; idx: number }[] };
-
-        const blocks: WidgetBlock[] = [];
-        let currentHalfGroup: { widget: HomeWidgetConfig; idx: number }[] = [];
-
-        visibleWidgets.forEach((widget, idx) => {
-          if (widget.span === "2") {
-            if (currentHalfGroup.length > 0) {
-              blocks.push({ type: "half_group", widgets: currentHalfGroup });
-              currentHalfGroup = [];
-            }
-            blocks.push({ type: "full", widget, idx });
-          } else {
-            currentHalfGroup.push({ widget, idx });
-          }
-        });
-
-        if (currentHalfGroup.length > 0) {
-          blocks.push({ type: "half_group", widgets: currentHalfGroup });
-        }
-
         return (
-          <div className="space-y-3">
-            {blocks.map((block, bIdx) => {
-              if (block.type === "full") {
-                return (
-                  <div key={`full-${block.widget.id}-${bIdx}`} className="w-full">
-                    {renderWidget(
-                      block.widget,
-                      block.idx,
-                      block.idx === 0,
-                      block.idx === visibleWidgets.length - 1
-                    )}
-                  </div>
-                );
-              }
-
-              // Half group: on desktop (lg:flex), split into left & right columns with Notion draggable divider
-              const col1 = block.widgets.filter((_, i) => i % 2 === 0);
-              const col2 = block.widgets.filter((_, i) => i % 2 === 1);
-
-              return (
-                <div key={`half-group-${bIdx}`} className="w-full">
-                  {/* Desktop Notion Draggable Split */}
-                  <div
-                    ref={containerRef}
-                    className="hidden lg:flex items-start select-none relative"
-                  >
-                    {/* Left Column */}
-                    <div
-                      style={{ width: `calc(${colSplit}% - 6px)` }}
-                      className="space-y-3 min-w-0"
-                    >
-                      {col1.map(({ widget, idx }) =>
-                        renderWidget(
-                          widget,
-                          idx,
-                          idx === 0,
-                          idx === visibleWidgets.length - 1
-                        )
-                      )}
-                    </div>
-
-                    {/* Notion Draggable Divider */}
-                    <div
-                      onMouseDown={startColDrag}
-                      className="w-3 -mx-1.5 relative flex items-center justify-center cursor-col-resize group flex-shrink-0 self-stretch z-10 select-none py-1"
-                      title="Drag left or right to resize columns (Notion style)"
-                    >
-                      <div
-                        className={`w-[1.5px] h-full transition-colors rounded-full ${
-                          isColDragging ? "bg-primary" : "bg-border group-hover:bg-primary/70"
-                        }`}
-                      />
-                    </div>
-
-                    {/* Right Column */}
-                    <div
-                      style={{ width: `calc(${100 - colSplit}% - 6px)` }}
-                      className="space-y-3 min-w-0"
-                    >
-                      {col2.map(({ widget, idx }) =>
-                        renderWidget(
-                          widget,
-                          idx,
-                          idx === 0,
-                          idx === visibleWidgets.length - 1
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Mobile & Tablet Fallback: Single Column Stack */}
-                  <div className="flex flex-col gap-3 lg:hidden">
-                    {block.widgets.map(({ widget, idx }) =>
-                      renderWidget(
-                        widget,
-                        idx,
-                        idx === 0,
-                        idx === visibleWidgets.length - 1
-                      )
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex flex-wrap items-start gap-3.5 w-full">
+            {visibleWidgets.map((widget, idx) =>
+              renderWidget(widget, idx, idx === 0, idx === visibleWidgets.length - 1)
+            )}
           </div>
         );
       })()}

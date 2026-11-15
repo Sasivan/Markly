@@ -134,7 +134,7 @@ export function HomeLayoutModal({
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            Drag rows to reorder, toggle visibility, and adjust half/full width.
+            Drag rows or use arrow buttons to reorder, and toggle visibility. (Resize each box directly on the homepage).
           </DialogDescription>
         </DialogHeader>
 
@@ -171,19 +171,6 @@ export function HomeLayoutModal({
               </div>
 
               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  onClick={() => toggleSpan(widget.id)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-medium border cursor-pointer transition-colors ${
-                    (widget.span || "1") === "2"
-                      ? "bg-primary/10 text-primary border-primary/30"
-                      : "bg-background text-muted-foreground border-border hover:text-foreground"
-                  }`}
-                  title="Toggle Half Width (1 Col) vs Full Width (2 Col)"
-                >
-                  {(widget.span || "1") === "2" ? "Full Width (2 Col)" : "Half Width (1 Col)"}
-                </button>
-
                 <button
                   type="button"
                   onClick={() => moveWidget(index, "up")}

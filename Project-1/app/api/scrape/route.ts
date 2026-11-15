@@ -161,7 +161,7 @@ export async function POST(req: Request) {
         // Automatically generate rich structured summary by default
         let generatedSummary = "";
 
-        // Check for AI API key (client x-ai-config header or server GEMINI_API_KEY)
+        // Check for AI API key strictly provided by the user in headers
         let aiConfigHeader = req.headers.get("x-ai-config") || req.headers.get("x-gemini-api-key") || undefined;
         if (typeof aiConfigHeader === "string" && aiConfigHeader.startsWith("%7B")) {
           try {
@@ -182,10 +182,7 @@ export async function POST(req: Request) {
           }
         }
 
-        if (!apiKey && process.env.GEMINI_API_KEY) {
-          apiKey = process.env.GEMINI_API_KEY;
-        }
-
+        // Strictly user-provided key: never fall back to server process.env to prevent budget drain
         if (apiKey) {
           try {
             const prompt = `Write a high-quality 2-sentence overview and 3 key features (bulleted with •) for this website:

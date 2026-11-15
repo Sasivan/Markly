@@ -46,10 +46,16 @@ export function exportToRaindropCsv(bookmarks: BookmarkWithDetails[]): string {
 }
 
 function escapeCsv(val: string): string {
-  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-    return `"${val.replace(/"/g, '""')}"`;
+  if (!val) return "";
+  // Guard against CSV formula injection (DDE execution in Excel / Google Sheets)
+  let sanitized = val;
+  if (/^[=+\-@\t\r]/.test(sanitized)) {
+    sanitized = `'${sanitized}`;
   }
-  return val;
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n") || sanitized.includes("\r")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
 }
 
 export interface ParsedCsvBookmark {

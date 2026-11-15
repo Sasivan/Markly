@@ -40,6 +40,9 @@ export function ShareCollectionModal({
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [copiedMarkdown, setCopiedMarkdown] = React.useState(false);
   const [shareUrl, setShareUrl] = React.useState("");
+  const [shareToken, setShareToken] = React.useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [isRevoking, setIsRevoking] = React.useState(false);
   const [expiration, setExpiration] = React.useState<"never" | "24h" | "7d" | "30d">("never");
   const [password, setPassword] = React.useState("");
 
@@ -48,65 +51,51 @@ export function ShareCollectionModal({
     return bookmarks.filter((b) => b.folderId === folder.id && !b.isArchived);
   }, [folder, bookmarks]);
 
-  React.useEffect(() => {
-    if (folder && typeof window !== "undefined") {
-      let expiresAt: number | null = null;
-      if (expiration === "24h") expiresAt = Date.now() + 24 * 3600 * 1000;
-      else if (expiration === "7d") expiresAt = Date.now() + 7 * 24 * 3600 * 1000;
-      else if (expiration === "30d") expiresAt = Date.now() + 30 * 24 * 3600 * 1000;
-
-      // Build a portable lightweight public payload
-      const payload: any = {
-        id: folder.id,
-        name: folder.name,
-        icon: folder.icon,
-        color: folder.color,
-        expiresAt,
-        passwordProtected: Boolean(password.trim()),
-        passwordHash: password.trim() ? btoa(password.trim()) : undefined,
-        items: folderBookmarks.map((b) => ({
-          id: b.id,
-          title: b.title,
-          url: b.url,
-          domain: b.domain,
-          iconUrl: b.iconUrl,
-          description: b.description || "",
-          tags: b.tags?.map((t) => (typeof t === "string" ? t : t.name)) || [],
-        })),
-      };
-
-      try {
-        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-        const url = `${window.location.origin}/share/${folder.id}?data=${encoded}`;
-        setShareUrl(url);
-
-        // Register in local shared registry
-        const stored = localStorage.getItem("markly_shared_folders");
-        const list = stored ? JSON.parse(stored) : [];
-        const existingIdx = list.findIndex((item: any) => item.folderId === folder.id);
-        const record = {
+  // Sync real database-backed share
+  const syncShare = React.useCallback(async () => {
+    if (!folder || !open || typeof window === "undefined") return;
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           folderId: folder.id,
-          name: folder.name,
-          icon: folder.icon,
-          color: folder.color,
-          url,
-          count: folderBookmarks.length,
-          sharedAt: new Date().toISOString(),
-          expiresAt,
-          passwordProtected: Boolean(password.trim()),
-        };
-        if (existingIdx >= 0) {
-          list[existingIdx] = record;
-        } else {
-          list.unshift(record);
-        }
-        localStorage.setItem("markly_shared_folders", JSON.stringify(list));
+          password: password.trim() || undefined,
+          expiresIn: expiration,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.share) {
+        setShareToken(data.share.shareToken);
+        setShareUrl(`${window.location.origin}/share/${data.share.shareToken}`);
         window.dispatchEvent(new CustomEvent("markly-shared-updated"));
-      } catch {
-        setShareUrl(`${window.location.origin}/share/${folder.id}`);
       }
+    } catch (e) {
+      console.warn("Share sync notice:", e);
+    } finally {
+      setIsGenerating(false);
     }
-  }, [folder, folderBookmarks, expiration, password]);
+  }, [folder, open, expiration, password]);
+
+  React.useEffect(() => {
+    syncShare();
+  }, [syncShare]);
+
+  const handleRevokeShare = async () => {
+    if (!folder) return;
+    setIsRevoking(true);
+    try {
+      await fetch(`/api/shares?folderId=${folder.id}`, { method: "DELETE" });
+      setShareToken(null);
+      setShareUrl("");
+      window.dispatchEvent(new CustomEvent("markly-shared-updated"));
+    } catch (e) {
+      console.warn("Revoke error:", e);
+    } finally {
+      setIsRevoking(false);
+    }
+  };
 
   if (!folder) return null;
 
@@ -254,11 +243,25 @@ export function ShareCollectionModal({
               type="button"
               size="sm"
               onClick={handleCopyLink}
+              disabled={isGenerating || !shareUrl}
               className="h-8 px-3 cursor-pointer text-xs gap-1.5 flex-shrink-0"
             >
               {copiedLink ? <Check className="h-3.5 w-3.5 text-white" /> : <Copy className="h-3.5 w-3.5" />}
               <span>{copiedLink ? "Copied" : "Copy Link"}</span>
             </Button>
+            {shareToken && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRevokeShare}
+                disabled={isRevoking}
+                className="h-8 px-2.5 cursor-pointer text-xs text-destructive hover:bg-destructive/10 border-destructive/20 shrink-0"
+                title="Revoke and delete this share link from database"
+              >
+                {isRevoking ? "Revoking..." : "Revoke"}
+              </Button>
+            )}
           </div>
         </div>
 

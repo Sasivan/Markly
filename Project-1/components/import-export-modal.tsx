@@ -17,18 +17,6 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
   const [importResult, setImportResult] = React.useState<string | null>(null);
   const [checkingHealth, setCheckingHealth] = React.useState(false);
   const [healthResult, setHealthResult] = React.useState<string | null>(null);
-  const [copiedBookmarklet, setCopiedBookmarklet] = React.useState(false);
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-  const bookmarkletCode = `javascript:(function(){var u=encodeURIComponent(window.location.href);var t=encodeURIComponent(document.title);window.open('${origin}/?addUrl='+u+'&title='+t,'_blank','width=600,height=520');})();`;
-
-  const handleCopyBookmarklet = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(bookmarkletCode);
-      setCopiedBookmarklet(true);
-      setTimeout(() => setCopiedBookmarklet(false), 2000);
-    }
-  };
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 

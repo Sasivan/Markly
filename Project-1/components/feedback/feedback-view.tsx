@@ -510,7 +510,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             {isAdmin && (
               <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono px-2 py-0.5 flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3" />
-                Admin: sasivan177@gmail.com
+                Admin Console
               </Badge>
             )}
           </div>
@@ -634,7 +634,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
         </form>
       </div>
 
-      {/* Admin Review Dashboard (Visible only to sasivan177@gmail.com) */}
+      {/* Admin Review Dashboard (Visible only to authorized admin) */}
       {isAdmin && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/10 dark:bg-emerald-950/20 p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/40 dark:border-emerald-800/40 pb-3">

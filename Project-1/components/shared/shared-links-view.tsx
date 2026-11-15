@@ -55,20 +55,29 @@ export function SharedLinksView({
   const [isImporting, setIsImporting] = React.useState(false);
   const [selectedFolderToShare, setSelectedFolderToShare] = React.useState<string>("");
 
-  // Load shared folders from localStorage
-  const loadSharedRecords = React.useCallback(() => {
+  // Load shared folders from real database table
+  const loadSharedRecords = React.useCallback(async () => {
     if (typeof window === "undefined") return;
     try {
-      const stored = localStorage.getItem("markly_shared_folders");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setSharedList(parsed);
-          return;
-        }
+      const res = await fetch("/api/shares");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.shares)) {
+        const records = data.shares.map((s: any) => ({
+          folderId: s.folderId,
+          name: s.folderName,
+          icon: s.folderIcon,
+          color: s.folderColor,
+          url: `${window.location.origin}/share/${s.shareToken}`,
+          count: s.itemsCount || 0,
+          sharedAt: new Date(s.createdAt).toISOString(),
+          shareToken: s.shareToken,
+          viewCount: s.viewCount || 0,
+        }));
+        setSharedList(records);
+        return;
       }
     } catch (e) {
-      console.warn("Failed to load markly_shared_folders", e);
+      console.warn("Failed to load /api/shares", e);
     }
     setSharedList([]);
   }, []);
@@ -80,12 +89,11 @@ export function SharedLinksView({
     return () => window.removeEventListener("markly-shared-updated", handleUpdate);
   }, [loadSharedRecords]);
 
-  // Unshare action
-  const handleUnshare = (folderId: string) => {
+  // Unshare action (permanently deletes share row in DB)
+  const handleUnshare = async (folderId: string) => {
     try {
-      const updated = sharedList.filter((s) => s.folderId !== folderId);
-      setSharedList(updated);
-      localStorage.setItem("markly_shared_folders", JSON.stringify(updated));
+      await fetch(`/api/shares?folderId=${encodeURIComponent(folderId)}`, { method: "DELETE" });
+      setSharedList((prev) => prev.filter((s) => s.folderId !== folderId));
       window.dispatchEvent(new CustomEvent("markly-shared-updated"));
     } catch (e) {
       console.error("Failed to unshare folder", e);

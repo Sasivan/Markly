@@ -102,6 +102,35 @@ describe("CSV Export Engine", () => {
     expect(csv).toContain('""quotes"" and, commas"');
   });
 
+  it("prevents CSV formula injection by prepending single quote to formula triggers", () => {
+    const maliciousBookmark: BookmarkWithDetails = {
+      id: "bm_danger",
+      userId: "usr_1",
+      folderId: null,
+      url: "https://example.com",
+      canonicalUrl: "https://example.com",
+      title: "=cmd|' /C calc'!A0",
+      description: "+2+5",
+      iconUrl: null,
+      imageUrl: null,
+      domain: "example.com",
+      isFavorite: false,
+      isArchived: false,
+      status: "alive",
+      visitCount: 0,
+      lastVisitedAt: null,
+      createdAt: 1700000000000,
+      notes: null,
+      cachedContent: null,
+      searchText: null,
+      tags: [],
+    };
+
+    const csv = exportToCsv([maliciousBookmark]);
+    // The exported title must be sanitized with a leading single quote
+    expect(csv).toContain("'=cmd|' /C calc'!A0");
+  });
+
   it("parses CSV text back into structured bookmarks and folders", () => {
     const rawCsv = `Title,URL,Folder,Domain,Tags,Favorite,Status,Visits,Created At
 "React Documentation","https://react.dev","Frontend","react.dev","react, docs","Yes","alive","10","2026-11-14"

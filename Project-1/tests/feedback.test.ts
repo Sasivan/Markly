@@ -68,8 +68,8 @@ describe("Feedback System Repository & Access Control", () => {
     const adminReply = BookmarkRepository.addFeedbackReply({
       feedbackId: feedback.id,
       userId: "usr_admin",
-      userEmail: "sasivan177@gmail.com",
-      userName: "Sasivan (Admin)",
+      userEmail: "admin@example.com",
+      userName: "Admin User",
       isAdmin: true,
       message: "Thanks for reporting! We are pushing a fix in the next build.",
     });

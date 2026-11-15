@@ -57,6 +57,16 @@ interface SitePreviewModalProps {
   onUpdateBookmark?: (updated: BookmarkWithDetails) => void;
 }
 
+function getDomainGradient(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h1 = Math.abs(hash) % 360;
+  const h2 = (h1 + 45) % 360;
+  return `linear-gradient(135deg, hsl(${h1}, 42%, 20%) 0%, hsl(${h2}, 52%, 11%) 100%)`;
+}
+
 export function SitePreviewModal({
   bookmark,
   folders,
@@ -268,11 +278,11 @@ export function SitePreviewModal({
 
   const currentFolder = folders.find((f) => f.id === bookmark.folderId);
 
-  // Reliable visual screenshot URL
+  // Verified visual image URL (strictly self-hosted or page's own og:image, never leaking to third parties)
   const snapshotUrl =
-    bookmark.imageUrl && !bookmark.imageUrl.includes("avatar-") && !snapshotError
+    bookmark.imageUrl && !bookmark.imageUrl.includes("avatar-") && !bookmark.imageUrl.includes("thum.io") && !snapshotError
       ? bookmark.imageUrl
-      : `https://image.thum.io/get/width/1200/crop/650/${bookmark.url}`;
+      : null;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(bookmark.url);
@@ -705,7 +715,7 @@ export function SitePreviewModal({
                   allowFullScreen
                 />
               </div>
-            ) : (
+            ) : snapshotUrl ? (
               <div className="relative rounded-md overflow-hidden border border-border bg-card aspect-21/9 max-h-52 group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -715,6 +725,45 @@ export function SitePreviewModal({
                   onError={() => setSnapshotError(true)}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5">
+                  <span className="text-white text-xs font-mono bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-sm">
+                    {bookmark.domain}
+                  </span>
+                  <a
+                    href={bookmark.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      try {
+                        onRecordVisit?.(bookmark);
+                      } catch {}
+                    }}
+                    className="text-xs font-mono text-white/90 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-sm flex items-center gap-1.5 transition-colors"
+                  >
+                    <span>Visit Live Site</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="relative rounded-md overflow-hidden border border-border aspect-21/9 max-h-48 flex flex-col items-center justify-center p-4 select-none group"
+                style={{ background: getDomainGradient(bookmark.domain || bookmark.title || "markly") }}
+              >
+                <div className="p-3 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-2 flex items-center justify-center">
+                  <BookmarkIcon
+                    src={bookmark.iconUrl}
+                    alt={bookmark.title}
+                    domain={bookmark.domain}
+                    className="h-8 w-8 rounded object-contain"
+                  />
+                </div>
+                <div className="text-sm font-semibold text-white/95 truncate max-w-[85%] text-center tracking-tight">
+                  {bookmark.title}
+                </div>
+                <div className="text-xs font-mono text-white/60 truncate max-w-[80%] text-center mt-0.5">
+                  {bookmark.domain}
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-white text-xs font-mono bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-sm">
                     {bookmark.domain}
                   </span>

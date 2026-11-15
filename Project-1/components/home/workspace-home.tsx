@@ -25,7 +25,6 @@ import {
   Globe,
   Archive,
   SlidersHorizontal,
-  Columns2,
   Rows3,
   Sparkles,
   Keyboard,
@@ -99,24 +98,6 @@ export function WorkspaceHome({
   // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
-
-  // 1-Col vs 2-Col layout state with persistence (default 2-col dashboard grid)
-  const [homeColumns, setHomeColumns] = React.useState<"1" | "2">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("markly_home_columns");
-        if (stored === "1" || stored === "2") return stored;
-      } catch {}
-    }
-    return "2";
-  });
-
-  const handleSetColumns = (cols: "1" | "2") => {
-    setHomeColumns(cols);
-    try {
-      localStorage.setItem("markly_home_columns", cols);
-    } catch {}
-  };
 
   // Instant global search on homepage
   const [homeSearch, setHomeSearch] = React.useState("");
@@ -1322,12 +1303,8 @@ export function WorkspaceHome({
           renderWidget(widget, idx, idx === 0, idx === visibleWidgets.length - 1)
         );
 
-        return homeColumns === "2" ? (
+        return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {widgetElements}
-          </div>
-        ) : (
-          <div className="space-y-6">
             {widgetElements}
           </div>
         );

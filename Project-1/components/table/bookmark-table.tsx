@@ -79,6 +79,7 @@ interface BookmarkTableProps {
 // Notion-Style Multi-Column Filter Rules
 export type ColumnFilterField =
   | "title"
+  | "url"
   | "domain"
   | "folder"
   | "tags"
@@ -86,7 +87,8 @@ export type ColumnFilterField =
   | "favorite"
   | "visitCount"
   | "notes"
-  | "recency";
+  | "recency"
+  | "lastClicked";
 
 export type ColumnFilterOperator =
   | "contains"
@@ -136,7 +138,7 @@ const TABLE_COLUMN_OPTIONS = [
   { id: "folder", label: "Folder Group" },
   { id: "tags", label: "Tags" },
   { id: "status", label: "Health Status" },
-  { id: "lastVisitedAt", label: "Last Clicked" },
+  { id: "lastClicked", label: "Last Clicked" },
   { id: "visitCount", label: "Visits" },
   { id: "createdAt", label: "Date Added" },
 ];
@@ -394,6 +396,14 @@ function getDomainGradient(str: string): string {
         } else if (rule.operator === "is_not_empty") {
           result = result.filter((b) => Boolean(b.title && b.title.trim()));
         }
+      } else if (rule.field === "url") {
+        if (rule.operator === "contains" && qVal) {
+          result = result.filter((b) => (b.url || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "does_not_contain" && qVal) {
+          result = result.filter((b) => !(b.url || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "starts_with" && qVal) {
+          result = result.filter((b) => (b.url || "").toLowerCase().startsWith(qVal));
+        }
       } else if (rule.field === "domain") {
         if (rule.operator === "contains" && qVal) {
           result = result.filter((b) => (b.domain || "").toLowerCase().includes(qVal));
@@ -452,6 +462,16 @@ function getDomainGradient(str: string): string {
       } else if (rule.field === "recency") {
         const cutoff = rule.value === "24h" ? Date.now() - 86400000 : rule.value === "week" ? Date.now() - 7 * 86400000 : Date.now() - 30 * 86400000;
         result = result.filter((b) => b.createdAt >= cutoff);
+      } else if (rule.field === "lastClicked") {
+        if (rule.value === "never") {
+          result = result.filter((b) => !b.lastClickedAt && !b.lastVisitedAt);
+        } else {
+          const cutoff = rule.value === "24h" ? Date.now() - 86400000 : rule.value === "week" ? Date.now() - 7 * 86400000 : Date.now() - 30 * 86400000;
+          result = result.filter((b) => {
+            const last = b.lastClickedAt || b.lastVisitedAt || 0;
+            return last >= cutoff;
+          });
+        }
       }
     }
 
@@ -996,6 +1016,25 @@ function getDomainGradient(str: string): string {
         },
       },
       {
+        id: "domain",
+        accessorKey: "domain",
+        header: ({ column }) => (
+          <button
+            type="button"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-foreground font-medium"
+          >
+            <span>Domain</span>
+            <ArrowUpDown className="h-3 w-3" />
+          </button>
+        ),
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground truncate max-w-36 block">
+            {row.original.domain}
+          </span>
+        ),
+      },
+      {
         id: "folder",
         accessorFn: (row) => getParentFolderInfo(row).name,
         header: "Parent Folder",
@@ -1332,12 +1371,15 @@ function getDomainGradient(str: string): string {
                               else if (newField === "favorite") { defOp = "is_starred"; defVal = "starred"; }
                               else if (newField === "visitCount") { defOp = "greater_than"; defVal = "0"; }
                               else if (newField === "recency") { defOp = "equals"; defVal = "week"; }
+                              else if (newField === "lastClicked") { defOp = "equals"; defVal = "7d"; }
+                              else if (newField === "url") { defOp = "contains"; defVal = ""; }
                               const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, field: newField, operator: defOp, value: defVal } : r);
                               handleSaveColumnFilters(updated);
                             }}
                             className="h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                           >
                             <option value="title">Title</option>
+                            <option value="url">URL</option>
                             <option value="domain">Domain</option>
                             <option value="folder">Folder</option>
                             <option value="tags">Tags</option>
@@ -1345,6 +1387,7 @@ function getDomainGradient(str: string): string {
                             <option value="status">Health Status</option>
                             <option value="favorite">Starred</option>
                             <option value="visitCount">Visit Count</option>
+                            <option value="lastClicked">Last Clicked</option>
                             <option value="recency">Date Added</option>
                           </select>
 
@@ -1358,7 +1401,7 @@ function getDomainGradient(str: string): string {
                             }}
                             className="h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                           >
-                            {rule.field === "title" || rule.field === "domain" || rule.field === "notes" ? (
+                            {rule.field === "title" || rule.field === "domain" || rule.field === "notes" || rule.field === "url" ? (
                               <>
                                 <option value="contains">contains</option>
                                 <option value="does_not_contain">does not contain</option>
@@ -1425,6 +1468,20 @@ function getDomainGradient(str: string): string {
                               >
                                 <option value="alive">Reachable (200 OK)</option>
                                 <option value="dead">Dead / Broken</option>
+                              </select>
+                            ) : rule.field === "lastClicked" ? (
+                              <select
+                                value={rule.value}
+                                onChange={(e) => {
+                                  const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, value: e.target.value } : r);
+                                  handleSaveColumnFilters(updated);
+                                }}
+                                className="w-full h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              >
+                                <option value="24h">Clicked in Past 24 Hours</option>
+                                <option value="week">Clicked in Past 7 Days</option>
+                                <option value="month">Clicked in Past 30 Days</option>
+                                <option value="never">Never Clicked / Unvisited</option>
                               </select>
                             ) : rule.field === "recency" ? (
                               <select
@@ -1686,6 +1743,10 @@ function getDomainGradient(str: string): string {
               label = rule.operator === "greater_than" ? `Visits > ${rule.value}` : `Visits = ${rule.value}`;
             } else if (rule.field === "recency") {
               label = rule.value === "24h" ? "Past 24h" : rule.value === "week" ? "Past 7d" : "Past 30d";
+            } else if (rule.field === "lastClicked") {
+              label = rule.value === "never" ? "Never Clicked" : `Clicked past ${rule.value}`;
+            } else if (rule.field === "url") {
+              label = `URL ${rule.operator.replace(/_/g, " ")} "${rule.value}"`;
             } else if (rule.operator === "is_empty") {
               label = `${rule.field} is empty`;
             } else if (rule.operator === "is_not_empty") {

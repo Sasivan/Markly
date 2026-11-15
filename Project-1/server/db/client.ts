@@ -208,6 +208,21 @@ export function initDbSchema() {
       );
 
       CREATE INDEX IF NOT EXISTS smart_collections_user_idx ON smart_collections(user_id);
+
+      CREATE TABLE IF NOT EXISTS shares (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        folder_id TEXT NOT NULL,
+        share_token TEXT NOT NULL UNIQUE,
+        password_hash TEXT,
+        expires_at INTEGER,
+        view_count INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS shares_token_idx ON shares(share_token);
+      CREATE INDEX IF NOT EXISTS shares_user_folder_idx ON shares(user_id, folder_id);
     `);
 
     // Ensure dynamic columns exist in bookmarks and users table

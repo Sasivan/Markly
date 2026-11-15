@@ -46,14 +46,83 @@ interface SharedCollection {
 export default function PublicSharePage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const token = (params?.folderId as string) || "";
   const [collection, setCollection] = React.useState<SharedCollection | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [mounted, setMounted] = React.useState(false);
-  const [importing, setImporting] = React.useState(false);
-  const [imported, setImported] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [isExpired, setIsExpired] = React.useState(false);
+  const [isPasswordRequired, setIsPasswordRequired] = React.useState(false);
   const [passwordInput, setPasswordInput] = React.useState("");
   const [passwordError, setPasswordError] = React.useState(false);
   const [isUnlocked, setIsUnlocked] = React.useState(false);
+  const [importing, setImporting] = React.useState(false);
+  const [imported, setImported] = React.useState(false);
+
+  const loadShare = React.useCallback(async (pwd?: string) => {
+    if (!token) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const url = `/api/shares/${encodeURIComponent(token)}${pwd ? `?password=${encodeURIComponent(pwd)}` : ""}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (res.status === 410 || data.isExpired) {
+        setIsExpired(true);
+        setCollection(null);
+        return;
+      }
+
+      if (res.status === 404 || !data.success) {
+        setLoadError(data.error || "Collection not found or share has been revoked.");
+        setCollection(null);
+        return;
+      }
+
+      if (data.isPasswordProtected && (!data.items || data.items.length === 0)) {
+        setIsPasswordRequired(true);
+        setPasswordError(Boolean(pwd));
+        setCollection({
+          id: token,
+          name: data.folder?.name || "Protected Collection",
+          icon: data.folder?.icon || "📁",
+          color: data.folder?.color || "#3b82f6",
+          items: [],
+        });
+        return;
+      }
+
+      setIsPasswordRequired(false);
+      setPasswordError(false);
+      setIsUnlocked(true);
+      setCollection({
+        id: data.folder?.id || token,
+        name: data.folder?.name || "Shared Collection",
+        icon: data.folder?.icon || "📁",
+        color: data.folder?.color || "#3b82f6",
+        items: data.items || [],
+        expiresAt: data.share?.expiresAt,
+        passwordProtected: data.share?.isPasswordProtected,
+      });
+    } catch {
+      setLoadError("Failed to load shared collection.");
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  React.useEffect(() => {
+    setMounted(true);
+    loadShare();
+  }, [loadShare]);
+
+  const handleUnlockPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) return;
+    await loadShare(passwordInput.trim());
+  };
 
   const handleAddToLibrary = async () => {
     if (!collection || collection.items.length === 0) return;
@@ -82,7 +151,7 @@ export default function PublicSharePage() {
                 url: item.url,
                 folderId: folderId || null,
                 description: item.description || "",
-                tags: item.tags || [],
+                tagNames: item.tags || [],
               }),
             });
           } catch {
@@ -93,59 +162,13 @@ export default function PublicSharePage() {
         setTimeout(() => {
           window.location.href = "/";
         }, 1200);
-      } else {
-        const pending = {
-          folderName: collection.name,
-          icon: collection.icon,
-          color: collection.color,
-          items: collection.items,
-        };
-        localStorage.setItem("markly_pending_import_collection", JSON.stringify(pending));
-        setImported(true);
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 1200);
       }
     } catch {
-      const pending = {
-        folderName: collection.name,
-        icon: collection.icon,
-        color: collection.color,
-        items: collection.items,
-      };
-      localStorage.setItem("markly_pending_import_collection", JSON.stringify(pending));
-      setImported(true);
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1200);
+      // ignore
     } finally {
       setImporting(false);
     }
   };
-
-  React.useEffect(() => {
-    setMounted(true);
-    const dataParam = searchParams.get("data");
-    if (dataParam) {
-      try {
-        const decoded = decodeURIComponent(escape(atob(dataParam)));
-        const parsed = JSON.parse(decoded) as SharedCollection;
-        setCollection(parsed);
-      } catch (err) {
-        console.error("Failed to parse shared collection", err);
-      }
-    } else {
-      // Fallback sample if no query payload passed
-      const folderId = (params?.folderId as string) || "collection";
-      setCollection({
-        id: folderId,
-        name: "Curated Collection",
-        icon: "📁",
-        color: "#2563eb",
-        items: [],
-      });
-    }
-  }, [params, searchParams]);
 
   const filteredItems = React.useMemo(() => {
     if (!collection) return [];
@@ -160,28 +183,6 @@ export default function PublicSharePage() {
         item.tags?.some((t) => t.toLowerCase().includes(q))
     );
   }, [collection, searchQuery]);
-
-  const isExpired = Boolean(
-    collection?.expiresAt && Date.now() > collection.expiresAt
-  );
-
-  const isPasswordRequired = Boolean(
-    collection?.passwordProtected && !isUnlocked
-  );
-
-  const handleUnlockPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!collection?.passwordHash) {
-      setIsUnlocked(true);
-      return;
-    }
-    if (btoa(passwordInput.trim()) === collection.passwordHash) {
-      setIsUnlocked(true);
-      setPasswordError(false);
-    } else {
-      setPasswordError(true);
-    }
-  };
 
   if (!mounted) {
     return <div className="min-h-screen bg-background" />;
@@ -238,7 +239,27 @@ export default function PublicSharePage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-6 md:p-8 space-y-6">
-        {isExpired ? (
+        {loading ? (
+          <div className="py-24 text-center space-y-3">
+            <div className="h-8 w-8 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-muted-foreground">Loading collection...</p>
+          </div>
+        ) : loadError ? (
+          <div className="p-8 rounded-xl border border-border bg-card text-center space-y-3 max-w-lg mx-auto my-12 shadow-sm">
+            <div className="h-12 w-12 rounded-full bg-secondary text-muted-foreground flex items-center justify-center mx-auto">
+              <FolderIcon className="h-6 w-6" />
+            </div>
+            <h2 className="text-base font-semibold text-foreground">Collection Unavailable</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {loadError}
+            </p>
+            <div className="pt-2">
+              <a href="/" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+                Go to Markly Home
+              </a>
+            </div>
+          </div>
+        ) : isExpired ? (
           <div className="p-8 rounded-xl border border-destructive/30 bg-destructive/5 text-center space-y-3 max-w-lg mx-auto my-12">
             <div className="h-12 w-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
               <Clock className="h-6 w-6" />

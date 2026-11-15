@@ -77,8 +77,15 @@ export async function POST(
         }
       }
 
-      if (!apiKey && process.env.GEMINI_API_KEY) {
-        apiKey = process.env.GEMINI_API_KEY;
+      // Strictly user-provided key: never fall back to server process.env to prevent budget drain
+      if (!apiKey) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Gemini API key required. Please configure your custom Gemini key in AI Settings.",
+          },
+          { status: 400 }
+        );
       }
 
       if (apiKey) {

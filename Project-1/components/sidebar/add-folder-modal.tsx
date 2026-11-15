@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { Sparkles } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 
 interface AddFolderModalProps {
@@ -46,6 +47,20 @@ export function AddFolderModal({
   const [icon, setIcon] = React.useState("Folder");
   const [color, setColor] = React.useState("#3b82f6");
   const [saving, setSaving] = React.useState(false);
+
+  const handleRandomHarmonicColor = () => {
+    const hue = Math.floor(Math.random() * 360);
+    const sat = 75;
+    const light = 55;
+    const a = (sat * Math.min(light, 100 - light)) / 100;
+    const f = (n: number) => {
+      const k = (n + hue / 30) % 12;
+      const c = light / 100 - (a / 100) * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * c).toString(16).padStart(2, "0");
+    };
+    const hex = `#${f(0)}${f(8)}${f(4)}`;
+    setColor(hex);
+  };
 
   React.useEffect(() => {
     if (open) {
@@ -119,6 +134,15 @@ export function AddFolderModal({
                 Color palette & accent
               </label>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRandomHarmonicColor}
+                  className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                  title="Generate random harmonious color"
+                >
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span>Generate</span>
+                </button>
                 <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
                   <span>Custom:</span>
                   <input

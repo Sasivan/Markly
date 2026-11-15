@@ -5,7 +5,7 @@ import { requireUser, handleAuthError } from "@/server/auth/require-user";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ADMIN_EMAIL = "sasivan177@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 
 export async function DELETE(
   req: Request,

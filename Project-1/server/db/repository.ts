@@ -2626,6 +2626,152 @@ export class BookmarkRepository {
     sqlite.prepare(`DELETE FROM smart_collections WHERE id = ? AND user_id = ?`).run(id, userId);
     return true;
   }
+
+  // Real Database-Backed Sharing (Issue 2)
+  static createOrUpdateShare(
+    userId: string,
+    folderId: string,
+    options?: { passwordHash?: string | null; expiresAt?: number | null }
+  ) {
+    const existing = sqlite.prepare(`
+      SELECT * FROM shares WHERE user_id = ? AND folder_id = ?
+    `).get(userId, folderId) as any;
+
+    const now = Date.now();
+    if (existing) {
+      sqlite.prepare(`
+        UPDATE shares
+        SET password_hash = ?, expires_at = ?, updated_at = ?
+        WHERE id = ?
+      `).run(options?.passwordHash || null, options?.expiresAt || null, now, existing.id);
+
+      return {
+        ...existing,
+        passwordHash: options?.passwordHash || null,
+        expiresAt: options?.expiresAt || null,
+        updatedAt: now,
+      };
+    }
+
+    const id = `sh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const randomBytes = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    const shareToken = `s_${randomBytes}`;
+
+    sqlite.prepare(`
+      INSERT INTO shares (id, user_id, folder_id, share_token, password_hash, expires_at, view_count, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+    `).run(id, userId, folderId, shareToken, options?.passwordHash || null, options?.expiresAt || null, now, now);
+
+    return {
+      id,
+      userId,
+      folderId,
+      shareToken,
+      passwordHash: options?.passwordHash || null,
+      expiresAt: options?.expiresAt || null,
+      viewCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  static getUserShares(userId: string) {
+    try {
+      const rows = sqlite.prepare(`
+        SELECT s.id, s.user_id, s.folder_id, s.share_token, s.password_hash, s.expires_at, s.view_count, s.created_at, s.updated_at,
+               f.name as folder_name, f.icon as folder_icon, f.color as folder_color,
+               (SELECT COUNT(*) FROM bookmarks b WHERE b.folder_id = s.folder_id AND b.is_archived = 0) as items_count
+        FROM shares s
+        JOIN folders f ON f.id = s.folder_id
+        WHERE s.user_id = ?
+        ORDER BY s.created_at DESC
+      `).all(userId) as any[];
+
+      return rows.map((r) => ({
+        id: r.id,
+        userId: r.user_id,
+        folderId: r.folder_id,
+        shareToken: r.share_token,
+        passwordHash: r.password_hash,
+        expiresAt: r.expires_at,
+        viewCount: r.view_count,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        folderName: r.folder_name,
+        folderIcon: r.folder_icon,
+        folderColor: r.folder_color,
+        itemsCount: r.items_count,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  static getShareByToken(shareToken: string) {
+    try {
+      const share = sqlite.prepare(`
+        SELECT * FROM shares WHERE share_token = ?
+      `).get(shareToken) as any;
+
+      if (!share) return null;
+
+      const folder = sqlite.prepare(`
+        SELECT * FROM folders WHERE id = ?
+      `).get(share.folder_id) as any;
+
+      if (!folder) return null;
+
+      const bookmarks = this.getBookmarks({
+        folderId: share.folder_id,
+        userId: share.user_id,
+        includeArchived: false,
+        view: "all",
+      });
+
+      return {
+        share: {
+          id: share.id,
+          userId: share.user_id,
+          folderId: share.folder_id,
+          shareToken: share.share_token,
+          passwordHash: share.password_hash,
+          expiresAt: share.expires_at,
+          viewCount: share.view_count,
+          createdAt: share.created_at,
+          updatedAt: share.updated_at,
+        },
+        folder: {
+          id: folder.id,
+          name: folder.name,
+          icon: folder.icon,
+          color: folder.color,
+        },
+        bookmarks,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  static revokeShare(userId: string, folderIdOrToken: string) {
+    try {
+      const res = sqlite.prepare(`
+        DELETE FROM shares
+        WHERE user_id = ? AND (folder_id = ? OR share_token = ? OR id = ?)
+      `).run(userId, folderIdOrToken, folderIdOrToken, folderIdOrToken);
+      return res.changes > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  static incrementShareView(shareToken: string) {
+    try {
+      sqlite.prepare(`
+        UPDATE shares SET view_count = view_count + 1 WHERE share_token = ?
+      `).run(shareToken);
+    } catch {}
+  }
 }
 
 export const FolderRepository = BookmarkRepository;

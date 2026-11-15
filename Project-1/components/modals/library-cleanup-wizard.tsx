@@ -71,6 +71,7 @@ export function LibraryCleanupWizard({
 
   // Advanced Duplicate Cleanup Configuration State
   const [duplicateScopeFolderId, setDuplicateScopeFolderId] = React.useState<string>("all");
+  const [duplicateMatchType, setDuplicateMatchType] = React.useState<"exact" | "strip_query" | "domain_title">("exact");
   const [preserveStrategy, setPreserveStrategy] = React.useState<"most_visited" | "oldest" | "newest" | "starred">("most_visited");
   const [destinationFolderId, setDestinationFolderId] = React.useState<string>("keep_original");
   const [selectedGroupKeys, setSelectedGroupKeys] = React.useState<Set<string>>(new Set());
@@ -88,7 +89,18 @@ export function LibraryCleanupWizard({
           continue;
         }
       }
-      const key = normalizeUrl(b.url);
+      let key = normalizeUrl(b.url);
+      if (duplicateMatchType === "strip_query") {
+        try {
+          const parsed = new URL(key);
+          parsed.search = "";
+          parsed.hash = "";
+          key = parsed.toString().replace(/\/+$/, "");
+        } catch {}
+      } else if (duplicateMatchType === "domain_title") {
+        const cleanTitle = (b.title || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+        key = `${(b.domain || "").toLowerCase()}::${cleanTitle}`;
+      }
       if (!map.has(key)) {
         map.set(key, []);
       }
@@ -102,7 +114,7 @@ export function LibraryCleanupWizard({
       }
     }
     return groups;
-  }, [bookmarks, duplicateScopeFolderId]);
+  }, [bookmarks, duplicateScopeFolderId, duplicateMatchType]);
 
   // Keep all groups selected initially whenever scope/groups change
   React.useEffect(() => {
@@ -508,7 +520,7 @@ export function LibraryCleanupWizard({
                   <span>Duplicate Cleanup Strategy & Scope</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
                   {/* Scope Selector */}
                   <div className="space-y-1">
                     <label className="text-[11px] text-muted-foreground font-medium block">
@@ -528,6 +540,22 @@ export function LibraryCleanupWizard({
                             Folder: {f.name}
                           </option>
                         ))}
+                    </select>
+                  </div>
+
+                  {/* Matching Algorithm */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground font-medium block">
+                      Match Criteria
+                    </label>
+                    <select
+                      value={duplicateMatchType}
+                      onChange={(e) => setDuplicateMatchType(e.target.value as any)}
+                      className="w-full h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="exact">Exact Normalized URL</option>
+                      <option value="strip_query">Ignore Query Params (?utm...)</option>
+                      <option value="domain_title">Same Domain + Title</option>
                     </select>
                   </div>
 

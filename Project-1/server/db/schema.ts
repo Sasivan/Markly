@@ -178,6 +178,25 @@ export const smartCollections = sqliteTable(
   ]
 );
 
+export const shares = sqliteTable(
+  "shares",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    folderId: text("folder_id").notNull(),
+    shareToken: text("share_token").notNull().unique(),
+    passwordHash: text("password_hash"),
+    expiresAt: integer("expires_at"),
+    viewCount: integer("view_count").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("shares_token_idx").on(table.shareToken),
+    index("shares_user_folder_idx").on(table.userId, table.folderId),
+  ]
+);
+
 // Drizzle Relations
 export const foldersRelations = relations(folders, ({ one, many }) => ({
   parent: one(folders, {
@@ -234,6 +253,8 @@ export type BookmarkWithDetails = Omit<Bookmark, "lastClickedAt"> & {
 };
 
 export type SmartCollection = typeof smartCollections.$inferSelect;
+export type Share = typeof shares.$inferSelect;
+export type NewShare = typeof shares.$inferInsert;
 
 export type FolderTreeNode = Folder & {
   children: FolderTreeNode[];

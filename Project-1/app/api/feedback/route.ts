@@ -6,7 +6,7 @@ import { requireUser, handleAuthError } from "@/server/auth/require-user";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ADMIN_EMAIL = "sasivan177@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 
 const createFeedbackSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(150, "Title cannot exceed 150 characters"),

@@ -102,11 +102,6 @@ export async function parseHtmlMetadata(html: string, pageUrl: string, domain: s
     }
   }
 
-  // Fallback: If no Open Graph image found, provide high-resolution website snapshot
-  if (!imageUrl && pageUrl.startsWith("http")) {
-    imageUrl = `https://image.thum.io/get/width/1200/crop/800/${pageUrl}`;
-  }
-
   // 4. Site Name
   const siteName = $('meta[property="og:site_name"]').attr("content") || null;
 

@@ -56,5 +56,19 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run Unit Tests
-        run: npx vitest run
+        env:
+          CI: "true"
+          DATABASE_MODE: sqlite
+          DATABASE_SQLITE_PATH: ":memory:"
+          NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key-for-unit-tests"
+          ADMIN_EMAIL: "admin@example.com"
+        run: npm test -- --reporter=verbose
+
+      - name: Build Next.js Application
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key-for-unit-tests"
 

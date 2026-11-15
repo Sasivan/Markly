@@ -21,6 +21,7 @@ dist/
 
 # Ignore unrelated workspace projects
 DG-ARAD/
+Project-0/
 
 # Private documentation & replication (Local only)
 How/

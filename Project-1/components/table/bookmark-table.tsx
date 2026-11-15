@@ -1310,10 +1310,40 @@ function getDomainGradient(str: string): string {
         isArchiveView={filteredData.length > 0 && filteredData.every((b) => b.isArchived)}
       />
 
-      {/* Table Controls Header: Notion Filter, Sort, View Toggles & Columns */}
+      {/* Table Controls Header: Search, Notion Filter, Sort, View Toggles & Columns */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        {/* Left: Notion Filter & Sort */}
-        <div className="flex items-center gap-2">
+        {/* Left: Search Bar, Notion Filter & Sort */}
+        <div className="flex items-center gap-2 flex-1 min-w-[280px] max-w-xl">
+          {/* Global Fuzzy Search Bar */}
+          <div className="relative flex-1">
+            <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5 pointer-events-none" />
+            <Input
+              id="markly-global-search-input"
+              data-markly-search-input="true"
+              type="text"
+              placeholder="Search title, description, domain, tags, URL... (/ to focus)"
+              value={globalFilter}
+              onChange={(e) => {
+                setGlobalFilter(e.target.value);
+                onSearchChange?.(e.target.value);
+              }}
+              className="pl-8 pr-7 text-xs h-8 bg-background border-border"
+            />
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setGlobalFilter("");
+                  onSearchChange?.("");
+                }}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground cursor-pointer text-xs"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Notion-Style Multi-Column Filter Menu */}
           <div className="relative" ref={filterMenuRef}>
             <Button

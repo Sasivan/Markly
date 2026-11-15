@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 import { exportToNetscapeHtml } from "@/server/import-export/netscape";
-import { exportToCsv } from "@/server/import-export/csv";
+import { exportToCsv, exportToNotionCsv, exportToRaindropCsv } from "@/server/import-export/csv";
+import { exportToMarkdown } from "@/server/import-export/markdown";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,36 @@ export async function GET(req: Request) {
     const folders = BookmarkRepository.getAllFolders(user.id);
 
     const timestamp = new Date().toISOString().slice(0, 10);
+
+    if (format === "markdown" || format === "md") {
+      const md = exportToMarkdown(bookmarks, folders);
+      return new NextResponse(md, {
+        headers: {
+          "Content-Type": "text/markdown; charset=utf-8",
+          "Content-Disposition": `attachment; filename="markly-bookmarks-${timestamp}.md"`,
+        },
+      });
+    }
+
+    if (format === "notion") {
+      const csv = exportToNotionCsv(bookmarks);
+      return new NextResponse(csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="markly-notion-${timestamp}.csv"`,
+        },
+      });
+    }
+
+    if (format === "raindrop") {
+      const csv = exportToRaindropCsv(bookmarks);
+      return new NextResponse(csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="markly-raindrop-${timestamp}.csv"`,
+        },
+      });
+    }
 
     if (format === "html") {
       const html = exportToNetscapeHtml(bookmarks, folders);

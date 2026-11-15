@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Activity, FileText, Check, AlertCircle, Loader2, Bookmark, Puzzle, Sparkles } from "lucide-react";
+import { Download, Upload, Activity, FileText, Check, AlertCircle, Loader2, Bookmark, Puzzle, Sparkles, Copy } from "lucide-react";
 
 interface ImportExportModalProps {
   open: boolean;
@@ -17,6 +17,18 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
   const [importResult, setImportResult] = React.useState<string | null>(null);
   const [checkingHealth, setCheckingHealth] = React.useState(false);
   const [healthResult, setHealthResult] = React.useState<string | null>(null);
+  const [copiedBookmarklet, setCopiedBookmarklet] = React.useState(false);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const bookmarkletCode = `javascript:(function(){var u=encodeURIComponent(window.location.href);var t=encodeURIComponent(document.title);window.open('${origin}/?addUrl='+u+'&title='+t,'_blank','width=600,height=520');})();`;
+
+  const handleCopyBookmarklet = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(bookmarkletCode);
+      setCopiedBookmarklet(true);
+      setTimeout(() => setCopiedBookmarklet(false), 2000);
+    }
+  };
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -90,6 +102,27 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
             </p>
             <div className="flex items-center gap-2 pt-1 flex-wrap">
               <a
+                href="/api/export?format=markdown"
+                download
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-foreground font-medium text-xs font-mono transition-colors"
+              >
+                Markdown (.md)
+              </a>
+              <a
+                href="/api/export?format=notion"
+                download
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-foreground font-medium text-xs font-mono transition-colors"
+              >
+                Notion CSV
+              </a>
+              <a
+                href="/api/export?format=raindrop"
+                download
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-foreground font-medium text-xs font-mono transition-colors"
+              >
+                Raindrop.io CSV
+              </a>
+              <a
                 href="/api/export?format=html"
                 download
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-foreground font-medium text-xs font-mono transition-colors"
@@ -110,6 +143,41 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
               >
                 CSV
               </a>
+            </div>
+          </div>
+
+          {/* 7.3: Browser Bookmarklet */}
+          <div className="rounded-md border border-border p-3.5 space-y-2.5 bg-card">
+            <h4 className="font-semibold text-foreground flex items-center gap-1.5">
+              <Bookmark className="h-3.5 w-3.5 text-primary" />
+              <span>1-Click Browser Bookmarklet</span>
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Drag this button to your browser bookmarks bar (Chrome, Safari, Firefox, Edge, Arc) to instantly save any tab to Markly with 1 click:
+            </p>
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <a
+                href={bookmarkletCode}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleCopyBookmarklet();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs shadow-xs cursor-grab active:cursor-grabbing border border-primary/20 select-none"
+                title="Drag me to your browser bookmarks bar!"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>+ Save to Markly</span>
+              </a>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyBookmarklet}
+                className="text-xs h-8 gap-1.5 cursor-pointer"
+              >
+                {copiedBookmarklet ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedBookmarklet ? "Copied JS Code" : "Copy Code"}</span>
+              </Button>
             </div>
           </div>
 

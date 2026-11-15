@@ -17,6 +17,34 @@ export function exportToCsv(bookmarks: BookmarkWithDetails[]): string {
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 }
 
+export function exportToNotionCsv(bookmarks: BookmarkWithDetails[]): string {
+  const headers = ["Title", "URL", "Folder", "Tags", "Description", "Created At"];
+  const rows = bookmarks.map((b) => [
+    escapeCsv(b.title),
+    escapeCsv(b.url),
+    escapeCsv(b.folderName || "Unsorted"),
+    escapeCsv(b.tags.map((t) => t.name).join(", ")),
+    escapeCsv(b.description || ""),
+    escapeCsv(new Date(b.createdAt).toISOString()),
+  ]);
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function exportToRaindropCsv(bookmarks: BookmarkWithDetails[]): string {
+  const headers = ["folder", "title", "url", "tags", "description", "created"];
+  const rows = bookmarks.map((b) => [
+    escapeCsv(b.folderName || "Unsorted"),
+    escapeCsv(b.title),
+    escapeCsv(b.url),
+    escapeCsv(b.tags.map((t) => t.name).join(",")),
+    escapeCsv(b.description || ""),
+    escapeCsv(new Date(b.createdAt).toISOString()),
+  ]);
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
 function escapeCsv(val: string): string {
   if (val.includes(",") || val.includes('"') || val.includes("\n")) {
     return `"${val.replace(/"/g, '""')}"`;

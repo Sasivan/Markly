@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Check } from "lucide-react";
+import { SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Check, GripVertical } from "lucide-react";
 
 export type HomeWidgetKey =
   | "heatmap"
@@ -82,6 +82,31 @@ export function HomeLayoutModal({
     setLocalWidgets(copy);
   };
 
+  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+    setLocalWidgets((prev) => {
+      const copy = [...prev];
+      const [moved] = copy.splice(draggedIndex, 1);
+      copy.splice(targetIndex, 0, moved);
+      return copy;
+    });
+    setDraggedIndex(null);
+  };
+
   const handleSave = () => {
     onSaveWidgets(localWidgets);
     onOpenChange(false);
@@ -100,34 +125,43 @@ export function HomeLayoutModal({
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            Toggle visibility and reorder sections to fit your personal workflow.
+            Drag rows to reorder, toggle visibility, and adjust half/full width.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Widgets list */}
+        {/* Widgets list (Drag-and-Drop) */}
         <div className="space-y-2 py-3 max-h-[50vh] overflow-y-auto">
           {localWidgets.map((widget, index) => (
             <div
               key={widget.id}
-              className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors ${
+              draggable={true}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={(e) => handleDrop(e, index)}
+              className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-colors cursor-grab active:cursor-grabbing ${
+                draggedIndex === index ? "opacity-40 border-dashed border-primary" : ""
+              } ${
                 widget.visible
                   ? "bg-secondary/40 border-border"
                   : "bg-secondary/10 border-border/40 opacity-60"
               }`}
             >
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={widget.visible}
-                  onChange={() => toggleVisibility(widget.id)}
-                  className="rounded border-border text-primary focus:ring-ring cursor-pointer h-4 w-4"
-                />
-                <span className={`font-medium ${widget.visible ? "text-foreground" : "text-muted-foreground line-through"}`}>
-                  {widget.label}
-                </span>
-              </label>
+              <div className="flex items-center gap-2">
+                <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={widget.visible}
+                    onChange={() => toggleVisibility(widget.id)}
+                    className="rounded border-border text-primary focus:ring-ring cursor-pointer h-4 w-4"
+                  />
+                  <span className={`font-medium ${widget.visible ? "text-foreground" : "text-muted-foreground line-through"}`}>
+                    {widget.label}
+                  </span>
+                </label>
+              </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
                   onClick={() => toggleSpan(widget.id)}

@@ -32,7 +32,7 @@ interface SmartCollectionsViewProps {
 }
 
 interface SmartRule {
-  field: "tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency";
+  field: "tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency" | "description" | "title" | "url";
   operator?: string;
   value: string;
 }
@@ -42,6 +42,12 @@ function matchBookmarkToRules(bm: BookmarkWithDetails, rules: SmartRule[], match
 
   const results = rules.map((rule) => {
     switch (rule.field) {
+      case "description":
+        return (bm.description || "").toLowerCase().includes((rule.value || "").toLowerCase());
+      case "title":
+        return (bm.title || "").toLowerCase().includes((rule.value || "").toLowerCase());
+      case "url":
+        return (bm.url || "").toLowerCase().includes((rule.value || "").toLowerCase());
       case "favorite":
         return rule.value === "starred" ? Boolean(bm.isFavorite) : !bm.isFavorite;
       case "domain":
@@ -109,6 +115,53 @@ export function SmartCollectionsView({
   React.useEffect(() => {
     fetchCollections();
   }, [fetchCollections]);
+
+  const [isConverting, setIsConverting] = React.useState(false);
+  const [convertSuccess, setConvertSuccess] = React.useState(false);
+
+  const handleConvertToFolder = async () => {
+    if (!selectedCollection || matchingBookmarks.length === 0) return;
+    setIsConverting(true);
+    setConvertSuccess(false);
+
+    try {
+      // 1. Create a real static folder
+      const res = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${selectedCollection.name} (Folder)`,
+          color: selectedCollection.color || "#8b5cf6",
+          icon: "Folder",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.folder) {
+        throw new Error(data.error || "Failed to create folder");
+      }
+
+      // 2. Copy matching bookmarks into the new folder
+      const ids = matchingBookmarks.map((b) => b.id);
+      await fetch("/api/bookmarks/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "copy",
+          ids,
+          folderId: data.folder.id,
+        }),
+      });
+
+      setConvertSuccess(true);
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      setTimeout(() => setConvertSuccess(false), 3000);
+    } catch (err: any) {
+      console.error("Convert to folder error:", err);
+      alert(err.message || "Failed to convert collection to folder");
+    } finally {
+      setIsConverting(false);
+    }
+  };
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete smart collection "${name}"?`)) return;
@@ -311,17 +364,37 @@ export function SmartCollectionsView({
                       </span>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (onNavigateHome) onNavigateHome();
-                    }}
-                    className="h-7 text-xs border-border hover:bg-secondary cursor-pointer"
-                  >
-                    <span>View in Table</span>
-                    <ArrowRight className="h-3 w-3 ml-1" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleConvertToFolder}
+                      disabled={isConverting || matchingBookmarks.length === 0}
+                      className="h-7 text-xs border-border hover:bg-secondary cursor-pointer gap-1.5"
+                      title="Create real static folder in folder tree with copies of these matching bookmarks"
+                    >
+                      {isConverting ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                      ) : convertSuccess ? (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <FolderIcon className="h-3 w-3 text-primary" />
+                      )}
+                      <span>{convertSuccess ? "Folder Created!" : "Create as Real Folder"}</span>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (onNavigateHome) onNavigateHome();
+                      }}
+                      className="h-7 text-xs border-border hover:bg-secondary cursor-pointer"
+                    >
+                      <span>View in Table</span>
+                      <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
                 </div>
 
                 {matchingBookmarks.length === 0 ? (

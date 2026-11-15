@@ -35,6 +35,8 @@ import {
   Folder as FolderIcon,
   Plus,
   Globe,
+  Sliders,
+  ChevronDown,
   FolderPlus,
   Bookmark,
   Filter,
@@ -74,6 +76,8 @@ interface BookmarkTableProps {
   allBookmarks?: BookmarkWithDetails[];
   controlledViewMode?: "table" | "board" | "cards" | "list" | "compact";
   onControlledViewModeChange?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
+  activeFolderId?: string | null;
+  activeView?: string;
 }
 
 // Notion-Style Multi-Column Filter Rules
@@ -131,6 +135,8 @@ export function BookmarkTable({
   onOpenPreview,
   controlledViewMode,
   onControlledViewModeChange,
+  activeFolderId,
+  activeView,
 }: BookmarkTableProps) {
 const TABLE_COLUMN_OPTIONS = [
   { id: "title", label: "Title & URL" },
@@ -223,21 +229,60 @@ const TABLE_COLUMN_OPTIONS = [
 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   
-  // 4.1: Persisted Column Visibility
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
+  // 4.1: Context Key & Universal vs Independent/Custom View State
+  const viewContextKey = React.useMemo(() => {
+    return activeFolderId ? `folder_${activeFolderId}` : (activeView || "all");
+  }, [activeFolderId, activeView]);
+
+  const [isCustomView, setIsCustomView] = React.useState<boolean>(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("markly_table_columns");
-        if (stored) return JSON.parse(stored);
+        const stored = localStorage.getItem("markly_is_custom_view_" + viewContextKey);
+        if (stored !== null) return stored === "true";
       } catch {}
     }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_is_custom_view_" + viewContextKey);
+        setIsCustomView(stored === "true");
+      } catch {}
+    }
+  }, [viewContextKey]);
+
+  // Per-View & Per-Mode Column Storage Helper
+  const getColStorageKey = React.useCallback((mode: string, custom: boolean) => {
+    return custom
+      ? `markly_cols_${viewContextKey}_${mode}`
+      : `markly_cols_universal_${mode}`;
+  }, [viewContextKey]);
+
+  const loadColumnsForMode = React.useCallback((mode: string, custom: boolean) => {
+    if (typeof window === "undefined") return {};
+    try {
+      const specificKey = getColStorageKey(mode, custom);
+      const stored = localStorage.getItem(specificKey);
+      if (stored) return JSON.parse(stored);
+      const legacy = localStorage.getItem("markly_table_columns");
+      if (legacy) return JSON.parse(legacy);
+    } catch {}
     return {};
+  }, [getColStorageKey]);
+
+  // Persisted Column Visibility (Remembered independently for every view mode and folder)
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
+    return loadColumnsForMode("table", false);
   });
 
   const handleToggleColumn = (colId: string, isVisible: boolean) => {
     setColumnVisibility((prev) => {
       const next = { ...prev, [colId]: isVisible };
       try {
+        const key = getColStorageKey(viewMode, isCustomView);
+        localStorage.setItem(key, JSON.stringify(next));
         localStorage.setItem("markly_table_columns", JSON.stringify(next));
       } catch {}
       return next;
@@ -294,10 +339,15 @@ const TABLE_COLUMN_OPTIONS = [
   };
   
   // 5 Notion-Inspired View Modes with persistent memory
+  const getViewModeKey = React.useCallback((custom: boolean) => {
+    return custom ? `markly_vmode_${viewContextKey}` : "markly_table_view_mode";
+  }, [viewContextKey]);
+
   const [internalViewMode, setInternalViewMode] = React.useState<"table" | "board" | "cards" | "list" | "compact">(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("markly_table_view_mode") as any;
+        const key = isCustomView ? `markly_vmode_${viewContextKey}` : "markly_table_view_mode";
+        const stored = localStorage.getItem(key) as any;
         if (stored && ["table", "board", "cards", "list", "compact"].includes(stored)) {
           return stored;
         }
@@ -308,29 +358,66 @@ const TABLE_COLUMN_OPTIONS = [
 
   const viewMode = controlledViewMode ?? internalViewMode;
 
+  // Sync columns whenever viewMode, isCustomView, or viewContextKey changes
+  React.useEffect(() => {
+    setColumnVisibility(loadColumnsForMode(viewMode, isCustomView));
+  }, [viewMode, isCustomView, viewContextKey, loadColumnsForMode]);
+
+  // Load view mode when custom view or viewContextKey toggles
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const key = getViewModeKey(isCustomView);
+        const stored = localStorage.getItem(key) as any;
+        if (stored && ["table", "board", "cards", "list", "compact"].includes(stored)) {
+          setInternalViewMode(stored);
+          onControlledViewModeChange?.(stored);
+        }
+      } catch {}
+    }
+  }, [isCustomView, viewContextKey, getViewModeKey, onControlledViewModeChange]);
+
   const setViewMode = React.useCallback((mode: "table" | "board" | "cards" | "list" | "compact") => {
     setInternalViewMode(mode);
     onControlledViewModeChange?.(mode);
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem("markly_table_view_mode", mode);
+        const key = getViewModeKey(isCustomView);
+        localStorage.setItem(key, mode);
+        if (!isCustomView) {
+          localStorage.setItem("markly_table_view_mode", mode);
+        }
       } catch {}
     }
-  }, [onControlledViewModeChange]);
+  }, [isCustomView, getViewModeKey, onControlledViewModeChange]);
+
+  const handleToggleCustomSync = () => {
+    const nextVal = !isCustomView;
+    setIsCustomView(nextVal);
+    try {
+      localStorage.setItem("markly_is_custom_view_" + viewContextKey, String(nextVal));
+      if (nextVal) {
+        localStorage.setItem(`markly_vmode_${viewContextKey}`, viewMode);
+        localStorage.setItem(getColStorageKey(viewMode, true), JSON.stringify(columnVisibility));
+      }
+    } catch {}
+  };
 
   // Edit & Copy modals
   const [editingBookmark, setEditingBookmark] = React.useState<BookmarkWithDetails | null>(null);
   const [copyingBookmark, setCopyingBookmark] = React.useState<BookmarkWithDetails | null>(null);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
-  // Column, Filter & Sort popover menus
+  // Column, Filter, Sort & View Mode popover menus
   const [colMenuOpen, setColMenuOpen] = React.useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = React.useState(false);
 
   const filterMenuRef = React.useRef<HTMLDivElement>(null);
   const sortMenuRef = React.useRef<HTMLDivElement>(null);
   const colMenuRef = React.useRef<HTMLDivElement>(null);
+  const viewMenuRef = React.useRef<HTMLDivElement>(null);
 
   // Close menus on outside click
   React.useEffect(() => {
@@ -344,12 +431,15 @@ const TABLE_COLUMN_OPTIONS = [
       if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
         setColMenuOpen(false);
       }
+      if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
+        setViewMenuOpen(false);
+      }
     }
-    if (filterMenuOpen || sortMenuOpen || colMenuOpen) {
+    if (filterMenuOpen || sortMenuOpen || colMenuOpen || viewMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [filterMenuOpen, sortMenuOpen, colMenuOpen]);
+  }, [filterMenuOpen, sortMenuOpen, colMenuOpen, viewMenuOpen]);
 
 // 5.3: Typo-Tolerant & Subsequence Fuzzy Matching
 function fuzzyMatch(text: string, query: string): boolean {
@@ -1664,74 +1754,154 @@ function getDomainGradient(str: string): string {
         </div>
 
         {/* Right: View Toggles & Columns */}
-        <div className="flex items-center gap-2">
-          {/* View Mode Switcher (5 Notion-Inspired Modes) */}
-          <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border">
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "table" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Notion Table View (Spreadsheet)"
-            >
-              <TableIcon className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("board")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "board" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Notion Board View (Kanban Columns)"
-            >
-              <Kanban className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("cards")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "cards" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Notion Gallery View (Visual Cards)"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "list" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Notion List View (Clean Document Rows)"
-            >
-              <List className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("compact")}
-              className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                viewMode === "compact" ? "bg-background text-foreground shadow-xs font-medium" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title="Ultra-Dense Mode (Maximum Space Optimization)"
-            >
-              <Rows3 className="h-3.5 w-3.5" />
-            </button>
-          </div>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Sync Mode Toggle Button: Universal vs Custom/Independent for this folder/view */}
+          <Button
+            type="button"
+            size="sm"
+            variant={isCustomView ? "secondary" : "outline"}
+            onClick={handleToggleCustomSync}
+            className={`h-8 px-2 text-xs gap-1.5 cursor-pointer transition-colors ${
+              isCustomView
+                ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={
+              isCustomView
+                ? "Custom View (Isolated to this page/folder). Click to switch back to Universal Sync."
+                : "Universal View (Synced across all folders). Click to make this view independent."
+            }
+          >
+            {isCustomView ? (
+              <>
+                <Sliders className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden md:inline text-[11px] font-medium">Custom</span>
+              </>
+            ) : (
+              <>
+                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="hidden md:inline text-[11px] font-medium">Universal</span>
+              </>
+            )}
+          </Button>
 
-          {/* 4.4: Card Fallback Switcher (Cards view only) */}
-          {viewMode === "cards" && (
-            <select
-              value={cardFallbackMode}
-              onChange={(e) => setCardFallback(e.target.value as any)}
-              className="h-8 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              title="Card Cover Style: Snapshot, Domain Icon, or Monogram"
+          {/* View Mode Dropdown Popover (Compact single button replacing 5 horizontal buttons) */}
+          <div className="relative" ref={viewMenuRef}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setViewMenuOpen(!viewMenuOpen);
+                setColMenuOpen(false);
+                setFilterMenuOpen(false);
+                setSortMenuOpen(false);
+              }}
+              className="text-xs h-8 gap-1.5 px-2.5 cursor-pointer"
+              title="Select view mode and customize layout properties"
             >
-              <option value="thumbnail">Snapshot Cover</option>
-              <option value="icon">Icon Cover</option>
-              <option value="monogram">Monogram Cover</option>
-            </select>
-          )}
+              {viewMode === "table" && <TableIcon className="h-3.5 w-3.5 text-primary" />}
+              {viewMode === "board" && <Kanban className="h-3.5 w-3.5 text-primary" />}
+              {viewMode === "cards" && <LayoutGrid className="h-3.5 w-3.5 text-primary" />}
+              {viewMode === "list" && <List className="h-3.5 w-3.5 text-primary" />}
+              {viewMode === "compact" && <Rows3 className="h-3.5 w-3.5 text-primary" />}
+              <span className="capitalize font-medium">{viewMode}</span>
+              <ChevronDown className="h-3 w-3 text-muted-foreground ml-0.5" />
+            </Button>
+
+            {viewMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-64 rounded-xl border border-border bg-card p-2 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1.5">
+                <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground flex items-center justify-between border-b border-border pb-1.5">
+                  <span>Layout View Mode</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-primary font-medium">
+                    {isCustomView ? "Page Custom" : "Universal"}
+                  </span>
+                </div>
+
+                {/* The 5 Notion-Inspired Modes */}
+                <div className="space-y-0.5">
+                  {[
+                    { id: "table", label: "Table", icon: TableIcon, desc: "Spreadsheet with sort, filters & editing" },
+                    { id: "board", label: "Board", icon: Kanban, desc: "Kanban columns grouped by status" },
+                    { id: "cards", label: "Cards", icon: LayoutGrid, desc: "Visual gallery with cover snapshots" },
+                    { id: "list", label: "List", icon: List, desc: "Clean document rows for scanning" },
+                    { id: "compact", label: "Compact", icon: Rows3, desc: "Ultra-dense space-saving rows" },
+                  ].map((v) => {
+                    const Icon = v.icon;
+                    const isSel = viewMode === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          setViewMode(v.id as any);
+                          setViewMenuOpen(false);
+                        }}
+                        className={`w-full flex items-start gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                          isSel ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary/70"
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs">{v.label}</span>
+                            {isSel && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">{v.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* View-Specific Customization Properties */}
+                <div className="border-t border-border pt-1.5 mt-1 px-2 space-y-1.5">
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    View Properties
+                  </div>
+
+                  {viewMode === "cards" && (
+                    <div className="space-y-1">
+                      <span className="text-[11px] text-muted-foreground">Card Cover Style:</span>
+                      <div className="grid grid-cols-3 gap-1">
+                        {[
+                          { id: "thumbnail", label: "Snapshot" },
+                          { id: "icon", label: "Logo" },
+                          { id: "monogram", label: "Gradient" },
+                        ].map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setCardFallback(s.id as any)}
+                            className={`px-1.5 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-colors ${
+                              cardFallbackMode === s.id
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-secondary/50 text-foreground border-border hover:bg-secondary"
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(viewMode === "table" || viewMode === "compact") && (
+                    <div className="flex items-center justify-between text-[11px] py-0.5">
+                      <span className="text-muted-foreground">Dense Rows</span>
+                      <span className="text-[10px] font-mono text-primary font-medium">Auto-fitted</span>
+                    </div>
+                  )}
+
+                  {viewMode === "board" && (
+                    <div className="flex items-center justify-between text-[11px] py-0.5">
+                      <span className="text-muted-foreground">Grouping</span>
+                      <span className="text-[10px] font-mono text-primary font-medium">Status & Health</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Column Visibility Menu (Persisted across refreshes) */}
           <div className="relative" ref={colMenuRef}>

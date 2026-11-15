@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { isUserAdmin } from "@/server/auth/admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function checkIsAdmin(user: any): boolean {
-  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
-    return true;
-  }
-  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
-}
 
 export async function DELETE(
   req: Request,
@@ -19,7 +12,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireUser(req);
-    const isAdmin = checkIsAdmin(user);
+    const isAdmin = isUserAdmin(user);
 
     if (!isAdmin) {
       return NextResponse.json(

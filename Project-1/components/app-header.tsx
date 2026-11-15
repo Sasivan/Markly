@@ -104,6 +104,12 @@ export function AppHeader({
     unsorted: "Inbox / Needs Organization",
     archive: "Archived Bookmarks",
     graph: "Knowledge Graph",
+    "smart-collections": "Smart Collections",
+    sessions: "Tab Sessions & Stash",
+    shared: "Shared Links & Collections",
+    feedback: "Feedback & Community",
+    profile: "Account Profile",
+    trash: "Recycle Bin",
   };
 
   const currentLabel = activeFolder ? activeFolder.name : (viewLabels[activeView] || activeView);

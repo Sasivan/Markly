@@ -168,5 +168,62 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveBtn.textContent = "Save Bookmark";
     }
   });
+
+  // 6. Stash All Open Tabs in Current Window
+  const stashWindowBtn = document.getElementById("stash-window-btn");
+  if (stashWindowBtn) {
+    stashWindowBtn.addEventListener("click", async () => {
+      stashWindowBtn.disabled = true;
+      stashWindowBtn.textContent = "Stashing Tabs...";
+
+      try {
+        if (typeof chrome !== "undefined" && chrome.tabs && chrome.tabs.query) {
+          chrome.tabs.query({ currentWindow: true }, async (tabs) => {
+            const validTabs = (tabs || [])
+              .filter((t) => t.url && (t.url.startsWith("http://") || t.url.startsWith("https://")))
+              .map((t) => ({ title: t.title || t.url, url: t.url }));
+
+            if (validTabs.length === 0) {
+              statusMsg.textContent = "No valid web tabs found in this window.";
+              statusMsg.className = "status-msg status-error";
+              stashWindowBtn.disabled = false;
+              stashWindowBtn.textContent = "📥 Stash All Tabs in Window";
+              return;
+            }
+
+            const now = new Date();
+            const folderName = `Window Session (${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
+
+            try {
+              const res = await fetch(`${marklyBaseUrl}/api/bookmarks/stash-tabs`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ folderName, tabs: validTabs }),
+              });
+
+              if (res.ok) {
+                statusMsg.textContent = `✓ Stashed ${validTabs.length} tabs into Markly!`;
+                statusMsg.className = "status-msg status-success";
+                setTimeout(() => window.close(), 1200);
+              } else {
+                statusMsg.textContent = "Failed to stash tabs into Markly. Please log in.";
+                statusMsg.className = "status-msg status-error";
+              }
+            } catch (err) {
+              statusMsg.textContent = "Error connecting to Markly server.";
+              statusMsg.className = "status-msg status-error";
+            } finally {
+              stashWindowBtn.disabled = false;
+              stashWindowBtn.textContent = "📥 Stash All Tabs in Window";
+            }
+          });
+        }
+      } catch (err) {
+        stashWindowBtn.disabled = false;
+        stashWindowBtn.textContent = "📥 Stash All Tabs in Window";
+      }
+    });
+  }
 });
 

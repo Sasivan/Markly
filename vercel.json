@@ -4,3 +4,4 @@
   "installCommand": "cd Project-1 && npm ci",
   "outputDirectory": "Project-1/.next"
 }
+

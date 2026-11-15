@@ -10,6 +10,9 @@ import {
   Folders,
   MousePointerClick,
   PlusCircle,
+  Globe,
+  TrendingUp,
+  BarChart2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -64,6 +67,7 @@ export function GlobalHomepageAnalytics({
   folderTree,
   onSelectFolder,
   onSelectTag,
+  onSelectDomain,
 }: GlobalHomepageAnalyticsProps) {
   // Activity metric toggle: 'created' vs 'clicked'
   const [activityMetric, setActivityMetric] = React.useState<"visited" | "created">("visited");
@@ -176,6 +180,94 @@ export function GlobalHomepageAnalytics({
     });
   }, [bookmarks, parentCategories, activityMetric]);
 
+  // 2.5: Main Chart Mode: "velocity" (Activity Velocity), "domains" (Top Ecosystems), "categories" (Folder Categories)
+  const [chartViewMode, setChartViewMode] = React.useState<"velocity" | "domains" | "categories">("velocity");
+
+  const velocityData = React.useMemo(() => {
+    if (bookmarks.length === 0) return [];
+    const monthSet = new Set<string>();
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const past = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthSet.add(`${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, "0")}`);
+    }
+
+    const map = new Map<string, { month: string; visits: number; created: number; uniqueSites: Set<string> }>();
+    for (const m of monthSet) {
+      map.set(m, { month: m, visits: 0, created: 0, uniqueSites: new Set() });
+    }
+
+    bookmarks.forEach((b) => {
+      if (b.isArchived) return;
+      const createdDate = new Date(b.createdAt);
+      const createdKey = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, "0")}`;
+      if (map.has(createdKey)) {
+        map.get(createdKey)!.created += 1;
+      }
+
+      const visitTs = b.lastClickedAt || b.lastVisitedAt;
+      if (visitTs) {
+        const visitDate = new Date(visitTs);
+        const visitKey = `${visitDate.getFullYear()}-${String(visitDate.getMonth() + 1).padStart(2, "0")}`;
+        if (map.has(visitKey)) {
+          const entry = map.get(visitKey)!;
+          entry.visits += Math.max(b.visitCount || 0, 1);
+          entry.uniqueSites.add(b.id);
+        }
+      }
+    });
+
+    return Array.from(map.values())
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .map((row) => ({
+        month: row.month,
+        "Total Visits": row.visits,
+        "New Bookmarks": row.created,
+        "Active Sites": row.uniqueSites.size,
+      }));
+  }, [bookmarks]);
+
+  const domainTimeline = React.useMemo(() => {
+    if (bookmarks.length === 0) return { data: [], topDomains: [] };
+    const domainCounts = new Map<string, number>();
+    bookmarks.forEach((b) => {
+      if (!b.isArchived && b.domain) {
+        domainCounts.set(b.domain, (domainCounts.get(b.domain) || 0) + (b.visitCount || 1));
+      }
+    });
+
+    const topDomains = Array.from(domainCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([domain]) => domain);
+
+    const monthSet = new Set<string>();
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const past = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthSet.add(`${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, "0")}`);
+    }
+
+    const sortedMonths = Array.from(monthSet).sort();
+    const data = sortedMonths.map((m) => {
+      const row: Record<string, any> = { month: m };
+      topDomains.forEach((dom) => {
+        const count = bookmarks
+          .filter((b) => {
+            if (b.isArchived || b.domain !== dom) return false;
+            const ts = b.lastClickedAt || b.lastVisitedAt || b.createdAt;
+            const d = new Date(ts);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === m;
+          })
+          .reduce((sum, b) => sum + (b.visitCount || 1), 0);
+        row[dom] = count;
+      });
+      return row;
+    });
+
+    return { data, topDomains };
+  }, [bookmarks]);
+
   // 3. Category Fingerprint using REAL Parent Folders
   const categoryFingerprint = React.useMemo(() => {
     const list: { category: string; count: number }[] = [];
@@ -249,147 +341,359 @@ export function GlobalHomepageAnalytics({
   }, [bookmarks]);
 
   return (
-    <section className="space-y-6 pt-2 animate-in fade-in duration-300">
-      {/* 1. TOP FULL-WIDTH CHART: Bookmarking Activity Over Time — Top 5 Categories (Stacked) */}
+    <section className="space-y-6 pt-2 animate-in fade-in duration-300 select-text">
+      {/* 1. TOP FULL-WIDTH CHART: Actionable Knowledge & Interaction Analytics */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <BookOpen className="h-4 w-4 text-primary" />
               <h3 className="font-semibold text-sm tracking-tight text-foreground">
-                Bookmarking activity over time — Top categories (Stacked)
+                {chartViewMode === "velocity" && "Research Velocity & Knowledge Activity Momentum"}
+                {chartViewMode === "domains" && "Top Web Ecosystems & Platform Activity Over Time"}
+                {chartViewMode === "categories" && "Folder Category Distribution Over Time (Stacked)"}
               </h3>
             </div>
             <p className="text-xs text-muted-foreground">
-              Monthly site visit volume by category — see how often sites inside each folder and subfolder are accessed over time
+              {chartViewMode === "velocity" && "Chronological site interaction momentum — compare verified visits with new additions"}
+              {chartViewMode === "domains" && "Activity trajectories across your most frequented developer tools, platforms, and services"}
+              {chartViewMode === "categories" && "Monthly site visit volume broken down by top parent folder and collection"}
             </p>
           </div>
 
-          {/* Metric Toggle: Visited Sites vs Created */}
-          <div className="flex items-center gap-1 bg-secondary p-0.5 rounded-lg border border-border text-xs self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setActivityMetric("visited")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer font-medium transition-colors ${
-                activityMetric === "visited"
-                  ? "bg-card text-foreground shadow-xs font-medium"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <MousePointerClick className="h-3 w-3" />
-              <span>Visited Sites</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivityMetric("created")}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer font-medium transition-colors ${
-                activityMetric === "created"
-                  ? "bg-card text-foreground shadow-xs font-medium"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <PlusCircle className="h-3 w-3" />
-              <span>Created</span>
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* View Mode Selector: Velocity vs Domains vs Categories */}
+            <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-lg border border-border text-xs">
+              <button
+                type="button"
+                onClick={() => setChartViewMode("velocity")}
+                className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer font-medium transition-colors ${
+                  chartViewMode === "velocity"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Activity Velocity: Visits vs Bookmarks"
+              >
+                <TrendingUp className="h-3 w-3" />
+                <span>Velocity</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartViewMode("domains")}
+                className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer font-medium transition-colors ${
+                  chartViewMode === "domains"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Top Domains Activity"
+              >
+                <Globe className="h-3 w-3" />
+                <span>Domains</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartViewMode("categories")}
+                className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer font-medium transition-colors ${
+                  chartViewMode === "categories"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Folder Breakdown"
+              >
+                <Folders className="h-3 w-3" />
+                <span>Folders</span>
+              </button>
+            </div>
+
+            {/* Metric Toggle: Visited Sites vs Created (for Categories mode) */}
+            {chartViewMode === "categories" && (
+              <div className="flex items-center gap-1 bg-secondary p-0.5 rounded-lg border border-border text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActivityMetric("visited")}
+                  className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer font-medium transition-colors ${
+                    activityMetric === "visited"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <MousePointerClick className="h-3 w-3" />
+                  <span>Visits</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivityMetric("created")}
+                  className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer font-medium transition-colors ${
+                    activityMetric === "created"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <PlusCircle className="h-3 w-3" />
+                  <span>Created</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Stacked Stream Area Chart */}
+        {/* Dynamic Area Chart based on chartViewMode */}
         <div className="h-64 w-full pt-1">
-          {monthlyActivityData.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-              No activity recorded for this period yet.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={monthlyActivityData}
-                margin={{ top: 10, right: 15, left: -15, bottom: 0 }}
-                onClick={(e: any) => {
-                  if (e && e.activePayload && e.activePayload.length) {
-                    const topCategoryEntry = e.activePayload[0];
-                    const catName = topCategoryEntry.name;
-                    const foundCat = parentCategories.find((c) => c.name === catName);
-                    if (foundCat && foundCat.id !== "unsorted") {
-                      onSelectFolder(foundCat.id);
-                    }
-                  }
-                }}
-              >
-                <defs>
-                  {CATEGORY_PALETTE.map((pal) => (
-                    <linearGradient key={pal.gradId} id={pal.gradId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={pal.fill} stopOpacity={0.28} />
-                      <stop offset="95%" stopColor={pal.fill} stopOpacity={0.02} />
+          {chartViewMode === "velocity" && (
+            velocityData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                No activity recorded yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={velocityData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="velVisits" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
                     </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
-                <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
-                <Tooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
-                          <div className="font-medium border-b border-border pb-1.5 font-mono text-xs text-muted-foreground flex items-center justify-between">
-                            <span>Month: {label}</span>
-                            <span className="text-[10px] text-primary">Click to open folder</span>
+                    <linearGradient id="velCreated" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0d9488" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#0d9488" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
+                  <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
+                            <div className="font-medium border-b border-border pb-1 font-mono text-xs text-muted-foreground">
+                              Month: {label}
+                            </div>
+                            <div className="space-y-1">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={`v-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
+                                    {entry.name}
+                                  </span>
+                                  <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            {payload.map((entry: any, i: number) => (
-                              <div key={`tip-${i}`} className="flex items-center justify-between gap-3 text-xs">
-                                <span className="flex items-center gap-1.5 font-medium">
-                                  <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
-                                  {entry.name}
-                                </span>
-                                <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Area type="monotone" dataKey="Total Visits" stroke="#2563eb" strokeWidth={2} fill="url(#velVisits)" />
+                  <Area type="monotone" dataKey="New Bookmarks" stroke="#0d9488" strokeWidth={2} fill="url(#velCreated)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          )}
+
+          {chartViewMode === "domains" && (
+            domainTimeline.data.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                No domain activity recorded yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={domainTimeline.data}
+                  margin={{ top: 10, right: 15, left: -15, bottom: 0 }}
+                  onClick={(e: any) => {
+                    if (e && e.activePayload && e.activePayload.length) {
+                      const domainName = e.activePayload[0].name;
+                      onSelectDomain?.(domainName);
                     }
-                    return null;
                   }}
-                />
-                {parentCategories.map((cat, idx) => {
-                  const pal = CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
-                  return (
-                    <Area
-                      key={cat.id}
-                      type="monotone"
-                      dataKey={cat.name}
-                      stackId="1"
-                      stroke={pal.stroke}
-                      strokeWidth={1.5}
-                      fill={`url(#${pal.gradId})`}
-                      cursor="pointer"
-                    />
-                  );
-                })}
-              </AreaChart>
-            </ResponsiveContainer>
+                >
+                  <defs>
+                    {CATEGORY_PALETTE.map((pal) => (
+                      <linearGradient key={pal.gradId} id={`dom_${pal.gradId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={pal.fill} stopOpacity={0.28} />
+                        <stop offset="95%" stopColor={pal.fill} stopOpacity={0.02} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
+                  <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
+                            <div className="font-medium border-b border-border pb-1 font-mono text-xs text-muted-foreground flex items-center justify-between">
+                              <span>Month: {label}</span>
+                              <span className="text-[10px] text-primary">Click to filter</span>
+                            </div>
+                            <div className="space-y-1">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={`d-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
+                                    {entry.name}
+                                  </span>
+                                  <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  {domainTimeline.topDomains.map((dom, idx) => {
+                    const pal = CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
+                    return (
+                      <Area
+                        key={dom}
+                        type="monotone"
+                        dataKey={dom}
+                        stackId="1"
+                        stroke={pal.stroke}
+                        strokeWidth={1.5}
+                        fill={`url(#dom_${pal.gradId})`}
+                        cursor="pointer"
+                      />
+                    );
+                  })}
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          )}
+
+          {chartViewMode === "categories" && (
+            monthlyActivityData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                No activity recorded for this period yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={monthlyActivityData}
+                  margin={{ top: 10, right: 15, left: -15, bottom: 0 }}
+                  onClick={(e: any) => {
+                    if (e && e.activePayload && e.activePayload.length) {
+                      const topCategoryEntry = e.activePayload[0];
+                      const catName = topCategoryEntry.name;
+                      const foundCat = parentCategories.find((c) => c.name === catName);
+                      if (foundCat && foundCat.id !== "unsorted") {
+                        onSelectFolder(foundCat.id);
+                      }
+                    }
+                  }}
+                >
+                  <defs>
+                    {CATEGORY_PALETTE.map((pal) => (
+                      <linearGradient key={pal.gradId} id={pal.gradId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={pal.fill} stopOpacity={0.28} />
+                        <stop offset="95%" stopColor={pal.fill} stopOpacity={0.02} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
+                  <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
+                            <div className="font-medium border-b border-border pb-1.5 font-mono text-xs text-muted-foreground flex items-center justify-between">
+                              <span>Month: {label}</span>
+                              <span className="text-[10px] text-primary">Click to open folder</span>
+                            </div>
+                            <div className="space-y-1">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={`tip-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
+                                    {entry.name}
+                                  </span>
+                                  <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  {parentCategories.map((cat, idx) => {
+                    const pal = CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
+                    return (
+                      <Area
+                        key={cat.id}
+                        type="monotone"
+                        dataKey={cat.name}
+                        stackId="1"
+                        stroke={pal.stroke}
+                        strokeWidth={1.5}
+                        fill={`url(#${pal.gradId})`}
+                        cursor="pointer"
+                      />
+                    );
+                  })}
+                </AreaChart>
+              </ResponsiveContainer>
+            )
           )}
         </div>
 
-        {/* Legend Row */}
+        {/* Dynamic Legend Row */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-muted-foreground pt-2 border-t border-border">
-          {parentCategories.map((cat, idx) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => cat.id !== "unsorted" && onSelectFolder(cat.id)}
-              className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors outline-none focus:outline-none"
-            >
-              <span
-                className="h-2.5 w-2.5 rounded-xs flex-shrink-0"
-                style={{ backgroundColor: CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length].stroke }}
-              />
-              <span>{cat.name}</span>
-              <span className="font-mono tabular-nums text-xs text-muted-foreground">({cat.count})</span>
-            </button>
-          ))}
+          {chartViewMode === "velocity" && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-xs bg-blue-600" />
+                <span>Total Visits</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-xs bg-teal-600" />
+                <span>New Bookmarks Added</span>
+              </div>
+            </>
+          )}
+
+          {chartViewMode === "domains" && (
+            domainTimeline.topDomains.map((dom, idx) => (
+              <button
+                key={dom}
+                type="button"
+                onClick={() => onSelectDomain?.(dom)}
+                className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors outline-none"
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-xs flex-shrink-0"
+                  style={{ backgroundColor: CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length].stroke }}
+                />
+                <span>{dom}</span>
+              </button>
+            ))
+          )}
+
+          {chartViewMode === "categories" && (
+            parentCategories.map((cat, idx) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => cat.id !== "unsorted" && onSelectFolder(cat.id)}
+                className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors outline-none focus:outline-none"
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-xs flex-shrink-0"
+                  style={{ backgroundColor: CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length].stroke }}
+                />
+                <span>{cat.name}</span>
+                <span className="font-mono tabular-nums text-xs text-muted-foreground">({cat.count})</span>
+              </button>
+            ))
+          )}
         </div>
       </div>
 

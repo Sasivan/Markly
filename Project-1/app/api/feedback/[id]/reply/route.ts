@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { BookmarkRepository } from "@/server/db/repository";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { isUserAdmin } from "@/server/auth/admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -9,14 +10,6 @@ export const revalidate = 0;
 const replySchema = z.object({
   message: z.string().min(1, "Reply message is required").max(5000),
 });
-
-function checkIsAdmin(user: any): boolean {
-  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
-    return true;
-  }
-  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
-}
 
 export async function POST(
   req: Request,
@@ -35,7 +28,7 @@ export async function POST(
       );
     }
 
-    const isAdmin = checkIsAdmin(user);
+    const isAdmin = isUserAdmin(user);
 
     // Verify feedback exists and if not admin, ensure user owns this feedback
     const userFeedbacks = BookmarkRepository.getFeedbacks(isAdmin ? undefined : user.id);

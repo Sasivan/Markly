@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { BookmarkRepository } from "@/server/db/repository";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { isUserAdmin } from "@/server/auth/admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,18 +13,10 @@ const createFeedbackSchema = z.object({
   category: z.enum(["feature", "bug", "improvement", "general"]).default("general"),
 });
 
-function checkIsAdmin(user: any): boolean {
-  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
-    return true;
-  }
-  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
-}
-
 export async function GET(req: Request) {
   try {
     const user = await requireUser();
-    const isAdmin = checkIsAdmin(user);
+    const isAdmin = isUserAdmin(user);
 
     const myFeedback = BookmarkRepository.getFeedbacks(user.id);
     const allFeedback = isAdmin ? BookmarkRepository.getFeedbacks() : [];

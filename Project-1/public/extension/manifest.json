@@ -5,6 +5,7 @@
   "description": "Save bookmarks, organize into collections, add tags, and sync with your Markly library in 1 click.",
   "permissions": [
     "activeTab",
+    "tabs",
     "storage",
     "scripting",
     "contextMenus"

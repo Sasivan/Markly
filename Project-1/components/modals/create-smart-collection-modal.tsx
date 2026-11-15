@@ -27,10 +27,37 @@ export function CreateSmartCollectionModal({
 }: CreateSmartCollectionModalProps) {
   const [name, setName] = React.useState("");
   const [color, setColor] = React.useState("#8b5cf6");
-  const [ruleField, setRuleField] = React.useState<"tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency">("favorite");
+  const [ruleField, setRuleField] = React.useState<"tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency" | "description" | "title" | "url">("favorite");
   const [ruleValue, setRuleValue] = React.useState("starred");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [presetSaved, setPresetSaved] = React.useState(false);
+
+  // Custom User Presets persisted across sessions
+  const [customPresets, setCustomPresets] = React.useState<Array<{ name: string; color: string; field: string; value: string }>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_custom_smart_presets");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+
+  const handleSaveAsCustomPreset = () => {
+    if (!name.trim()) {
+      setError("Please provide a collection name before saving as a preset.");
+      return;
+    }
+    const newPreset = { name: name.trim(), color, field: ruleField, value: ruleValue };
+    const updated = [...customPresets.filter((p) => p.name !== newPreset.name), newPreset];
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem("markly_custom_smart_presets", JSON.stringify(updated));
+    } catch {}
+    setPresetSaved(true);
+    setTimeout(() => setPresetSaved(false), 2000);
+  };
 
   const PRESETS = [
     { name: "Starred & Active", color: "#f59e0b", field: "favorite", value: "starred" },
@@ -112,16 +139,28 @@ export function CreateSmartCollectionModal({
 
         {/* Quick Presets */}
         <div className="space-y-1.5">
-          <span className="text-[11px] font-medium text-muted-foreground">Quick Presets:</span>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-muted-foreground">Quick Presets:</span>
+            <button
+              type="button"
+              onClick={handleSaveAsCustomPreset}
+              className="text-[11px] text-primary hover:underline cursor-pointer flex items-center gap-1 font-medium"
+              title="Save current rule and name as quick preset"
+            >
+              <Plus className="h-3 w-3" />
+              <span>{presetSaved ? "✓ Saved Preset!" : "Save Current as Preset"}</span>
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
-            {PRESETS.map((p) => (
+            {[...PRESETS, ...customPresets].map((p, idx) => (
               <button
-                key={p.name}
+                key={`${p.name}-${idx}`}
                 type="button"
                 onClick={() => handleApplyPreset(p)}
-                className="px-2 py-1 rounded-md text-[11px] border border-border bg-secondary/50 hover:bg-secondary text-foreground cursor-pointer transition-colors"
+                className="px-2 py-1 rounded-md text-[11px] border border-border bg-secondary/50 hover:bg-secondary text-foreground cursor-pointer transition-colors flex items-center gap-1.5"
               >
-                {p.name}
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
+                <span>{p.name}</span>
               </button>
             ))}
           </div>
@@ -158,8 +197,11 @@ export function CreateSmartCollectionModal({
                 className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="favorite">Starred Status</option>
+                <option value="description">Description (Contains)</option>
+                <option value="title">Title (Contains)</option>
                 <option value="domain">Domain Name</option>
                 <option value="tags">Tag Name</option>
+                <option value="url">URL (Contains)</option>
                 <option value="status">Health Status</option>
                 <option value="notes">Has Personal Notes</option>
                 <option value="visitCount">Visit Count / Engagement</option>
@@ -221,7 +263,17 @@ export function CreateSmartCollectionModal({
                 <Input
                   value={ruleValue}
                   onChange={(e) => setRuleValue(e.target.value)}
-                  placeholder={ruleField === "domain" ? "github.com" : "ai, design"}
+                  placeholder={
+                    ruleField === "domain"
+                      ? "github.com"
+                      : ruleField === "description"
+                      ? "Search text inside description..."
+                      : ruleField === "title"
+                      ? "Search text inside title..."
+                      : ruleField === "url"
+                      ? "e.g. docs, blog, youtube"
+                      : "ai, design"
+                  }
                   className="h-8 text-xs bg-background"
                 />
               )}

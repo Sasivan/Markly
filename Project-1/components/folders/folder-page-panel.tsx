@@ -403,67 +403,46 @@ export function FolderPagePanel({
         </div>
       </div>
 
-      {/* Subfolders Navigation Zone */}
+      {/* Sleek Subfolders Inline Filter Row (No extra blank space) */}
       {childFolders.length > 0 && (
-        <div id="subfolders-zone" className="pt-3 border-t border-border space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>
-                Subfolders in {currentFolder.name} ({childFolders.length})
-              </span>
-            </span>
-            <span className="text-xs text-muted-foreground font-mono">
-              Click to open subfolder
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-            {childFolders.map((child) => {
-              const count = bookmarksCountMap[child.id] || 0;
-              return (
-                <button
-                  key={child.id}
-                  type="button"
-                  onClick={() => onSelectFolder(child.id, false)}
-                  className="p-3 rounded-xl border border-border bg-card shadow-xs hover:border-border-hover text-left transition-colors cursor-pointer group flex items-center justify-between gap-2"
+        <div id="subfolders-zone" className="pt-2 border-t border-border flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1 flex items-center gap-1">
+            <FolderIcon className="h-3 w-3" />
+            <span>Subfolders:</span>
+          </span>
+          {childFolders.map((child) => {
+            const count = bookmarksCountMap[child.id] || 0;
+            return (
+              <button
+                key={child.id}
+                type="button"
+                onClick={() => onSelectFolder(child.id, false)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-card hover:bg-secondary text-xs text-foreground hover:text-primary transition-colors cursor-pointer group shadow-2xs"
+                title={`Filter directly to subfolder ${child.name}`}
+              >
+                <div
+                  className="h-3.5 w-3.5 rounded flex items-center justify-center text-[10px]"
+                  style={{ backgroundColor: `${child.color}25` }}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs border border-border/40"
-                      style={{ backgroundColor: `${child.color}20` }}
-                    >
-                      <FolderIconRenderer
-                        icon={child.icon}
-                        color={child.color}
-                        className="h-3.5 w-3.5"
-                      />
-                    </div>
-                    <div className="truncate">
-                      <div className="text-xs font-medium text-foreground group-hover:text-primary truncate">
-                        {child.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono tabular-nums">
-                        {count} {count === 1 ? "site" : "sites"}
-                      </div>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-transform duration-150 flex-shrink-0" />
-                </button>
-              );
-            })}
+                  <FolderIconRenderer icon={child.icon} color={child.color} className="h-2.5 w-2.5" />
+                </div>
+                <span className="font-medium truncate max-w-[140px]">{child.name}</span>
+                <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1 rounded tabular-nums">
+                  {count}
+                </span>
+              </button>
+            );
+          })}
 
-            {/* Quick Add Subfolder Card */}
-            <button
-              type="button"
-              onClick={() => onNewSubfolder(currentFolder.id)}
-              className="p-3 rounded-xl border border-dashed border-border hover:border-border-hover hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center gap-2 justify-center text-xs font-medium"
-              title="Add a new subfolder"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>New Subfolder</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onNewSubfolder(currentFolder.id)}
+            className="h-6 px-2 rounded-md border border-dashed border-border hover:bg-secondary text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer transition-colors"
+            title="Create subfolder inside this folder"
+          >
+            <Plus className="h-3 w-3" />
+            <span>Subfolder</span>
+          </button>
         </div>
       )}
       {/* 3.1: Share Collection Modal */}

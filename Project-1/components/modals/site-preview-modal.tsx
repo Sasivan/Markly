@@ -111,15 +111,15 @@ export function SitePreviewModal({
   const [notesSaving, setNotesSaving] = React.useState(false);
   const [notesSuccess, setNotesSuccess] = React.useState(false);
 
-  // Cover Style: "screenshot" (Live Site / og:image) vs "snapshot" (Geometric Gradient Art)
-  const [coverStyle, setCoverStyle] = React.useState<"screenshot" | "snapshot">("screenshot");
+  // Cover Style: "screenshot" (Live Site / og:image) vs "gradient" (Monogram Art) vs "icon" (Domain Logo)
+  const [coverStyle, setCoverStyle] = React.useState<"screenshot" | "gradient" | "icon">("screenshot");
 
   React.useEffect(() => {
     if (bookmark?.id && typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem(`markly_cover_pref_${bookmark.id}`);
-        if (stored === "screenshot" || stored === "snapshot") {
-          setCoverStyle(stored);
+        if (stored === "screenshot" || stored === "gradient" || stored === "icon" || stored === "snapshot") {
+          setCoverStyle(stored === "snapshot" ? "gradient" : (stored as any));
         } else {
           setCoverStyle("screenshot");
         }
@@ -127,12 +127,12 @@ export function SitePreviewModal({
     }
   }, [bookmark?.id]);
 
-  const toggleCoverStyle = () => {
-    const next = coverStyle === "screenshot" ? "snapshot" : "screenshot";
-    setCoverStyle(next);
+  const handleSetCoverStyle = (style: "screenshot" | "gradient" | "icon") => {
+    setCoverStyle(style);
     if (bookmark?.id) {
       try {
-        localStorage.setItem(`markly_cover_pref_${bookmark.id}`, next);
+        localStorage.setItem(`markly_cover_pref_${bookmark.id}`, style);
+        window.dispatchEvent(new CustomEvent("markly-cover-updated", { detail: { id: bookmark.id, style } }));
       } catch {}
     }
   };
@@ -721,16 +721,34 @@ export function SitePreviewModal({
                   className="w-full h-full object-cover object-top"
                   onError={() => setSnapshotError(true)}
                 />
-                {/* Top overlay controls */}
-                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                {/* Top overlay cover switcher */}
+                <div className="absolute top-2.5 right-2.5 flex items-center bg-black/75 backdrop-blur-md rounded-lg p-0.5 border border-white/15 shadow-md z-10">
                   <button
                     type="button"
-                    onClick={toggleCoverStyle}
-                    className="text-[11px] font-mono text-white/90 hover:text-white bg-black/60 hover:bg-black/80 px-2.5 py-1 rounded-md backdrop-blur-xs flex items-center gap-1.5 transition-colors border border-white/10 cursor-pointer shadow-xs"
-                    title="Switch to Snapshot Art cover"
+                    onClick={() => handleSetCoverStyle("screenshot")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer bg-white text-black font-semibold shadow-xs"
+                    title="Live website snapshot cover"
                   >
-                    <Sparkles className="h-3 w-3 text-amber-300" />
-                    <span>Snapshot Art</span>
+                    <ImageIcon className="h-2.5 w-2.5" />
+                    <span>Snapshot</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("gradient")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                    title="Gradient art monogram cover"
+                  >
+                    <Sparkles className="h-2.5 w-2.5" />
+                    <span>Gradient</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("icon")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                    title="Domain brand icon cover"
+                  >
+                    <Globe className="h-2.5 w-2.5" />
+                    <span>Logo</span>
                   </button>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5">
@@ -753,25 +771,93 @@ export function SitePreviewModal({
                   </a>
                 </div>
               </div>
+            ) : coverStyle === "icon" ? (
+              <div className="relative rounded-md overflow-hidden border border-border aspect-21/9 max-h-48 flex flex-col items-center justify-center p-4 bg-muted/40 select-none group">
+                {/* Top overlay cover switcher */}
+                <div className="absolute top-2.5 right-2.5 flex items-center bg-black/75 backdrop-blur-md rounded-lg p-0.5 border border-white/15 shadow-md z-10">
+                  {snapshotUrl && (
+                    <button
+                      type="button"
+                      onClick={() => handleSetCoverStyle("screenshot")}
+                      className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                      title="Live website snapshot cover"
+                    >
+                      <ImageIcon className="h-2.5 w-2.5" />
+                      <span>Snapshot</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("gradient")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                    title="Gradient art monogram cover"
+                  >
+                    <Sparkles className="h-2.5 w-2.5" />
+                    <span>Gradient</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("icon")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer bg-white text-black font-semibold shadow-xs"
+                    title="Domain brand icon cover"
+                  >
+                    <Globe className="h-2.5 w-2.5" />
+                    <span>Logo</span>
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-card border border-border shadow-md mb-2 flex items-center justify-center">
+                  <BookmarkIcon
+                    src={bookmark.iconUrl}
+                    alt={bookmark.title}
+                    domain={bookmark.domain}
+                    className="h-10 w-10 rounded object-contain"
+                  />
+                </div>
+                <div className="text-sm font-semibold text-foreground truncate max-w-[85%] text-center tracking-tight">
+                  {bookmark.title}
+                </div>
+                <div className="text-xs font-mono text-muted-foreground truncate max-w-[80%] text-center mt-0.5">
+                  {bookmark.domain}
+                </div>
+              </div>
             ) : (
               <div
                 className="relative rounded-md overflow-hidden border border-border aspect-21/9 max-h-48 flex flex-col items-center justify-center p-4 select-none group"
                 style={{ background: getDomainGradient(bookmark.domain || bookmark.title || "markly") }}
               >
-                {/* Top overlay toggle when screenshot is available */}
-                {snapshotUrl && (
-                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                {/* Top overlay cover switcher */}
+                <div className="absolute top-2.5 right-2.5 flex items-center bg-black/75 backdrop-blur-md rounded-lg p-0.5 border border-white/15 shadow-md z-10">
+                  {snapshotUrl && (
                     <button
                       type="button"
-                      onClick={toggleCoverStyle}
-                      className="text-[11px] font-mono text-white/90 hover:text-white bg-black/60 hover:bg-black/80 px-2.5 py-1 rounded-md backdrop-blur-xs flex items-center gap-1.5 transition-colors border border-white/10 cursor-pointer shadow-xs"
-                      title="Switch to live website screenshot"
+                      onClick={() => handleSetCoverStyle("screenshot")}
+                      className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                      title="Live website snapshot cover"
                     >
-                      <ImageIcon className="h-3 w-3 text-blue-300" />
-                      <span>Live Screenshot</span>
+                      <ImageIcon className="h-2.5 w-2.5" />
+                      <span>Snapshot</span>
                     </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("gradient")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer bg-white text-black font-semibold shadow-xs"
+                    title="Gradient art monogram cover"
+                  >
+                    <Sparkles className="h-2.5 w-2.5" />
+                    <span>Gradient</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("icon")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                    title="Domain brand icon cover"
+                  >
+                    <Globe className="h-2.5 w-2.5" />
+                    <span>Logo</span>
+                  </button>
+                </div>
                 <div className="p-3 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-2 flex items-center justify-center">
                   <BookmarkIcon
                     src={bookmark.iconUrl}

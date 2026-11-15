@@ -15,6 +15,8 @@ import {
   ExternalLink,
   Archive,
   Bookmark,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
@@ -31,7 +33,7 @@ interface DashboardWidgetBoxProps {
   viewMode?: WidgetViewMode;
   availableViews?: WidgetViewMode[];
   onViewModeChange?: (mode: WidgetViewMode) => void;
-  onToggleSpan: () => void;
+  onToggleSpan?: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   isFirst: boolean;
@@ -67,6 +69,26 @@ export function DashboardWidgetBox({
   onDrop,
   children,
 }: DashboardWidgetBoxProps) {
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("markly_box_collapsed_" + id) === "true";
+      } catch {}
+    }
+    return false;
+  });
+
+  const toggleCollapsed = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("markly_box_collapsed_" + id, String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   return (
     <div
       draggable={true}
@@ -78,29 +100,44 @@ export function DashboardWidgetBox({
       }`}
     >
       {/* Box Header Toolbar */}
-      <div className="px-4 py-3 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-2.5 select-none">
-        {/* Left: Drag Handle, Icon Badge, Title, Item Count */}
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="px-3.5 py-2.5 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-2.5">
+        {/* Left: Notion Chevron Collapse/Expand, Drag Handle, Icon Badge, Title, Item Count */}
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="h-6 w-6 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            title={isCollapsed ? "Expand section (Notion toggle)" : "Collapse section (Notion toggle)"}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
+          </button>
           <div
             className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-0.5 rounded hover:bg-secondary transition-colors"
             title="Drag to place section anywhere"
           >
             <GripVertical className="h-4 w-4" />
           </div>
-          <div className="h-7 w-7 rounded-lg bg-secondary text-foreground flex items-center justify-center flex-shrink-0 border border-border/60">
+          <div className="h-6 w-6 rounded-md bg-secondary text-foreground flex items-center justify-center flex-shrink-0 border border-border/60">
             {icon}
           </div>
-          <div className="flex items-center gap-2 truncate">
+          <div
+            className="flex items-center gap-2 truncate cursor-pointer select-text"
+            onClick={toggleCollapsed}
+          >
             <h2 className="text-xs font-semibold text-foreground truncate">{title}</h2>
             {badgeText !== undefined && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/60 tabular-nums">
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/60 tabular-nums">
                 {badgeText}
               </span>
             )}
           </div>
         </div>
 
-        {/* Right: View Switcher, Span Toggle, Move Up/Down, Extra Actions, View All Link */}
+        {/* Right: View Switcher, Move Up/Down, Extra Actions, View All Link */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {extraHeaderAction}
 
@@ -152,30 +189,6 @@ export function DashboardWidgetBox({
             </div>
           )}
 
-          {/* Width / Span Toggle: 1 Col (Half) vs 2 Col (Full) */}
-          <button
-            type="button"
-            onClick={onToggleSpan}
-            className={`h-6 px-1.5 rounded border border-border/60 text-[10px] font-mono font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-              span === "2"
-                ? "bg-primary/10 text-primary border-primary/30"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-            title={span === "2" ? "Full Width (Click to make Half Width)" : "Half Width (Click to make Full Width)"}
-          >
-            {span === "2" ? (
-              <>
-                <Minimize2 className="h-3 w-3" />
-                <span className="hidden sm:inline">Full</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 className="h-3 w-3" />
-                <span className="hidden sm:inline">Half</span>
-              </>
-            )}
-          </button>
-
           {/* Move Up / Move Down Position Controls */}
           <div className="flex items-center gap-0.5 opacity-60 group-hover/box:opacity-100 transition-opacity">
             <button
@@ -212,10 +225,12 @@ export function DashboardWidgetBox({
         </div>
       </div>
 
-      {/* Box Body */}
-      <div className="flex-1">
-        {children}
-      </div>
+      {/* Box Body (Collapsible Notion style) */}
+      {!isCollapsed && (
+        <div className="flex-1 animate-in fade-in duration-150">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

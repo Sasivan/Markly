@@ -46,6 +46,7 @@ import { ChromeExtensionModal } from "@/components/modals/chrome-extension-modal
 import { StashTabsModal } from "@/components/modals/stash-tabs-modal";
 import { SharedLinksView } from "@/components/shared/shared-links-view";
 import { SmartCollectionsView } from "@/components/collections/smart-collections-view";
+import { SessionsView } from "@/components/sessions/sessions-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -138,7 +139,7 @@ export function MarklyWorkspace({
 
   // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections">(
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions">(
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
@@ -1659,6 +1660,19 @@ export function MarklyWorkspace({
                 setActiveFolderId(null);
               }}
             />
+          ) : activeView === "sessions" && !activeFolderId ? (
+            /* Dedicated Tab Sessions & Stash View */
+            <SessionsView
+              folders={folders}
+              bookmarks={bookmarks}
+              onRefreshData={refreshData}
+              onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
+              onSelectFolder={(fId) => {
+                setActiveFolderId(fId);
+                setActiveView("all");
+              }}
+              onOpenStashModal={() => setStashTabsOpen(true)}
+            />
           ) : (
             <>
               {/* Dedicated Folder Page Options & Navigation Panel */}
@@ -1966,6 +1980,8 @@ export function MarklyWorkspace({
                 onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
                 controlledViewMode={folderViewMode}
                 onControlledViewModeChange={setFolderViewMode}
+                activeFolderId={activeFolderId}
+                activeView={activeView}
               />
             </>
           )}

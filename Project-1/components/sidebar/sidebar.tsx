@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -47,11 +48,11 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions";
   totalBookmarksCount: number;
   unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
@@ -105,6 +106,24 @@ export function Sidebar({
   );
   const [sidebarWidth, setSidebarWidth] = React.useState(260);
   const [isResizing, setIsResizing] = React.useState(false);
+
+  // Two-Page Sidebar: "nav" (System Views & Pages) vs "folders" (Dedicated Folder Tree)
+  const [sidebarPage, setSidebarPageState] = React.useState<"nav" | "folders">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_sidebar_page") as "nav" | "folders";
+        if (stored === "nav" || stored === "folders") return stored;
+      } catch {}
+    }
+    return "nav";
+  });
+
+  const setSidebarPage = (page: "nav" | "folders") => {
+    setSidebarPageState(page);
+    try {
+      localStorage.setItem("markly_sidebar_page", page);
+    } catch {}
+  };
 
   const [globalForceExpanded, setGlobalForceExpanded] = React.useState<boolean | null>(null);
   const [isAllFoldersExpanded, setIsAllFoldersExpanded] = React.useState(true);
@@ -522,15 +541,15 @@ export function Sidebar({
   if (collapsed) {
     return (
       <aside className="w-12 flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none">
-        {/* Workspace Brand Header - click arrow to expand sidebar */}
+        {/* Workspace Brand Header - click Markly logo to expand sidebar */}
         <div className="h-12 border-b border-sidebar-border flex items-center justify-center bg-sidebar-bg flex-shrink-0">
           <button
             type="button"
             onClick={() => setCollapsed(false)}
             title="Expand Sidebar (Ctrl+\)"
-            className="h-7 w-7 rounded-md bg-secondary hover:bg-primary hover:text-primary-foreground flex items-center justify-center text-foreground cursor-pointer transition-colors"
+            className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs"
           >
-            <PanelLeftOpen className="h-4 w-4" />
+            M
           </button>
         </div>
 
@@ -827,23 +846,56 @@ export function Sidebar({
         className="relative flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none"
       >
         {/* Workspace Brand Header */}
-        <div className="h-12 border-b border-sidebar-border flex items-center justify-between px-3.5 bg-sidebar-bg">
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("home");
-            }}
-            title="Markly Home"
-            className="flex items-center gap-2.5 truncate cursor-pointer group text-left"
-          >
-            <div className="h-6 w-6 rounded-md bg-primary group-hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-medium text-xs flex-shrink-0 transition-transform group-active:scale-95">
-              M
+        <div className="h-12 border-b border-sidebar-border flex items-center justify-between px-3 bg-sidebar-bg">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => {
+                onSelectFolder(null);
+                onSelectView("home");
+              }}
+              title="Markly Home"
+              className="flex items-center gap-2 truncate cursor-pointer group text-left"
+            >
+              <div className="h-6 w-6 rounded-md bg-primary group-hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs flex-shrink-0 transition-transform group-active:scale-95 shadow-xs">
+                M
+              </div>
+              <span className="font-semibold text-sm text-foreground group-hover:text-primary truncate transition-colors">
+                Markly
+              </span>
+            </button>
+
+            {/* Two-Page Arrow Buttons right next to website name */}
+            <div className="flex items-center gap-0.5 bg-secondary/80 rounded-md p-0.5 border border-border/60">
+              <button
+                type="button"
+                onClick={() => setSidebarPage("nav")}
+                title="Page 1: Navigation & Views"
+                className={`h-5 w-5 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                  sidebarPage === "nav"
+                    ? "bg-card text-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <span className="text-[10px] font-mono px-1 text-muted-foreground font-medium">
+                {sidebarPage === "nav" ? "1" : "2"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSidebarPage("folders")}
+                title="Page 2: Folder Tree Hierarchy"
+                className={`h-5 w-5 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                  sidebarPage === "folders"
+                    ? "bg-card text-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
             </div>
-            <span className="font-medium text-sm text-foreground group-hover:text-primary truncate transition-colors">
-              Markly
-            </span>
-          </button>
+          </div>
 
           <button
             type="button"
@@ -855,10 +907,12 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Workspace Nav Section */}
-        <div className="p-2 space-y-1 text-xs select-none flex-shrink-0 border-b border-sidebar-border/60 max-h-[46vh] overflow-y-auto">
+        {/* Page 1: Workspace Nav Section */}
+        {sidebarPage === "nav" && (
+        <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1 text-xs select-none">
           <div className="px-2 py-1 text-xs font-medium text-muted-foreground flex items-center justify-between">
-            <span>Workspace</span>
+            <span>Navigation</span>
+            <span className="text-[10px] font-mono text-muted-foreground">Page 1/2</span>
           </div>
 
           {/* Home Page Link */}
@@ -918,60 +972,6 @@ export function Sidebar({
             </div>
           )}
 
-          {/* 3.1: Smart Dynamic Collections Section */}
-          <div className="pt-1 pb-1 space-y-0.5 border-y border-sidebar-border/40 my-1">
-            <div className="px-2 py-0.5 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3 text-purple-400" />
-                <span>Smart collections</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setCreateSmartCollectionOpen(true)}
-                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                title="Create Smart Collection"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-            {smartCollections.length === 0 ? (
-              <div className="px-2 py-1 text-[10px] text-muted-foreground/80 italic">
-                No smart collections yet
-              </div>
-            ) : (
-              smartCollections.map((sc) => {
-                const isSelected = activeSmartCollectionId === sc.id;
-                return (
-                  <div
-                    key={sc.id}
-                    onClick={() => handleSelectSmartCollection(sc)}
-                    className={`group flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg cursor-pointer text-xs transition-colors ${
-                      isSelected
-                        ? "bg-accent text-accent-foreground font-semibold"
-                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate min-w-0">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: sc.color || "#8b5cf6" }}
-                      />
-                      <span className="truncate">{sc.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteSmartCollection(e, sc.id)}
-                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive cursor-pointer transition-opacity"
-                      title="Delete Smart Collection"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
           {/* All Sites */}
           <button
             type="button"
@@ -990,7 +990,41 @@ export function Sidebar({
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">{totalBookmarksCount}</span>
           </button>
 
-          {/* Smart Collections Page */}
+          {/* Favorites */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("favorites");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "favorites"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <Star className={`h-4 w-4 flex-shrink-0 ${activeView === "favorites" ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
+            <span className="truncate">Favorites</span>
+          </button>
+
+          {/* Recently Visited */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("recent");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "recent"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <History className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Recently visited</span>
+          </button>
+
+          {/* Smart Collections Page (Strictly ABOVE Shared) */}
           <button
             type="button"
             onClick={() => {
@@ -1008,6 +1042,45 @@ export function Sidebar({
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
               {smartCollections.length}
             </span>
+          </button>
+
+          {/* Tab Sessions & Stash Page */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("sessions");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "sessions" && !activeFolderId
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <Layers className="h-4 w-4 text-blue-400 flex-shrink-0" />
+            <span className="truncate">Tab sessions & stash</span>
+          </button>
+
+          {/* Shared Links */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("shared");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "shared"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <Share2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Shared</span>
+            {sharedCount > 0 && (
+              <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
+                {sharedCount}
+              </span>
+            )}
           </button>
 
           {/* Folder Collections */}
@@ -1047,62 +1120,6 @@ export function Sidebar({
             <span className="truncate">Knowledge graph</span>
           </button>
 
-          {/* Recently Visited */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("recent");
-            }}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
-              activeView === "recent"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            }`}
-          >
-            <History className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">Recently visited</span>
-          </button>
-
-          {/* Favorites */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("favorites");
-            }}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
-              activeView === "favorites"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            }`}
-          >
-            <Star className={`h-4 w-4 flex-shrink-0 ${activeView === "favorites" ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
-            <span className="truncate">Favorites</span>
-          </button>
-
-          {/* Shared Links */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("shared");
-            }}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
-              activeView === "shared"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-            }`}
-          >
-            <Share2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">Shared</span>
-            {sharedCount > 0 && (
-              <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
-                {sharedCount}
-              </span>
-            )}
-          </button>
-
           {/* Archive */}
           <button
             type="button"
@@ -1137,8 +1154,10 @@ export function Sidebar({
             <span className="truncate">Recycle bin</span>
           </button>
         </div>
+        )}
 
-        {/* Folders Section */}
+        {/* Page 2: Dedicated Folder Tree Section */}
+        {sidebarPage === "folders" && (
         <div className="flex-1 overflow-y-auto min-h-0 p-2 select-none space-y-0.5">
           <div
             onDragOver={handleRootDragOver}
@@ -1302,6 +1321,7 @@ export function Sidebar({
               </div>
             </div>
         </div>
+        )}
 
         {/* Feedback & Support Nav Button */}
         <div className="px-3 py-1.5 border-t border-sidebar-border/60 bg-sidebar-bg flex-shrink-0">

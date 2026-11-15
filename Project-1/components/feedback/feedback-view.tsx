@@ -90,6 +90,7 @@ interface FeedbackViewProps {
 
 export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("my");
   const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -510,7 +511,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
             {isAdmin && (
               <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono px-2 py-0.5 flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3" />
-                Admin Console
+                Admin Console Active
               </Badge>
             )}
           </div>
@@ -522,19 +523,64 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
           </p>
         </div>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={loadFeedbacks}
-          disabled={isLoading}
-          className="h-8 text-xs cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-          <span>Refresh</span>
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {isAdmin && (
+            <div className="flex items-center bg-secondary p-1 rounded-lg border border-border text-xs">
+              <button
+                type="button"
+                onClick={() => setMainTab("admin")}
+                className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  mainTab === "admin"
+                    ? "bg-emerald-600 text-white shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Admin Moderation</span>
+                <span className="font-mono text-[10px] px-1 py-0.2 rounded bg-black/20">
+                  {allFeedback.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainTab("my")}
+                className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                  mainTab === "my"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>My Tickets</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainTab("submit")}
+                className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                  mainTab === "submit"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>New Ticket</span>
+              </button>
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={loadFeedbacks}
+            disabled={isLoading}
+            className="h-8 text-xs cursor-pointer flex items-center gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </Button>
+        </div>
       </div>
 
       {/* Submission Box */}
+      {(!isAdmin || mainTab === "submit") && (
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -633,9 +679,10 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
           </div>
         </form>
       </div>
+      )}
 
       {/* Admin Review Dashboard (Visible only to authorized admin) */}
-      {isAdmin && (
+      {isAdmin && (mainTab === "admin" || !mainTab) && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/10 dark:bg-emerald-950/20 p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/40 dark:border-emerald-800/40 pb-3">
             <div>
@@ -728,6 +775,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       )}
 
       {/* User's Submitted Feedback & History */}
+      {(!isAdmin || mainTab === "my") && (
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div>
@@ -799,6 +847,7 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
           </div>
         )}
       </div>
+      )}
 
       {/* Delete Confirmation Modal for Admin */}
       <ConfirmDeleteModal

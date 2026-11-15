@@ -23,12 +23,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { BookmarkWithDetails, SmartCollection } from "@/server/db/schema";
 
 interface SmartCollectionsViewProps {
   bookmarks: BookmarkWithDetails[];
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
   onNavigateHome?: () => void;
+  onSelectFolder?: (folderId: string) => void;
+  onSelectView?: (view: any) => void;
 }
 
 interface SmartRule {
@@ -85,6 +88,8 @@ export function SmartCollectionsView({
   bookmarks,
   onOpenPreview,
   onNavigateHome,
+  onSelectFolder,
+  onSelectView,
 }: SmartCollectionsViewProps) {
   const [collections, setCollections] = React.useState<SmartCollection[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -92,8 +97,9 @@ export function SmartCollectionsView({
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [createdFolderId, setCreatedFolderId] = React.useState<string | null>(null);
 
-  const fetchCollections = React.useCallback(async () => {
+  const fetchCollections = React.useCallback(async (newId?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -101,7 +107,9 @@ export function SmartCollectionsView({
       const json = await res.json();
       if (json.success && Array.isArray(json.collections)) {
         setCollections(json.collections);
-        if (json.collections.length > 0 && !selectedCollectionId) {
+        if (newId) {
+          setSelectedCollectionId(newId);
+        } else if (json.collections.length > 0 && !selectedCollectionId) {
           setSelectedCollectionId(json.collections[0].id);
         }
       }
@@ -132,7 +140,7 @@ export function SmartCollectionsView({
         body: JSON.stringify({
           name: `${selectedCollection.name} (Folder)`,
           color: selectedCollection.color || "#8b5cf6",
-          icon: "Folder",
+          icon: selectedCollection.icon || "Folder",
         }),
       });
       const data = await res.json();
@@ -152,9 +160,10 @@ export function SmartCollectionsView({
         }),
       });
 
+      setCreatedFolderId(data.folder.id);
       setConvertSuccess(true);
       window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-      setTimeout(() => setConvertSuccess(false), 3000);
+      setTimeout(() => setConvertSuccess(false), 5000);
     } catch (err: any) {
       console.error("Convert to folder error:", err);
       alert(err.message || "Failed to convert collection to folder");
@@ -207,7 +216,7 @@ export function SmartCollectionsView({
       <CreateSmartCollectionModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={fetchCollections}
+        onCreated={(newId) => fetchCollections(newId)}
         bookmarks={bookmarks}
       />
 
@@ -306,10 +315,16 @@ export function SmartCollectionsView({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className="h-3 w-3 rounded-full shrink-0"
-                          style={{ backgroundColor: col.color || "#8b5cf6" }}
-                        />
+                        <div
+                          className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 border border-border/60"
+                          style={{ backgroundColor: `${col.color || "#8b5cf6"}20` }}
+                        >
+                          <FolderIconRenderer
+                            icon={col.icon || "Sparkles"}
+                            color={col.color || "#8b5cf6"}
+                            className="h-3.5 w-3.5"
+                          />
+                        </div>
                         <span className="font-semibold text-xs text-foreground truncate">{col.name}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -353,10 +368,16 @@ export function SmartCollectionsView({
               <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex items-center gap-2.5">
-                    <span
-                      className="h-3.5 w-3.5 rounded-full shrink-0"
-                      style={{ backgroundColor: selectedCollection.color || "#8b5cf6" }}
-                    />
+                    <div
+                      className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border border-border/60"
+                      style={{ backgroundColor: `${selectedCollection.color || "#8b5cf6"}20` }}
+                    >
+                      <FolderIconRenderer
+                        icon={selectedCollection.icon || "Sparkles"}
+                        color={selectedCollection.color || "#8b5cf6"}
+                        className="h-4 w-4"
+                      />
+                    </div>
                     <div>
                       <h2 className="text-sm font-bold text-foreground">{selectedCollection.name}</h2>
                       <span className="text-xs text-muted-foreground">
@@ -382,6 +403,20 @@ export function SmartCollectionsView({
                       )}
                       <span>{convertSuccess ? "Folder Created!" : "Create as Real Folder"}</span>
                     </Button>
+
+                    {convertSuccess && createdFolderId && onSelectFolder && onSelectView && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          onSelectFolder(createdFolderId);
+                          onSelectView("collections");
+                        }}
+                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-1 shadow-xs"
+                      >
+                        <span>Open in Folders</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
 
                     <Button
                       size="sm"

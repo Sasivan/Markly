@@ -1659,6 +1659,13 @@ export function MarklyWorkspace({
                 setActiveView("home");
                 setActiveFolderId(null);
               }}
+              onSelectFolder={(fId) => {
+                setActiveFolderId(fId);
+                setActiveView("collections");
+              }}
+              onSelectView={(v) => {
+                setActiveView(v);
+              }}
             />
           ) : activeView === "sessions" && !activeFolderId ? (
             /* Dedicated Tab Sessions & Stash View */

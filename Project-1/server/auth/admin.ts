@@ -27,7 +27,6 @@ export function isUserAdmin(user: any): boolean {
 
   // 2. Check email against configured environment admin emails
   const userEmail = (user.email || user.user_metadata?.email || "").trim().toLowerCase();
-  if (!userEmail) return false;
 
   const rawEnvEmails = [
     process.env.ADMIN_EMAIL,
@@ -37,12 +36,29 @@ export function isUserAdmin(user: any): boolean {
     .filter(Boolean)
     .join(",");
 
-  if (!rawEnvEmails) return false;
+  if (rawEnvEmails && userEmail) {
+    const adminEmails = rawEnvEmails
+      .split(",")
+      .map((e) => e.trim().toLowerCase().replace(/^["']|["']$/g, ""))
+      .filter(Boolean);
 
-  const adminEmails = rawEnvEmails
-    .split(",")
-    .map((e) => e.trim().toLowerCase().replace(/^["']|["']$/g, ""))
-    .filter(Boolean);
+    if (adminEmails.includes(userEmail)) {
+      return true;
+    }
+  }
 
-  return adminEmails.includes(userEmail);
+  // 3. Development Mode / Local SQLite account support
+  if (
+    (process.env.NODE_ENV === "development" || process.env.DATABASE_MODE === "sqlite") &&
+    (process.env.DEV_ADMIN === "true" ||
+      user.id === "guest-user-default" ||
+      user.id?.startsWith("usr_dev_") ||
+      user.app_metadata?.provider === "dev" ||
+      user.user_metadata?.role === "admin")
+  ) {
+    return true;
+  }
+
+  return false;
 }
+

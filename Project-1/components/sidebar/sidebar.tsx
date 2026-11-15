@@ -542,12 +542,12 @@ export function Sidebar({
     return (
       <aside className="w-12 flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none">
         {/* Workspace Brand Header - click Markly logo to expand sidebar */}
-        <div className="h-12 border-b border-sidebar-border flex items-center justify-center bg-sidebar-bg flex-shrink-0">
+        <div className="h-12 border-b border-sidebar-border flex items-center px-2.5 bg-sidebar-bg flex-shrink-0">
           <button
             type="button"
             onClick={() => setCollapsed(false)}
             title="Expand Sidebar (Ctrl+\)"
-            className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs"
+            className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs shrink-0"
           >
             M
           </button>
@@ -845,66 +845,50 @@ export function Sidebar({
         style={{ width: `${sidebarWidth}px` }}
         className="relative flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none"
       >
-        {/* Workspace Brand Header */}
-        <div className="h-12 border-b border-sidebar-border flex items-center justify-between px-3 bg-sidebar-bg">
-          <div className="flex items-center gap-2 min-w-0">
+        {/* Workspace Brand Header - Locked to exact 10px coordinate as collapsed */}
+        <div className="h-12 border-b border-sidebar-border flex items-center justify-between px-2.5 bg-sidebar-bg flex-shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Markly Logo: Exact same size and position as collapsed, toggles collapse */}
             <button
               type="button"
-              onClick={() => {
-                onSelectFolder(null);
-                onSelectView("home");
-              }}
-              title="Markly Home"
-              className="flex items-center gap-2 truncate cursor-pointer group text-left"
+              onClick={() => setCollapsed(true)}
+              title="Collapse sidebar (Ctrl+\)"
+              className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs shrink-0"
             >
-              <div className="h-6 w-6 rounded-md bg-primary group-hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs flex-shrink-0 transition-transform group-active:scale-95 shadow-xs">
-                M
-              </div>
-              <span className="font-semibold text-sm text-foreground group-hover:text-primary truncate transition-colors">
-                Markly
-              </span>
+              M
             </button>
-
-            {/* Two-Page Arrow Buttons right next to website name */}
-            <div className="flex items-center gap-0.5 bg-secondary/80 rounded-md p-0.5 border border-border/60">
-              <button
-                type="button"
-                onClick={() => setSidebarPage("nav")}
-                title="Page 1: Navigation & Views"
-                className={`h-5 w-5 rounded flex items-center justify-center transition-colors cursor-pointer ${
-                  sidebarPage === "nav"
-                    ? "bg-card text-foreground font-bold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <ChevronLeft className="h-3 w-3" />
-              </button>
-              <span className="text-[10px] font-mono px-1 text-muted-foreground font-medium">
-                {sidebarPage === "nav" ? "1" : "2"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSidebarPage("folders")}
-                title="Page 2: Folder Tree Hierarchy"
-                className={`h-5 w-5 rounded flex items-center justify-center transition-colors cursor-pointer ${
-                  sidebarPage === "folders"
-                    ? "bg-card text-foreground font-bold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+            <span className="font-semibold text-xs text-foreground tracking-tight truncate">
+              Markly
+            </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
-            title="Collapse sidebar (Ctrl+\)"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
+          {/* Clean Unslop Page Switcher Segmented Control */}
+          <div className="flex items-center bg-secondary/70 p-0.5 rounded-lg border border-border/50 text-[11px] font-medium">
+            <button
+              type="button"
+              onClick={() => setSidebarPage("nav")}
+              title="Page 1: Navigation & Views"
+              className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                sidebarPage === "nav"
+                  ? "bg-card text-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Nav
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarPage("folders")}
+              title="Page 2: Folder Tree Hierarchy"
+              className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                sidebarPage === "folders"
+                  ? "bg-card text-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Folders
+            </button>
+          </div>
         </div>
 
         {/* Page 1: Workspace Nav Section */}

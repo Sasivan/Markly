@@ -17,6 +17,9 @@ import {
   Copy,
   Share2,
   ExternalLink,
+  LayoutGrid,
+  List,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -68,6 +71,24 @@ export function FolderPagePanel({
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editName, setEditName] = React.useState(currentFolder.name);
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // 3 Subfolder View Modes: chips | cards | list
+  const [subfolderViewMode, setSubfolderViewMode] = React.useState<"chips" | "cards" | "list">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_subfolder_view_mode") as any;
+        if (stored && ["chips", "cards", "list"].includes(stored)) return stored;
+      } catch {}
+    }
+    return "chips";
+  });
+
+  const handleSubfolderViewChange = (mode: "chips" | "cards" | "list") => {
+    setSubfolderViewMode(mode);
+    try {
+      localStorage.setItem("markly_subfolder_view_mode", mode);
+    } catch {}
+  };
 
   React.useEffect(() => {
     setEditName(currentFolder.name);
@@ -403,46 +424,168 @@ export function FolderPagePanel({
         </div>
       </div>
 
-      {/* Sleek Subfolders Inline Filter Row (No extra blank space) */}
+      {/* Subfolders Section with 3 View Options (Chips, Cards, List) */}
       {childFolders.length > 0 && (
-        <div id="subfolders-zone" className="pt-2 border-t border-border flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-[11px] font-medium text-muted-foreground mr-1 flex items-center gap-1">
-            <FolderIcon className="h-3 w-3" />
-            <span>Subfolders:</span>
-          </span>
-          {childFolders.map((child) => {
-            const count = bookmarksCountMap[child.id] || 0;
-            return (
-              <button
-                key={child.id}
-                type="button"
-                onClick={() => onSelectFolder(child.id, false)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-card hover:bg-secondary text-xs text-foreground hover:text-primary transition-colors cursor-pointer group shadow-2xs"
-                title={`Filter directly to subfolder ${child.name}`}
-              >
-                <div
-                  className="h-3.5 w-3.5 rounded flex items-center justify-center text-[10px]"
-                  style={{ backgroundColor: `${child.color}25` }}
-                >
-                  <FolderIconRenderer icon={child.icon} color={child.color} className="h-2.5 w-2.5" />
-                </div>
-                <span className="font-medium truncate max-w-[140px]">{child.name}</span>
-                <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1 rounded tabular-nums">
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div id="subfolders-zone" className="pt-2.5 border-t border-border space-y-2 text-xs">
+          {/* Header Row: Subfolder Label + 3 View Switcher Icons on Right */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <FolderIcon className="h-3.5 w-3.5" />
+              <span>Subfolders</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-foreground tabular-nums">
+                {childFolders.length}
+              </span>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => onNewSubfolder(currentFolder.id)}
-            className="h-6 px-2 rounded-md border border-dashed border-border hover:bg-secondary text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer transition-colors"
-            title="Create subfolder inside this folder"
-          >
-            <Plus className="h-3 w-3" />
-            <span>Subfolder</span>
-          </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onNewSubfolder(currentFolder.id)}
+                className="h-6 px-2 rounded-md border border-dashed border-border hover:bg-secondary text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer transition-colors"
+                title="Create new subfolder"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Subfolder</span>
+              </button>
+
+              {/* 3 View Switcher Icons: Chips, Cards, List */}
+              <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border/50">
+                <button
+                  type="button"
+                  onClick={() => handleSubfolderViewChange("chips")}
+                  className={`p-1 rounded cursor-pointer transition-colors ${
+                    subfolderViewMode === "chips"
+                      ? "bg-card text-primary shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Chips View (Compact Inline Tags)"
+                >
+                  <Tag className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSubfolderViewChange("cards")}
+                  className={`p-1 rounded cursor-pointer transition-colors ${
+                    subfolderViewMode === "cards"
+                      ? "bg-card text-primary shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Cards View (Visual Folder Grid)"
+                >
+                  <LayoutGrid className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSubfolderViewChange("list")}
+                  className={`p-1 rounded cursor-pointer transition-colors ${
+                    subfolderViewMode === "list"
+                      ? "bg-card text-primary shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="List View (Clean Detailed Rows)"
+                >
+                  <List className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mode 1: Chips View */}
+          {subfolderViewMode === "chips" && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              {childFolders.map((child) => {
+                const count = bookmarksCountMap[child.id] || 0;
+                return (
+                  <button
+                    key={child.id}
+                    type="button"
+                    onClick={() => onSelectFolder(child.id, false)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-card hover:bg-secondary text-xs text-foreground hover:text-primary transition-colors cursor-pointer group shadow-2xs"
+                    title={`Filter directly to subfolder ${child.name}`}
+                  >
+                    <div
+                      className="h-3.5 w-3.5 rounded flex items-center justify-center text-[10px]"
+                      style={{ backgroundColor: `${child.color}25` }}
+                    >
+                      <FolderIconRenderer icon={child.icon} color={child.color} className="h-2.5 w-2.5" />
+                    </div>
+                    <span className="font-medium truncate max-w-[140px]">{child.name}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1 rounded tabular-nums">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Mode 2: Cards / Grid View */}
+          {subfolderViewMode === "cards" && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+              {childFolders.map((child) => {
+                const count = bookmarksCountMap[child.id] || 0;
+                return (
+                  <div
+                    key={child.id}
+                    onClick={() => onSelectFolder(child.id, false)}
+                    className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 cursor-pointer transition-colors flex items-center justify-between gap-2 shadow-2xs group"
+                  >
+                    <div className="flex items-center gap-2.5 truncate min-w-0">
+                      <div
+                        className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${child.color}25` }}
+                      >
+                        <FolderIconRenderer icon={child.icon} color={child.color} className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="truncate">
+                        <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors truncate block">
+                          {child.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono tabular-nums">
+                          {count} {count === 1 ? "site" : "sites"}
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground/40 group-hover:text-foreground shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Mode 3: List View */}
+          {subfolderViewMode === "list" && (
+            <div className="divide-y divide-border/60 rounded-xl border border-border bg-card overflow-hidden mt-1">
+              {childFolders.map((child) => {
+                const count = bookmarksCountMap[child.id] || 0;
+                return (
+                  <div
+                    key={child.id}
+                    onClick={() => onSelectFolder(child.id, false)}
+                    className="px-3 py-2 flex items-center justify-between hover:bg-secondary/40 cursor-pointer transition-colors text-xs group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="h-5 w-5 rounded-md flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${child.color}25` }}
+                      >
+                        <FolderIconRenderer icon={child.icon} color={child.color} className="h-3 w-3" />
+                      </div>
+                      <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                        {child.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded tabular-nums">
+                        {count} {count === 1 ? "site" : "sites"}
+                      </span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground/40 group-hover:text-foreground" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
       {/* 3.1: Share Collection Modal */}

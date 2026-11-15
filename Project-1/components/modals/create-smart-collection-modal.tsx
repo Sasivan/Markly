@@ -11,13 +11,34 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { IconSearchPicker } from "@/components/icons/icon-search-picker";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
 interface CreateSmartCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (newId?: string) => void;
   bookmarks?: any[];
 }
+
+const COLOR_PALETTE = [
+  { name: "Blue", value: "#3b82f6" },
+  { name: "Indigo", value: "#6366f1" },
+  { name: "Violet", value: "#8b5cf6" },
+  { name: "Purple", value: "#a855f7" },
+  { name: "Pink", value: "#ec4899" },
+  { name: "Rose", value: "#f43f5e" },
+  { name: "Red", value: "#ef4444" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Amber", value: "#f59e0b" },
+  { name: "Yellow", value: "#eab308" },
+  { name: "Lime", value: "#84cc16" },
+  { name: "Emerald", value: "#10b981" },
+  { name: "Teal", value: "#14b8a6" },
+  { name: "Cyan", value: "#06b6d4" },
+  { name: "Slate", value: "#64748b" },
+  { name: "Zinc", value: "#71717a" },
+];
 
 export function CreateSmartCollectionModal({
   isOpen,
@@ -27,6 +48,7 @@ export function CreateSmartCollectionModal({
 }: CreateSmartCollectionModalProps) {
   const [name, setName] = React.useState("");
   const [color, setColor] = React.useState("#8b5cf6");
+  const [icon, setIcon] = React.useState("Sparkles");
   const [ruleField, setRuleField] = React.useState<"tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency" | "description" | "title" | "url">("favorite");
   const [ruleValue, setRuleValue] = React.useState("starred");
   const [loading, setLoading] = React.useState(false);
@@ -93,7 +115,7 @@ export function CreateSmartCollectionModal({
         body: JSON.stringify({
           name: name.trim(),
           color,
-          icon: "Sparkles",
+          icon,
           rulesJson: JSON.stringify(rules),
         }),
       });
@@ -103,7 +125,7 @@ export function CreateSmartCollectionModal({
         throw new Error(data.error || "Failed to create smart collection");
       }
 
-      onCreated();
+      onCreated(data.collection?.id);
       onClose();
       setName("");
     } catch (err: any) {
@@ -280,21 +302,35 @@ export function CreateSmartCollectionModal({
             </div>
           </div>
 
-          {/* Color Picker */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Badge Color</label>
-            <div className="flex items-center gap-2">
-              {["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#6366f1"].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={`h-6 w-6 rounded-full cursor-pointer transition-transform ${
-                    color === c ? "scale-115 ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+          {/* Icon Picker */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Collection Icon</label>
+            <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
+          </div>
+
+          {/* Color Palette Selector */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Theme Color</label>
+            <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
+              {COLOR_PALETTE.map((c) => {
+                const isSelected = color === c.value;
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setColor(c.value)}
+                    title={c.name}
+                    className={`h-6 w-6 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                      isSelected
+                        ? "scale-110 shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        : "hover:scale-105 opacity-80 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                  >
+                    {isSelected && <Check className="h-3 w-3 text-white drop-shadow-xs" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

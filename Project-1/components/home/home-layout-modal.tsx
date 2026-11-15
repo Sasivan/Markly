@@ -19,7 +19,12 @@ export type HomeWidgetKey =
   | "favorites"
   | "unsorted"
   | "spectrum"
-  | "analytics";
+  | "analytics"
+  | "analytics_velocity"
+  | "analytics_radar"
+  | "analytics_tags"
+  | "analytics_domains"
+  | "tags";
 
 export interface HomeWidgetConfig {
   id: HomeWidgetKey;
@@ -35,8 +40,12 @@ export const DEFAULT_HOME_WIDGETS: HomeWidgetConfig[] = [
   { id: "recent", label: "Recently Visited Sites", visible: true, span: "1" },
   { id: "favorites", label: "Starred Favorites", visible: true, span: "1" },
   { id: "unsorted", label: "Inbox / Unsorted Bookmarks", visible: true, span: "1" },
+  { id: "tags", label: "Workspace Topics & Tags", visible: true, span: "1" },
   { id: "spectrum", label: "Inactivity Dot Spectrum", visible: true, span: "2" },
-  { id: "analytics", label: "Global Visual Analytics", visible: true, span: "2" },
+  { id: "analytics_velocity", label: "Activity Velocity Momentum", visible: true, span: "2" },
+  { id: "analytics_domains", label: "Top Web Ecosystems", visible: true, span: "1" },
+  { id: "analytics_radar", label: "Category Fingerprint Radar", visible: true, span: "1" },
+  { id: "analytics_tags", label: "Tag Distribution Donut", visible: true, span: "1" },
 ];
 
 interface HomeLayoutModalProps {

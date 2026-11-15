@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { useAuth } from "@/components/auth/auth-context";
 import type { FeedbackWithReplies } from "@/server/db/schema";
 
 const STATUS_CONFIG: Record<
@@ -89,12 +90,48 @@ interface FeedbackViewProps {
 }
 
 export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
+  const { user } = useAuth();
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("my");
   const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // Client-side admin check from user session
+  const clientAdmin = React.useMemo(() => {
+    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
+    const uEmail = (user?.email || user?.user_metadata?.email || "").trim().toLowerCase();
+
+    if (adminEnv && uEmail && (adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
+      return true;
+    }
+
+    if (
+      user?.app_metadata?.role === "admin" ||
+      user?.user_metadata?.role === "admin" ||
+      user?.role === "admin" ||
+      user?.app_metadata?.is_admin === true ||
+      user?.user_metadata?.is_admin === true
+    ) {
+      return true;
+    }
+
+    // In dev mode / localhost with dev account
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") &&
+      (user?.id === "guest-user-default" ||
+        user?.id?.startsWith("usr_dev_") ||
+        user?.app_metadata?.provider === "dev" ||
+        !user ||
+        process.env.NEXT_PUBLIC_DEV_ADMIN === "true")
+    ) {
+      return true;
+    }
+
+    return false;
+  }, [user]);
 
   // Form State
   const [title, setTitle] = React.useState("");
@@ -129,16 +166,34 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       const res = await fetch("/api/feedback", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
-        setIsAdmin(!!data.isAdmin);
+        const userIsAdmin = Boolean(data.isAdmin || clientAdmin);
+        setIsAdmin(userIsAdmin);
+        if (userIsAdmin) {
+          setMainTab("admin");
+        }
         setMyFeedback(data.myFeedback || []);
         setAllFeedback(data.allFeedback || []);
+      } else if (clientAdmin) {
+        setIsAdmin(true);
+        setMainTab("admin");
       }
     } catch (e) {
       console.error("Failed to load feedbacks:", e);
+      if (clientAdmin) {
+        setIsAdmin(true);
+        setMainTab("admin");
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    if (clientAdmin) {
+      setIsAdmin(true);
+      setMainTab("admin");
+    }
+  }, [clientAdmin]);
 
   React.useEffect(() => {
     loadFeedbacks();

@@ -30,6 +30,7 @@ import {
   Keyboard,
   StickyNote,
   Calendar,
+  Folders,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +99,51 @@ export function WorkspaceHome({
   // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
+
+  // Notion-Style 2-Column Draggable Divider Split (Persisted in localStorage)
+  const [colSplit, setColSplit] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_home_col_split");
+        if (stored) {
+          const val = Number(stored);
+          if (!isNaN(val) && val >= 25 && val <= 75) return val;
+        }
+      } catch {}
+    }
+    return 50;
+  });
+
+  const [isColDragging, setIsColDragging] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const startColDrag = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsColDragging(true);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const relativeX = moveEvent.clientX - rect.left;
+      const newPercent = Math.min(75, Math.max(25, Math.round((relativeX / rect.width) * 100)));
+      setColSplit(newPercent);
+    };
+
+    const onMouseUp = () => {
+      setIsColDragging(false);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      try {
+        setColSplit((curr) => {
+          localStorage.setItem("markly_home_col_split", String(curr));
+          return curr;
+        });
+      } catch {}
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, []);
 
   // Instant global search on homepage
   const [homeSearch, setHomeSearch] = React.useState("");
@@ -1022,6 +1068,161 @@ export function WorkspaceHome({
           </DashboardWidgetBox>
         );
 
+      case "analytics_velocity":
+        return (
+          <DashboardWidgetBox
+            key="analytics_velocity"
+            {...commonProps}
+            title="Activity Velocity Momentum"
+            icon={<TrendingUp className="h-4 w-4 text-primary" />}
+            badgeText="Visits vs Bookmarks"
+          >
+            <div className="p-3">
+              <GlobalHomepageAnalytics
+                initialViewMode="velocity"
+                bookmarks={bookmarks}
+                folders={folders}
+                folderTree={folderTree}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                onSelectTag={(tag) => {
+                  onSelectTag?.(tag);
+                  onSelectFolder(null);
+                  onSelectView("all");
+                }}
+                onSelectDomain={onSelectDomain}
+              />
+            </div>
+          </DashboardWidgetBox>
+        );
+
+      case "analytics_domains":
+        return (
+          <DashboardWidgetBox
+            key="analytics_domains"
+            {...commonProps}
+            title="Top Web Ecosystems"
+            icon={<Globe className="h-4 w-4 text-teal-600" />}
+            badgeText="Domains Over Time"
+          >
+            <div className="p-3">
+              <GlobalHomepageAnalytics
+                initialViewMode="domains"
+                bookmarks={bookmarks}
+                folders={folders}
+                folderTree={folderTree}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                onSelectTag={(tag) => {
+                  onSelectTag?.(tag);
+                  onSelectFolder(null);
+                  onSelectView("all");
+                }}
+                onSelectDomain={onSelectDomain}
+              />
+            </div>
+          </DashboardWidgetBox>
+        );
+
+      case "analytics_radar":
+        return (
+          <DashboardWidgetBox
+            key="analytics_radar"
+            {...commonProps}
+            title="Category Fingerprint Radar"
+            icon={<Folders className="h-4 w-4 text-indigo-500" />}
+            badgeText="Parent Folders"
+          >
+            <div className="p-3">
+              <GlobalHomepageAnalytics
+                initialViewMode="radar"
+                bookmarks={bookmarks}
+                folders={folders}
+                folderTree={folderTree}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                onSelectTag={(tag) => {
+                  onSelectTag?.(tag);
+                  onSelectFolder(null);
+                  onSelectView("all");
+                }}
+                onSelectDomain={onSelectDomain}
+              />
+            </div>
+          </DashboardWidgetBox>
+        );
+
+      case "analytics_tags":
+        return (
+          <DashboardWidgetBox
+            key="analytics_tags"
+            {...commonProps}
+            title="Tag Distribution Donut"
+            icon={<Tag className="h-4 w-4 text-amber-500" />}
+            badgeText={`${topTags.length} tags`}
+          >
+            <div className="p-3">
+              <GlobalHomepageAnalytics
+                initialViewMode="tags"
+                bookmarks={bookmarks}
+                folders={folders}
+                folderTree={folderTree}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                onSelectTag={(tag) => {
+                  onSelectTag?.(tag);
+                  onSelectFolder(null);
+                  onSelectView("all");
+                }}
+                onSelectDomain={onSelectDomain}
+              />
+            </div>
+          </DashboardWidgetBox>
+        );
+
+      case "tags":
+        return (
+          <DashboardWidgetBox
+            key="tags"
+            {...commonProps}
+            title="Workspace Topics & Tags"
+            icon={<Tag className="h-4 w-4 text-muted-foreground" />}
+            badgeText={`${topTags.length} topics`}
+            onViewAll={() => {
+              onSelectFolder(null);
+              onSelectView("all");
+            }}
+            viewAllLabel="Browse all"
+          >
+            <div className="p-4 space-y-3">
+              {topTags.length === 0 ? (
+                <div className="p-4 text-center text-xs text-muted-foreground">
+                  No tags added yet. Add tags to bookmarks to see topics here.
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  {topTags.map((tag) => (
+                    <button
+                      key={tag.name}
+                      type="button"
+                      onClick={() => {
+                        onSelectTag?.(tag.name);
+                        onSelectFolder(null);
+                        onSelectView("all");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-border bg-card hover:border-border-hover hover:bg-muted/40 transition-colors cursor-pointer group"
+                    >
+                      <Hash className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-foreground group-hover:text-primary transition-colors">
+                        {tag.name}
+                      </span>
+                      <span className="text-xs bg-secondary text-muted-foreground px-1.5 py-0.5 rounded font-mono tabular-nums">
+                        {tag.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DashboardWidgetBox>
+        );
+
       default:
         return null;
     }
@@ -1299,20 +1500,122 @@ export function WorkspaceHome({
           );
         }
 
-        const widgetElements = visibleWidgets.map((widget, idx) =>
-          renderWidget(widget, idx, idx === 0, idx === visibleWidgets.length - 1)
-        );
+        // Partition visible widgets into blocks: full-width (span 2) vs groups of half-width (span 1)
+        type WidgetBlock =
+          | { type: "full"; widget: HomeWidgetConfig; idx: number }
+          | { type: "half_group"; widgets: { widget: HomeWidgetConfig; idx: number }[] };
+
+        const blocks: WidgetBlock[] = [];
+        let currentHalfGroup: { widget: HomeWidgetConfig; idx: number }[] = [];
+
+        visibleWidgets.forEach((widget, idx) => {
+          if (widget.span === "2") {
+            if (currentHalfGroup.length > 0) {
+              blocks.push({ type: "half_group", widgets: currentHalfGroup });
+              currentHalfGroup = [];
+            }
+            blocks.push({ type: "full", widget, idx });
+          } else {
+            currentHalfGroup.push({ widget, idx });
+          }
+        });
+
+        if (currentHalfGroup.length > 0) {
+          blocks.push({ type: "half_group", widgets: currentHalfGroup });
+        }
 
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {widgetElements}
+          <div className="space-y-6">
+            {blocks.map((block, bIdx) => {
+              if (block.type === "full") {
+                return (
+                  <div key={`full-${block.widget.id}-${bIdx}`} className="w-full">
+                    {renderWidget(
+                      block.widget,
+                      block.idx,
+                      block.idx === 0,
+                      block.idx === visibleWidgets.length - 1
+                    )}
+                  </div>
+                );
+              }
+
+              // Half group: on desktop (lg:flex), split into left & right columns with Notion draggable divider
+              const col1 = block.widgets.filter((_, i) => i % 2 === 0);
+              const col2 = block.widgets.filter((_, i) => i % 2 === 1);
+
+              return (
+                <div key={`half-group-${bIdx}`} className="w-full">
+                  {/* Desktop Notion Draggable Split */}
+                  <div
+                    ref={containerRef}
+                    className="hidden lg:flex items-start select-none relative"
+                  >
+                    {/* Left Column */}
+                    <div
+                      style={{ width: `calc(${colSplit}% - 8px)` }}
+                      className="space-y-6 min-w-0"
+                    >
+                      {col1.map(({ widget, idx }) =>
+                        renderWidget(
+                          widget,
+                          idx,
+                          idx === 0,
+                          idx === visibleWidgets.length - 1
+                        )
+                      )}
+                    </div>
+
+                    {/* Notion Draggable Divider */}
+                    <div
+                      onMouseDown={startColDrag}
+                      className="w-4 -mx-2 relative flex items-center justify-center cursor-col-resize group flex-shrink-0 self-stretch z-10 select-none py-2"
+                      title="Drag left or right to resize columns (Notion style)"
+                    >
+                      <div
+                        className={`w-[2px] h-full transition-colors rounded-full ${
+                          isColDragging ? "bg-primary" : "bg-border group-hover:bg-primary/70"
+                        }`}
+                      />
+                    </div>
+
+                    {/* Right Column */}
+                    <div
+                      style={{ width: `calc(${100 - colSplit}% - 8px)` }}
+                      className="space-y-6 min-w-0"
+                    >
+                      {col2.map(({ widget, idx }) =>
+                        renderWidget(
+                          widget,
+                          idx,
+                          idx === 0,
+                          idx === visibleWidgets.length - 1
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mobile & Tablet Fallback: Single Column Stack */}
+                  <div className="flex flex-col gap-6 lg:hidden">
+                    {block.widgets.map(({ widget, idx }) =>
+                      renderWidget(
+                        widget,
+                        idx,
+                        idx === 0,
+                        idx === visibleWidgets.length - 1
+                      )
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       })()}
 
 
-      {/* 6. Tags & Categories Explorer */}
-      {topTags.length > 0 && (
+      {/* 6. Tags & Categories Explorer (Only shown if not already added as a layout widget) */}
+      {topTags.length > 0 && !homeWidgets.some((w) => w.id === "tags" && w.visible) && (
         <section className="space-y-3 pt-2">
           <div className="flex items-center gap-2">
             <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">

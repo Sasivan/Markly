@@ -40,6 +40,7 @@ interface GlobalHomepageAnalyticsProps {
   onSelectFolder: (folderId: string) => void;
   onSelectTag?: (tag: string) => void;
   onSelectDomain?: (domain: string) => void;
+  initialViewMode?: "velocity" | "domains" | "categories" | "radar" | "tags";
 }
 
 const CATEGORY_PALETTE = [
@@ -68,9 +69,15 @@ export function GlobalHomepageAnalytics({
   onSelectFolder,
   onSelectTag,
   onSelectDomain,
+  initialViewMode,
 }: GlobalHomepageAnalyticsProps) {
   // Activity metric toggle: 'created' vs 'clicked'
   const [activityMetric, setActivityMetric] = React.useState<"visited" | "created">("visited");
+  const [chartViewMode, setChartViewMode] = React.useState<"velocity" | "domains" | "categories">(
+    initialViewMode === "velocity" || initialViewMode === "domains" || initialViewMode === "categories"
+      ? initialViewMode
+      : "velocity"
+  );
 
   // 1. Identify Top Parent Folders (Root Categories) using real folder tree & descendant counts
   const parentCategories = React.useMemo(() => {
@@ -181,7 +188,7 @@ export function GlobalHomepageAnalytics({
   }, [bookmarks, parentCategories, activityMetric]);
 
   // 2.5: Main Chart Mode: "velocity" (Activity Velocity), "domains" (Top Ecosystems), "categories" (Folder Categories)
-  const [chartViewMode, setChartViewMode] = React.useState<"velocity" | "domains" | "categories">("velocity");
+  // initialized at component top
 
   const velocityData = React.useMemo(() => {
     if (bookmarks.length === 0) return [];
@@ -339,6 +346,360 @@ export function GlobalHomepageAnalytics({
       percentage: ((item.count / total) * 100).toFixed(1),
     }));
   }, [bookmarks]);
+
+  // Standalone Modular Widget 1: Radar Chart
+  if (initialViewMode === "radar") {
+    return (
+      <div className="space-y-3 flex flex-col justify-between py-1">
+        <div className="h-64 w-full flex items-center justify-center py-2">
+          {categoryFingerprint.length < 3 ? (
+            <div className="text-xs text-muted-foreground text-center p-4">
+              Create at least 3 folders or tags to render your category fingerprint.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart
+                data={categoryFingerprint}
+                outerRadius="75%"
+                onClick={(e: any) => {
+                  if (e && e.activePayload && e.activePayload.length) {
+                    const cat = e.activePayload[0].payload?.category?.replace(/^#/, "");
+                    const foundFolder = folders.find((f) => f.name.toLowerCase() === cat?.toLowerCase());
+                    if (foundFolder) {
+                      onSelectFolder(foundFolder.id);
+                    } else if (cat && onSelectTag) {
+                      onSelectTag(cat);
+                    }
+                  }
+                }}
+              >
+                <PolarGrid stroke="currentColor" opacity={0.1} />
+                <PolarAngleAxis
+                  dataKey="category"
+                  tick={{ fill: "currentColor", fontSize: 11, cursor: "pointer" }}
+                  onClick={(entry: any) => {
+                    const cat = entry?.value?.replace(/^#/, "");
+                    const foundFolder = folders.find((f) => f.name.toLowerCase() === cat?.toLowerCase());
+                    if (foundFolder) {
+                      onSelectFolder(foundFolder.id);
+                    } else if (cat && onSelectTag) {
+                      onSelectTag(cat);
+                    }
+                  }}
+                />
+                <PolarRadiusAxis stroke="currentColor" strokeOpacity={0.15} tick={false} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const d = payload[0].payload;
+                      return (
+                        <div className="rounded-xl border border-border bg-card p-2.5 shadow-lg text-xs text-card-foreground">
+                          <span className="font-medium block text-foreground">{d.category}</span>
+                          <span className="text-muted-foreground font-mono tabular-nums text-xs">
+                            {d.count} {d.count === 1 ? "bookmark" : "bookmarks"}
+                          </span>
+                          <span className="text-[10px] text-primary block mt-1">Click to open folder</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Radar
+                  name="Bookmarks"
+                  dataKey="count"
+                  stroke="#2563eb"
+                  fill="#2563eb"
+                  fillOpacity={0.15}
+                  strokeWidth={1.5}
+                  cursor="pointer"
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Clickable Category Chips */}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2 border-t border-border">
+          {categoryFingerprint.map((item) => {
+            const cleanName = item.category.replace(/^#/, "");
+            const folder = folders.find((f) => f.name.toLowerCase() === cleanName.toLowerCase());
+            return (
+              <button
+                type="button"
+                key={`radar-chip-${item.category}`}
+                onClick={() => {
+                  if (folder) onSelectFolder(folder.id);
+                  else if (onSelectTag) onSelectTag(cleanName);
+                }}
+                className="px-2 py-0.5 rounded-md bg-secondary hover:bg-muted border border-border text-xs font-mono text-muted-foreground hover:text-foreground cursor-pointer transition-colors outline-none focus:outline-none"
+                title={`Open ${item.category}`}
+              >
+                <span>{item.category}: </span>
+                <span className="font-semibold text-foreground">{item.count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Standalone Modular Widget 2: Tag Distribution Donut
+  if (initialViewMode === "tags") {
+    return (
+      <div className="space-y-4 flex flex-col justify-between py-1">
+        {tagDistribution.length === 0 ? (
+          <div className="h-52 flex items-center justify-center text-xs text-muted-foreground text-center">
+            No tags found on your bookmarks yet. Tag items to visualize their distribution here.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center min-h-52">
+            <div className="h-52 w-full flex items-center justify-center">
+              <PieChart width={200} height={200} style={{ outline: "none" }}>
+                <Pie
+                  isAnimationActive={false}
+                  data={tagDistribution}
+                  dataKey="count"
+                  nameKey="tag"
+                  cx={100}
+                  cy={100}
+                  innerRadius={55}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  cursor="pointer"
+                  onClick={(entry: any) => onSelectTag && entry?.tag && onSelectTag(entry.tag)}
+                  style={{ outline: "none" }}
+                >
+                  {tagDistribution.map((entry, index) => (
+                    <Cell
+                      key={`cell-${entry.tag}-${index}`}
+                      fill={entry.color}
+                      stroke="transparent"
+                      className="transition-opacity hover:opacity-80"
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="rounded-xl border border-border bg-card p-2 shadow-lg text-xs text-card-foreground">
+                          <span className="font-medium block text-foreground">#{data.tag}</span>
+                          <span className="text-muted-foreground font-mono tabular-nums text-xs">
+                            {data.count} ({data.percentage}%)
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </PieChart>
+            </div>
+
+            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+              {tagDistribution.map((item) => (
+                <button
+                  type="button"
+                  key={`tag-legend-${item.tag}`}
+                  onClick={() => onSelectTag && onSelectTag(item.tag)}
+                  className="flex items-center justify-between text-xs hover:bg-secondary/60 p-1.5 rounded-md cursor-pointer transition-colors group outline-none"
+                  title={`Filter by tag #${item.tag}`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-muted-foreground group-hover:text-foreground font-medium truncate">
+                      #{item.tag}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-muted-foreground">
+                    <span className="tabular-nums font-semibold text-foreground">{item.count}</span>
+                    <span className="text-[10px]">({item.percentage}%)</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Standalone Modular Widget 3 & 4: Velocity or Domains Area Charts
+  if (initialViewMode === "velocity" || initialViewMode === "domains" || initialViewMode === "categories") {
+    return (
+      <div className="space-y-3 py-1">
+        <div className="h-64 w-full pt-1">
+          {chartViewMode === "velocity" && (
+            velocityData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                No bookmark history recorded yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={velocityData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="velVisitsStandalone" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="velCreatedStandalone" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0d9488" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#0d9488" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
+                  <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
+                            <div className="font-medium border-b border-border pb-1 font-mono text-xs text-muted-foreground">
+                              Month: {label}
+                            </div>
+                            <div className="space-y-1">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={`v-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
+                                    {entry.name}
+                                  </span>
+                                  <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Area type="monotone" dataKey="Total Visits" stroke="#2563eb" strokeWidth={2} fill="url(#velVisitsStandalone)" />
+                  <Area type="monotone" dataKey="New Bookmarks" stroke="#0d9488" strokeWidth={2} fill="url(#velCreatedStandalone)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          )}
+
+          {chartViewMode === "domains" && (
+            domainTimeline.data.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                No domain activity recorded yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={domainTimeline.data}
+                  margin={{ top: 10, right: 15, left: -15, bottom: 0 }}
+                  onClick={(e: any) => {
+                    if (e && e.activePayload && e.activePayload.length) {
+                      const topDomainEntry = e.activePayload[0];
+                      if (topDomainEntry && topDomainEntry.name && onSelectDomain) {
+                        onSelectDomain(topDomainEntry.name);
+                      }
+                    }
+                  }}
+                >
+                  <defs>
+                    {CATEGORY_PALETTE.map((pal) => (
+                      <linearGradient key={`standalone_dom_${pal.gradId}`} id={`standalone_dom_${pal.gradId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={pal.fill} stopOpacity={0.28} />
+                        <stop offset="95%" stopColor={pal.fill} stopOpacity={0.02} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.06} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} />
+                  <YAxis tick={{ fontSize: 11, fill: "currentColor" }} stroke="currentColor" strokeOpacity={0.15} allowDecimals={false} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-xl border border-border bg-card p-3 shadow-lg text-xs space-y-2 min-w-44 text-card-foreground">
+                            <div className="font-medium border-b border-border pb-1 font-mono text-xs text-muted-foreground flex items-center justify-between">
+                              <span>Month: {label}</span>
+                              <span className="text-[10px] text-teal-600">Click to filter</span>
+                            </div>
+                            <div className="space-y-1">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={`dom-tip-${i}`} className="flex items-center justify-between gap-3 text-xs">
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    <span className="h-2 w-2 rounded-xs" style={{ backgroundColor: entry.stroke }} />
+                                    {entry.name}
+                                  </span>
+                                  <span className="font-mono tabular-nums font-semibold">{entry.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  {domainTimeline.topDomains.map((dom, idx) => {
+                    const pal = CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
+                    return (
+                      <Area
+                        key={dom}
+                        type="monotone"
+                        dataKey={dom}
+                        stackId="1"
+                        stroke={pal.stroke}
+                        strokeWidth={1.5}
+                        fill={`url(#standalone_dom_${pal.gradId})`}
+                        cursor="pointer"
+                      />
+                    );
+                  })}
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          )}
+        </div>
+
+        {/* Dynamic Legend Row */}
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-muted-foreground pt-2 border-t border-border">
+          {chartViewMode === "velocity" && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-xs bg-blue-600" />
+                <span>Total Visits</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-xs bg-teal-600" />
+                <span>New Bookmarks Added</span>
+              </div>
+            </>
+          )}
+
+          {chartViewMode === "domains" && (
+            domainTimeline.topDomains.map((dom, idx) => (
+              <button
+                key={dom}
+                type="button"
+                onClick={() => onSelectDomain?.(dom)}
+                className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors outline-none"
+              >
+                <span
+                  className="h-2.5 w-2.5 rounded-xs flex-shrink-0"
+                  style={{ backgroundColor: CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length].stroke }}
+                />
+                <span>{dom}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="space-y-6 pt-2 animate-in fade-in duration-300 select-text">

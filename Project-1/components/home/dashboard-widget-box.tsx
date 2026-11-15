@@ -78,6 +78,21 @@ export function DashboardWidgetBox({
     return false;
   });
 
+  const [viewBoxMenuOpen, setViewBoxMenuOpen] = React.useState(false);
+  const viewBoxMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (viewBoxMenuRef.current && !viewBoxMenuRef.current.contains(event.target as Node)) {
+        setViewBoxMenuOpen(false);
+      }
+    }
+    if (viewBoxMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [viewBoxMenuOpen]);
+
   const toggleCollapsed = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsCollapsed((prev) => {
@@ -95,14 +110,14 @@ export function DashboardWidgetBox({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className={`rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col transition-all duration-200 group/box ${
+      className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-all duration-200 group/box ${
         span === "2" ? "lg:col-span-2" : "lg:col-span-1"
-      }`}
+      } resize-y min-h-[140px]`}
     >
       {/* Box Header Toolbar */}
-      <div className="px-3.5 py-2.5 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-2.5">
+      <div className="px-3 py-2 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-2 select-none">
         {/* Left: Notion Chevron Collapse/Expand, Drag Handle, Icon Badge, Title, Item Count */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
           <button
             type="button"
             onClick={toggleCollapsed}
@@ -119,13 +134,13 @@ export function DashboardWidgetBox({
             className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-0.5 rounded hover:bg-secondary transition-colors"
             title="Drag to place section anywhere"
           >
-            <GripVertical className="h-4 w-4" />
+            <GripVertical className="h-3.5 w-3.5" />
           </div>
           <div className="h-6 w-6 rounded-md bg-secondary text-foreground flex items-center justify-center flex-shrink-0 border border-border/60">
             {icon}
           </div>
           <div
-            className="flex items-center gap-2 truncate cursor-pointer select-text"
+            className="flex items-center gap-1.5 truncate cursor-pointer select-text"
             onClick={toggleCollapsed}
           >
             <h2 className="text-xs font-semibold text-foreground truncate">{title}</h2>
@@ -137,54 +152,54 @@ export function DashboardWidgetBox({
           </div>
         </div>
 
-        {/* Right: View Switcher, Move Up/Down, Extra Actions, View All Link */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Right: Compact View Switcher, Move Up/Down, Extra Actions, Icon-Only > Link */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
 
-          {/* Multiple View Toggle for this box (Grid / List / Compact) */}
+          {/* Compact View Switcher Popover (Replacing horizontal buttons) */}
           {availableViews && availableViews.length > 0 && onViewModeChange && viewMode && (
-            <div className="flex items-center bg-secondary p-0.5 rounded-md border border-border/60">
-              {availableViews.includes("grid") && (
-                <button
-                  type="button"
-                  onClick={() => onViewModeChange("grid")}
-                  className={`p-1 rounded cursor-pointer transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-card text-foreground shadow-xs font-medium"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Grid View (Cards)"
-                >
-                  <LayoutGrid className="h-3 w-3" />
-                </button>
-              )}
-              {availableViews.includes("list") && (
-                <button
-                  type="button"
-                  onClick={() => onViewModeChange("list")}
-                  className={`p-1 rounded cursor-pointer transition-colors ${
-                    viewMode === "list"
-                      ? "bg-card text-foreground shadow-xs font-medium"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="List View (Detailed Rows)"
-                >
-                  <List className="h-3 w-3" />
-                </button>
-              )}
-              {availableViews.includes("compact") && (
-                <button
-                  type="button"
-                  onClick={() => onViewModeChange("compact")}
-                  className={`p-1 rounded cursor-pointer transition-colors ${
-                    viewMode === "compact"
-                      ? "bg-card text-foreground shadow-xs font-medium"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title="Compact View (Dense 1-Line Rows)"
-                >
-                  <Rows3 className="h-3 w-3" />
-                </button>
+            <div className="relative" ref={viewBoxMenuRef}>
+              <button
+                type="button"
+                onClick={() => setViewBoxMenuOpen(!viewBoxMenuOpen)}
+                className="h-6 px-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-foreground border border-border/50 text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                title="Switch widget view mode"
+              >
+                {viewMode === "grid" && <LayoutGrid className="h-3 w-3 text-primary" />}
+                {viewMode === "list" && <List className="h-3 w-3 text-primary" />}
+                {viewMode === "compact" && <Rows3 className="h-3 w-3 text-primary" />}
+                <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+              </button>
+
+              {viewBoxMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                  {[
+                    { id: "grid", label: "Grid Cards", icon: LayoutGrid },
+                    { id: "list", label: "Document List", icon: List },
+                    { id: "compact", label: "Compact Rows", icon: Rows3 },
+                  ]
+                    .filter((v) => availableViews.includes(v.id as any))
+                    .map((v) => {
+                      const Icon = v.icon;
+                      const isSel = viewMode === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => {
+                            onViewModeChange(v.id as any);
+                            setViewBoxMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
+                            isSel ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          <Icon className={`h-3 w-3 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className="text-[11px]">{v.label}</span>
+                        </button>
+                      );
+                    })}
+                </div>
               )}
             </div>
           )}
@@ -211,15 +226,15 @@ export function DashboardWidgetBox({
             </button>
           </div>
 
-          {/* View All link */}
+          {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}
           {onViewAll && (
             <button
               type="button"
               onClick={onViewAll}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1 pl-1"
+              className="h-6 w-6 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title={viewAllLabel || "Open page"}
             >
-              <span className="hidden sm:inline">{viewAllLabel}</span>
-              <ArrowRight className="h-3 w-3" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

@@ -22,12 +22,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "npm"
           cache-dependency-path: Project-1/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Rebuild Native SQLite Addon
+        run: npm rebuild better-sqlite3 --build-from-source
 
       - name: Production Dependency Audit
         run: npm audit --omit=dev

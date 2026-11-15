@@ -14,9 +14,11 @@ import {
   ShieldAlert,
   ChevronDown,
   CheckCircle2,
+  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
+import { ThemeAccentPicker } from "./theme-accent-picker";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder } from "@/server/db/schema";
 
@@ -27,6 +29,7 @@ interface AppHeaderProps {
   onOpenApiKeyModal?: () => void;
   onOpenProfile?: () => void;
   onNavigateHome?: () => void;
+  onOpenShortcuts?: () => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   activeView?: string;
@@ -40,6 +43,7 @@ export function AppHeader({
   onOpenApiKeyModal,
   onOpenProfile,
   onNavigateHome,
+  onOpenShortcuts,
   isSidebarCollapsed,
   onToggleSidebar,
   activeView = "home",
@@ -150,7 +154,20 @@ export function AppHeader({
           <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
 
-        {/* 4. Theme Toggle */}
+        {/* 4. Keyboard Shortcuts Cheatsheet (?) */}
+        <button
+          type="button"
+          onClick={onOpenShortcuts}
+          title="Keyboard Navigation & Shortcuts (?)"
+          className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-secondary flex items-center justify-center text-foreground cursor-pointer transition-colors"
+        >
+          <Keyboard className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+
+        {/* 5. Theme Accent Picker */}
+        <ThemeAccentPicker />
+
+        {/* 6. Theme Toggle */}
         <ThemeToggle />
 
         {/* 5. User Profile Avatar & Dropdown Menu */}

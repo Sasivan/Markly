@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { PwaRegistrar } from "@/components/pwa-registrar";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -25,8 +26,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var a=localStorage.getItem('markly_accent');if(a){document.documentElement.setAttribute('data-accent',a);}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <PwaRegistrar />
+          {children}
+        </Providers>
       </body>
     </html>
   );

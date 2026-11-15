@@ -38,6 +38,7 @@ import { LibraryInsightsView } from "@/components/insights/library-insights-view
 import { ProfileView } from "@/components/profile/profile-view";
 import { RecycleBinView } from "@/components/trash/recycle-bin-view";
 import { FeedbackView } from "@/components/feedback/feedback-view";
+import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -201,6 +202,9 @@ export function MarklyWorkspace({
 
   // Universal Notion-Style Site Peek / Preview Modal state
   const [sitePreviewBookmark, setSitePreviewBookmark] = React.useState<BookmarkWithDetails | null>(null);
+
+  // Keyboard Shortcuts Cheatsheet modal state
+  const [shortcutsModalOpen, setShortcutsModalOpen] = React.useState(false);
 
   // Hydration ref to avoid overwriting URL query params on initial mount
   const isHydratedRef = React.useRef(false);
@@ -374,6 +378,13 @@ export function MarklyWorkspace({
         return;
       }
 
+      // ?: Open Keyboard Shortcuts Cheatsheet
+      if (e.key === "?") {
+        e.preventDefault();
+        setShortcutsModalOpen((prev) => !prev);
+        return;
+      }
+
       // G key sequence listener
       if (e.key === "g" || e.key === "G") {
         gPressedRef.current = true;
@@ -392,6 +403,36 @@ export function MarklyWorkspace({
         } else if (e.key === "a" || e.key === "A") {
           e.preventDefault();
           setActiveView("all");
+          setActiveFolderId(null);
+          gPressedRef.current = false;
+        } else if (e.key === "h" || e.key === "H") {
+          e.preventDefault();
+          setActiveView("home");
+          setActiveFolderId(null);
+          gPressedRef.current = false;
+        } else if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          setActiveView("recent");
+          setActiveFolderId(null);
+          gPressedRef.current = false;
+        } else if (e.key === "u" || e.key === "U") {
+          e.preventDefault();
+          setActiveView("unsorted");
+          setActiveFolderId(null);
+          gPressedRef.current = false;
+        } else if (e.key === "c" || e.key === "C") {
+          e.preventDefault();
+          setActiveView("collections");
+          setActiveFolderId(null);
+          gPressedRef.current = false;
+        } else if (e.key === "k" || e.key === "K") {
+          e.preventDefault();
+          setActiveView("graph");
+          setActiveFolderId(null);
+          gPressedRef.current = false;
+        } else if (e.key === "b" || e.key === "B") {
+          e.preventDefault();
+          setActiveView("trash");
           setActiveFolderId(null);
           gPressedRef.current = false;
         }
@@ -1240,6 +1281,12 @@ export function MarklyWorkspace({
         }}
       />
 
+      {/* Keyboard Shortcuts & Vim Cheatsheet Modal */}
+      <KeyboardShortcutsModal
+        open={shortcutsModalOpen}
+        onOpenChange={setShortcutsModalOpen}
+      />
+
       {/* Sidebar with recursive folder tree & drag-and-drop */}
       <Sidebar
         folderTree={folderTree}
@@ -1284,6 +1331,7 @@ export function MarklyWorkspace({
           onOpenImportExport={() => setImportExportOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
           onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
+          onOpenShortcuts={() => setShortcutsModalOpen(true)}
           onOpenProfile={() => {
             setActiveView("profile");
             setActiveFolderId(null);

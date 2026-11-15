@@ -15,10 +15,12 @@ import {
   Bookmark,
   ChevronDown,
   ChevronRight,
+  Columns3,
+  Check,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
-import type { HomeWidgetKey } from "./home-layout-modal";
+import type { HomeWidgetKey, WidgetColSpan } from "./home-layout-modal";
 
 export type WidgetViewMode = "grid" | "list" | "compact";
 
@@ -28,6 +30,8 @@ interface DashboardWidgetBoxProps {
   icon: React.ReactNode;
   badgeText?: string | number;
   span?: "1" | "2";
+  colSpan?: WidgetColSpan;
+  onColSpanChange?: (span: WidgetColSpan) => void;
   viewMode?: WidgetViewMode;
   availableViews?: WidgetViewMode[];
   onViewModeChange?: (mode: WidgetViewMode) => void;
@@ -51,6 +55,8 @@ export function DashboardWidgetBox({
   icon,
   badgeText,
   span = "1",
+  colSpan,
+  onColSpanChange,
   viewMode,
   availableViews,
   onViewModeChange,
@@ -76,19 +82,37 @@ export function DashboardWidgetBox({
     return false;
   });
 
-  // User-Customizable Box Width (Persisted in localStorage, 25% to 100%)
-  const [boxWidth, setBoxWidth] = React.useState<number>(() => {
+  // Track Column Span (2 to 12 cols, persisted in localStorage)
+  const [colSpanState, setColSpanState] = React.useState<WidgetColSpan>(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("markly_box_w_" + id);
+        const stored = localStorage.getItem("markly_box_colspan_" + id);
         if (stored) {
           const val = Number(stored);
-          if (!isNaN(val) && val >= 25 && val <= 100) return val;
+          if ([2, 3, 4, 6, 8, 9, 12].includes(val)) return val as WidgetColSpan;
+        }
+        const legacyW = localStorage.getItem("markly_box_w_" + id);
+        if (legacyW) {
+          const val = Number(legacyW);
+          if (val >= 90) return 12;
+          if (val >= 70) return 9;
+          if (val >= 58) return 8;
+          if (val >= 42) return 6;
+          if (val >= 28) return 4;
+          if (val >= 20) return 3;
+          return 2;
         }
       } catch {}
     }
-    return span === "2" ? 100 : 50;
+    if (colSpan) return colSpan;
+    return span === "2" ? 12 : 6;
   });
+
+  React.useEffect(() => {
+    if (colSpan && colSpan !== colSpanState) {
+      setColSpanState(colSpan);
+    }
+  }, [colSpan]);
 
   // User-Customizable Box Height (Persisted in localStorage)
   const [boxHeight, setBoxHeight] = React.useState<number | null>(() => {
@@ -106,6 +130,20 @@ export function DashboardWidgetBox({
 
   const boxRef = React.useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = React.useState<"width" | "height" | "both" | null>(null);
+  const [colMenuOpen, setColMenuOpen] = React.useState(false);
+  const colMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
+        setColMenuOpen(false);
+      }
+    }
+    if (colMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [colMenuOpen]);
 
   const startResize = React.useCallback(
     (direction: "width" | "height" | "both", startEvent: React.MouseEvent) => {
@@ -123,14 +161,26 @@ export function DashboardWidgetBox({
       const initialBoxRect = boxElem.getBoundingClientRect();
       const initialWidthPx = initialBoxRect.width;
       const initialHeightPx = initialBoxRect.height;
+      let lastSpan: WidgetColSpan = colSpanState;
 
       const onMouseMove = (moveEvent: MouseEvent) => {
         if (direction === "width" || direction === "both") {
           const deltaX = moveEvent.clientX - startX;
-          const newWidthPx = Math.max(280, initialWidthPx + deltaX);
-          const rawPercent = Math.min(100, Math.max(25, Math.round((newWidthPx / parentWidth) * 100)));
-          const snapped = rawPercent >= 93 ? 100 : Math.abs(rawPercent - 50) <= 3 ? 50 : rawPercent;
-          setBoxWidth(snapped);
+          const newWidthPx = Math.max(120, initialWidthPx + deltaX);
+          const fraction = newWidthPx / parentWidth;
+          const rawCols = Math.round(fraction * 12);
+          const validSpans: WidgetColSpan[] = [2, 3, 4, 6, 8, 9, 12];
+          let closest = validSpans[0];
+          let minDiff = Math.abs(closest - rawCols);
+          for (const s of validSpans) {
+            const diff = Math.abs(s - rawCols);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closest = s;
+            }
+          }
+          lastSpan = closest;
+          setColSpanState(closest);
         }
 
         if (direction === "height" || direction === "both") {
@@ -146,10 +196,8 @@ export function DashboardWidgetBox({
         window.removeEventListener("mouseup", onMouseUp);
 
         try {
-          setBoxWidth((currW) => {
-            localStorage.setItem("markly_box_w_" + id, String(currW));
-            return currW;
-          });
+          localStorage.setItem("markly_box_colspan_" + id, String(lastSpan));
+          onColSpanChange?.(lastSpan);
           setBoxHeight((currH) => {
             if (currH !== null) {
               localStorage.setItem("markly_box_h_" + id, String(currH));
@@ -162,7 +210,7 @@ export function DashboardWidgetBox({
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", onMouseUp);
     },
-    [id]
+    [id, colSpanState, onColSpanChange]
   );
 
   const [viewBoxMenuOpen, setViewBoxMenuOpen] = React.useState(false);
@@ -191,19 +239,48 @@ export function DashboardWidgetBox({
     });
   };
 
+  const handleCycleColSpan = () => {
+    const cycleOrder: WidgetColSpan[] = [12, 6, 4, 3];
+    const currentIdx = cycleOrder.indexOf(colSpanState);
+    const nextSpan = currentIdx !== -1 && currentIdx < cycleOrder.length - 1 ? cycleOrder[currentIdx + 1] : cycleOrder[0];
+    setColSpanState(nextSpan);
+    try {
+      localStorage.setItem("markly_box_colspan_" + id, String(nextSpan));
+    } catch {}
+    onColSpanChange?.(nextSpan);
+  };
+
+  const colSpanClass = {
+    2: "col-span-1 md:col-span-2",
+    3: "col-span-1 md:col-span-3",
+    4: "col-span-1 md:col-span-4",
+    6: "col-span-1 md:col-span-6",
+    8: "col-span-1 md:col-span-8",
+    9: "col-span-1 md:col-span-9",
+    12: "col-span-1 md:col-span-12",
+  }[colSpanState] || "col-span-1 md:col-span-6";
+
+  const spanLabel = {
+    12: "Full (100%)",
+    9: "3/4 (75%)",
+    8: "2/3 (67%)",
+    6: "1/2 (50%)",
+    4: "1/3 (33%)",
+    3: "1/4 (25%)",
+    2: "1/6 (16%)",
+  }[colSpanState] || `${colSpanState}/12`;
+
   return (
     <div
       ref={boxRef}
-      draggable={true}
-      onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       style={{
-        width: boxWidth >= 95 ? "100%" : `calc(${boxWidth}% - 7px)`,
+        gridColumn: typeof window !== "undefined" && window.innerWidth >= 768 ? `span ${colSpanState} / span ${colSpanState}` : undefined,
         height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
         minHeight: isCollapsed ? undefined : "140px",
       }}
-      className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-[border-color,background-color] duration-150 group/box relative max-md:!w-full flex-shrink-0 flex-grow-0 ${
+      className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
         isResizing ? "ring-2 ring-primary/40 select-none" : ""
       }`}
     >
@@ -224,8 +301,10 @@ export function DashboardWidgetBox({
             )}
           </button>
           <div
+            draggable={!isResizing}
+            onDragStart={onDragStart}
             className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-0.5 rounded hover:bg-secondary transition-colors"
-            title="Drag to place section anywhere"
+            title="Drag to place section anywhere in N rows / N cols"
           >
             <GripVertical className="h-3.5 w-3.5" />
           </div>
@@ -245,11 +324,11 @@ export function DashboardWidgetBox({
           </div>
         </div>
 
-        {/* Right: Compact View Switcher, Move Up/Down, Extra Actions, Icon-Only > Link */}
+        {/* Right: View Switcher, Adaptive Column Width Popover, Extra Actions, Icon-Only > Link */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
 
-          {/* Compact View Switcher Popover (Replacing horizontal buttons) */}
+          {/* Compact View Switcher Popover */}
           {availableViews && availableViews.length > 0 && onViewModeChange && viewMode && (
             <div className="relative" ref={viewBoxMenuRef}>
               <button
@@ -297,26 +376,51 @@ export function DashboardWidgetBox({
             </div>
           )}
 
-          {/* Quick Snap: Half Width (50%) vs Full Width (100%) */}
-          <div className="flex items-center gap-0.5 opacity-60 group-hover/box:opacity-100 transition-opacity">
+          {/* Adaptive N-Col Width Track Popover (Replaces rigid 2-col button) */}
+          <div className="relative" ref={colMenuRef}>
             <button
               type="button"
-              onClick={() => {
-                const nextW = boxWidth >= 90 ? 50 : 100;
-                setBoxWidth(nextW);
-                try {
-                  localStorage.setItem("markly_box_w_" + id, String(nextW));
-                } catch {}
-              }}
-              className="h-6 w-6 rounded border border-border/60 bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-              title={boxWidth >= 90 ? "Snap to Half Width (50%)" : "Expand to Full Width (100%)"}
+              onClick={() => setColMenuOpen(!colMenuOpen)}
+              className="h-6 px-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-foreground border border-border/50 text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
+              title={`Column width: ${spanLabel}. Click to pick column size or resize with mouse handle.`}
             >
-              {boxWidth >= 90 ? (
-                <Minimize2 className="h-3 w-3" />
-              ) : (
-                <Maximize2 className="h-3 w-3" />
-              )}
+              <Columns3 className="h-3 w-3 text-muted-foreground" />
+              <span>{colSpanState === 12 ? "Full" : colSpanState === 6 ? "1/2" : colSpanState === 4 ? "1/3" : colSpanState === 3 ? "1/4" : `${colSpanState}/12`}</span>
+              <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
             </button>
+
+            {colMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-40 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                {[
+                  { span: 12 as WidgetColSpan, label: "Full Width (1 col)" },
+                  { span: 9 as WidgetColSpan, label: "3/4 Width (75%)" },
+                  { span: 8 as WidgetColSpan, label: "2/3 Width (67%)" },
+                  { span: 6 as WidgetColSpan, label: "Half Width (2 cols)" },
+                  { span: 4 as WidgetColSpan, label: "1/3 Width (3 cols)" },
+                  { span: 3 as WidgetColSpan, label: "1/4 Width (4 cols)" },
+                  { span: 2 as WidgetColSpan, label: "1/6 Width (6 cols)" },
+                ].map((item) => (
+                  <button
+                    key={item.span}
+                    type="button"
+                    onClick={() => {
+                      setColSpanState(item.span);
+                      setColMenuOpen(false);
+                      try {
+                        localStorage.setItem("markly_box_colspan_" + id, String(item.span));
+                      } catch {}
+                      onColSpanChange?.(item.span);
+                    }}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer text-[11px] ${
+                      colSpanState === item.span ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {colSpanState === item.span && <Check className="h-3 w-3 text-primary" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}
@@ -343,15 +447,9 @@ export function DashboardWidgetBox({
       {/* Right Edge: Left-to-Right Horizontal Width Resize Handle */}
       <div
         onMouseDown={(e) => startResize("width", e)}
-        onDoubleClick={() => {
-          const nextW = boxWidth >= 90 ? 50 : 100;
-          setBoxWidth(nextW);
-          try {
-            localStorage.setItem("markly_box_w_" + id, String(nextW));
-          } catch {}
-        }}
+        onDoubleClick={handleCycleColSpan}
         className="absolute top-0 right-0 bottom-0 w-2.5 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-        title="Drag left-to-right to resize box width (Double-click to toggle 50% / 100%)"
+        title="Drag left-to-right to resize box column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
       >
         <div
           className={`w-[2.5px] h-10 rounded-full transition-colors ${

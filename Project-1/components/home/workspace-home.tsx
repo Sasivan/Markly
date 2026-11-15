@@ -49,6 +49,7 @@ import {
   DEFAULT_HOME_WIDGETS,
   type HomeWidgetConfig,
   type HomeWidgetKey,
+  type WidgetColSpan,
 } from "./home-layout-modal";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
@@ -166,12 +167,27 @@ export function WorkspaceHome({
     });
   };
 
-  // Toggle span for a widget (1-col half vs 2-col full)
+  // Change column span for a widget (2 to 12 cols)
+  const handleWidgetColSpanChange = (id: HomeWidgetKey, newColSpan: WidgetColSpan) => {
+    setHomeWidgets((prev) => {
+      const next = prev.map((w) =>
+        w.id === id ? { ...w, colSpan: newColSpan, span: (newColSpan === 12 ? "2" : "1") as "1" | "2" } : w
+      );
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Toggle span for a widget (Half width vs Full width)
   const handleToggleWidgetSpan = (id: HomeWidgetKey) => {
     setHomeWidgets((prev) => {
       const next = prev.map((w) => {
         if (w.id === id) {
-          return { ...w, span: ((w.span === "2" ? "1" : "2") as "1" | "2") };
+          const curr = w.colSpan ?? (w.span === "2" ? 12 : 6);
+          const nextSpan: WidgetColSpan = curr === 12 ? 6 : 12;
+          return { ...w, colSpan: nextSpan, span: (nextSpan === 12 ? "2" : "1") as "1" | "2" };
         }
         return w;
       });
@@ -221,7 +237,22 @@ export function WorkspaceHome({
           const merged: HomeWidgetConfig[] = [];
           for (const p of parsed) {
             const def = DEFAULT_HOME_WIDGETS.find((d) => d.id === p.id);
-            if (def) merged.push({ ...def, visible: p.visible ?? true, span: p.span ?? def.span ?? "1" });
+            if (def) {
+              let colSpan = p.colSpan;
+              try {
+                const savedCol = localStorage.getItem("markly_box_colspan_" + p.id);
+                if (savedCol) {
+                  const val = Number(savedCol);
+                  if ([2, 3, 4, 6, 8, 9, 12].includes(val)) colSpan = val as WidgetColSpan;
+                }
+              } catch {}
+              merged.push({
+                ...def,
+                visible: p.visible ?? true,
+                span: p.span ?? def.span ?? "1",
+                colSpan: colSpan ?? def.colSpan ?? (p.span === "2" ? 12 : 6),
+              });
+            }
           }
           for (const def of DEFAULT_HOME_WIDGETS) {
             if (!merged.some((m) => m.id === def.id)) merged.push(def);
@@ -806,6 +837,8 @@ export function WorkspaceHome({
     const commonProps = {
       id: widget.id,
       span: widget.span ?? "1",
+      colSpan: widget.colSpan ?? (widget.span === "2" ? 12 : 6),
+      onColSpanChange: (span: WidgetColSpan) => handleWidgetColSpanChange(widget.id, span),
       isFirst,
       isLast,
       onToggleSpan: () => handleToggleWidgetSpan(widget.id),
@@ -1456,7 +1489,7 @@ export function WorkspaceHome({
         }
 
         return (
-          <div className="flex flex-wrap items-start gap-3.5 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 w-full items-start">
             {visibleWidgets.map((widget, idx) =>
               renderWidget(widget, idx, idx === 0, idx === visibleWidgets.length - 1)
             )}

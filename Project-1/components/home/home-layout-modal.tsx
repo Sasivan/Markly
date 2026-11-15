@@ -29,10 +29,7 @@ import {
   PieChart,
   Globe,
   BarChart3,
-  Maximize2,
-  Minimize2,
-  MoveLeft,
-  MoveRight,
+  Columns3,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
@@ -51,26 +48,29 @@ export type HomeWidgetKey =
   | "analytics_domains"
   | "tags";
 
+export type WidgetColSpan = 2 | 3 | 4 | 6 | 8 | 9 | 12;
+
 export interface HomeWidgetConfig {
   id: HomeWidgetKey;
   label: string;
   visible: boolean;
-  span?: "1" | "2"; // 1 = Half Width, 2 = Full Width
+  span?: "1" | "2"; // 1 = Half Width, 2 = Full Width (legacy)
+  colSpan?: WidgetColSpan; // 2..12 column track span
 }
 
 export const DEFAULT_HOME_WIDGETS: HomeWidgetConfig[] = [
-  { id: "heatmap", label: "365-Day Activity Heatmap", visible: true, span: "2" },
-  { id: "scratchpad", label: "Quick Scratchpad", visible: true, span: "1" },
-  { id: "folders", label: "Quick Access Folders", visible: true, span: "1" },
-  { id: "recent", label: "Recently Visited Sites", visible: true, span: "1" },
-  { id: "favorites", label: "Starred Favorites", visible: true, span: "1" },
-  { id: "unsorted", label: "Inbox / Unsorted Bookmarks", visible: true, span: "1" },
-  { id: "tags", label: "Workspace Topics & Tags", visible: true, span: "1" },
-  { id: "spectrum", label: "Inactivity Dot Spectrum", visible: true, span: "2" },
-  { id: "analytics_velocity", label: "Activity Velocity Momentum", visible: true, span: "2" },
-  { id: "analytics_domains", label: "Top Web Ecosystems", visible: true, span: "1" },
-  { id: "analytics_radar", label: "Category Fingerprint Radar", visible: true, span: "1" },
-  { id: "analytics_tags", label: "Tag Distribution Donut", visible: true, span: "1" },
+  { id: "heatmap", label: "365-Day Activity Heatmap", visible: true, span: "2", colSpan: 12 },
+  { id: "scratchpad", label: "Quick Scratchpad", visible: true, span: "1", colSpan: 6 },
+  { id: "folders", label: "Quick Access Folders", visible: true, span: "1", colSpan: 6 },
+  { id: "recent", label: "Recently Visited Sites", visible: true, span: "1", colSpan: 6 },
+  { id: "favorites", label: "Starred Favorites", visible: true, span: "1", colSpan: 6 },
+  { id: "unsorted", label: "Inbox / Unsorted Bookmarks", visible: true, span: "1", colSpan: 6 },
+  { id: "tags", label: "Workspace Topics & Tags", visible: true, span: "1", colSpan: 6 },
+  { id: "spectrum", label: "Inactivity Dot Spectrum", visible: true, span: "2", colSpan: 12 },
+  { id: "analytics_velocity", label: "Activity Velocity Momentum", visible: true, span: "2", colSpan: 12 },
+  { id: "analytics_domains", label: "Top Web Ecosystems", visible: true, span: "1", colSpan: 4 },
+  { id: "analytics_radar", label: "Category Fingerprint Radar", visible: true, span: "1", colSpan: 4 },
+  { id: "analytics_tags", label: "Tag Distribution Donut", visible: true, span: "1", colSpan: 4 },
 ];
 
 interface HomeLayoutModalProps {
@@ -111,21 +111,18 @@ export function HomeLayoutModal({
     );
   };
 
-  const toggleSpan = (id: HomeWidgetKey) => {
+  const cycleColSpan = (id: HomeWidgetKey) => {
     setLocalWidgets((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, span: w.span === "2" ? "1" : "2" } : w))
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        const current = w.colSpan ?? (w.span === "2" ? 12 : 6);
+        // Cycle: 12 (Full) -> 6 (Half) -> 4 (1/3) -> 3 (1/4) -> 12
+        const order: WidgetColSpan[] = [12, 6, 4, 3];
+        const idx = order.indexOf(current);
+        const next = idx !== -1 && idx < order.length - 1 ? order[idx + 1] : order[0];
+        return { ...w, colSpan: next, span: next === 12 ? "2" : "1" };
+      })
     );
-  };
-
-  // Reorder widget by moving directly to target slot (1 box right, 2 boxes right, or N slots across)
-  const moveWidgetToSlot = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= localWidgets.length) return;
-    setLocalWidgets((prev) => {
-      const copy = [...prev];
-      const [moved] = copy.splice(fromIndex, 1);
-      copy.splice(toIndex, 0, moved);
-      return copy;
-    });
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -220,7 +217,7 @@ export function HomeLayoutModal({
                   Homepage Box Layout & Reordering
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
-                  Interactive multi-column board. Drag any box to any slot (1 box right, 2 boxes right, or across N positions) to reorder your real homepage flow.
+                  Multi-column board mirroring your homepage. Drag any box to any slot (1 box right, 2 boxes right, or across N positions).
                 </DialogDescription>
               </div>
             </div>
@@ -244,12 +241,33 @@ export function HomeLayoutModal({
           </div>
         </DialogHeader>
 
-        {/* Visual Multi-Column Layout Grid (N-to-N Drag and Drop) */}
+        {/* Visual Multi-Column Layout Grid (N-to-N Drag and Drop matching Homepage) */}
         <div className="overflow-y-auto flex-1 pr-1.5 py-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-12 gap-2.5 w-full">
             {localWidgets.map((widget, index) => {
               const isDragging = draggedIndex === index;
               const isOver = dragOverIndex === index && draggedIndex !== index;
+              const currentSpan = widget.colSpan ?? (widget.span === "2" ? 12 : 6);
+
+              const colSpanClass = {
+                2: "col-span-12 sm:col-span-2",
+                3: "col-span-12 sm:col-span-3",
+                4: "col-span-12 sm:col-span-4",
+                6: "col-span-12 sm:col-span-6",
+                8: "col-span-12 sm:col-span-8",
+                9: "col-span-12 sm:col-span-9",
+                12: "col-span-12",
+              }[currentSpan] || "col-span-12 sm:col-span-6";
+
+              const spanLabel = {
+                12: "Full (100%)",
+                9: "3/4 (75%)",
+                8: "2/3 (67%)",
+                6: "1/2 (50%)",
+                4: "1/3 (33%)",
+                3: "1/4 (25%)",
+                2: "1/6 (16%)",
+              }[currentSpan] || `${currentSpan}/12`;
 
               return (
                 <div
@@ -260,11 +278,11 @@ export function HomeLayoutModal({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`group relative p-3 rounded-xl border text-xs transition-all select-none cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 min-h-[96px] ${
+                  className={`group relative p-3 rounded-xl border text-xs transition-all select-none cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 min-h-[96px] ${colSpanClass} ${
                     isDragging
                       ? "opacity-30 border-dashed border-primary scale-95"
                       : isOver
-                      ? "ring-2 ring-primary border-primary bg-primary/10 scale-[1.02] shadow-md"
+                      ? "ring-2 ring-primary border-primary bg-primary/10 scale-[1.01] shadow-md"
                       : widget.visible
                       ? "bg-secondary/40 border-border hover:border-border-hover hover:bg-secondary/70 shadow-2xs"
                       : "bg-muted/20 border-border/40 opacity-55"
@@ -291,12 +309,15 @@ export function HomeLayoutModal({
                     </div>
                   </div>
 
-                  {/* Bottom Controls Bar: Visibility, Span, and Quick Shift */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px]">
+                  {/* Bottom Controls Bar: Visibility and Column Track Width */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] gap-1.5">
                     {/* Visibility Switch */}
                     <button
                       type="button"
-                      onClick={() => toggleVisibility(widget.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleVisibility(widget.id);
+                      }}
                       className={`px-2 py-0.5 rounded-md border flex items-center gap-1 cursor-pointer transition-colors ${
                         widget.visible
                           ? "bg-background border-border text-foreground hover:bg-accent"
@@ -308,47 +329,19 @@ export function HomeLayoutModal({
                       <span>{widget.visible ? "Active" : "Hidden"}</span>
                     </button>
 
-                    {/* Width / Span Toggle */}
+                    {/* Column Width Selector */}
                     <button
                       type="button"
-                      onClick={() => toggleSpan(widget.id)}
-                      className="px-2 py-0.5 rounded-md border border-border bg-background hover:bg-accent text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors font-mono"
-                      title={widget.span === "2" ? "Full width (100%) - click to make half width" : "Half width (50%) - click to make full width"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cycleColSpan(widget.id);
+                      }}
+                      className="px-2 py-0.5 rounded-md border border-border bg-background hover:bg-accent text-foreground flex items-center gap-1 cursor-pointer transition-colors font-mono"
+                      title={`Width: ${spanLabel}. Click to cycle: Full -> Half -> 1/3 -> 1/4 -> Full`}
                     >
-                      {widget.span === "2" ? (
-                        <>
-                          <Maximize2 className="h-3 w-3 text-primary" />
-                          <span>100%</span>
-                        </>
-                      ) : (
-                        <>
-                          <Minimize2 className="h-3 w-3 text-muted-foreground" />
-                          <span>50%</span>
-                        </>
-                      )}
+                      <Columns3 className="h-3 w-3 text-muted-foreground" />
+                      <span>{spanLabel}</span>
                     </button>
-
-                    {/* Quick Shift 1 Box Left / Right */}
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => moveWidgetToSlot(index, index - 1)}
-                        disabled={index === 0}
-                        className="h-6 w-6 rounded border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer transition-colors"
-                        title="Shift 1 box left"
-                      >
-                        <MoveLeft className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveWidgetToSlot(index, index + 1)}
-                        disabled={index === localWidgets.length - 1}
-                        className="h-6 w-6 rounded border border-border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer transition-colors"
-                        title="Shift 1 box right"
-                      >
-                        <MoveRight className="h-3 w-3" />
-                      </button>
-                    </div>
                   </div>
                 </div>
               );

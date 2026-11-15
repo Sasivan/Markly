@@ -37,6 +37,7 @@ import {
   Globe,
   FolderPlus,
   Bookmark,
+  Filter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -69,12 +70,14 @@ interface BookmarkTableProps {
   onMoveBookmark?: (bookmarkId: string, folderId: string | null) => void;
   onCopyBookmark?: (bookmark: BookmarkWithDetails) => void;
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
+  allBookmarks?: BookmarkWithDetails[];
   controlledViewMode?: "table" | "board" | "cards" | "list" | "compact";
   onControlledViewModeChange?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
 }
 
 export function BookmarkTable({
   data,
+  allBookmarks,
   folders,
   onRefreshData,
   onOpenAddModal,
@@ -95,8 +98,27 @@ export function BookmarkTable({
   controlledViewMode,
   onControlledViewModeChange,
 }: BookmarkTableProps) {
-  // State
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: "createdAt", desc: true }]);
+  // Persisted Sorting
+  const [sorting, setSorting] = React.useState<SortingState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_sorting");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [{ id: "createdAt", desc: true }];
+  });
+
+  const handleSortingChange = (updaterOrValue: any) => {
+    setSorting((prev) => {
+      const next = typeof updaterOrValue === "function" ? updaterOrValue(prev) : updaterOrValue;
+      try {
+        localStorage.setItem("markly_table_sorting", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const [globalFilter, setGlobalFilter] = React.useState(externalSearchQuery || "");
 
   React.useEffect(() => {
@@ -135,7 +157,25 @@ export function BookmarkTable({
       setTimeout(() => setSavedSearchSuccess(false), 2000);
     } catch {}
   };
-  const [statusFilter, setStatusFilter] = React.useState<string>("all");
+
+  // Persisted Status Filter
+  const [statusFilter, setStatusFilterState] = React.useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_status_filter");
+        if (stored) return stored;
+      } catch {}
+    }
+    return "all";
+  });
+
+  const setStatusFilter = (val: string) => {
+    setStatusFilterState(val);
+    try {
+      localStorage.setItem("markly_table_status_filter", val);
+    } catch {}
+  };
+
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   
   // 4.1: Persisted Column Visibility
@@ -149,9 +189,45 @@ export function BookmarkTable({
     return {};
   });
 
-  // 5.1: Quick Filter Chips
+  // 5.1: Quick Filter Chips with Persistence
   type FilterChipKey = "all" | "starred" | "ai" | "unvisited" | "broken" | "recent_week";
-  const [activeChip, setActiveChip] = React.useState<FilterChipKey>("all");
+  const [activeChip, setActiveChipState] = React.useState<FilterChipKey>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_active_chip") as FilterChipKey;
+        if (stored) return stored;
+      } catch {}
+    }
+    return "all";
+  });
+
+  const setActiveChip = (chip: FilterChipKey) => {
+    setActiveChipState(chip);
+    try {
+      localStorage.setItem("markly_table_active_chip", chip);
+    } catch {}
+  };
+
+  // Search Scope: "all" (entire DB library) vs "current" (current folder/view) with Persistence
+  const [searchScope, setSearchScopeState] = React.useState<"all" | "current">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_search_scope") as "all" | "current";
+        if (stored === "all" || stored === "current") return stored;
+      } catch {}
+    }
+    return "all";
+  });
+
+  const setSearchScope = (scope: "all" | "current") => {
+    setSearchScopeState(scope);
+    try {
+      localStorage.setItem("markly_table_search_scope", scope);
+    } catch {}
+  };
+
+  // Track focused bookmark for Vim keyboard navigation (j, k, Enter, o, f, e, c, d, Esc)
+  const [focusedIndex, setFocusedIndex] = React.useState<number | null>(null);
 
   // 4.4: Snapshot Fallback Switcher ("thumbnail" | "icon" | "monogram")
   const [cardFallbackMode, setCardFallbackMode] = React.useState<"thumbnail" | "icon" | "monogram">(() => {
@@ -201,8 +277,10 @@ export function BookmarkTable({
   const [copyingBookmark, setCopyingBookmark] = React.useState<BookmarkWithDetails | null>(null);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
-  // Column visibility dropdown
+  // Column, Filter & Sort popover menus
   const [colMenuOpen, setColMenuOpen] = React.useState(false);
+  const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
 
 // 5.3: Typo-Tolerant & Subsequence Fuzzy Matching
 function fuzzyMatch(text: string, query: string): boolean {
@@ -236,7 +314,13 @@ function fuzzyMatch(text: string, query: string): boolean {
 
   // Filter data by status and search filter across all views (Table, Board, Cards, List, Compact)
   const filteredData = React.useMemo(() => {
-    let result = data;
+    const isSearching = Boolean(globalFilter && globalFilter.trim().length > 0);
+    // When searching with scope "all", search across entire database
+    let result =
+      isSearching && searchScope === "all" && allBookmarks && allBookmarks.length > 0
+        ? allBookmarks
+        : data;
+
     if (statusFilter !== "all") {
       result = result.filter((item) => item.status === statusFilter);
     }
@@ -255,26 +339,36 @@ function fuzzyMatch(text: string, query: string): boolean {
       result = result.filter((b) => b.createdAt >= oneWeekAgo);
     }
 
-    // 5.3: Typo-Tolerant & Fuzzy Search
+    // 5.3: Typo-Tolerant & Fuzzy Search across all fields: title, domain, URL, description, notes, tags, folder
     const q = (globalFilter || "").toLowerCase().trim();
     if (q) {
       const searchTokens = q.split(/\s+/).filter(Boolean);
       result = result.filter((bm) => {
+        const folderObj = folders.find((f) => f.id === bm.folderId);
+        const folderTitle = folderObj ? folderObj.name : bm.folderName || "";
+        const tagNames = (bm.tags || []).map((t: any) => (typeof t === "string" ? t : t.name));
+        const tagHashes = tagNames.map((t: string) => `#${t}`);
+        const notesText = (bm as any).notes || (bm as any).personalNotes || "";
         const searchable = [
           bm.title || "",
           bm.domain || "",
           bm.url || "",
           bm.description || "",
-          ...(bm.tags || []).map((t) => t.name),
-          bm.folderName || "",
+          notesText,
+          ...tagNames,
+          ...tagHashes,
+          folderTitle,
         ]
           .join(" ")
           .toLowerCase();
-        return searchTokens.every((token) => fuzzyMatch(searchable, token));
+        return searchTokens.every((token) => {
+          const cleanToken = token.startsWith("#") ? token.slice(1) : token;
+          return fuzzyMatch(searchable, cleanToken);
+        });
       });
     }
     return result;
-  }, [data, statusFilter, globalFilter, activeChip]);
+  }, [data, allBookmarks, folders, statusFilter, globalFilter, activeChip, searchScope]);
 
   // Notion-style Board / Kanban Columns
   const kanbanColumns = React.useMemo(() => {
@@ -308,6 +402,100 @@ function fuzzyMatch(text: string, query: string): boolean {
 
     return Array.from(folderMap.values()).filter((c) => c.bookmarks.length > 0 || c.id === "unsorted");
   }, [folders, filteredData]);
+
+  // 8.1: Vim-Style Keyboard Navigation & Action Shortcuts
+  React.useEffect(() => {
+    const handleTableKeys = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+
+      if (filteredData.length === 0) return;
+
+      // j or ArrowDown: Select next bookmark
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = prev === null || prev >= filteredData.length - 1 ? 0 : prev + 1;
+          setTimeout(() => {
+            const el = document.querySelector(`[data-bookmark-index="${next}"]`);
+            if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          }, 10);
+          return next;
+        });
+        return;
+      }
+
+      // k or ArrowUp: Select previous bookmark
+      if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = prev === null || prev <= 0 ? filteredData.length - 1 : prev - 1;
+          setTimeout(() => {
+            const el = document.querySelector(`[data-bookmark-index="${next}"]`);
+            if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          }, 10);
+          return next;
+        });
+        return;
+      }
+
+      const activeBm = focusedIndex !== null && filteredData[focusedIndex] ? filteredData[focusedIndex] : null;
+      if (!activeBm) return;
+
+      // Space or Enter: Open preview
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onOpenPreview?.(activeBm);
+        return;
+      }
+
+      // o: Open URL in new tab
+      if (e.key === "o" || e.key === "O") {
+        e.preventDefault();
+        window.open(activeBm.url, "_blank");
+        recordVisit(activeBm);
+        return;
+      }
+
+      // f: Toggle Favorite
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        handleToggleFavorite(activeBm);
+        return;
+      }
+
+      // e: Edit bookmark
+      if (e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        setEditingBookmark(activeBm);
+        return;
+      }
+
+      // c: Copy Link
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        handleCopyLink(activeBm.url, activeBm.id);
+        return;
+      }
+
+      // d or Delete: Delete bookmark
+      if (e.key === "d" || e.key === "D" || e.key === "Delete") {
+        e.preventDefault();
+        handleDelete(activeBm.id, activeBm.title);
+        return;
+      }
+
+      // Esc: Clear focus
+      if (e.key === "Escape") {
+        setFocusedIndex(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleTableKeys);
+    return () => window.removeEventListener("keydown", handleTableKeys);
+  }, [filteredData, focusedIndex, onOpenPreview]);
 
   // Actions
   const handleToggleFavorite = async (bookmark: BookmarkWithDetails) => {
@@ -889,7 +1077,7 @@ function fuzzyMatch(text: string, query: string): boolean {
       rowSelection,
       columnVisibility,
     },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: (updaterOrValue) => {
       setColumnVisibility((prev) => {
@@ -961,10 +1149,12 @@ function fuzzyMatch(text: string, query: string): boolean {
           )}
 
           <div className="relative flex-1">
-            <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
+            <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5 pointer-events-none" />
             <Input
+              id="markly-global-search-input"
+              data-markly-search-input="true"
               type="text"
-              placeholder="Search title, description, domain, tags, URL..."
+              placeholder="Search title, description, domain, tags, URL... (/ to focus)"
               value={globalFilter}
               onChange={(e) => {
                 setGlobalFilter(e.target.value);
@@ -988,15 +1178,147 @@ function fuzzyMatch(text: string, query: string): boolean {
             )}
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="all">All Health</option>
-            <option value="alive">Reachable</option>
-            <option value="dead">Broken links</option>
-          </select>
+          {/* Search Scope Toggle (Entire DB vs Current View) */}
+          {allBookmarks && allBookmarks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSearchScope(searchScope === "all" ? "current" : "all")}
+              className={`h-8 px-2 rounded-md border text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
+                searchScope === "all"
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-secondary/40 text-muted-foreground border-border hover:bg-secondary"
+              }`}
+              title="Toggle search scope: Entire Library Database vs Current View"
+            >
+              <Globe className="h-3 w-3" />
+              <span>{searchScope === "all" ? "Entire DB" : "Current View"}</span>
+            </button>
+          )}
+
+          {/* Notion-Style Filter Menu */}
+          <div className="relative">
+            <Button
+              size="sm"
+              variant={statusFilter !== "all" || activeChip !== "all" ? "default" : "outline"}
+              onClick={() => {
+                setFilterMenuOpen(!filterMenuOpen);
+                setSortMenuOpen(false);
+                setColMenuOpen(false);
+              }}
+              className="text-xs h-8 gap-1 px-2.5 cursor-pointer"
+              title="Notion Filter Menu"
+            >
+              <Filter className="h-3 w-3" />
+              <span>Filter</span>
+              {(statusFilter !== "all" || activeChip !== "all") && (
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 ml-0.5" />
+              )}
+            </Button>
+
+            {filterMenuOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 text-xs text-foreground space-y-2.5 animate-in zoom-in-95">
+                <div className="font-semibold text-xs text-foreground border-b border-border pb-1.5 flex items-center justify-between">
+                  <span>Filter Properties</span>
+                  {(statusFilter !== "all" || activeChip !== "all") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setActiveChip("all");
+                      }}
+                      className="text-[11px] text-primary hover:underline cursor-pointer font-normal"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground font-medium">Health Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="alive">Reachable Only</option>
+                    <option value="dead">Broken Links Only</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground font-medium">Quick Category</label>
+                  <select
+                    value={activeChip}
+                    onChange={(e) => setActiveChip(e.target.value as any)}
+                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
+                  >
+                    <option value="all">All Bookmarks</option>
+                    <option value="starred">Starred Favorites Only</option>
+                    <option value="ai">AI Summary Available</option>
+                    <option value="unvisited">Unvisited Sites</option>
+                    <option value="recent_week">Added This Past Week</option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Notion-Style Sort Menu */}
+          <div className="relative">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSortMenuOpen(!sortMenuOpen);
+                setFilterMenuOpen(false);
+                setColMenuOpen(false);
+              }}
+              className="text-xs h-8 gap-1 px-2.5 cursor-pointer"
+              title="Notion Sort Menu"
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              <span>Sort</span>
+            </Button>
+
+            {sortMenuOpen && (
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-52 rounded-xl border border-border bg-card p-2.5 shadow-xl z-50 text-xs text-foreground space-y-1.5 animate-in zoom-in-95">
+                <div className="font-semibold text-xs text-foreground border-b border-border pb-1">
+                  Sort By
+                </div>
+                {[
+                  { id: "createdAt", label: "Date Added" },
+                  { id: "title", label: "Title (A-Z)" },
+                  { id: "domain", label: "Domain (A-Z)" },
+                  { id: "visitCount", label: "Visit Count" },
+                  { id: "lastVisitedAt", label: "Last Visited" },
+                ].map((opt) => {
+                  const currentSort = sorting[0];
+                  const isSelected = currentSort?.id === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        const desc = isSelected ? !currentSort.desc : true;
+                        handleSortingChange([{ id: opt.id, desc }]);
+                      }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors text-xs ${
+                        isSelected ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-secondary text-foreground"
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected && (
+                        <span className="text-[10px] font-mono text-primary">
+                          {currentSort.desc ? "↓ Desc" : "↑ Asc"}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: View Toggles & Columns */}
@@ -1074,7 +1396,11 @@ function fuzzyMatch(text: string, query: string): boolean {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setColMenuOpen(!colMenuOpen)}
+              onClick={() => {
+                setColMenuOpen(!colMenuOpen);
+                setFilterMenuOpen(false);
+                setSortMenuOpen(false);
+              }}
               className="text-xs h-8 gap-1 px-2.5"
             >
               <SlidersHorizontal className="h-3 w-3" />
@@ -1168,15 +1494,19 @@ function fuzzyMatch(text: string, query: string): boolean {
                     </td>
                   </tr>
                 ) : (
-                  table.getRowModel().rows.map((row) => (
+                  table.getRowModel().rows.map((row, index) => (
                     <tr
                       key={row.id}
+                      data-bookmark-index={index}
                       draggable={true}
                       onDragStart={(e) => handleBookmarkDragStart(e, row.original.id)}
-                      onClick={() => onOpenPreview?.(row.original)}
+                      onClick={() => {
+                        setFocusedIndex(index);
+                        onOpenPreview?.(row.original);
+                      }}
                       className={`hover:bg-muted/30 transition-colors group cursor-pointer outline-none focus:outline-none ${
                         row.getIsSelected() ? "bg-primary/5" : ""
-                      }`}
+                      } ${focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""}`}
                     >
                       {row.getVisibleCells().map((cell) => {
                         const isInteractiveCell =
@@ -1371,7 +1701,7 @@ function fuzzyMatch(text: string, query: string): boolean {
       ) : viewMode === "cards" ? (
         /* Notion Gallery / Card View with Visual Snapshot Cover */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredData.map((bm) => {
+          {filteredData.map((bm, index) => {
             const snapshotUrl =
               bm.imageUrl && !bm.imageUrl.includes("avatar-")
                 ? bm.imageUrl
@@ -1380,10 +1710,17 @@ function fuzzyMatch(text: string, query: string): boolean {
             return (
               <div
                 key={bm.id}
+                data-bookmark-index={index}
                 draggable={true}
                 onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
-                onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-                className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer outline-none focus:outline-none"
+                onClick={() => {
+                  setFocusedIndex(index);
+                  if (onOpenPreview) onOpenPreview(bm);
+                  else recordVisit(bm);
+                }}
+                className={`rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer outline-none focus:outline-none ${
+                  focusedIndex === index ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
+                }`}
               >
                 {/* Notion-Style Card Cover: Visual Snapshot / Icon / Monogram */}
                 <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
@@ -1542,13 +1879,20 @@ function fuzzyMatch(text: string, query: string): boolean {
       ) : viewMode === "list" ? (
         /* Notion-Style Document List View */
         <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden shadow-xs">
-          {filteredData.map((bm) => (
+          {filteredData.map((bm, index) => (
             <div
               key={bm.id}
+              data-bookmark-index={index}
               draggable={true}
               onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer outline-none focus:outline-none"
+              onClick={() => {
+                setFocusedIndex(index);
+                if (onOpenPreview) onOpenPreview(bm);
+                else recordVisit(bm);
+              }}
+              className={`flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer outline-none focus:outline-none ${
+                focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""
+              }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
                 <button
@@ -1671,13 +2015,20 @@ function fuzzyMatch(text: string, query: string): boolean {
       ) : (
         /* Notion Ultra-Dense / Space-Optimized Mode */
         <div className="rounded-lg border border-border bg-card shadow-xs divide-y divide-border/50 text-xs">
-          {filteredData.map((bm) => (
+          {filteredData.map((bm, index) => (
             <div
               key={bm.id}
+              data-bookmark-index={index}
               draggable={true}
               onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-              className="flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors cursor-pointer"
+              onClick={() => {
+                setFocusedIndex(index);
+                if (onOpenPreview) onOpenPreview(bm);
+                else recordVisit(bm);
+              }}
+              className={`flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors cursor-pointer ${
+                focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""
+              }`}
             >
               <div className="flex items-center gap-2 truncate min-w-0 flex-1">
                 <button

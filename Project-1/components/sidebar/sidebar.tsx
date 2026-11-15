@@ -58,6 +58,7 @@ interface SidebarProps {
   onDeleteFolder?: (folderId: string, mode: "move_up" | "delete_all") => Promise<void>;
   onRenameFolder?: (folderId: string, newName: string) => Promise<void>;
   onCustomizeFolder?: (folderId: string, updates: { name: string; icon: string; color: string }) => Promise<void>;
+  onShareFolder?: (folder: FolderType | FolderTreeNode) => void;
 }
 
 export function Sidebar({
@@ -78,6 +79,7 @@ export function Sidebar({
   onDeleteFolder,
   onRenameFolder,
   onCustomizeFolder,
+  onShareFolder,
 }: SidebarProps) {
   const { user, signOut, openAuthModal } = useAuth();
   const [internalCollapsed, setInternalCollapsed] = React.useState(false);
@@ -1108,6 +1110,7 @@ export function Sidebar({
                   onDelete={setDeleteTarget}
                   onMove={setMoveTarget}
                   onCopy={setCopyTarget}
+                  onShare={(n) => onShareFolder?.(n)}
                   onDropFolder={handleDropFolder}
                 />
               ))}

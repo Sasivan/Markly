@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Database, User, Trash2, Search, Globe, FolderTree } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Database, User, Trash2, Search, Globe, FolderTree, Share2 } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -15,6 +15,7 @@ interface BreadcrumbsProps {
   onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback") => void;
   totalBookmarksCount: number;
   onOpenSearch?: () => void;
+  onShareFolder?: (folder: Folder) => void;
 }
 
 export function Breadcrumbs({
@@ -27,6 +28,7 @@ export function Breadcrumbs({
   onSelectView,
   totalBookmarksCount,
   onOpenSearch,
+  onShareFolder,
 }: BreadcrumbsProps) {
   // Compute ancestry path if a folder is active
   const breadcrumbPath = React.useMemo(() => {
@@ -136,6 +138,18 @@ export function Breadcrumbs({
 
       {/* Right: Subfolder filter toggle, item count & search icon at edge of screen */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {activeFolderId && activeFolder && onShareFolder && (
+          <button
+            type="button"
+            onClick={() => onShareFolder(activeFolder)}
+            title="Share this collection publicly"
+            className="h-7 px-2 rounded-md flex items-center gap-1 cursor-pointer transition-colors border border-border bg-card hover:bg-secondary text-primary text-xs font-medium"
+          >
+            <Share2 className="h-3 w-3" />
+            <span className="hidden sm:inline">Share</span>
+          </button>
+        )}
+
         {activeFolderId && (
           <button
             type="button"

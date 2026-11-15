@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 
 import * as React from "react";
 import {
@@ -40,6 +40,7 @@ import { RecycleBinView } from "@/components/trash/recycle-bin-view";
 import { FeedbackView } from "@/components/feedback/feedback-view";
 import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal";
 import { LibraryCleanupWizard } from "@/components/modals/library-cleanup-wizard";
+import { ShareCollectionModal } from "@/components/folders/share-collection-modal";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -207,6 +208,9 @@ export function MarklyWorkspace({
   // Keyboard Shortcuts Cheatsheet modal state
   const [shortcutsModalOpen, setShortcutsModalOpen] = React.useState(false);
 
+  // Share Public Collection modal state
+  const [sharingFolder, setSharingFolder] = React.useState<FolderType | null>(null);
+
   // 6.1: Library Cleanup Wizard modal state
   const [cleanupWizardOpen, setCleanupWizardOpen] = React.useState(false);
 
@@ -371,19 +375,22 @@ export function MarklyWorkspace({
       }
 
       // /: Focus search
-      if (e.key === "/") {
+      if (e.key === "/" && !e.shiftKey) {
         e.preventDefault();
-        const searchInput = document.querySelector('input[placeholder*="Search title, URL"]') as HTMLInputElement;
+        const searchInput = (document.getElementById("markly-global-search-input") ||
+          document.getElementById("markly-home-search-input") ||
+          document.querySelector('input[data-markly-search-input="true"]')) as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
+          searchInput.select();
         } else {
           setCommandPaletteOpen(true);
         }
         return;
       }
 
-      // ?: Open Keyboard Shortcuts Cheatsheet
-      if (e.key === "?") {
+      // ?: Open Keyboard Shortcuts Cheatsheet (works on ? or Shift+/)
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
         e.preventDefault();
         setShortcutsModalOpen((prev) => !prev);
         return;
@@ -1291,6 +1298,20 @@ export function MarklyWorkspace({
         onOpenChange={setShortcutsModalOpen}
       />
 
+      {/* Keyboard Shortcuts & Vim Cheatsheet Modal */}
+      <KeyboardShortcutsModal
+        open={shortcutsModalOpen}
+        onOpenChange={setShortcutsModalOpen}
+      />
+
+      {/* Share Public Collection Modal */}
+      <ShareCollectionModal
+        folder={sharingFolder}
+        bookmarks={bookmarks}
+        open={Boolean(sharingFolder)}
+        onOpenChange={(open) => !open && setSharingFolder(null)}
+      />
+
       {/* 6.1: Library Cleanup Wizard Modal */}
       <LibraryCleanupWizard
         open={cleanupWizardOpen}
@@ -1314,6 +1335,7 @@ export function MarklyWorkspace({
         onDeleteFolder={handleDeleteFolderOptimistic}
         onRenameFolder={handleRenameFolderOptimistic}
         onCustomizeFolder={handleCustomizeFolderOptimistic}
+        onShareFolder={(f) => setSharingFolder(f as FolderType)}
         onSelectFolder={(id) => {
           setActiveFolderId(id);
           setActiveView("all");
@@ -1384,6 +1406,7 @@ export function MarklyWorkspace({
             }}
             totalBookmarksCount={filteredBookmarks.length}
             onOpenSearch={() => setCommandPaletteOpen(true)}
+            onShareFolder={(f) => setSharingFolder(f)}
           />
         )}
 
@@ -1523,6 +1546,16 @@ export function MarklyWorkspace({
               onRefreshData={refreshData}
               onDeleteBookmark={handleDeleteBookmarkOptimistic}
               onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
+              onSearchJump={(q) => {
+                setActiveView("all");
+                setActiveFolderId(null);
+                setActiveDomain(null);
+                setActiveDomainFilter(null);
+                setActiveTagFilter(null);
+                setGlobalSearch(q);
+              }}
+              onOpenCleanupWizard={() => setCleanupWizardOpen(true)}
+              onOpenShortcuts={() => setShortcutsModalOpen(true)}
             />
           ) : activeView === "collections" && !activeFolderId ? (
             /* Dedicated Folder Collections Directory */
@@ -1555,6 +1588,7 @@ export function MarklyWorkspace({
               onCopyFolder={(f) => setPanelCopyFolder(f)}
               onDeleteFolder={(f) => setPanelDeleteFolder(f)}
               onSaveCollection={handleSaveCollectionOptimistic}
+              onShareFolder={(f) => setSharingFolder(f)}
               unsortedCount={bookmarks.filter((b) => !b.isArchived && !b.folderId).length}
               onSelectView={(v) => {
                 setActiveView(v);
@@ -1812,6 +1846,7 @@ export function MarklyWorkspace({
               {/* TanStack Table Section (Bottom Zone) */}
               <BookmarkTable
                 data={filteredBookmarks}
+                allBookmarks={bookmarks}
                 folders={folders}
                 onRefreshData={refreshData}
                 onOpenAddModal={activeView === "recent" ? undefined : () => openAddModal()}

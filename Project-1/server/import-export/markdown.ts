@@ -35,3 +35,4 @@ export function exportToMarkdown(bookmarks: BookmarkWithDetails[], folders: Fold
 
   return lines.join("\n");
 }
+

@@ -305,3 +305,4 @@ export function ActivityHeatmap365({
     </div>
   );
 }
+

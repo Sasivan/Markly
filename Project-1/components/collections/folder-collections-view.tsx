@@ -13,6 +13,7 @@ import {
   FolderTree,
   ChevronDown,
   ChevronRight,
+  Share2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ interface FolderCollectionsViewProps {
   onMoveFolder?: (folder: Folder) => void;
   onCopyFolder?: (folder: Folder) => void;
   onDeleteFolder?: (folder: Folder) => void;
+  onShareFolder?: (folder: Folder) => void;
   onSaveCollection?: (
     folderId: string,
     updates: { name: string; icon: string; color: string; parentId?: string | null }
@@ -46,6 +48,7 @@ interface TreeFolderRowProps {
   depth: number;
   onSelectFolder: (folderId: string, isParent?: boolean) => void;
   onEditCollection: (folder: Folder) => void;
+  onShareFolder?: (folder: Folder) => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
   onNewSubfolder?: (parentId: string) => void;
 }
@@ -55,6 +58,7 @@ function TreeFolderRow({
   depth,
   onSelectFolder,
   onEditCollection,
+  onShareFolder,
   onOpenAddBookmarkToFolder,
   onNewSubfolder,
 }: TreeFolderRowProps) {
@@ -111,6 +115,16 @@ function TreeFolderRow({
         </div>
 
         <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+          {onShareFolder && (
+            <button
+              type="button"
+              onClick={() => onShareFolder(node)}
+              className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-secondary cursor-pointer transition-colors"
+              title="Share Public Collection"
+            >
+              <Share2 className="h-3 w-3" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onEditCollection(node)}
@@ -139,6 +153,7 @@ function TreeFolderRow({
               depth={depth + 1}
               onSelectFolder={onSelectFolder}
               onEditCollection={onEditCollection}
+              onShareFolder={onShareFolder}
               onOpenAddBookmarkToFolder={onOpenAddBookmarkToFolder}
               onNewSubfolder={onNewSubfolder}
             />
@@ -161,6 +176,7 @@ export function FolderCollectionsView({
   onMoveFolder,
   onCopyFolder,
   onDeleteFolder,
+  onShareFolder,
   onSaveCollection,
   unsortedCount = 0,
   onSelectView,
@@ -420,6 +436,22 @@ export function FolderCollectionsView({
                         <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>Edit</span>
                       </button>
+
+                      {/* Share Public Collection Button */}
+                      {onShareFolder && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onShareFolder(rootNode);
+                          }}
+                          className="h-7 px-2 rounded-lg flex items-center gap-1 bg-secondary hover:bg-muted text-foreground text-xs font-medium cursor-pointer transition-colors border border-border/40"
+                          title="Share public collection link"
+                        >
+                          <Share2 className="h-3.5 w-3.5 text-primary" />
+                          <span>Share</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -534,6 +566,7 @@ export function FolderCollectionsView({
               depth={0}
               onSelectFolder={onSelectFolder}
               onEditCollection={setEditingCollection}
+              onShareFolder={onShareFolder}
               onOpenAddBookmarkToFolder={onOpenAddBookmarkToFolder}
               onNewSubfolder={onNewSubfolder}
             />
@@ -634,6 +667,17 @@ export function FolderCollectionsView({
                     </td>
                     <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
+                        {onShareFolder && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onShareFolder(rootNode)}
+                            className="h-7 w-7 p-0 cursor-pointer hover:bg-secondary text-primary"
+                            title="Share collection link"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -744,6 +788,16 @@ export function FolderCollectionsView({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {onShareFolder && (
+                    <button
+                      type="button"
+                      onClick={() => onShareFolder(rootNode)}
+                      className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-secondary cursor-pointer transition-colors"
+                      title="Share public collection link"
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setEditingCollection(rootNode)}

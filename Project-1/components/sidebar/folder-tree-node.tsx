@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, ChevronDown, MoreHorizontal, Plus, Edit2, Palette, Copy, Trash2, GripVertical, FolderInput } from "lucide-react";
+import { ChevronRight, ChevronDown, MoreHorizontal, Plus, Edit2, Palette, Copy, Trash2, GripVertical, FolderInput, Share2 } from "lucide-react";
 import type { FolderTreeNode } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -19,6 +19,7 @@ interface FolderTreeNodeProps {
   onDelete: (node: FolderTreeNode) => void;
   onMove?: (node: FolderTreeNode) => void;
   onCopy?: (node: FolderTreeNode) => void;
+  onShare?: (node: FolderTreeNode) => void;
   onDropFolder: (draggedFolderId: string, targetFolderId: string, position: "inside" | "before" | "after") => void;
 }
 
@@ -36,6 +37,7 @@ export function FolderTreeNodeComponent({
   onDelete,
   onMove,
   onCopy,
+  onShare,
   onDropFolder,
 }: FolderTreeNodeProps) {
   const [expanded, setExpanded] = React.useState(true);
@@ -370,6 +372,20 @@ export function FolderTreeNodeComponent({
                   <span>Duplicate folder</span>
                 </button>
 
+                {onShare && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onShare(node);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md hover:bg-secondary text-foreground font-medium text-left cursor-pointer transition-colors"
+                  >
+                    <Share2 className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span>Share Public Collection</span>
+                  </button>
+                )}
+
                 <div className="h-px bg-border my-1" />
 
                 <button
@@ -409,6 +425,7 @@ export function FolderTreeNodeComponent({
               onDelete={onDelete}
               onMove={onMove}
               onCopy={onCopy}
+              onShare={onShare}
               onDropFolder={onDropFolder}
             />
           ))}

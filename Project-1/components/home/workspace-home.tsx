@@ -25,6 +25,10 @@ import {
   Globe,
   Archive,
   SlidersHorizontal,
+  Columns2,
+  Rows3,
+  Sparkles,
+  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +62,9 @@ interface WorkspaceHomeProps {
   onDeleteBookmark?: (id: string, title?: string) => void;
   onToggleArchive?: (bm: BookmarkWithDetails) => void;
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
+  onSearchJump?: (query: string) => void;
+  onOpenCleanupWizard?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 export function WorkspaceHome({
@@ -76,12 +83,56 @@ export function WorkspaceHome({
   onDeleteBookmark,
   onToggleArchive,
   onOpenPreview,
+  onSearchJump,
+  onOpenCleanupWizard,
+  onOpenShortcuts,
 }: WorkspaceHomeProps) {
   const { user } = useAuth();
 
   // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
+
+  // 1-Col vs 2-Col layout state with persistence (default 2-col dashboard grid)
+  const [homeColumns, setHomeColumns] = React.useState<"1" | "2">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_home_columns");
+        if (stored === "1" || stored === "2") return stored;
+      } catch {}
+    }
+    return "2";
+  });
+
+  const handleSetColumns = (cols: "1" | "2") => {
+    setHomeColumns(cols);
+    try {
+      localStorage.setItem("markly_home_columns", cols);
+    } catch {}
+  };
+
+  // Instant global search on homepage
+  const [homeSearch, setHomeSearch] = React.useState("");
+
+  const homeSearchResults = React.useMemo(() => {
+    const q = homeSearch.toLowerCase().trim();
+    if (!q) return [];
+    return bookmarks
+      .filter((bm) => !bm.isArchived)
+      .filter((bm) => {
+        const matchText = [
+          bm.title || "",
+          bm.domain || "",
+          bm.url || "",
+          bm.description || "",
+          (bm as any).notes || "",
+          ...(bm.tags || []).map((t: any) => (typeof t === "string" ? t : t.name)),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return matchText.includes(q);
+      });
+  }, [bookmarks, homeSearch]);
 
   React.useEffect(() => {
     try {
@@ -1107,6 +1158,34 @@ export function WorkspaceHome({
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Layout</span>
             </Button>
+
+            {/* 1-Col vs 2-Col Dashboard Switcher */}
+            <div className="flex items-center bg-secondary p-0.5 rounded-lg border border-border">
+              <button
+                type="button"
+                onClick={() => handleSetColumns("1")}
+                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                  homeColumns === "1"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="1 Column View (Single Stream)"
+              >
+                <Rows3 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetColumns("2")}
+                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                  homeColumns === "2"
+                    ? "bg-card text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="2 Columns View (Dashboard Grid)"
+              >
+                <Columns2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1184,6 +1263,101 @@ export function WorkspaceHome({
             </div>
           </button>
         </div>
+
+        {/* Instant Entire DB Search Bar */}
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="relative">
+            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-2.5 pointer-events-none" />
+            <input
+              id="markly-home-search-input"
+              type="text"
+              value={homeSearch}
+              onChange={(e) => setHomeSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && homeSearch.trim()) {
+                  if (onSearchJump) {
+                    onSearchJump(homeSearch.trim());
+                  } else {
+                    onSelectFolder(null);
+                    onSelectView("all");
+                  }
+                }
+              }}
+              placeholder={`Search entire library (${bookmarks.length} bookmarks, tags, URLs, notes... Press Enter to view in table or / to focus)`}
+              className="w-full pl-9 pr-28 py-2 text-xs rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground shadow-2xs"
+            />
+            {homeSearch.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSearchJump) {
+                    onSearchJump(homeSearch.trim());
+                  } else {
+                    onSelectFolder(null);
+                    onSelectView("all");
+                  }
+                }}
+                className="absolute right-1.5 top-1.5 px-2.5 py-1 text-xs rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-medium cursor-pointer transition-colors flex items-center gap-1 shadow-2xs"
+              >
+                <span>Search All</span>
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Instant Matches Dropdown Preview */}
+          {homeSearchResults.length > 0 && (
+            <div className="mt-2 p-2 rounded-xl border border-border bg-card shadow-lg space-y-1">
+              <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground flex items-center justify-between border-b border-border/60 pb-1">
+                <span>Matching bookmarks across database ({homeSearchResults.length})</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSearchJump) {
+                      onSearchJump(homeSearch.trim());
+                    } else {
+                      onSelectFolder(null);
+                      onSelectView("all");
+                    }
+                  }}
+                  className="text-primary hover:underline cursor-pointer font-medium text-[11px]"
+                >
+                  View all results in Table →
+                </button>
+              </div>
+              {homeSearchResults.slice(0, 5).map((bm) => (
+                <div
+                  key={bm.id}
+                  onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary cursor-pointer transition-colors gap-3"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BookmarkIcon src={bm.iconUrl} domain={bm.domain} alt={bm.title} className="h-4 w-4 rounded flex-shrink-0" />
+                    <div className="truncate">
+                      <div className="text-xs font-medium text-foreground truncate hover:text-primary">{bm.title}</div>
+                      <div className="text-[11px] text-muted-foreground font-mono truncate">{bm.url}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {bm.tags?.slice(0, 2).map((t) => (
+                      <span key={t.id} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground font-mono">
+                        #{t.name}
+                      </span>
+                    ))}
+                    <ExternalLink
+                      className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSiteVisit(bm);
+                        window.open(bm.url, "_blank");
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Empty Database State Banner */}
@@ -1214,17 +1388,37 @@ export function WorkspaceHome({
         </div>
       )}
 
-      {/* Dynamic User-Customizable Homepage Widgets (1.1, 1.2, 1.3) */}
-      <div className="space-y-8">
-        {homeWidgets.map((widget) => {
-          if (!widget.visible) return null;
-          return (
-            <React.Fragment key={widget.id}>
-              {renderWidget(widget.id)}
-            </React.Fragment>
-          );
-        })}
-      </div>
+      {/* Dynamic User-Customizable Homepage Widgets (1.1, 1.2, 1.3: 1-Col or 2-Col Dashboard Grid) */}
+      {homeColumns === "2" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {homeWidgets.map((widget) => {
+            if (!widget.visible) return null;
+            const isWide =
+              widget.id === "heatmap" ||
+              widget.id === "spectrum" ||
+              widget.id === "analytics";
+            return (
+              <div
+                key={widget.id}
+                className={isWide ? "lg:col-span-2" : "lg:col-span-1 h-full"}
+              >
+                {renderWidget(widget.id)}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {homeWidgets.map((widget) => {
+            if (!widget.visible) return null;
+            return (
+              <React.Fragment key={widget.id}>
+                {renderWidget(widget.id)}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
 
 
       {/* 6. Tags & Categories Explorer */}

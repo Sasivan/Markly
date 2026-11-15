@@ -55,6 +55,10 @@ jobs:
       - name: Type Check
         run: npx tsc --noEmit
 
+      - name: Verify SQLite Native Addon
+        run: |
+          node -e "try { const db = require('better-sqlite3'); console.log('better-sqlite3 OK'); } catch(e) { console.error('SQLITE_FAIL:', e.message); console.log('::error title=SQLiteBindingFail::' + e.message); process.exit(1); }"
+
       - name: Run Unit Tests
         env:
           CI: "true"
@@ -63,7 +67,13 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key-for-unit-tests"
           ADMIN_EMAIL: "admin@example.com"
-        run: npm test -- --reporter=verbose
+        run: |
+          if ! npm test -- --reporter=verbose > test-results.log 2>&1; then
+            cat test-results.log
+            ERR=$(tail -n 15 test-results.log | tr '\r\n' '  ')
+            echo "::error title=VitestError::$ERR"
+            exit 1
+          fi
 
       - name: Build Next.js Application
         run: npm run build

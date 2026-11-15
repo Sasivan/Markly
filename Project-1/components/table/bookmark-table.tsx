@@ -85,12 +85,25 @@ export type ColumnFilterField =
   | "status"
   | "favorite"
   | "visitCount"
+  | "notes"
   | "recency";
+
+export type ColumnFilterOperator =
+  | "contains"
+  | "does_not_contain"
+  | "starts_with"
+  | "equals"
+  | "not_equals"
+  | "greater_than"
+  | "is_empty"
+  | "is_not_empty"
+  | "is_starred"
+  | "is_not_starred";
 
 export interface ColumnFilterRule {
   id: string;
   field: ColumnFilterField;
-  operator: string;
+  operator: ColumnFilterOperator;
   value: string;
 }
 
@@ -246,6 +259,17 @@ const TABLE_COLUMN_OPTIONS = [
     } catch {}
   };
 
+  // 3.1: Live Reactive Sync for Smart Dynamic Collections
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail?.rules && Array.isArray(e.detail.rules)) {
+        setColumnFilters(e.detail.rules);
+      }
+    };
+    window.addEventListener("markly-smart-collection-selected", handler);
+    return () => window.removeEventListener("markly-smart-collection-selected", handler);
+  }, []);
+
   // Track focused bookmark for Vim keyboard navigation (j, k, Enter, o, f, e, c, d, Esc)
   const [focusedIndex, setFocusedIndex] = React.useState<number | null>(null);
 
@@ -332,6 +356,16 @@ function fuzzyMatch(text: string, query: string): boolean {
   return false;
 }
 
+function getDomainGradient(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h1 = Math.abs(hash) % 360;
+  const h2 = (h1 + 45) % 360;
+  return `linear-gradient(135deg, hsl(${h1}, 42%, 20%) 0%, hsl(${h2}, 52%, 11%) 100%)`;
+}
+
   // Filter data by status and search filter across all views (Table, Board, Cards, List, Compact)
   const filteredData = React.useMemo(() => {
     const isSearching = Boolean(globalFilter && globalFilter.trim().length > 0);
@@ -345,53 +379,79 @@ function fuzzyMatch(text: string, query: string): boolean {
       result = result.filter((item) => item.status === statusFilter);
     }
 
-    // Apply Notion Multi-Column Filter Rules
+    // Apply Notion Multi-Column Filter Rules (Advanced Multi-Condition Engine)
     for (const rule of columnFilters) {
-      if (rule.field === "status") {
-        if (rule.value !== "all") {
-          result = result.filter((item) => item.status === rule.value);
+      const qVal = (rule.value || "").trim().toLowerCase();
+      if (rule.field === "title") {
+        if (rule.operator === "contains" && qVal) {
+          result = result.filter((b) => (b.title || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "does_not_contain" && qVal) {
+          result = result.filter((b) => !(b.title || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "starts_with" && qVal) {
+          result = result.filter((b) => (b.title || "").toLowerCase().startsWith(qVal));
+        } else if (rule.operator === "is_empty") {
+          result = result.filter((b) => !b.title || b.title.trim() === "");
+        } else if (rule.operator === "is_not_empty") {
+          result = result.filter((b) => Boolean(b.title && b.title.trim()));
         }
-      } else if (rule.field === "favorite") {
-        if (rule.value === "starred") {
-          result = result.filter((b) => b.isFavorite);
-        } else if (rule.value === "unstarred") {
-          result = result.filter((b) => !b.isFavorite);
+      } else if (rule.field === "domain") {
+        if (rule.operator === "contains" && qVal) {
+          result = result.filter((b) => (b.domain || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "does_not_contain" && qVal) {
+          result = result.filter((b) => !(b.domain || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "starts_with" && qVal) {
+          result = result.filter((b) => (b.domain || "").toLowerCase().startsWith(qVal));
         }
-      } else if (rule.field === "visitCount") {
-        if (rule.value === "unvisited") {
-          result = result.filter((b) => (b.visitCount || 0) === 0);
-        } else if (rule.value === "visited") {
-          result = result.filter((b) => (b.visitCount || 0) > 0);
+      } else if (rule.field === "notes") {
+        if (rule.operator === "contains" && qVal) {
+          result = result.filter((b) => (b.notes || "").toLowerCase().includes(qVal));
+        } else if (rule.operator === "is_not_empty") {
+          result = result.filter((b) => Boolean(b.notes && b.notes.trim()));
+        } else if (rule.operator === "is_empty") {
+          result = result.filter((b) => !b.notes || b.notes.trim() === "");
         }
       } else if (rule.field === "folder") {
         if (rule.value === "__UNSORTED__") {
           result = result.filter((b) => !b.folderId || b.folderId === "__UNSORTED__" || b.folderId.startsWith("fld_unsorted_"));
         } else if (rule.value && rule.value !== "all") {
-          result = result.filter((b) => b.folderId === rule.value);
+          if (rule.operator === "not_equals") {
+            result = result.filter((b) => b.folderId !== rule.value);
+          } else {
+            result = result.filter((b) => b.folderId === rule.value);
+          }
         }
       } else if (rule.field === "tags") {
-        if (rule.value) {
-          const needle = rule.value.toLowerCase().replace(/^#/, "");
+        if (rule.operator === "is_empty") {
+          result = result.filter((b) => !b.tags || b.tags.length === 0);
+        } else if (rule.operator === "is_not_empty") {
+          result = result.filter((b) => Boolean(b.tags && b.tags.length > 0));
+        } else if (qVal) {
           result = result.filter((b) =>
-            b.tags?.some((t: any) => (typeof t === "string" ? t : t.name).toLowerCase() === needle)
+            b.tags?.some((t: any) => (typeof t === "string" ? t : t.name).toLowerCase().includes(qVal.replace(/^#/, "")))
           );
         }
-      } else if (rule.field === "domain") {
-        if (rule.value) {
-          result = result.filter((b) => b.domain?.toLowerCase().includes(rule.value.toLowerCase()));
+      } else if (rule.field === "status") {
+        if (rule.value !== "all") {
+          result = result.filter((b) => b.status === rule.value);
         }
-      } else if (rule.field === "title") {
-        if (rule.value) {
-          result = result.filter((b) => b.title?.toLowerCase().includes(rule.value.toLowerCase()));
+      } else if (rule.field === "favorite") {
+        if (rule.operator === "is_not_starred" || rule.value === "unstarred") {
+          result = result.filter((b) => !b.isFavorite);
+        } else {
+          result = result.filter((b) => b.isFavorite);
+        }
+      } else if (rule.field === "visitCount") {
+        if (rule.operator === "equals" && (rule.value === "0" || rule.value === "unvisited")) {
+          result = result.filter((b) => (b.visitCount || 0) === 0);
+        } else if (rule.operator === "greater_than") {
+          const minVisits = Number(rule.value) || 0;
+          result = result.filter((b) => (b.visitCount || 0) > minVisits);
+        } else if (rule.value === "visited") {
+          result = result.filter((b) => (b.visitCount || 0) > 0);
         }
       } else if (rule.field === "recency") {
-        if (rule.value === "week") {
-          const cutoff = Date.now() - 7 * 86400000;
-          result = result.filter((b) => b.createdAt >= cutoff);
-        } else if (rule.value === "month") {
-          const cutoff = Date.now() - 30 * 86400000;
-          result = result.filter((b) => b.createdAt >= cutoff);
-        }
+        const cutoff = rule.value === "24h" ? Date.now() - 86400000 : rule.value === "week" ? Date.now() - 7 * 86400000 : Date.now() - 30 * 86400000;
+        result = result.filter((b) => b.createdAt >= cutoff);
       }
     }
 
@@ -1213,132 +1273,224 @@ function fuzzyMatch(text: string, query: string): boolean {
             </Button>
 
             {filterMenuOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-72 rounded-xl border border-border bg-card p-3 shadow-xl z-50 text-xs text-foreground space-y-3 animate-in zoom-in-95">
-                <div className="font-semibold text-xs text-foreground border-b border-border pb-1.5 flex items-center justify-between">
-                  <span>Filter by Columns</span>
-                  {(columnFilters.length > 0 || statusFilter !== "all") && (
+              <div className="absolute left-0 top-full mt-1.5 w-80 sm:w-96 rounded-xl border border-border bg-card p-3 shadow-xl z-50 text-xs text-foreground space-y-3 animate-in zoom-in-95 max-h-[75vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="h-3.5 w-3.5 text-primary" />
+                    <span className="font-semibold text-xs text-foreground">Filter Rules</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground ml-1">
+                      {filteredData.length} matches
+                    </span>
+                  </div>
+                  {columnFilters.length > 0 && (
                     <button
                       type="button"
                       onClick={() => {
                         handleSaveColumnFilters([]);
                         setStatusFilter("all");
                       }}
-                      className="text-[11px] text-primary hover:underline cursor-pointer font-normal"
+                      className="text-[11px] text-primary hover:underline cursor-pointer font-medium"
                     >
                       Clear All
                     </button>
                   )}
                 </div>
 
-                {/* Filter 1: Folder Collection */}
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-medium">Folder Group</label>
-                  <select
-                    value={columnFilters.find((f) => f.field === "folder")?.value || "all"}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const next = columnFilters.filter((f) => f.field !== "folder");
-                      if (val !== "all") {
-                        next.push({ id: "fld", field: "folder", operator: "equals", value: val });
-                      }
-                      handleSaveColumnFilters(next);
-                    }}
-                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
-                  >
-                    <option value="all">All Folders</option>
-                    <option value="__UNSORTED__">Unsorted (No Folder)</option>
-                    {folders
-                      .filter((f) => f.id !== "__UNSORTED__")
-                      .map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                {columnFilters.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-muted-foreground space-y-1">
+                    <p>No active filter rules.</p>
+                    <p className="text-[11px]">Add conditions to filter by title, domain, folder, tags, or notes.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {columnFilters.map((rule, idx) => (
+                      <div key={rule.id} className="p-2 rounded-lg border border-border bg-secondary/30 space-y-1.5">
+                        <div className="flex items-center justify-between gap-1 text-[11px] font-mono text-muted-foreground">
+                          <span>{idx === 0 ? "Where" : "And"}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSaveColumnFilters(columnFilters.filter((r) => r.id !== rule.id));
+                            }}
+                            className="text-muted-foreground hover:text-destructive p-0.5 rounded cursor-pointer transition-colors"
+                            title="Remove condition"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
 
-                {/* Filter 2: Starred / Favorite */}
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-medium">Favorite Status</label>
-                  <select
-                    value={columnFilters.find((f) => f.field === "favorite")?.value || "all"}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const next = columnFilters.filter((f) => f.field !== "favorite");
-                      if (val !== "all") {
-                        next.push({ id: "fav", field: "favorite", operator: "equals", value: val });
-                      }
-                      handleSaveColumnFilters(next);
-                    }}
-                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
-                  >
-                    <option value="all">All Items</option>
-                    <option value="starred">Starred Favorites Only</option>
-                    <option value="unstarred">Unstarred Only</option>
-                  </select>
-                </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {/* Field Selector */}
+                          <select
+                            value={rule.field}
+                            onChange={(e) => {
+                              const newField = e.target.value as ColumnFilterField;
+                              let defOp: ColumnFilterOperator = "contains";
+                              let defVal = "";
+                              if (newField === "folder") { defOp = "equals"; defVal = "__UNSORTED__"; }
+                              else if (newField === "status") { defOp = "equals"; defVal = "alive"; }
+                              else if (newField === "favorite") { defOp = "is_starred"; defVal = "starred"; }
+                              else if (newField === "visitCount") { defOp = "greater_than"; defVal = "0"; }
+                              else if (newField === "recency") { defOp = "equals"; defVal = "week"; }
+                              const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, field: newField, operator: defOp, value: defVal } : r);
+                              handleSaveColumnFilters(updated);
+                            }}
+                            className="h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                          >
+                            <option value="title">Title</option>
+                            <option value="domain">Domain</option>
+                            <option value="folder">Folder</option>
+                            <option value="tags">Tags</option>
+                            <option value="notes">Notes</option>
+                            <option value="status">Health Status</option>
+                            <option value="favorite">Starred</option>
+                            <option value="visitCount">Visit Count</option>
+                            <option value="recency">Date Added</option>
+                          </select>
 
-                {/* Filter 3: Health Status */}
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-medium">Health Status</label>
-                  <select
-                    value={columnFilters.find((f) => f.field === "status")?.value || "all"}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const next = columnFilters.filter((f) => f.field !== "status");
-                      if (val !== "all") {
-                        next.push({ id: "stat", field: "status", operator: "equals", value: val });
-                      }
-                      handleSaveColumnFilters(next);
-                    }}
-                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="alive">Reachable Only</option>
-                    <option value="dead">Broken Links Only</option>
-                  </select>
-                </div>
+                          {/* Operator Selector */}
+                          <select
+                            value={rule.operator}
+                            onChange={(e) => {
+                              const newOp = e.target.value as ColumnFilterOperator;
+                              const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, operator: newOp } : r);
+                              handleSaveColumnFilters(updated);
+                            }}
+                            className="h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                          >
+                            {rule.field === "title" || rule.field === "domain" || rule.field === "notes" ? (
+                              <>
+                                <option value="contains">contains</option>
+                                <option value="does_not_contain">does not contain</option>
+                                <option value="starts_with">starts with</option>
+                                <option value="is_empty">is empty</option>
+                                <option value="is_not_empty">is not empty</option>
+                              </>
+                            ) : rule.field === "folder" ? (
+                              <>
+                                <option value="equals">is</option>
+                                <option value="not_equals">is not</option>
+                              </>
+                            ) : rule.field === "visitCount" ? (
+                              <>
+                                <option value="equals">is exactly</option>
+                                <option value="greater_than">is greater than</option>
+                              </>
+                            ) : rule.field === "favorite" ? (
+                              <>
+                                <option value="is_starred">is starred</option>
+                                <option value="is_not_starred">is not starred</option>
+                              </>
+                            ) : rule.field === "tags" ? (
+                              <>
+                                <option value="contains">includes tag</option>
+                                <option value="is_empty">has no tags</option>
+                                <option value="is_not_empty">has any tag</option>
+                              </>
+                            ) : (
+                              <option value="equals">equals</option>
+                            )}
+                          </select>
+                        </div>
 
-                {/* Filter 4: Visits */}
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-medium">Visit Count</label>
-                  <select
-                    value={columnFilters.find((f) => f.field === "visitCount")?.value || "all"}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const next = columnFilters.filter((f) => f.field !== "visitCount");
-                      if (val !== "all") {
-                        next.push({ id: "vis", field: "visitCount", operator: "equals", value: val });
-                      }
-                      handleSaveColumnFilters(next);
-                    }}
-                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
-                  >
-                    <option value="all">Any Visit Count</option>
-                    <option value="unvisited">Unvisited (0 visits)</option>
-                    <option value="visited">Visited (1+ visits)</option>
-                  </select>
-                </div>
+                        {/* Value Input */}
+                        {rule.operator !== "is_empty" && rule.operator !== "is_not_empty" && rule.operator !== "is_starred" && rule.operator !== "is_not_starred" && (
+                          <div className="pt-0.5">
+                            {rule.field === "folder" ? (
+                              <select
+                                value={rule.value}
+                                onChange={(e) => {
+                                  const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, value: e.target.value } : r);
+                                  handleSaveColumnFilters(updated);
+                                }}
+                                className="w-full h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              >
+                                <option value="__UNSORTED__">Unsorted (No Folder)</option>
+                                {folders
+                                  .filter((f) => f.id !== "__UNSORTED__")
+                                  .map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                      {f.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            ) : rule.field === "status" ? (
+                              <select
+                                value={rule.value}
+                                onChange={(e) => {
+                                  const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, value: e.target.value } : r);
+                                  handleSaveColumnFilters(updated);
+                                }}
+                                className="w-full h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              >
+                                <option value="alive">Reachable (200 OK)</option>
+                                <option value="dead">Dead / Broken</option>
+                              </select>
+                            ) : rule.field === "recency" ? (
+                              <select
+                                value={rule.value}
+                                onChange={(e) => {
+                                  const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, value: e.target.value } : r);
+                                  handleSaveColumnFilters(updated);
+                                }}
+                                className="w-full h-7 px-1.5 rounded border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              >
+                                <option value="24h">Past 24 Hours</option>
+                                <option value="week">Past 7 Days</option>
+                                <option value="month">Past 30 Days</option>
+                              </select>
+                            ) : (
+                              <input
+                                type={rule.field === "visitCount" ? "number" : "text"}
+                                value={rule.value}
+                                onChange={(e) => {
+                                  const updated = columnFilters.map((r) => r.id === rule.id ? { ...r, value: e.target.value } : r);
+                                  handleSaveColumnFilters(updated);
+                                }}
+                                placeholder={
+                                  rule.field === "tags"
+                                    ? "Tag name (e.g. design)"
+                                    : rule.field === "visitCount"
+                                    ? "0"
+                                    : "Type text to match..."
+                                }
+                                className="w-full h-7 px-2 rounded border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                {/* Filter 5: Date Added / Recency */}
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-medium">Date Added</label>
-                  <select
-                    value={columnFilters.find((f) => f.field === "recency")?.value || "all"}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const next = columnFilters.filter((f) => f.field !== "recency");
-                      if (val !== "all") {
-                        next.push({ id: "rec", field: "recency", operator: "equals", value: val });
-                      }
-                      handleSaveColumnFilters(next);
+                {/* Add Rule Button */}
+                <div className="pt-1 border-t border-border flex items-center justify-between">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      const newRule: ColumnFilterRule = {
+                        id: `cfr_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+                        field: "title",
+                        operator: "contains",
+                        value: "",
+                      };
+                      handleSaveColumnFilters([...columnFilters, newRule]);
                     }}
-                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
+                    className="h-7 px-2.5 text-xs text-primary hover:bg-primary/10 flex items-center gap-1.5 cursor-pointer font-medium"
                   >
-                    <option value="all">Any Time</option>
-                    <option value="week">Past 7 Days</option>
-                    <option value="month">Past 30 Days</option>
-                  </select>
+                    <Plus className="h-3 w-3" />
+                    <span>Add filter condition</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    onClick={() => setFilterMenuOpen(false)}
+                    className="h-7 px-3 text-xs bg-primary text-primary-foreground cursor-pointer"
+                  >
+                    Done
+                  </Button>
                 </div>
               </div>
             )}
@@ -1525,17 +1677,21 @@ function fuzzyMatch(text: string, query: string): boolean {
             let label = "";
             if (rule.field === "folder") {
               const f = folders.find((item) => item.id === rule.value);
-              label = `Folder: ${rule.value === "__UNSORTED__" ? "Unsorted" : f ? f.name : rule.value}`;
+              label = `Folder ${rule.operator === "not_equals" ? "!=" : "="} ${rule.value === "__UNSORTED__" ? "Unsorted" : f ? f.name : rule.value}`;
             } else if (rule.field === "favorite") {
-              label = rule.value === "starred" ? "Starred Only" : "Unstarred";
+              label = rule.operator === "is_not_starred" ? "Unstarred" : "Starred";
             } else if (rule.field === "status") {
               label = rule.value === "alive" ? "Reachable" : "Broken";
             } else if (rule.field === "visitCount") {
-              label = rule.value === "unvisited" ? "Unvisited" : "Visited";
+              label = rule.operator === "greater_than" ? `Visits > ${rule.value}` : `Visits = ${rule.value}`;
             } else if (rule.field === "recency") {
-              label = rule.value === "week" ? "Added past 7d" : "Added past 30d";
+              label = rule.value === "24h" ? "Past 24h" : rule.value === "week" ? "Past 7d" : "Past 30d";
+            } else if (rule.operator === "is_empty") {
+              label = `${rule.field} is empty`;
+            } else if (rule.operator === "is_not_empty") {
+              label = `${rule.field} is not empty`;
             } else {
-              label = `${rule.field}: ${rule.value}`;
+              label = `${rule.field} ${rule.operator.replace(/_/g, " ")} "${rule.value}"`;
             }
 
             return (
@@ -1803,10 +1959,12 @@ function fuzzyMatch(text: string, query: string): boolean {
         /* Notion Gallery / Card View with Visual Snapshot Cover */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredData.map((bm, index) => {
-            const snapshotUrl =
-              bm.imageUrl && !bm.imageUrl.includes("avatar-")
-                ? bm.imageUrl
-                : `https://image.thum.io/get/width/600/crop/340/${bm.url}`;
+            const hasCustomImage = Boolean(
+              bm.imageUrl &&
+                !bm.imageUrl.includes("avatar-") &&
+                !bm.imageUrl.includes("thum.io")
+            );
+            const gradientBg = getDomainGradient(bm.domain || bm.title || "markly");
 
             return (
               <div
@@ -1823,7 +1981,7 @@ function fuzzyMatch(text: string, query: string): boolean {
                   focusedIndex === index ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
                 }`}
               >
-                {/* Notion-Style Card Cover: Visual Snapshot / Icon / Monogram */}
+                {/* Notion-Style Card Cover: High-Craft Local SVG Gradient Art / Snapshot / Monogram */}
                 <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
                   {cardFallbackMode === "monogram" ? (
                     <div className="h-full w-full bg-muted/40 flex items-center justify-center">
@@ -1845,10 +2003,10 @@ function fuzzyMatch(text: string, query: string): boolean {
                         {bm.domain}
                       </span>
                     </div>
-                  ) : (
+                  ) : hasCustomImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={snapshotUrl}
+                      src={bm.imageUrl!}
                       alt={bm.title}
                       loading="lazy"
                       className="w-full h-full object-cover object-top"
@@ -1856,6 +2014,37 @@ function fuzzyMatch(text: string, query: string): boolean {
                         (e.currentTarget as HTMLElement).style.display = "none";
                       }}
                     />
+                  ) : (
+                    <div
+                      className="w-full h-full flex flex-col items-center justify-center p-4 relative select-none"
+                      style={{ background: gradientBg }}
+                    >
+                      <svg
+                        className="absolute inset-0 w-full h-full opacity-15 pointer-events-none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <defs>
+                          <pattern id={`pat-${bm.id}`} width="20" height="20" patternUnits="userSpaceOnUse">
+                            <circle cx="2" cy="2" r="1" fill="#fff" />
+                          </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill={`url(#pat-${bm.id})`} />
+                      </svg>
+                      <div className="p-2.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-1 flex items-center justify-center">
+                        <BookmarkIcon
+                          src={bm.iconUrl}
+                          alt={bm.title}
+                          domain={bm.domain}
+                          className="h-8 w-8 rounded object-contain"
+                        />
+                      </div>
+                      <div className="text-[13px] font-semibold text-white/95 truncate max-w-[85%] text-center tracking-tight">
+                        {bm.title}
+                      </div>
+                      <div className="text-[11px] font-mono text-white/60 truncate max-w-[80%] text-center mt-0.5">
+                        {bm.domain}
+                      </div>
+                    </div>
                   )}
                   <div className="absolute bottom-2 left-2.5 bg-black/60 backdrop-blur-xs text-white text-xs font-mono px-2 py-0.5 rounded shadow-xs truncate max-w-[80%]">
                     {bm.domain}

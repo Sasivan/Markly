@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Keyboard,
   Puzzle,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -27,6 +28,7 @@ interface AppHeaderProps {
   onOpenAddModal: () => void;
   onOpenImportExport: () => void;
   onOpenChromeExtension?: () => void;
+  onOpenStashTabs?: () => void;
   onOpenSearch?: () => void;
   onOpenApiKeyModal?: () => void;
   onOpenProfile?: () => void;
@@ -42,6 +44,7 @@ export function AppHeader({
   onOpenAddModal,
   onOpenImportExport,
   onOpenChromeExtension,
+  onOpenStashTabs,
   onOpenSearch,
   onOpenApiKeyModal,
   onOpenProfile,
@@ -156,6 +159,18 @@ export function AppHeader({
             className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-secondary flex items-center justify-center text-foreground cursor-pointer transition-colors"
           >
             <Puzzle className="h-3.5 w-3.5 text-primary" />
+          </button>
+        )}
+
+        {/* 2.6. Stash Open Tabs */}
+        {onOpenStashTabs && (
+          <button
+            type="button"
+            onClick={onOpenStashTabs}
+            title="Stash Open Tabs (Session Snapshots)"
+            className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-secondary flex items-center justify-center text-foreground cursor-pointer transition-colors"
+          >
+            <Layers className="h-3.5 w-3.5 text-blue-500" />
           </button>
         )}
 

@@ -109,6 +109,22 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
                 Markdown (.md)
               </a>
               <a
+                href="/api/export?format=notion-toggle"
+                download
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 font-medium text-xs font-mono transition-colors"
+                title="Notion Toggle List Markdown"
+              >
+                Notion Toggles
+              </a>
+              <a
+                href="/api/export?format=canvas"
+                download
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-medium text-xs font-mono transition-colors"
+                title="Obsidian Canvas Mindmap (.canvas JSON)"
+              >
+                Obsidian Canvas (.canvas)
+              </a>
+              <a
                 href="/api/export?format=notion"
                 download
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-foreground font-medium text-xs font-mono transition-colors"

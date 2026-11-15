@@ -28,7 +28,9 @@ import {
   X,
   Bookmark,
   Share2,
+  Sparkles,
 } from "lucide-react";
+import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-context";
@@ -249,6 +251,49 @@ export function Sidebar({
     onSelectFolder(null);
     onSelectView("all");
     window.dispatchEvent(new CustomEvent("markly-set-search", { detail: { query } }));
+  };
+
+  // 3.1: Smart Dynamic Collections State & Handlers
+  const [smartCollections, setSmartCollections] = React.useState<any[]>([]);
+  const [createSmartCollectionOpen, setCreateSmartCollectionOpen] = React.useState(false);
+  const [activeSmartCollectionId, setActiveSmartCollectionId] = React.useState<string | null>(null);
+
+  const fetchSmartCollections = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/smart-collections");
+      const d = await res.json();
+      if (d.success && Array.isArray(d.collections)) {
+        setSmartCollections(d.collections);
+      }
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    fetchSmartCollections();
+  }, [fetchSmartCollections]);
+
+  const handleDeleteSmartCollection = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/smart-collections?id=${id}`, { method: "DELETE" });
+      setSmartCollections((prev) => prev.filter((c) => c.id !== id));
+      if (activeSmartCollectionId === id) {
+        setActiveSmartCollectionId(null);
+      }
+    } catch {}
+  };
+
+  const handleSelectSmartCollection = (sc: any) => {
+    setActiveSmartCollectionId(sc.id);
+    onSelectFolder(null);
+    onSelectView("all");
+    try {
+      const rules = typeof sc.rulesJson === "string" ? JSON.parse(sc.rulesJson) : sc.rulesJson;
+      localStorage.setItem("markly_notion_column_filters", JSON.stringify(rules));
+      window.dispatchEvent(
+        new CustomEvent("markly-smart-collection-selected", { detail: { collection: sc, rules } })
+      );
+    } catch {}
   };
   const startResizing = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -776,6 +821,13 @@ export function Sidebar({
         onCopyFolder={handleCopyFolder}
       />
 
+      {/* 3.1: Create Smart Dynamic Collection Modal */}
+      <CreateSmartCollectionModal
+        isOpen={createSmartCollectionOpen}
+        onClose={() => setCreateSmartCollectionOpen(false)}
+        onCreated={fetchSmartCollections}
+      />
+
       {/* Sidebar Container */}
       <aside
         style={{ width: `${sidebarWidth}px` }}
@@ -869,6 +921,60 @@ export function Sidebar({
               ))}
             </div>
           )}
+
+          {/* 3.1: Smart Dynamic Collections Section */}
+          <div className="pt-1 pb-1 space-y-0.5 border-y border-sidebar-border/40 my-1">
+            <div className="px-2 py-0.5 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-purple-400" />
+                <span>Smart collections</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setCreateSmartCollectionOpen(true)}
+                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                title="Create Smart Collection"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+            {smartCollections.length === 0 ? (
+              <div className="px-2 py-1 text-[10px] text-muted-foreground/80 italic">
+                No smart collections yet
+              </div>
+            ) : (
+              smartCollections.map((sc) => {
+                const isSelected = activeSmartCollectionId === sc.id;
+                return (
+                  <div
+                    key={sc.id}
+                    onClick={() => handleSelectSmartCollection(sc)}
+                    className={`group flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg cursor-pointer text-xs transition-colors ${
+                      isSelected
+                        ? "bg-accent text-accent-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate min-w-0">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: sc.color || "#8b5cf6" }}
+                      />
+                      <span className="truncate">{sc.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSmartCollection(e, sc.id)}
+                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive cursor-pointer transition-opacity"
+                      title="Delete Smart Collection"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
           {/* All Sites */}
           <button

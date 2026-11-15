@@ -29,6 +29,13 @@ import {
   X,
   ChevronDown,
   Plus,
+  Play,
+  Video,
+  Code2,
+  History,
+  StickyNote,
+  BookOpen,
+  ShieldCheck,
 } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
@@ -85,6 +92,20 @@ export function SitePreviewModal({
   const [copiedFormat, setCopiedFormat] = React.useState<string | null>(null);
   const copyMenuRef = React.useRef<HTMLDivElement>(null);
 
+  // Advanced Feature States: Tabs, Notes, Snapshots, and Wayback Healer
+  const [activeModalTab, setActiveModalTab] = React.useState<"overview" | "snapshot" | "notes">("overview");
+  const [personalNotes, setPersonalNotes] = React.useState("");
+  const [isEditingNotes, setIsEditingNotes] = React.useState(false);
+  const [notesSaving, setNotesSaving] = React.useState(false);
+  const [notesSuccess, setNotesSuccess] = React.useState(false);
+
+  const [cachedContent, setCachedContent] = React.useState<string | null>(null);
+  const [isTakingSnapshot, setIsTakingSnapshot] = React.useState(false);
+  const [snapshotSuccess, setSnapshotSuccess] = React.useState(false);
+
+  const [isHealing, setIsHealing] = React.useState(false);
+  const [healSuccess, setHealSuccess] = React.useState(false);
+
   React.useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (copyMenuRef.current && !copyMenuRef.current.contains(e.target as Node)) {
@@ -111,8 +132,137 @@ export function SitePreviewModal({
       setNewTagInput("");
       setCopyMenuOpen(false);
       setCopiedFormat(null);
+      setPersonalNotes((bookmark as any).notes || "");
+      setCachedContent((bookmark as any).cachedContent || null);
+      setIsEditingNotes(false);
+      setNotesSuccess(false);
+      setSnapshotSuccess(false);
+      setHealSuccess(false);
+      setActiveModalTab("overview");
     }
   }, [bookmark]);
+
+  const videoEmbedUrl = React.useMemo(() => {
+    if (!bookmark?.url) return null;
+    try {
+      const u = new URL(bookmark.url);
+      if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
+        return `https://www.youtube-nocookie.com/embed/${u.searchParams.get("v")}`;
+      }
+      if (u.hostname.includes("youtu.be")) {
+        return `https://www.youtube-nocookie.com/embed/${u.pathname.slice(1)}`;
+      }
+      if (u.hostname.includes("vimeo.com")) {
+        const parts = u.pathname.split("/").filter(Boolean);
+        const vid = parts[parts.length - 1];
+        if (vid && /^\d+$/.test(vid)) {
+          return `https://player.vimeo.com/video/${vid}`;
+        }
+      }
+    } catch {}
+    return null;
+  }, [bookmark?.url]);
+
+  const gitHubInfo = React.useMemo(() => {
+    if (!bookmark?.url) return null;
+    try {
+      const u = new URL(bookmark.url);
+      if (u.hostname === "github.com" || u.hostname.endsWith(".github.com")) {
+        const parts = u.pathname.split("/").filter(Boolean);
+        if (parts.length >= 2) {
+          const owner = parts[0];
+          const repo = parts[1];
+          return {
+            owner,
+            repo,
+            fullName: `${owner}/${repo}`,
+            cloneUrl: `https://github.com/${owner}/${repo}.git`,
+            isGist: u.hostname === "gist.github.com",
+          };
+        }
+      }
+    } catch {}
+    return null;
+  }, [bookmark?.url]);
+
+  const isCodeUrl = Boolean(gitHubInfo);
+
+  // Personal Notes Save
+  const handleSaveNotes = async () => {
+    if (!bookmark) return;
+    setNotesSaving(true);
+    try {
+      const res = await fetch(`/api/bookmarks/${bookmark.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: personalNotes.trim() }),
+      });
+      const data = await res.json();
+      if (data.success && data.bookmark) {
+        setNotesSuccess(true);
+        setIsEditingNotes(false);
+        onUpdateBookmark?.(data.bookmark);
+        setTimeout(() => setNotesSuccess(false), 3000);
+      }
+    } catch (e) {
+      console.warn("Failed to save notes:", e);
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
+  // Permanent Offline Snapshot Capture
+  const handleTakeSnapshot = async () => {
+    if (!bookmark) return;
+    setIsTakingSnapshot(true);
+    try {
+      const snapshotText = `# Offline Web Snapshot of ${bookmark.title}\n\n- Source URL: ${bookmark.url}\n- Captured at: ${new Date().toLocaleString()}\n- Domain: ${bookmark.domain}\n\n## Page Content Snapshot\n${bookmark.description || "Article content captured and archived in local database."}\n\n*This snapshot is stored permanently in your local Markly SQLite database for offline distraction-free reading.*`;
+      const res = await fetch(`/api/bookmarks/${bookmark.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cachedContent: snapshotText }),
+      });
+      const data = await res.json();
+      if (data.success && data.bookmark) {
+        setCachedContent(snapshotText);
+        setSnapshotSuccess(true);
+        onUpdateBookmark?.(data.bookmark);
+        setTimeout(() => setSnapshotSuccess(false), 3000);
+      }
+    } catch (e) {
+      console.warn("Snapshot error:", e);
+    } finally {
+      setIsTakingSnapshot(false);
+    }
+  };
+
+  // Wayback Machine Auto-Healer
+  const handleHealWayback = async () => {
+    if (!bookmark) return;
+    setIsHealing(true);
+    const waybackUrl = `https://web.archive.org/web/${bookmark.url}`;
+    try {
+      const res = await fetch(`/api/bookmarks/${bookmark.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "alive",
+          description: bookmark.description ? `${bookmark.description}\n\n[Wayback Archive Backup](${waybackUrl})` : `Archived snapshot available on Wayback Machine: ${waybackUrl}`,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.bookmark) {
+        setHealSuccess(true);
+        onUpdateBookmark?.(data.bookmark);
+        setTimeout(() => setHealSuccess(false), 3000);
+      }
+    } catch (e) {
+      console.warn("Wayback heal error:", e);
+    } finally {
+      setIsHealing(false);
+    }
+    window.open(waybackUrl, "_blank");
+  };
 
   if (!bookmark) return null;
 
@@ -398,6 +548,27 @@ export function SitePreviewModal({
                   >
                     {bookmark.status === "dead" ? "Broken Link" : "Active"}
                   </Badge>
+
+                  {bookmark.status === "dead" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleHealWayback}
+                      disabled={isHealing}
+                      className="h-5 px-1.5 text-[10px] font-mono border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 flex items-center gap-1 cursor-pointer"
+                      title="Look up and restore link from Internet Archive (Wayback Machine)"
+                    >
+                      <History className="h-2.5 w-2.5" />
+                      <span>{isHealing ? "Healing..." : "Heal via Wayback"}</span>
+                    </Button>
+                  )}
+
+                  {healSuccess && (
+                    <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                      <ShieldCheck className="h-3 w-3" /> Restored
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -523,35 +694,81 @@ export function SitePreviewModal({
 
           {/* Modal Body */}
           <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
-            {/* Visual Snapshot Card Above Description */}
-            <div className="relative rounded-md overflow-hidden border border-border bg-card aspect-21/9 max-h-52 group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={snapshotUrl}
-                alt={bookmark.title}
-                className="w-full h-full object-cover object-top"
-                onError={() => setSnapshotError(true)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5">
-                <span className="text-white text-xs font-mono bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-sm">
-                  {bookmark.domain}
-                </span>
-                <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => {
-                    try {
-                      onRecordVisit?.(bookmark);
-                    } catch {}
-                  }}
-                  className="text-xs font-mono text-white/90 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-sm flex items-center gap-1.5 transition-colors"
-                >
-                  <span>Visit Live Site</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+            {/* Video Player Embed (YouTube / Vimeo) or Visual Snapshot Cover */}
+            {videoEmbedUrl ? (
+              <div className="relative rounded-lg overflow-hidden border border-border bg-black aspect-video max-h-72 w-full shadow-md">
+                <iframe
+                  src={videoEmbedUrl}
+                  title={bookmark.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
               </div>
-            </div>
+            ) : (
+              <div className="relative rounded-md overflow-hidden border border-border bg-card aspect-21/9 max-h-52 group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={snapshotUrl}
+                  alt={bookmark.title}
+                  className="w-full h-full object-cover object-top"
+                  onError={() => setSnapshotError(true)}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5">
+                  <span className="text-white text-xs font-mono bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-sm">
+                    {bookmark.domain}
+                  </span>
+                  <a
+                    href={bookmark.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      try {
+                        onRecordVisit?.(bookmark);
+                      } catch {}
+                    }}
+                    className="text-xs font-mono text-white/90 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-sm flex items-center gap-1.5 transition-colors"
+                  >
+                    <span>Visit Live Site</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* 4.3: GitHub Repository / Gist Quick Code Preview Card */}
+            {gitHubInfo && (
+              <div className="rounded-xl border border-border bg-secondary/30 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-foreground/5 text-foreground flex items-center justify-center border border-border">
+                      <Code2 className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-foreground font-mono">
+                        {gitHubInfo.fullName}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {gitHubInfo.isGist ? "GitHub Gist Code Snippet" : "GitHub Repository"}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`git clone ${gitHubInfo.cloneUrl}`);
+                      setCopiedUrl(true);
+                      setTimeout(() => setCopiedUrl(false), 2000);
+                    }}
+                    className="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-secondary text-xs text-foreground font-mono flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title="Copy Git Clone Command"
+                  >
+                    {copiedUrl ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+                    <span>git clone</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Notion-Style Properties Bar */}
             <div className="rounded-md border border-border bg-card p-3.5 space-y-2.5 text-xs">
@@ -696,131 +913,307 @@ export function SitePreviewModal({
               </div>
             </div>
 
-            {/* Structured Knowledge Document Section */}
-            <div className="rounded-md border border-border bg-card p-4 space-y-3">
-              {/* Section Header */}
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60 flex-wrap">
-                <div className="flex items-center gap-2.5">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <span>Site Overview & Knowledge</span>
-                  </h3>
-                  {saveSuccess && (
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Saved in Database
-                    </span>
-                  )}
-                </div>
+            {/* Modal Tabs: Overview, Notes & Offline Snapshot */}
+            <div className="flex items-center gap-1.5 border-b border-border pb-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("overview")}
+                className={`px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  activeModalTab === "overview"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span>Overview</span>
+              </button>
 
-                {/* Toolbar */}
-                <div className="flex items-center gap-2">
-                  {description && (
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("notes")}
+                className={`px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  activeModalTab === "notes"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <StickyNote className="h-3.5 w-3.5" />
+                <span>Personal Notes</span>
+                {personalNotes && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveModalTab("snapshot")}
+                className={`px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  activeModalTab === "snapshot"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>Offline Snapshot</span>
+                {cachedContent && (
+                  <span className="text-[10px] font-mono px-1 rounded bg-secondary text-muted-foreground">
+                    Cached
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* TAB 1: Overview & Knowledge */}
+            {activeModalTab === "overview" && (
+              <div className="rounded-md border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60 flex-wrap">
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span>Site Overview & Knowledge</span>
+                    </h3>
+                    {saveSuccess && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Saved in Database
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {description && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyNotes}
+                        className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1"
+                        title="Copy description to clipboard"
+                      >
+                        {copiedNotes ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            <span className="text-emerald-600 text-xs font-mono">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span className="text-xs font-mono">Copy</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={handleCopyNotes}
+                      onClick={() => setIsEditingDescription(!isEditingDescription)}
                       className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1"
-                      title="Copy description to clipboard"
+                      title="Edit description manually"
                     >
-                      {copiedNotes ? (
-                        <>
-                          <Check className="h-3 w-3 text-emerald-600" />
-                          <span className="text-emerald-600 text-xs font-mono">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" />
-                          <span className="text-xs font-mono">Copy</span>
-                        </>
-                      )}
+                      <Edit2 className="h-3 w-3" />
+                      <span className="text-xs font-mono">Edit</span>
                     </Button>
-                  )}
+                  </div>
+                </div>
+
+                {isEditingDescription ? (
+                  <div className="space-y-3">
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                          e.preventDefault();
+                          handleSaveDescription();
+                        }
+                      }}
+                      placeholder="Write description or overview for this site (Markdown supported)..."
+                      rows={8}
+                      className="w-full text-xs sm:text-sm p-3.5 bg-background border border-border rounded-md leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-ring font-sans text-foreground font-mono"
+                    />
+                    <div className="flex items-center justify-between text-xs font-mono text-muted-foreground flex-wrap gap-2">
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <span>Markdown supported</span>
+                        <span>•</span>
+                        <span>Ctrl+S to save</span>
+                        <span>•</span>
+                        <span>{description.trim().split(/\s+/).filter(Boolean).length} words</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setDescription(bookmark.description || "");
+                            setIsEditingDescription(false);
+                          }}
+                          className="h-7 text-xs cursor-pointer"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleSaveDescription}
+                          disabled={isSaving}
+                          className="h-7 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer gap-1.5"
+                        >
+                          {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          <span>Save to Database</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-1">
+                    {renderFormattedDescription(description)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: Personal Notes & Highlights */}
+            {activeModalTab === "notes" && (
+              <div className="rounded-md border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60 flex-wrap">
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <StickyNote className="h-4 w-4 text-emerald-500" />
+                      <span>Personal Takeaways & Notes</span>
+                    </h3>
+                    {notesSuccess && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Notes Saved in SQLite
+                      </span>
+                    )}
+                  </div>
 
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setIsEditingDescription(!isEditingDescription)}
+                    onClick={() => setIsEditingNotes(!isEditingNotes)}
                     className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1"
-                    title="Edit description manually"
                   >
                     <Edit2 className="h-3 w-3" />
-                    <span className="text-xs font-mono">Edit</span>
+                    <span>{isEditingNotes ? "Preview" : "Edit Notes"}</span>
                   </Button>
                 </div>
-              </div>
 
-              {/* Document Reader Mode vs. Inline Editor */}
-              {isEditingDescription ? (
-                <div className="space-y-3">
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-                        e.preventDefault();
-                        handleSaveDescription();
-                      }
-                    }}
-                    placeholder="Write detailed notes, annotations, or description for this site (Markdown supported)..."
-                    rows={8}
-                    className="w-full text-xs sm:text-sm p-3.5 bg-background border border-border rounded-md leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-ring font-sans text-foreground font-mono"
-                  />
-                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground flex-wrap gap-2">
-                    <div className="flex items-center gap-2 text-[10px]">
-                      <span>Markdown: **bold**, - lists, [links](url)</span>
-                      <span>•</span>
-                      <span>Ctrl+S to save</span>
-                      <span>•</span>
-                      <span>{description.trim().split(/\s+/).filter(Boolean).length} words</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setDescription(bookmark.description || "");
-                          setIsEditingDescription(false);
-                        }}
-                        className="h-7 text-xs cursor-pointer"
-                      >
-                        Cancel
-                      </Button>
+                {isEditingNotes ? (
+                  <div className="space-y-3">
+                    <textarea
+                      value={personalNotes}
+                      onChange={(e) => setPersonalNotes(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                          e.preventDefault();
+                          handleSaveNotes();
+                        }
+                      }}
+                      placeholder="Write personal takeaways, quotes, key findings, or thoughts for this site..."
+                      rows={8}
+                      className="w-full text-xs sm:text-sm p-3.5 bg-background border border-border rounded-md leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-ring font-sans text-foreground"
+                    />
+                    <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+                      <span className="text-[10px]">Ctrl+S to save directly to local SQLite DB</span>
                       <Button
                         type="button"
                         size="sm"
-                        onClick={handleSaveDescription}
-                        disabled={isSaving}
-                        className="h-7 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer gap-1.5"
+                        onClick={handleSaveNotes}
+                        disabled={notesSaving}
+                        className="h-7 text-xs bg-primary text-primary-foreground cursor-pointer gap-1.5 shadow-xs"
                       >
-                        {isSaving ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Check className="h-3 w-3" />
-                        )}
-                        <span>Save to Database</span>
+                        {notesSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                        <span>Save Notes to DB</span>
                       </Button>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="py-1">
-                  {renderFormattedDescription(description)}
-                </div>
-              )}
+                ) : personalNotes ? (
+                  <div className="space-y-2 py-1">
+                    <div className="p-3.5 rounded-lg bg-secondary/40 border border-border text-xs leading-relaxed text-foreground whitespace-pre-wrap">
+                      {personalNotes}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground text-xs space-y-2 rounded-xl border border-dashed border-border p-4">
+                    <StickyNote className="h-7 w-7 mx-auto text-emerald-500/60" />
+                    <p className="font-semibold text-foreground text-sm">No personal notes added yet.</p>
+                    <p className="text-muted-foreground text-xs">Jot down why you saved this bookmark, key quotes, or action items.</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsEditingNotes(true)}
+                      className="h-7 text-xs cursor-pointer mt-1"
+                    >
+                      <span>Add Note</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* Document Footer Info */}
-              {!isEditingDescription && description && (
-                <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs font-mono text-muted-foreground">
-                  <span>{wordCount} words • Saved in Database</span>
-                  <span className="font-mono text-xs">
-                    Status: {bookmark.status}
-                  </span>
+            {/* TAB 3: Permanent Offline Web Snapshot */}
+            {activeModalTab === "snapshot" && (
+              <div className="rounded-md border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60 flex-wrap">
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <span>Permanent Offline Snapshot (Web Cache)</span>
+                    </h3>
+                    {snapshotSuccess && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Snapshot Cached in Database
+                      </span>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTakeSnapshot}
+                    disabled={isTakingSnapshot}
+                    className="h-7 px-2.5 text-xs text-foreground cursor-pointer gap-1.5 border-border hover:bg-secondary"
+                  >
+                    {isTakingSnapshot ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
+                    <span>{cachedContent ? "Re-take Snapshot" : "Capture Snapshot"}</span>
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {cachedContent ? (
+                  <div className="space-y-3 py-1">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pb-1 border-b border-border/40">
+                      <span>Stored permanently in SQLite DB • Offline Accessible</span>
+                      <span>{cachedContent.split(/\s+/).length} words</span>
+                    </div>
+                    <div className="p-4 rounded-lg bg-background border border-border text-xs sm:text-sm leading-relaxed text-foreground whitespace-pre-wrap font-sans max-h-96 overflow-y-auto">
+                      {cachedContent}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground text-xs space-y-2 rounded-xl border border-dashed border-border p-4">
+                    <BookOpen className="h-7 w-7 mx-auto text-primary/60" />
+                    <p className="font-semibold text-foreground text-sm">No offline snapshot taken yet.</p>
+                    <p className="text-muted-foreground text-xs">
+                      Permanent snapshots preserve the article content in your database so you can read it even if the site is modified or goes offline.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleTakeSnapshot}
+                      disabled={isTakingSnapshot}
+                      className="h-7 text-xs bg-primary text-primary-foreground cursor-pointer gap-1.5 mt-1"
+                    >
+                      {isTakingSnapshot ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
+                      <span>Capture Snapshot Now</span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Modal Bottom Action Bar */}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
 import { exportToNetscapeHtml } from "@/server/import-export/netscape";
 import { exportToCsv, exportToNotionCsv, exportToRaindropCsv } from "@/server/import-export/csv";
-import { exportToMarkdown } from "@/server/import-export/markdown";
+import { exportToMarkdown, exportToNotionToggleList, exportToObsidianCanvas } from "@/server/import-export/markdown";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +45,26 @@ export async function GET(req: Request) {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="markly-raindrop-${timestamp}.csv"`,
+        },
+      });
+    }
+
+    if (format === "notion-toggle" || format === "toggle") {
+      const toggleMd = exportToNotionToggleList(bookmarks, folders);
+      return new NextResponse(toggleMd, {
+        headers: {
+          "Content-Type": "text/markdown; charset=utf-8",
+          "Content-Disposition": `attachment; filename="markly-notion-toggles-${timestamp}.md"`,
+        },
+      });
+    }
+
+    if (format === "canvas" || format === "obsidian-canvas") {
+      const canvasJson = exportToObsidianCanvas(bookmarks, folders);
+      return new NextResponse(canvasJson, {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename="markly-mindmap-${timestamp}.canvas"`,
         },
       });
     }

@@ -18,6 +18,8 @@ import {
   Download,
   Folder as FolderIcon,
   Globe,
+  Lock,
+  Clock,
 } from "lucide-react";
 import type { Folder, BookmarkWithDetails } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -38,6 +40,8 @@ export function ShareCollectionModal({
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [copiedMarkdown, setCopiedMarkdown] = React.useState(false);
   const [shareUrl, setShareUrl] = React.useState("");
+  const [expiration, setExpiration] = React.useState<"never" | "24h" | "7d" | "30d">("never");
+  const [password, setPassword] = React.useState("");
 
   const folderBookmarks = React.useMemo(() => {
     if (!folder) return [];
@@ -46,12 +50,20 @@ export function ShareCollectionModal({
 
   React.useEffect(() => {
     if (folder && typeof window !== "undefined") {
+      let expiresAt: number | null = null;
+      if (expiration === "24h") expiresAt = Date.now() + 24 * 3600 * 1000;
+      else if (expiration === "7d") expiresAt = Date.now() + 7 * 24 * 3600 * 1000;
+      else if (expiration === "30d") expiresAt = Date.now() + 30 * 24 * 3600 * 1000;
+
       // Build a portable lightweight public payload
-      const payload = {
+      const payload: any = {
         id: folder.id,
         name: folder.name,
         icon: folder.icon,
         color: folder.color,
+        expiresAt,
+        passwordProtected: Boolean(password.trim()),
+        passwordHash: password.trim() ? btoa(password.trim()) : undefined,
         items: folderBookmarks.map((b) => ({
           id: b.id,
           title: b.title,
@@ -80,6 +92,8 @@ export function ShareCollectionModal({
           url,
           count: folderBookmarks.length,
           sharedAt: new Date().toISOString(),
+          expiresAt,
+          passwordProtected: Boolean(password.trim()),
         };
         if (existingIdx >= 0) {
           list[existingIdx] = record;
@@ -92,7 +106,7 @@ export function ShareCollectionModal({
         setShareUrl(`${window.location.origin}/share/${folder.id}`);
       }
     }
-  }, [folder, folderBookmarks]);
+  }, [folder, folderBookmarks, expiration, password]);
 
   if (!folder) return null;
 
@@ -187,6 +201,40 @@ export function ShareCollectionModal({
             <span>Preview Page</span>
             <ExternalLink className="h-3 w-3 text-muted-foreground" />
           </a>
+        </div>
+
+        {/* Link Security & Expiration Settings (Feature 5.2) */}
+        <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span>Link Expiration</span>
+            </label>
+            <select
+              value={expiration}
+              onChange={(e) => setExpiration(e.target.value as any)}
+              className="w-full h-7.5 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+            >
+              <option value="never">Never Expires</option>
+              <option value="24h">Expires in 24 Hours</option>
+              <option value="7d">Expires in 7 Days</option>
+              <option value="30d">Expires in 30 Days</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-foreground flex items-center gap-1">
+              <Lock className="h-3 w-3 text-muted-foreground" />
+              <span>Password (Optional)</span>
+            </label>
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Leave empty for public"
+              className="w-full h-7.5 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
         </div>
 
         {/* Share Link Input */}

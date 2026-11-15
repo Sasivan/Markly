@@ -129,6 +129,37 @@ export function AddBookmarkModal({
     }
   }, [initialUrl]);
 
+  // 2.3: Preventive Real-time Duplicate Detection on URL typing/pasting
+  React.useEffect(() => {
+    const trimmed = url.trim();
+    if (!trimmed || (!trimmed.includes(".") && !trimmed.startsWith("http"))) {
+      setDuplicateWarning(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: trimmed, checkDuplicateOnly: true }),
+        });
+        const d = await res.json();
+        if (d.success && d.exists && d.bookmark) {
+          const folderObj = folders.find((f) => f.id === d.bookmark.folderId);
+          setDuplicateWarning({
+            existingBookmark: d.bookmark,
+            folderName: folderObj ? folderObj.name : "Unsorted (Inbox)",
+          });
+        } else {
+          setDuplicateWarning(null);
+        }
+      } catch {}
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [url, folders]);
+
   React.useEffect(() => {
     if (!open) {
       setUrl("");
@@ -290,6 +321,8 @@ export function AddBookmarkModal({
           lastClickedAt: null,
           searchText: `${customTitle.trim()} ${customDescription.trim()} ${domain}`.toLowerCase(),
           createdAt: Date.now(),
+          notes: null,
+          cachedContent: null,
           tags: parsedTags.map((name) => ({ id: `tag_${name}`, name, userId: "guest", color: "#3b82f6", createdAt: Date.now() })),
         };
 

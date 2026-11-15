@@ -196,9 +196,31 @@ export function initDbSchema() {
       );
 
       CREATE INDEX IF NOT EXISTS feedback_replies_fid_idx ON feedback_replies(feedback_id);
+
+      CREATE TABLE IF NOT EXISTS smart_collections (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        icon TEXT NOT NULL DEFAULT 'Sparkles',
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        rules_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS smart_collections_user_idx ON smart_collections(user_id);
     `);
 
-    // Ensure dynamic columns exist in users table
+    // Ensure dynamic columns exist in bookmarks and users table
+    try {
+      const bmCols = sqlite.prepare("PRAGMA table_info(bookmarks)").all() as any[];
+      if (!bmCols.some((c) => c.name === "notes")) {
+        sqlite.exec("ALTER TABLE bookmarks ADD COLUMN notes TEXT;");
+      }
+      if (!bmCols.some((c) => c.name === "cached_content")) {
+        sqlite.exec("ALTER TABLE bookmarks ADD COLUMN cached_content TEXT;");
+      }
+    } catch {}
+
     try {
       const userCols = sqlite.prepare("PRAGMA table_info(users)").all() as any[];
       if (!userCols.some((c) => c.name === "username")) {

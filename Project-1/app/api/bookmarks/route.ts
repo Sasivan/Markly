@@ -70,6 +70,12 @@ export async function POST(req: Request) {
       domain = new URL(rawUrl).hostname.replace(/^www\./, "");
     } catch {}
 
+    // Check duplicate check request
+    if (body.checkDuplicateOnly) {
+      const dup = BookmarkRepository.checkDuplicateUrl(rawUrl, user.id);
+      return NextResponse.json({ success: true, ...dup });
+    }
+
     const title = (body.title || "New Bookmark").trim();
     const folderId = body.folderId === "null" || !body.folderId ? null : body.folderId;
     const tagNames = Array.isArray(body.tagNames) ? body.tagNames : [];
@@ -85,6 +91,8 @@ export async function POST(req: Request) {
       folderId,
       isFavorite: Boolean(body.isFavorite),
       tagNames,
+      notes: body.notes || null,
+      cachedContent: body.cachedContent || null,
       userId: user.id,
     });
 

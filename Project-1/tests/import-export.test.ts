@@ -33,6 +33,8 @@ describe("Netscape Bookmark HTML Engine", () => {
     visitCount: 15,
     lastVisitedAt: null,
     createdAt: 1700000000000,
+    notes: null,
+    cachedContent: null,
     searchText: "react docs",
     folderName: "Engineering",
     tags: [{ id: "t_1", userId: "usr_1", name: "react", color: "#3b82f6", createdAt: 1700000000000 }],
@@ -89,6 +91,8 @@ describe("CSV Export Engine", () => {
       visitCount: 3,
       lastVisitedAt: null,
       createdAt: 1700000000000,
+      notes: null,
+      cachedContent: null,
       searchText: null,
       tags: [],
     };

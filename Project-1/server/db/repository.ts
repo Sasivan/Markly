@@ -939,6 +939,7 @@ export class BookmarkRepository {
         b.id, b.user_id, b.folder_id, b.url, b.canonical_url, b.title, b.description,
         b.icon_url, b.image_url, b.domain, b.is_favorite, b.is_archived, b.status,
         b.visit_count, b.last_visited_at, b.last_clicked_at, b.created_at, b.search_text,
+        b.notes, b.cached_content,
         f.name as folder_name
       FROM bookmarks b
       LEFT JOIN folders f ON b.folder_id = f.id
@@ -1050,6 +1051,8 @@ export class BookmarkRepository {
       last_clicked_at?: number | null;
       created_at: number;
       search_text: string | null;
+      notes?: string | null;
+      cached_content?: string | null;
       folder_name: string | null;
     }
 
@@ -1110,6 +1113,8 @@ export class BookmarkRepository {
       lastClickedAt: r.last_clicked_at ?? r.last_visited_at ?? null,
       createdAt: r.created_at,
       searchText: r.search_text,
+      notes: r.notes || null,
+      cachedContent: r.cached_content || null,
       folderName: r.folder_name,
       tags: tagMap.get(r.id) || [],
     }));
@@ -1131,6 +1136,8 @@ export class BookmarkRepository {
     isArchived?: boolean;
     status?: "alive" | "dead" | "pending";
     tagNames?: string[];
+    notes?: string;
+    cachedContent?: string;
     userId: string;
   }): BookmarkWithDetails {
     const userId = data.userId;
@@ -1157,6 +1164,7 @@ export class BookmarkRepository {
     const searchText = [
       data.title,
       data.description || "",
+      data.notes || "",
       data.domain,
       data.url,
       (data.tagNames || []).join(" "),
@@ -1193,6 +1201,8 @@ export class BookmarkRepository {
       lastClickedAt: null,
       createdAt: now,
       searchText,
+      notes: data.notes || null,
+      cachedContent: data.cachedContent || null,
     }).run();
 
     try {
@@ -1264,6 +1274,8 @@ export class BookmarkRepository {
       visitCount: number;
       lastVisitedAt: number | null;
       tagNames: string[];
+      notes: string | null;
+      cachedContent: string | null;
     }>
   ): BookmarkWithDetails | null {
     const existing = sqlite.prepare(`SELECT id FROM bookmarks WHERE id = ? AND user_id = ?`).get(id, userId);
@@ -2009,6 +2021,7 @@ export class BookmarkRepository {
         b.id, b.user_id, b.folder_id, b.url, b.canonical_url, b.title, b.description,
         b.icon_url, b.image_url, b.domain, b.is_favorite, b.is_archived, b.status,
         b.visit_count, b.last_visited_at, b.last_clicked_at, b.created_at, b.search_text,
+        b.notes, b.cached_content,
         f.name as folder_name
       FROM bookmarks b
       LEFT JOIN folders f ON b.folder_id = f.id
@@ -2051,6 +2064,8 @@ export class BookmarkRepository {
       lastClickedAt: r.last_clicked_at ?? r.last_visited_at ?? null,
       createdAt: r.created_at,
       searchText: r.search_text,
+      notes: r.notes || null,
+      cachedContent: r.cached_content || null,
       folderName: r.folder_name || (r.folder_id ? "Unknown Folder" : "Unsorted"),
       tags,
     };
@@ -2511,6 +2526,105 @@ export class BookmarkRepository {
       console.error("deleteFeedback error:", e);
       return false;
     }
+  }
+
+  /**
+   * Check if a URL or canonical URL already exists in user's library (Preventive Duplicate Check)
+   */
+  static checkDuplicateUrl(rawUrl: string, userId: string): { exists: boolean; bookmark?: BookmarkWithDetails } {
+    if (!rawUrl || !userId) return { exists: false };
+    try {
+      let canonical = rawUrl.trim().toLowerCase();
+      try {
+        const u = new URL(rawUrl);
+        canonical = `${u.origin}${u.pathname}`.replace(/\/$/, "").toLowerCase();
+      } catch {}
+
+      const found = sqlite.prepare(`
+        SELECT id FROM bookmarks 
+        WHERE user_id = ? 
+          AND (LOWER(url) = LOWER(?) OR LOWER(canonical_url) = LOWER(?))
+          AND (status IS NULL OR status != 'trash')
+          AND id NOT IN (SELECT id FROM deleted_bookmarks)
+        LIMIT 1
+      `).get(userId, rawUrl.trim(), canonical) as { id: string } | undefined;
+
+      if (found) {
+        const bm = this.getBookmarkById(found.id, userId);
+        if (bm) return { exists: true, bookmark: bm };
+      }
+    } catch (e) {
+      console.warn("checkDuplicateUrl error:", e);
+    }
+    return { exists: false };
+  }
+
+  /**
+   * Stash open browser tabs into a newly created session folder
+   */
+  static stashOpenTabs(userId: string, folderName: string, tabs: Array<{ title: string; url: string }>) {
+    if (!userId || !Array.isArray(tabs) || tabs.length === 0) return null;
+    const folder = this.createFolder({
+      userId,
+      name: folderName || `Stashed Tabs (${new Date().toLocaleDateString()})`,
+      icon: "Layers",
+      color: "#6366f1",
+    });
+
+    const created: BookmarkWithDetails[] = [];
+    for (const tab of tabs) {
+      if (!tab.url) continue;
+      let domain = "example.com";
+      try {
+        domain = new URL(tab.url).hostname.replace(/^www\./, "");
+      } catch {}
+      try {
+        const bm = this.createBookmark({
+          userId,
+          title: tab.title || domain,
+          url: tab.url,
+          domain,
+          folderId: folder.id,
+        });
+        created.push(bm);
+      } catch {}
+    }
+    return { folder, bookmarksCount: created.length };
+  }
+
+  /**
+   * Smart Collections: dynamic rule-based folders stored in SQLite
+   */
+  static getSmartCollections(userId: string) {
+    try {
+      return sqlite.prepare(`
+        SELECT * FROM smart_collections WHERE user_id = ? ORDER BY created_at DESC
+      `).all(userId) as Array<{
+        id: string;
+        user_id: string;
+        name: string;
+        icon: string;
+        color: string;
+        rules_json: string;
+        created_at: number;
+      }>;
+    } catch {
+      return [];
+    }
+  }
+
+  static createSmartCollection(userId: string, data: { name: string; icon?: string; color?: string; rulesJson: string }) {
+    const id = `sc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    sqlite.prepare(`
+      INSERT INTO smart_collections (id, user_id, name, icon, color, rules_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, userId, data.name, data.icon || "Sparkles", data.color || "#3b82f6", data.rulesJson, Date.now());
+    return { id, userId, name: data.name, icon: data.icon || "Sparkles", color: data.color || "#3b82f6", rules_json: data.rulesJson, created_at: Date.now() };
+  }
+
+  static deleteSmartCollection(id: string, userId: string) {
+    sqlite.prepare(`DELETE FROM smart_collections WHERE id = ? AND user_id = ?`).run(id, userId);
+    return true;
   }
 }
 

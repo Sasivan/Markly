@@ -51,6 +51,8 @@ export const bookmarks = sqliteTable(
     lastClickedAt: integer("last_clicked_at"),
     createdAt: integer("created_at").notNull(),
     searchText: text("search_text"),
+    notes: text("notes"),
+    cachedContent: text("cached_content"),
   },
   (table) => [
     index("bookmarks_user_folder_idx").on(table.userId, table.folderId),
@@ -160,6 +162,22 @@ export const feedbackReplies = sqliteTable(
   ]
 );
 
+export const smartCollections = sqliteTable(
+  "smart_collections",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    icon: text("icon").notNull().default("Sparkles"),
+    color: text("color").notNull().default("#3b82f6"),
+    rulesJson: text("rules_json").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("smart_collections_user_idx").on(table.userId),
+  ]
+);
+
 // Drizzle Relations
 export const foldersRelations = relations(folders, ({ one, many }) => ({
   parent: one(folders, {
@@ -208,10 +226,14 @@ export type BookmarkTag = typeof bookmarkTags.$inferSelect;
 
 export type BookmarkWithDetails = Omit<Bookmark, "lastClickedAt"> & {
   lastClickedAt?: number | null;
+  notes?: string | null;
+  cachedContent?: string | null;
   tags: Tag[];
   folderName?: string | null;
   folderPath?: string | null;
 };
+
+export type SmartCollection = typeof smartCollections.$inferSelect;
 
 export type FolderTreeNode = Folder & {
   children: FolderTreeNode[];

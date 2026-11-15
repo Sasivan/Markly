@@ -14,6 +14,10 @@ import {
   PlusCircle,
   Check,
   Download,
+  Lock,
+  Clock,
+  KeyRound,
+  ShieldAlert,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -33,6 +37,9 @@ interface SharedCollection {
   name: string;
   icon: string;
   color: string;
+  expiresAt?: number | null;
+  passwordProtected?: boolean;
+  passwordHash?: string;
   items: SharedBookmark[];
 }
 
@@ -44,6 +51,9 @@ export default function PublicSharePage() {
   const [mounted, setMounted] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
   const [imported, setImported] = React.useState(false);
+  const [passwordInput, setPasswordInput] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState(false);
+  const [isUnlocked, setIsUnlocked] = React.useState(false);
 
   const handleAddToLibrary = async () => {
     if (!collection || collection.items.length === 0) return;
@@ -151,6 +161,28 @@ export default function PublicSharePage() {
     );
   }, [collection, searchQuery]);
 
+  const isExpired = Boolean(
+    collection?.expiresAt && Date.now() > collection.expiresAt
+  );
+
+  const isPasswordRequired = Boolean(
+    collection?.passwordProtected && !isUnlocked
+  );
+
+  const handleUnlockPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!collection?.passwordHash) {
+      setIsUnlocked(true);
+      return;
+    }
+    if (btoa(passwordInput.trim()) === collection.passwordHash) {
+      setIsUnlocked(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+    }
+  };
+
   if (!mounted) {
     return <div className="min-h-screen bg-background" />;
   }
@@ -206,8 +238,64 @@ export default function PublicSharePage() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-6 md:p-8 space-y-6">
-        {/* Collection Hero */}
-        <div className="p-6 rounded-xl border border-border bg-card shadow-xs space-y-3">
+        {isExpired ? (
+          <div className="p-8 rounded-xl border border-destructive/30 bg-destructive/5 text-center space-y-3 max-w-lg mx-auto my-12">
+            <div className="h-12 w-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+              <Clock className="h-6 w-6" />
+            </div>
+            <h2 className="text-base font-semibold text-foreground">This Link Has Expired</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The owner of this collection configured this share link to expire. Please request an updated share link from the author.
+            </p>
+            <div className="pt-2">
+              <a href="/" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+                Go to Markly Home
+              </a>
+            </div>
+          </div>
+        ) : isPasswordRequired ? (
+          <div className="p-8 rounded-xl border border-border bg-card text-center space-y-4 max-w-md mx-auto my-12 shadow-md">
+            <div className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+              <Lock className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-foreground">Password Protected Collection</h2>
+              <p className="text-xs text-muted-foreground">
+                Enter the password provided by the collection owner to view these bookmarks.
+              </p>
+            </div>
+            <form onSubmit={handleUnlockPassword} className="space-y-3 text-left">
+              <div className="space-y-1">
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    setPasswordError(false);
+                  }}
+                  placeholder="Enter password..."
+                  className={`w-full h-9 px-3 rounded-md border bg-background text-xs text-foreground focus:outline-none focus:ring-1 ${
+                    passwordError ? "border-destructive focus:ring-destructive" : "border-input focus:ring-ring"
+                  }`}
+                  autoFocus
+                />
+                {passwordError && (
+                  <p className="text-[11px] text-destructive">Incorrect password. Please try again.</p>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="w-full h-9 rounded-md bg-primary text-primary-foreground text-xs font-medium cursor-pointer hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                <span>Unlock Collection</span>
+              </button>
+            </form>
+          </div>
+        ) : (
+          <>
+            {/* Collection Hero */}
+            <div className="p-6 rounded-xl border border-border bg-card shadow-xs space-y-3">
           <div className="flex items-center gap-3">
             <FolderIconRenderer
               icon={collection?.icon || "📁"}
@@ -339,6 +427,8 @@ export default function PublicSharePage() {
               </a>
             ))}
           </div>
+        )}
+          </>
         )}
       </main>
 

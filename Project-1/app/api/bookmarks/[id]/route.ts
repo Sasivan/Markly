@@ -51,6 +51,8 @@ export async function PATCH(
       status: body.status,
       visitCount: body.visitCount,
       lastVisitedAt: body.lastVisitedAt,
+      notes: body.notes !== undefined ? body.notes : undefined,
+      cachedContent: body.cachedContent !== undefined ? body.cachedContent : undefined,
       tagNames:
         body.tagNames !== undefined
           ? body.tagNames

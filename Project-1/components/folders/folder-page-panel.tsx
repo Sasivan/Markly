@@ -16,6 +16,7 @@ import {
   X,
   Copy,
   Share2,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -97,6 +98,30 @@ export function FolderPagePanel({
       setEditName(currentFolder.name);
       setIsEditingName(false);
     }
+  };
+
+  const handleOpenAllInTabs = () => {
+    const targetBookmarks = includeSubfolders
+      ? bookmarks
+      : bookmarks.filter((b) => b.folderId === currentFolder.id);
+
+    if (targetBookmarks.length === 0) {
+      alert("No bookmarks in this folder to open.");
+      return;
+    }
+
+    if (targetBookmarks.length > 10) {
+      const confirmOpen = window.confirm(
+        `Open all ${targetBookmarks.length} links in separate browser tabs? (Please ensure popups are allowed for this site)`
+      );
+      if (!confirmOpen) return;
+    }
+
+    targetBookmarks.forEach((b) => {
+      if (b.url) {
+        window.open(b.url, "_blank");
+      }
+    });
   };
 
   const parentFolder = currentFolder.parentId
@@ -285,6 +310,17 @@ export function FolderPagePanel({
               <Plus className="h-4 w-4" />
             </Button>
           )}
+
+          {/* 1-Click Open All in Browser Tabs (Feature 2.2) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenAllInTabs}
+            className="h-8 w-8 p-0 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs flex items-center justify-center"
+            title={`Open all ${includeSubfolders ? bookmarks.length : directBookmarksCount} links in browser tabs`}
+          >
+            <ExternalLink className="h-4 w-4 text-blue-500" />
+          </Button>
 
           {/* Subfolder Toggle Icon */}
           <button

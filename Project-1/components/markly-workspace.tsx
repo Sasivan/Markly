@@ -42,6 +42,7 @@ import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-m
 import { LibraryCleanupWizard } from "@/components/modals/library-cleanup-wizard";
 import { ShareCollectionModal } from "@/components/folders/share-collection-modal";
 import { ChromeExtensionModal } from "@/components/modals/chrome-extension-modal";
+import { StashTabsModal } from "@/components/modals/stash-tabs-modal";
 import { SharedLinksView } from "@/components/shared/shared-links-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
@@ -218,6 +219,7 @@ export function MarklyWorkspace({
 
   // Chrome Extension modal state (Item 7)
   const [chromeExtensionOpen, setChromeExtensionOpen] = React.useState(false);
+  const [stashTabsOpen, setStashTabsOpen] = React.useState(false);
 
   // Hydration ref to avoid overwriting URL query params on initial mount
   const isHydratedRef = React.useRef(false);
@@ -1332,6 +1334,13 @@ export function MarklyWorkspace({
         onOpenChange={setChromeExtensionOpen}
       />
 
+      {/* Stash Open Tabs Session Modal (Feature 2.1) */}
+      <StashTabsModal
+        isOpen={stashTabsOpen}
+        onClose={() => setStashTabsOpen(false)}
+        onSuccess={refreshData}
+      />
+
       {/* Sidebar with recursive folder tree & drag-and-drop */}
       <Sidebar
         folderTree={folderTree}
@@ -1376,6 +1385,7 @@ export function MarklyWorkspace({
           onOpenAddModal={() => openAddModal()}
           onOpenImportExport={() => setImportExportOpen(true)}
           onOpenChromeExtension={() => setChromeExtensionOpen(true)}
+          onOpenStashTabs={() => setStashTabsOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
           onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
           onOpenShortcuts={() => setShortcutsModalOpen(true)}

@@ -137,6 +137,7 @@ export function MarklyWorkspace({
   const [includeSubfolders, setIncludeSubfolders] = React.useState(true); // Default true: include subfolders for smooth navigation
   const [activeDomainFilter, setActiveDomainFilter] = React.useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = React.useState<string | null>(null);
+  const [activeStatusFilter, setActiveStatusFilter] = React.useState<"alive" | "dead" | null>(null);
   const [recentDays, setRecentDays] = React.useState<number>(30);
 
   // Sidebar collapse state: collapsed by default for all users when opening website
@@ -457,8 +458,16 @@ export function MarklyWorkspace({
       list = list.filter((b) => b.tags?.some((t) => t.name.toLowerCase() === activeTagFilter.toLowerCase()));
     }
 
+    if (activeStatusFilter) {
+      if (activeStatusFilter === "dead") {
+        list = list.filter((b) => b.status === "dead");
+      } else {
+        list = list.filter((b) => b.status !== "dead");
+      }
+    }
+
     return list;
-  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, recentDays]);
+  }, [bookmarks, folders, activeFolderId, includeSubfolders, activeView, activeDomainFilter, activeTagFilter, activeStatusFilter, recentDays]);
 
   // Safety check: if activeFolderId points to a folder that does not exist in folders list, reset it!
   React.useEffect(() => {
@@ -1646,6 +1655,9 @@ export function MarklyWorkspace({
                 activeTagFilter={activeTagFilter}
                 onSelectTag={setActiveTagFilter}
                 onOpenDomainInsights={(dom) => setActiveDomain(dom)}
+                onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
+                onFilterByStatus={setActiveStatusFilter}
+                activeStatusFilter={activeStatusFilter}
               />
 
               {/* Recently Visited Time Boundary Control Bar */}

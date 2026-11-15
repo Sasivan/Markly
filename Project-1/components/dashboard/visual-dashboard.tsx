@@ -58,6 +58,9 @@ interface VisualDashboardProps {
   activeTagFilter: string | null;
   onSelectTag: (tag: string | null) => void;
   onOpenDomainInsights?: (domain: string) => void;
+  onOpenPreview?: (bm: BookmarkWithDetails) => void;
+  onFilterByStatus?: (status: "alive" | "dead" | null) => void;
+  activeStatusFilter?: "alive" | "dead" | null;
 }
 
 const PALETTE = [
@@ -81,6 +84,9 @@ export function VisualDashboard({
   includeSubfolders,
   onToggleIncludeSubfolders,
   onOpenDomainInsights,
+  onOpenPreview,
+  onFilterByStatus,
+  activeStatusFilter,
 }: VisualDashboardProps) {
   const [collapsed, setCollapsed] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"tags" | "engagement" | "health" | "wall" | "graph">("tags");
@@ -188,7 +194,7 @@ export function VisualDashboard({
           </span>
 
           {/* Active Chart Filter Badges */}
-          {(activeDomainFilter || activeTagFilter) && (
+          {(activeDomainFilter || activeTagFilter || activeStatusFilter) && (
             <div className="flex items-center gap-1.5 ml-1">
               {activeDomainFilter && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono bg-primary text-primary-foreground">
@@ -204,6 +210,15 @@ export function VisualDashboard({
                   <Filter className="h-2.5 w-2.5" />
                   Tag: #{activeTagFilter}
                   <button type="button" onClick={() => onSelectTag(null)} className="hover:opacity-80 cursor-pointer">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {activeStatusFilter && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono bg-primary text-primary-foreground">
+                  <Filter className="h-2.5 w-2.5" />
+                  Status: {activeStatusFilter === "dead" ? "Broken Links" : "Reachable"}
+                  <button type="button" onClick={() => onFilterByStatus?.(null)} className="hover:opacity-80 cursor-pointer">
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -466,8 +481,8 @@ export function VisualDashboard({
 
               {/* Bar Chart Representing Interaction Tiers */}
               <div className="h-44 w-full bg-card rounded-md p-2.5 border border-border">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={engagementData.tiers} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
+                <ResponsiveContainer width="100%" height="100%" style={{ outline: "none" }}>
+                  <BarChart data={engagementData.tiers} margin={{ top: 10, right: 15, left: -15, bottom: 0 }} style={{ outline: "none" }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.06} />
                     <XAxis dataKey="tier" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
@@ -488,9 +503,9 @@ export function VisualDashboard({
                         return null;
                       }}
                     />
-                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} cursor="pointer" style={{ outline: "none" }}>
                       {engagementData.tiers.map((entry, idx) => (
-                        <Cell key={`tier-${idx}`} fill={entry.color} />
+                        <Cell key={`tier-${idx}`} fill={entry.color} cursor="pointer" style={{ outline: "none" }} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -503,7 +518,7 @@ export function VisualDashboard({
           {activeTab === "health" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center min-h-56">
               <div className="h-56 w-full flex items-center justify-center">
-                <PieChart width={280} height={220}>
+                <PieChart width={280} height={220} style={{ outline: "none" }}>
                   <Pie
                     isAnimationActive={false}
                     data={healthData.chartData}
@@ -514,21 +529,60 @@ export function VisualDashboard({
                     innerRadius={45}
                     outerRadius={80}
                     paddingAngle={3}
+                    cursor="pointer"
+                    style={{ outline: "none" }}
+                    onClick={(entry: any) => {
+                      if (onFilterByStatus) {
+                        const target = entry?.name?.includes("Broken") ? "dead" : "alive";
+                        onFilterByStatus(activeStatusFilter === target ? null : target);
+                      }
+                    }}
                   >
                     {healthData.chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} cursor="pointer" style={{ outline: "none" }} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="rounded-md border border-border bg-popover p-2 text-xs shadow-sm text-popover-foreground">
+                            <span className="font-medium block text-foreground">{d.name}</span>
+                            <span className="font-mono text-xs">{d.count} sites</span>
+                            <span className="text-[10px] text-primary block mt-1">Click to filter</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                 </PieChart>
               </div>
 
               <div className="space-y-3">
-                <div className="text-xs font-mono text-muted-foreground">
-                  Link Health & Reachability Overview
+                <div className="text-xs font-mono text-muted-foreground flex items-center justify-between">
+                  <span>Link Health & Reachability Overview</span>
+                  {activeStatusFilter && (
+                    <button
+                      type="button"
+                      onClick={() => onFilterByStatus?.(null)}
+                      className="text-xs text-primary hover:underline cursor-pointer"
+                    >
+                      Clear Status Filter
+                    </button>
+                  )}
                 </div>
 
-                <div className="p-3.5 rounded-md border border-border bg-card flex items-center justify-between">
+                <div
+                  onClick={() => onFilterByStatus?.(activeStatusFilter === "alive" ? null : "alive")}
+                  className={`p-3.5 rounded-md border transition-colors cursor-pointer flex items-center justify-between ${
+                    activeStatusFilter === "alive"
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-border bg-card hover:border-emerald-500/40"
+                  }`}
+                  title="Filter to reachable sites"
+                >
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     <div>
@@ -536,21 +590,29 @@ export function VisualDashboard({
                         {healthData.alivePercent}% Reachable
                       </div>
                       <div className="text-xs text-muted-foreground font-mono">
-                        {healthData.alive} bookmarks verified active & alive
+                        {healthData.alive} bookmarks verified active & alive • Click to filter
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {healthData.dead > 0 ? (
-                  <div className="p-3.5 rounded-md border border-rose-500/20 bg-rose-500/5 flex items-center gap-2.5">
+                  <div
+                    onClick={() => onFilterByStatus?.(activeStatusFilter === "dead" ? null : "dead")}
+                    className={`p-3.5 rounded-md border transition-colors cursor-pointer flex items-center gap-2.5 ${
+                      activeStatusFilter === "dead"
+                        ? "border-rose-500 bg-rose-500/10"
+                        : "border-rose-500/20 bg-rose-500/5 hover:border-rose-500/50"
+                    }`}
+                    title="Filter to broken sites"
+                  >
                     <AlertTriangle className="h-5 w-5 text-rose-500" />
                     <div>
                       <div className="font-semibold text-sm text-foreground">
                         {healthData.dead} Broken Links
                       </div>
                       <div className="text-xs text-rose-600 dark:text-rose-400 font-mono">
-                        Flagged as 404 or unreachable
+                        Flagged as 404 or unreachable • Click to filter
                       </div>
                     </div>
                   </div>
@@ -566,29 +628,44 @@ export function VisualDashboard({
           {/* 5. FAVICON WALL MATRIX */}
           {activeTab === "wall" && (
             <div className="space-y-2">
-              <div className="text-xs font-mono text-muted-foreground">
-                Visual Favicon Wall ({bookmarks.length} sites in current view)
+              <div className="text-xs font-mono text-muted-foreground flex items-center justify-between">
+                <span>Visual Favicon Wall ({bookmarks.length} sites in current view)</span>
+                <span className="text-[11px] text-muted-foreground">Click any site to open preview popup</span>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2.5 max-h-56 overflow-y-auto p-1">
                 {bookmarks.map((bm) => (
-                  <a
+                  <div
                     key={bm.id}
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2.5 rounded-md border border-border bg-card hover:bg-secondary flex flex-col items-center justify-center gap-1.5 transition-colors group cursor-pointer"
-                    title={`${bm.title} (${bm.domain})`}
+                    onClick={() => {
+                      if (onOpenPreview) {
+                        onOpenPreview(bm);
+                      } else {
+                        window.open(bm.url, "_blank");
+                      }
+                    }}
+                    className="p-2.5 rounded-md border border-border bg-card hover:bg-secondary hover:border-primary/40 flex flex-col items-center justify-center gap-1.5 transition-colors group cursor-pointer relative outline-none focus:outline-none"
+                    title={`${bm.title} (${bm.domain}) — Click to preview`}
                   >
                     <BookmarkIcon
                       src={bm.iconUrl}
                       alt={bm.title}
                       domain={bm.domain}
-                      className="h-8 w-8 rounded-md object-contain bg-background border border-border p-0.5"
+                      className="h-8 w-8 rounded-md object-contain bg-background border border-border p-0.5 group-hover:scale-105 transition-transform"
                     />
                     <span className="text-xs font-mono text-muted-foreground group-hover:text-foreground truncate w-full text-center">
                       {bm.domain.split(".")[0]}
                     </span>
-                  </a>
+                    <a
+                      href={bm.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute top-1 right-1 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Open website directly in new tab"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
                 ))}
               </div>
             </div>

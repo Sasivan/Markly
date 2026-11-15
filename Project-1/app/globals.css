@@ -108,6 +108,25 @@
   background: rgba(150, 150, 150, 0.45);
 }
 
+/* Eliminate browser default focus outlines on charts, SVGs, and visual items */
+svg:focus,
+svg *:focus,
+.recharts-wrapper,
+.recharts-wrapper:focus,
+.recharts-surface,
+.recharts-surface:focus,
+.recharts-sector,
+.recharts-sector:focus,
+.recharts-rectangle,
+.recharts-rectangle:focus,
+.recharts-curve,
+.recharts-curve:focus,
+.recharts-dot,
+.recharts-dot:focus,
+.recharts-layer:focus {
+  outline: none !important;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);

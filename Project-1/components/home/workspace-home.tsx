@@ -412,45 +412,77 @@ export function WorkspaceHome({
 
         {/* Live Metrics Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-border">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("all");
+            }}
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/60 cursor-pointer transition-colors text-left outline-none focus:outline-none group"
+            title="View all active bookmarks"
+          >
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
               <Bookmark className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{totalCount}</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground group-hover:text-primary transition-colors">{totalCount}</div>
               <div className="text-xs text-muted-foreground">Active bookmarks</div>
             </div>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("collections");
+            }}
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/60 cursor-pointer transition-colors text-left outline-none focus:outline-none group"
+            title="Browse folder collections"
+          >
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
               <FolderIcon className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{folderCollectionsCount}</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground group-hover:text-primary transition-colors">{folderCollectionsCount}</div>
               <div className="text-xs text-muted-foreground">Folder collections</div>
             </div>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("all");
+            }}
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/60 cursor-pointer transition-colors text-left outline-none focus:outline-none group"
+            title="Inspect link health"
+          >
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-emerald-500 transition-colors">
               <ShieldCheck className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{healthPercent}%</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground group-hover:text-emerald-500 transition-colors">{healthPercent}%</div>
               <div className="text-xs text-muted-foreground">Reachable & healthy</div>
             </div>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("favorites");
+            }}
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/60 cursor-pointer transition-colors text-left outline-none focus:outline-none group"
+            title="Open starred favorites"
+          >
+            <div className="h-8 w-8 rounded-lg bg-secondary border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-amber-500 transition-colors">
               <Star className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-base font-semibold font-mono tabular-nums text-foreground">{totalFavoritesCount}</div>
+              <div className="text-base font-semibold font-mono tabular-nums text-foreground group-hover:text-amber-500 transition-colors">{totalFavoritesCount}</div>
               <div className="text-xs text-muted-foreground">Starred favorites</div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -927,7 +959,9 @@ export function WorkspaceHome({
           <div className="relative w-full h-56 select-none">
             {/* SVG Area Background Curve & Dynamic Grid Lines */}
             <svg
-              className="w-full h-full overflow-visible"
+              className="w-full h-full overflow-visible outline-none focus:outline-none"
+              style={{ outline: "none" }}
+              tabIndex={-1}
               viewBox="0 0 1000 200"
               preserveAspectRatio="none"
             >
@@ -975,7 +1009,9 @@ export function WorkspaceHome({
                 return (
                   <g
                     key={`dot-${dot.bookmark.id}-${idx}`}
-                    className="cursor-pointer"
+                    className="cursor-pointer outline-none focus:outline-none"
+                    style={{ outline: "none" }}
+                    tabIndex={-1}
                     onMouseEnter={() => {
                       setHoveredSpot({
                         bookmark: dot.bookmark,
@@ -1004,7 +1040,7 @@ export function WorkspaceHome({
                         fill="none"
                         stroke={dot.color}
                         strokeWidth="1.5"
-                        strokeOpacity="0.65"
+                        strokeOpacity="0.4"
                       />
                     )}
                     <circle
@@ -1014,7 +1050,7 @@ export function WorkspaceHome({
                       r={isHovered ? "4.5" : dot.isInactive ? "2.6" : "3.2"}
                       fill={dot.color}
                       fillOpacity={dot.isInactive ? 0.35 : 0.95}
-                      stroke={isHovered ? "#ffffff" : dot.isInactive ? "currentColor" : "#ffffff"}
+                      stroke={isHovered ? dot.color : dot.isInactive ? "currentColor" : "transparent"}
                       strokeOpacity={dot.isInactive ? 0.3 : 0.85}
                       strokeWidth={isHovered ? "1.5" : "0.75"}
                       className="transition-opacity duration-150"
@@ -1036,10 +1072,18 @@ export function WorkspaceHome({
             {/* Tooltip Over the Spot (Last Time Clicked) */}
             {hoveredSpot && (
               <div
-                className="absolute z-30 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground"
+                className="absolute z-30 cursor-pointer pointer-events-auto transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground hover:border-primary/50 transition-colors"
                 style={{
                   left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
                   top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
+                }}
+                onClick={() => {
+                  if (onOpenPreview) {
+                    onOpenPreview(hoveredSpot.bookmark);
+                  } else {
+                    handleSiteVisit(hoveredSpot.bookmark);
+                    window.open(hoveredSpot.bookmark.url, "_blank");
+                  }
                 }}
               >
                 <div className="flex items-center gap-2 border-b border-border pb-1.5 font-medium">
@@ -1082,8 +1126,8 @@ export function WorkspaceHome({
                   </div>
                 </div>
 
-                <div className="text-xs text-center text-muted-foreground font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
-                  <span>Inspect bookmark</span>
+                <div className="text-xs text-center text-primary font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
+                  <span>Open preview & details</span>
                   <ArrowUpRight className="h-3 w-3" />
                 </div>
               </div>
@@ -1098,6 +1142,11 @@ export function WorkspaceHome({
         folders={folders}
         folderTree={folderTree}
         onSelectFolder={(fId) => onSelectFolder(fId)}
+        onSelectTag={(tag) => {
+          onSelectTag?.(tag);
+          onSelectFolder(null);
+          onSelectView("all");
+        }}
         onSelectDomain={onSelectDomain}
       />
 

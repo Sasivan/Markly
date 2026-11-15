@@ -986,7 +986,7 @@ export function BookmarkTable({
                     <tr
                       key={row.id}
                       onClick={() => onOpenPreview?.(row.original)}
-                      className={`hover:bg-muted/30 transition-colors group cursor-pointer ${
+                      className={`hover:bg-muted/30 transition-colors group cursor-pointer outline-none focus:outline-none ${
                         row.getIsSelected() ? "bg-primary/5" : ""
                       }`}
                     >
@@ -1044,7 +1044,7 @@ export function BookmarkTable({
                     <div
                       key={bm.id}
                       onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-                      className="group p-2.5 rounded-lg border border-border bg-background hover:border-border-hover transition-colors text-xs space-y-1.5 cursor-pointer shadow-xs"
+                      className="group p-2.5 rounded-lg border border-border bg-background hover:border-border-hover transition-colors text-xs space-y-1.5 cursor-pointer shadow-xs outline-none focus:outline-none"
                     >
                       <div className="flex items-start justify-between gap-1.5">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -1172,7 +1172,7 @@ export function BookmarkTable({
               <div
                 key={bm.id}
                 onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-                className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer"
+                className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer outline-none focus:outline-none"
               >
                 {/* Notion-Style Card Cover: Visual Snapshot */}
                 <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
@@ -1313,7 +1313,7 @@ export function BookmarkTable({
             <div
               key={bm.id}
               onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
-              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer"
+              className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer outline-none focus:outline-none"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
                 <button

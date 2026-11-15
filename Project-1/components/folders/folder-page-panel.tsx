@@ -220,17 +220,49 @@ export function FolderPagePanel({
 
             {/* Folder Metrics */}
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
-              <span className="font-mono bg-secondary px-2 py-0.5 rounded-md text-xs font-medium text-foreground border border-border tabular-nums">
+              <button
+                type="button"
+                onClick={() => onToggleIncludeSubfolders(false)}
+                className={`font-mono px-2 py-0.5 rounded-md text-xs font-medium border tabular-nums cursor-pointer transition-colors outline-none focus:outline-none ${
+                  !includeSubfolders
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary text-foreground border-border hover:bg-muted"
+                }`}
+                title="Filter to direct sites in this folder only"
+              >
                 {directBookmarksCount} direct {directBookmarksCount === 1 ? "site" : "sites"}
-              </span>
+              </button>
               <span>•</span>
-              <span className="font-mono bg-secondary px-2 py-0.5 rounded-md text-xs font-medium text-foreground border border-border tabular-nums">
-                {childFolders.length} {childFolders.length === 1 ? "subfolder" : "subfolders"}
-              </span>
+              {childFolders.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById("subfolders-zone");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="font-mono bg-secondary hover:bg-muted px-2 py-0.5 rounded-md text-xs font-medium text-foreground border border-border tabular-nums cursor-pointer transition-colors outline-none focus:outline-none"
+                  title="View subfolders below"
+                >
+                  {childFolders.length} {childFolders.length === 1 ? "subfolder" : "subfolders"}
+                </button>
+              ) : (
+                <span className="font-mono bg-secondary px-2 py-0.5 rounded-md text-xs font-medium text-foreground border border-border tabular-nums">
+                  0 subfolders
+                </span>
+              )}
               <span>•</span>
-              <span className="font-mono bg-secondary px-2 py-0.5 rounded-md text-xs font-medium text-foreground border border-border tabular-nums">
+              <button
+                type="button"
+                onClick={() => onToggleIncludeSubfolders(true)}
+                className={`font-mono px-2 py-0.5 rounded-md text-xs font-medium border tabular-nums cursor-pointer transition-colors outline-none focus:outline-none ${
+                  includeSubfolders
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary text-foreground border-border hover:bg-muted"
+                }`}
+                title="Include all nested subfolder sites"
+              >
                 {totalDescendantBookmarksCount} total {totalDescendantBookmarksCount === 1 ? "site" : "sites"}
-              </span>
+              </button>
             </div>
           </div>
         </div>
@@ -340,7 +372,7 @@ export function FolderPagePanel({
 
       {/* Subfolders Navigation Zone */}
       {childFolders.length > 0 && (
-        <div className="pt-3 border-t border-border space-y-2">
+        <div id="subfolders-zone" className="pt-3 border-t border-border space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />

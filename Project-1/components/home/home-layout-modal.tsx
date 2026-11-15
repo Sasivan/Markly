@@ -25,17 +25,18 @@ export interface HomeWidgetConfig {
   id: HomeWidgetKey;
   label: string;
   visible: boolean;
+  span?: "1" | "2"; // 1 = Half Width, 2 = Full Width
 }
 
 export const DEFAULT_HOME_WIDGETS: HomeWidgetConfig[] = [
-  { id: "heatmap", label: "365-Day Activity Heatmap", visible: true },
-  { id: "scratchpad", label: "Quick Scratchpad", visible: true },
-  { id: "folders", label: "Quick Access Folders", visible: true },
-  { id: "recent", label: "Recently Visited Sites", visible: true },
-  { id: "favorites", label: "Starred Favorites", visible: true },
-  { id: "unsorted", label: "Inbox / Unsorted Bookmarks", visible: true },
-  { id: "spectrum", label: "Inactivity Dot Spectrum", visible: true },
-  { id: "analytics", label: "Global Visual Analytics", visible: true },
+  { id: "heatmap", label: "365-Day Activity Heatmap", visible: true, span: "2" },
+  { id: "scratchpad", label: "Quick Scratchpad", visible: true, span: "1" },
+  { id: "folders", label: "Quick Access Folders", visible: true, span: "1" },
+  { id: "recent", label: "Recently Visited Sites", visible: true, span: "1" },
+  { id: "favorites", label: "Starred Favorites", visible: true, span: "1" },
+  { id: "unsorted", label: "Inbox / Unsorted Bookmarks", visible: true, span: "1" },
+  { id: "spectrum", label: "Inactivity Dot Spectrum", visible: true, span: "2" },
+  { id: "analytics", label: "Global Visual Analytics", visible: true, span: "2" },
 ];
 
 interface HomeLayoutModalProps {
@@ -62,6 +63,12 @@ export function HomeLayoutModal({
   const toggleVisibility = (id: HomeWidgetKey) => {
     setLocalWidgets((prev) =>
       prev.map((w) => (w.id === id ? { ...w, visible: !w.visible } : w))
+    );
+  };
+
+  const toggleSpan = (id: HomeWidgetKey) => {
+    setLocalWidgets((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, span: w.span === "2" ? "1" : "2" } : w))
     );
   };
 
@@ -120,7 +127,20 @@ export function HomeLayoutModal({
                 </span>
               </label>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => toggleSpan(widget.id)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-medium border cursor-pointer transition-colors ${
+                    (widget.span || "1") === "2"
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : "bg-background text-muted-foreground border-border hover:text-foreground"
+                  }`}
+                  title="Toggle Half Width (1 Col) vs Full Width (2 Col)"
+                >
+                  {(widget.span || "1") === "2" ? "Full Width (2 Col)" : "Half Width (1 Col)"}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => moveWidget(index, "up")}

@@ -7,6 +7,7 @@ import type { BookmarkWithDetails } from "@/server/db/schema";
 interface ActivityHeatmap365Props {
   bookmarks: BookmarkWithDetails[];
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
+  bare?: boolean;
 }
 
 interface DayActivity {
@@ -19,6 +20,7 @@ interface DayActivity {
 export function ActivityHeatmap365({
   bookmarks,
   onOpenPreview,
+  bare = false,
 }: ActivityHeatmap365Props) {
   const [selectedDay, setSelectedDay] = React.useState<DayActivity | null>(null);
   const [hoveredDay, setHoveredDay] = React.useState<DayActivity | null>(null);
@@ -156,37 +158,39 @@ export function ActivityHeatmap365({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+    <div className={bare ? "p-4 space-y-3" : "rounded-xl border border-border bg-card p-4 shadow-xs"}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border/60">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <Calendar className="h-3.5 w-3.5" />
+      {!bare && (
+        <div className="flex items-center justify-between pb-3 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Calendar className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <span>365-Day Library Activity Heatmap</span>
+                <span className="text-[11px] font-mono font-normal text-muted-foreground">
+                  ({totalYearActivity} actions logged)
+                </span>
+              </h3>
+              <p className="text-[11px] text-muted-foreground">
+                Cadence of saved bookmarks, links visited, and updates across the past year.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <span>365-Day Library Activity Heatmap</span>
-              <span className="text-[11px] font-mono font-normal text-muted-foreground">
-                ({totalYearActivity} actions logged)
-              </span>
-            </h3>
-            <p className="text-[11px] text-muted-foreground">
-              Cadence of saved bookmarks, links visited, and updates across the past year.
-            </p>
-          </div>
-        </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
-          <span>Less</span>
-          <span className="h-2.5 w-2.5 rounded-xs bg-secondary border border-border/50 inline-block" />
-          <span className="h-2.5 w-2.5 rounded-xs bg-primary/20 border border-primary/30 inline-block" />
-          <span className="h-2.5 w-2.5 rounded-xs bg-primary/40 border border-primary/50 inline-block" />
-          <span className="h-2.5 w-2.5 rounded-xs bg-primary/70 border border-primary/80 inline-block" />
-          <span className="h-2.5 w-2.5 rounded-xs bg-primary border border-primary inline-block" />
-          <span>More</span>
+          {/* Legend */}
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
+            <span>Less</span>
+            <span className="h-2.5 w-2.5 rounded-xs bg-secondary border border-border/50 inline-block" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-primary/20 border border-primary/30 inline-block" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-primary/40 border border-primary/50 inline-block" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-primary/70 border border-primary/80 inline-block" />
+            <span className="h-2.5 w-2.5 rounded-xs bg-primary border border-primary inline-block" />
+            <span>More</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Heatmap Grid Container */}
       <div className="mt-3 overflow-x-auto pb-2 scrollbar-none">

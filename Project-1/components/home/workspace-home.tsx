@@ -29,6 +29,8 @@ import {
   Rows3,
   Sparkles,
   Keyboard,
+  StickyNote,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,11 @@ import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { GlobalHomepageAnalytics } from "./global-homepage-analytics";
 import { ActivityHeatmap365 } from "./activity-heatmap-365";
 import { ScratchpadWidget } from "./scratchpad-widget";
+import {
+  DashboardWidgetBox,
+  BookmarkItemsView,
+  type WidgetViewMode,
+} from "./dashboard-widget-box";
 import {
   HomeLayoutModal,
   DEFAULT_HOME_WIDGETS,
@@ -134,6 +141,95 @@ export function WorkspaceHome({
       });
   }, [bookmarks, homeSearch]);
 
+  // Per-widget view mode state (Grid vs List vs Compact)
+  const [widgetViews, setWidgetViews] = React.useState<Record<string, WidgetViewMode>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_home_widget_views");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return {
+      folders: "grid",
+      recent: "list",
+      favorites: "grid",
+      unsorted: "compact",
+    };
+  });
+
+  const handleSetWidgetView = (widgetId: string, mode: WidgetViewMode) => {
+    setWidgetViews((prev) => {
+      const next = { ...prev, [widgetId]: mode };
+      try {
+        localStorage.setItem("markly_home_widget_views", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Reorder widget up / down
+  const handleMoveWidget = (id: HomeWidgetKey, direction: "up" | "down") => {
+    setHomeWidgets((prev) => {
+      const idx = prev.findIndex((w) => w.id === id);
+      if (idx === -1) return prev;
+      const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(idx, 1);
+      copy.splice(targetIdx, 0, moved);
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(copy));
+      } catch {}
+      return copy;
+    });
+  };
+
+  // Toggle span for a widget (1-col half vs 2-col full)
+  const handleToggleWidgetSpan = (id: HomeWidgetKey) => {
+    setHomeWidgets((prev) => {
+      const next = prev.map((w) => {
+        if (w.id === id) {
+          return { ...w, span: ((w.span === "2" ? "1" : "2") as "1" | "2") };
+        }
+        return w;
+      });
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Drag and drop for widgets
+  const handleWidgetDragStart = (e: React.DragEvent, id: HomeWidgetKey) => {
+    e.dataTransfer.setData("application/x-markly-widget", id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleWidgetDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleWidgetDrop = (e: React.DragEvent, targetId: HomeWidgetKey) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData("application/x-markly-widget") as HomeWidgetKey;
+    if (!sourceId || sourceId === targetId) return;
+
+    setHomeWidgets((prev) => {
+      const sourceIdx = prev.findIndex((w) => w.id === sourceId);
+      const targetIdx = prev.findIndex((w) => w.id === targetId);
+      if (sourceIdx === -1 || targetIdx === -1) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(sourceIdx, 1);
+      copy.splice(targetIdx, 0, moved);
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(copy));
+      } catch {}
+      return copy;
+    });
+  };
+
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem("markly_home_widgets");
@@ -143,7 +239,7 @@ export function WorkspaceHome({
           const merged: HomeWidgetConfig[] = [];
           for (const p of parsed) {
             const def = DEFAULT_HOME_WIDGETS.find((d) => d.id === p.id);
-            if (def) merged.push({ ...def, visible: p.visible ?? true });
+            if (def) merged.push({ ...def, visible: p.visible ?? true, span: p.span ?? def.span ?? "1" });
           }
           for (const def of DEFAULT_HOME_WIDGETS) {
             if (!merged.some((m) => m.id === def.id)) merged.push(def);
@@ -470,638 +566,435 @@ export function WorkspaceHome({
     return current.name;
   };
 
-  const renderQuickAccessFolders = () => (
-    <section key="folders" className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
-            <Compass className="h-3.5 w-3.5" />
-          </div>
-          <h2 className="text-sm font-semibold text-foreground">Quick Access</h2>
-          <span className="text-xs text-muted-foreground font-mono">Frequent & daily drivers (top 6)</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            onSelectFolder(null);
-            onSelectView("all");
-          }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer font-medium"
-        >
-          <span>View All Sites</span>
-          <ArrowRight className="h-3 w-3" />
-        </button>
+  // Spectrum widget header controls (Threshold slider & presets)
+  const renderDotSpectrumExtraHeader = () => (
+    <div className="flex flex-wrap items-center gap-2 bg-secondary/50 px-2 py-1 rounded-lg border border-border/60 text-xs">
+      <div className="flex items-center gap-1 font-medium text-foreground text-[11px]">
+        <span className="text-muted-foreground">Threshold:</span>
+        <span className="font-mono tabular-nums">
+          {inactiveThreshold === 1 ? "1D (24h)" : `${inactiveThreshold}d`}
+        </span>
+        <span className="text-muted-foreground font-mono tabular-nums">({spectrumData.inactiveCount} dormant)</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {quickAccessList.map((bm) => (
-          <div
-            key={bm.id}
-            onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-            className="rounded-xl border border-border bg-card p-3 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-3 group cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5 truncate min-w-0">
-              <BookmarkIcon
-                src={bm.iconUrl}
-                alt={bm.title}
-                domain={bm.domain}
-                className="h-6 w-6 rounded object-contain bg-background flex-shrink-0 border border-border/40"
-              />
-              <div className="truncate">
-                <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
-                  {bm.title}
-                </span>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                  <span className="truncate max-w-28 font-mono">{bm.domain}</span>
-                  <span>•</span>
-                  <span className="font-mono tabular-nums">{bm.visitCount || 0} visits</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-              {onToggleArchive && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onToggleArchive(bm);
-                  }}
-                  className="h-7 w-7 rounded-md bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
-                  title="Archive bookmark"
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {onDeleteBookmark && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDeleteBookmark(bm.id, bm.title);
-                  }}
-                  className="h-7 w-7 rounded-md bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
-                  title="Delete bookmark"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <a
-                href={bm.url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => handleSiteVisit(bm)}
-                className="h-7 w-7 rounded-md bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-colors"
-                title="Launch Site"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-
-  const renderRecentlyVisited = () => (
-    <section key="recent" className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
-            <History className="h-3.5 w-3.5" />
-          </div>
-          <h2 className="text-sm font-semibold text-foreground">Recently Visited</h2>
-          <span className="text-xs text-muted-foreground font-mono">Last opened links</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            onSelectFolder(null);
-            onSelectView("recent");
-          }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
-        >
-          <span>View History</span>
-          <ArrowRight className="h-3 w-3" />
-        </button>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
-        {recentlyVisited.length === 0 ? (
-          <div className="p-6 text-center text-xs text-muted-foreground">
-            No recently visited links recorded. Click any bookmark to start building history.
-          </div>
-        ) : (
-          recentlyVisited.map((bm) => {
-            const timeAgo = formatTimeAgo(bm.lastClickedAt || bm.lastVisitedAt || bm.createdAt);
-            return (
-              <div
-                key={bm.id}
-                onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <BookmarkIcon
-                    src={bm.iconUrl}
-                    alt={bm.title}
-                    domain={bm.domain}
-                    className="h-5 w-5 rounded object-contain flex-shrink-0"
-                  />
-                  <div className="truncate">
-                    <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
-                      {bm.title}
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                      <span className="truncate max-w-28 font-mono">{bm.domain}</span>
-                      <span>•</span>
-                      <span className="truncate max-w-28">{getParentName(bm)}</span>
-                      <span>•</span>
-                      <span className="font-mono">{timeAgo}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {onToggleFavorite && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleFavorite(bm)}
-                      className={`h-6 w-6 rounded flex items-center justify-center transition-colors cursor-pointer ${
-                        bm.isFavorite ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      title={bm.isFavorite ? "Remove favorite" : "Add to favorites"}
-                    >
-                      <Star className={`h-3 w-3 ${bm.isFavorite ? "fill-amber-500" : ""}`} />
-                    </button>
-                  )}
-                  {onToggleArchive && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleArchive(bm)}
-                      className="h-6 w-6 rounded bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-                      title="Archive bookmark"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => handleSiteVisit(bm)}
-                    className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                    title="Launch site"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-      {/* Homepage Layout Customizer Modal (1.2) */}
-      <HomeLayoutModal
-        open={layoutModalOpen}
-        onOpenChange={setLayoutModalOpen}
-        widgets={homeWidgets}
-        onSaveWidgets={handleSaveWidgets}
-        onResetDefaults={handleResetWidgets}
-      />
-
-              </div>
-            );
-          })
-        )}
-      </div>
-    </section>
-  );
-
-  const renderStarredFavorites = () => (
-    <section key="favorites" className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 rounded bg-secondary text-amber-500 flex items-center justify-center">
-            <Star className="h-3.5 w-3.5 fill-amber-500" />
-          </div>
-          <h2 className="text-sm font-semibold text-foreground">Starred Favorites</h2>
-          {totalFavoritesCount > 0 && (
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">
-              {totalFavoritesCount} {totalFavoritesCount === 1 ? "site" : "sites"}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            onSelectFolder(null);
-            onSelectView("favorites");
-          }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
-        >
-          <span>View Favorites</span>
-          <ArrowRight className="h-3 w-3" />
-        </button>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
-        {favorites.length === 0 ? (
-          <div className="p-6 text-center text-xs text-muted-foreground">
-            No favorites starred yet. Click the star on any bookmark to pin it here.
-          </div>
-        ) : (
-          favorites.map((bm) => (
-            <div
-              key={bm.id}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-              className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
+      <div className="flex items-center gap-1.5">
+        <input
+          type="range"
+          min={1}
+          max={90}
+          step={1}
+          value={inactiveThreshold}
+          onChange={(e) => setInactiveThreshold(Number(e.target.value))}
+          className="w-20 sm:w-28 h-1 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary border border-border"
+          aria-label="Adjust Inactivity Timeline Threshold"
+        />
+        {/* Quick Presets */}
+        <div className="flex items-center gap-1">
+          {[
+            { label: "1D", val: 1 },
+            { label: "7D", val: 7 },
+            { label: "14D", val: 14 },
+            { label: "30D", val: 30 },
+            { label: "90D", val: 90 },
+          ].map((preset) => (
+            <button
+              key={preset.val}
+              type="button"
+              onClick={() => setInactiveThreshold(preset.val)}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium transition-colors cursor-pointer ${
+                inactiveThreshold === preset.val
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground border border-border/60"
+              }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <BookmarkIcon
-                  src={bm.iconUrl}
-                  alt={bm.title}
-                  domain={bm.domain}
-                  className="h-5 w-5 rounded object-contain flex-shrink-0"
-                />
-                <div className="truncate">
-                  <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
-                    {bm.title}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                    <span className="truncate max-w-28 font-mono">{bm.domain}</span>
-                    <span>•</span>
-                    <span className="truncate max-w-28">{getParentName(bm)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                {onToggleArchive && (
-                  <button
-                    type="button"
-                    onClick={() => onToggleArchive(bm)}
-                    className="h-6 w-6 rounded bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-                    title="Archive bookmark"
-                  >
-                    <Archive className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <a
-                  href={bm.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => handleSiteVisit(bm)}
-                  className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                  title="Launch site"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
-  );
-
-  const renderUnsortedInbox = () => (
-    <section key="unsorted" className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
-            <Inbox className="h-3.5 w-3.5" />
-          </div>
-          <h2 className="text-sm font-semibold text-foreground">Inbox / Unsorted Sites</h2>
-          <span className="text-xs text-muted-foreground font-mono tabular-nums">
-            {totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} unfiled`}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            onSelectFolder(null);
-            onSelectView("unsorted");
-          }}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
-        >
-          <span>Open Inbox ({totalUnsortedCount})</span>
-          <ArrowRight className="h-3 w-3" />
-        </button>
-      </div>
-
-      {totalUnsortedCount === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-6 text-center space-y-1.5">
-          <CheckCircle2 className="h-6 w-6 text-muted-foreground mx-auto" />
-          <div className="text-xs font-semibold text-foreground">Inbox Zero</div>
-          <p className="text-xs text-muted-foreground">
-            All bookmarks in your workspace are filed into folder collections.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {unorganized.map((bm) => (
-            <div
-              key={bm.id}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-              className="rounded-xl border border-border bg-card p-3.5 shadow-xs flex flex-col justify-between gap-3 cursor-pointer hover:border-border-hover transition-colors group"
-              title="Click to view details and preview"
-            >
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <BookmarkIcon
-                    src={bm.iconUrl}
-                    alt={bm.title}
-                    domain={bm.domain}
-                    className="h-5 w-5 rounded object-contain flex-shrink-0"
-                  />
-                  <span className="text-xs font-mono text-muted-foreground">
-                    Unfiled
-                  </span>
-                </div>
-                <div className="text-xs font-medium text-foreground line-clamp-1 block group-hover:text-primary transition-colors">
-                  {bm.title}
-                </div>
-                <p className="text-xs text-muted-foreground font-mono truncate">{bm.domain}</p>
-              </div>
-
-              <div className="pt-2 border-t border-border flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground flex items-center gap-1 transition-colors">
-                  <span>Organize</span>
-                  <ArrowRight className="h-3 w-3" />
-                </span>
-                <a
-                  href={bm.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSiteVisit(bm);
-                  }}
-                  className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
-                  title="Open link"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </div>
+              {preset.label}
+            </button>
           ))}
         </div>
-      )}
-    </section>
-  );
-
-  const renderDotSpectrum = () => (
-    <section key="spectrum" className="space-y-3">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-lg bg-secondary text-muted-foreground flex items-center justify-center flex-shrink-0">
-            <Ghost className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-foreground">Activity Spectrum</h2>
-              <span className="text-xs bg-secondary text-muted-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
-                {spectrumData.isHourly ? "24-Hour Activity Division" : `${inactiveThreshold}-Day Dynamic Division`}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Inspect last visited timestamp • Click dot to launch site
-            </p>
-          </div>
-        </div>
-
-        {/* Range Slider: 1 Day (Hourly) to 90 Days */}
-        <div className="flex flex-wrap items-center gap-2.5 bg-secondary/40 p-2 rounded-xl border border-border text-xs">
-          <div className="flex items-center gap-1.5 font-medium text-foreground">
-            <span className="text-muted-foreground text-xs">Threshold:</span>
-            <span className="font-medium font-mono tabular-nums">
-              {inactiveThreshold === 1 ? "1 Day (24 Hours)" : `${inactiveThreshold} Days`}
-            </span>
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">({spectrumData.inactiveCount} dormant)</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={1}
-              max={90}
-              step={1}
-              value={inactiveThreshold}
-              onChange={(e) => setInactiveThreshold(Number(e.target.value))}
-              className="w-32 h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary border border-border"
-              aria-label="Adjust Inactivity Timeline Threshold"
-            />
-            {/* Quick Presets */}
-            <div className="flex items-center gap-1">
-              {[
-                { label: "1D", val: 1 },
-                { label: "7D", val: 7 },
-                { label: "14D", val: 14 },
-                { label: "30D", val: 30 },
-                { label: "90D", val: 90 },
-              ].map((preset) => (
-                <button
-                  key={preset.val}
-                  type="button"
-                  onClick={() => setInactiveThreshold(preset.val)}
-                  className={`px-1.5 py-0.5 rounded text-xs font-mono font-medium transition-colors cursor-pointer ${
-                    inactiveThreshold === preset.val
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:text-foreground border border-border"
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
-
-      <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-4">
-        {/* Dynamic Continuous Multi-Line Coordinate Matrix Container */}
-        <div className="relative w-full h-44 rounded-lg bg-secondary/30 border border-border overflow-hidden select-none">
-          <svg className="w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
-            <defs>
-              <pattern id="spectrum-grid" width="40" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-border/30" />
-              </pattern>
-            </defs>
-
-            <rect width="1000" height="200" fill="url(#spectrum-grid)" />
-
-            {/* Dynamic Division Grid Lines */}
-            {spectrumData.gridLines.map((line, i) => (
-              <line
-                key={`grid-${i}`}
-                x1={line.xPercent * 10}
-                y1={0}
-                x2={line.xPercent * 10}
-                y2={200}
-                stroke="currentColor"
-                strokeWidth={line.isMajor ? "1" : "0.5"}
-                strokeDasharray={line.isMajor ? "none" : "2 2"}
-                className={line.isMajor ? "text-border" : "text-border/40"}
-              />
-            ))}
-
-            {/* Inactive Dormant Threshold Barrier Line */}
-            <line
-              x1={940}
-              y1={0}
-              x2={940}
-              y2={200}
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              className="text-muted-foreground"
-            />
-
-            {/* Render Bookmark Dots */}
-            {spectrumData.dots.map((dot) => {
-              const isHovered = hoveredSpot?.bookmark.id === dot.bookmark.id;
-              return (
-                <g key={dot.bookmark.id} className="cursor-pointer">
-                  <circle
-                    cx={dot.x}
-                    cy={dot.y}
-                    r={isHovered ? 6 : 4}
-                    fill={dot.color}
-                    className="stroke-card transition-all duration-150"
-                    strokeWidth={isHovered ? 2 : 1}
-                    onMouseEnter={() =>
-                      setHoveredSpot({
-                        bookmark: dot.bookmark,
-                        x: (dot.x / 1000) * 100,
-                        y: (dot.y / 200) * 100,
-                        timeAgoLabel: dot.timeAgoLabel,
-                        daysAgo: dot.daysAgo,
-                      })
-                    }
-                    onMouseLeave={() => setHoveredSpot(null)}
-                    onClick={() => {
-                      if (onOpenPreview) {
-                        onOpenPreview(dot.bookmark);
-                      } else {
-                        handleSiteVisit(dot.bookmark);
-                        window.open(dot.bookmark.url, "_blank");
-                      }
-                    }}
-                  />
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* Dynamic Bottom Time Axis */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-xs font-mono text-muted-foreground pt-1.5 border-t border-border px-3">
-            {spectrumData.timeMarkers.map((m, i) => (
-              <div key={`tm-${i}`} className="text-center" style={{ width: `${100 / spectrumData.timeMarkers.length}%` }}>
-                <span className="font-medium text-muted-foreground">{m.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Tooltip Over the Spot (Last Time Clicked) */}
-          {hoveredSpot && (
-            <div
-              className="absolute z-30 cursor-pointer pointer-events-auto transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground hover:border-primary/50 transition-colors"
-              style={{
-                left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
-                top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
-              }}
-              onClick={() => {
-                if (onOpenPreview) {
-                  onOpenPreview(hoveredSpot.bookmark);
-                } else {
-                  handleSiteVisit(hoveredSpot.bookmark);
-                  window.open(hoveredSpot.bookmark.url, "_blank");
-                }
-              }}
-            >
-              <div className="flex items-center gap-2 border-b border-border pb-1.5 font-medium">
-                <BookmarkIcon
-                  src={hoveredSpot.bookmark.iconUrl}
-                  domain={hoveredSpot.bookmark.domain}
-                  className="h-4 w-4 rounded object-contain flex-shrink-0"
-                />
-                <div className="truncate text-foreground font-semibold">
-                  {hoveredSpot.bookmark.title}
-                </div>
-              </div>
-
-              <div className="space-y-1 text-xs">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>URL Domain:</span>
-                  <span className="font-mono text-foreground truncate max-w-36">
-                    {hoveredSpot.bookmark.domain}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Folder Group:</span>
-                  <span className="truncate max-w-36 text-foreground font-medium">
-                    {getParentName(hoveredSpot.bookmark)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Last Clicked:</span>
-                  <span className="font-mono text-foreground font-semibold">
-                    {hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt
-                      ? `${new Date(hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt!).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "numeric" })} (${hoveredSpot.timeAgoLabel || `${hoveredSpot.daysAgo}d ago`})`
-                      : `Never (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Total visits:</span>
-                  <span className="font-mono tabular-nums font-semibold text-foreground">
-                    {hoveredSpot.bookmark.visitCount || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-xs text-center text-primary font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
-                <span>Open preview & details</span>
-                <ArrowUpRight className="h-3 w-3" />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-
-  const renderAnalytics = () => (
-    <div key="analytics">
-      <GlobalHomepageAnalytics
-        bookmarks={bookmarks}
-        folders={folders}
-        folderTree={folderTree}
-        onSelectFolder={(fId) => onSelectFolder(fId)}
-        onSelectTag={(tag) => {
-          onSelectTag?.(tag);
-          onSelectFolder(null);
-          onSelectView("all");
-        }}
-        onSelectDomain={onSelectDomain}
-      />
     </div>
   );
 
-  const renderWidget = (id: HomeWidgetKey) => {
-    switch (id) {
-      case "heatmap":
-        return <ActivityHeatmap365 key="heatmap" bookmarks={bookmarks} onOpenPreview={onOpenPreview} />;
-      case "scratchpad":
-        return <ScratchpadWidget key="scratchpad" />;
+  // Spectrum coordinate matrix body
+  const renderDotSpectrumContent = () => (
+    <div className="p-4 space-y-4">
+      {/* Dynamic Continuous Multi-Line Coordinate Matrix Container */}
+      <div className="relative w-full h-44 rounded-lg bg-secondary/30 border border-border overflow-hidden select-none">
+        <svg className="w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
+          <defs>
+            <pattern id="spectrum-grid" width="40" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-border/30" />
+            </pattern>
+          </defs>
+
+          <rect width="1000" height="200" fill="url(#spectrum-grid)" />
+
+          {/* Dynamic Division Grid Lines */}
+          {spectrumData.gridLines.map((line, i) => (
+            <line
+              key={`grid-${i}`}
+              x1={line.xPercent * 10}
+              y1={0}
+              x2={line.xPercent * 10}
+              y2={200}
+              stroke="currentColor"
+              strokeWidth={line.isMajor ? "1" : "0.5"}
+              strokeDasharray={line.isMajor ? "none" : "2 2"}
+              className={line.isMajor ? "text-border" : "text-border/40"}
+            />
+          ))}
+
+          {/* Inactive Dormant Threshold Barrier Line */}
+          <line
+            x1={940}
+            y1={0}
+            x2={940}
+            y2={200}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeDasharray="4 4"
+            className="text-muted-foreground"
+          />
+
+          {/* Render Bookmark Dots */}
+          {spectrumData.dots.map((dot) => {
+            const isHovered = hoveredSpot?.bookmark.id === dot.bookmark.id;
+            return (
+              <g key={dot.bookmark.id} className="cursor-pointer">
+                <circle
+                  cx={dot.x}
+                  cy={dot.y}
+                  r={isHovered ? 6 : 4}
+                  fill={dot.color}
+                  className="stroke-card transition-all duration-150"
+                  strokeWidth={isHovered ? 2 : 1}
+                  onMouseEnter={() =>
+                    setHoveredSpot({
+                      bookmark: dot.bookmark,
+                      x: (dot.x / 1000) * 100,
+                      y: (dot.y / 200) * 100,
+                      timeAgoLabel: dot.timeAgoLabel,
+                      daysAgo: dot.daysAgo,
+                    })
+                  }
+                  onMouseLeave={() => setHoveredSpot(null)}
+                  onClick={() => {
+                    if (onOpenPreview) {
+                      onOpenPreview(dot.bookmark);
+                    } else {
+                      handleSiteVisit(dot.bookmark);
+                      window.open(dot.bookmark.url, "_blank");
+                    }
+                  }}
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Dynamic Bottom Time Axis */}
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-[11px] font-mono text-muted-foreground pt-1.5 border-t border-border px-3">
+          {spectrumData.timeMarkers.map((m, i) => (
+            <div key={`tm-${i}`} className="text-center" style={{ width: `${100 / spectrumData.timeMarkers.length}%` }}>
+              <span className="font-medium text-muted-foreground">{m.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Tooltip Over the Spot (Last Time Clicked) */}
+        {hoveredSpot && (
+          <div
+            className="absolute z-30 cursor-pointer pointer-events-auto transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground hover:border-primary/50 transition-colors"
+            style={{
+              left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
+              top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
+            }}
+            onClick={() => {
+              if (onOpenPreview) {
+                onOpenPreview(hoveredSpot.bookmark);
+              } else {
+                handleSiteVisit(hoveredSpot.bookmark);
+                window.open(hoveredSpot.bookmark.url, "_blank");
+              }
+            }}
+          >
+            <div className="flex items-center gap-2 border-b border-border pb-1.5 font-medium">
+              <BookmarkIcon
+                src={hoveredSpot.bookmark.iconUrl}
+                domain={hoveredSpot.bookmark.domain}
+                className="h-4 w-4 rounded object-contain flex-shrink-0"
+              />
+              <div className="truncate text-foreground font-semibold">
+                {hoveredSpot.bookmark.title}
+              </div>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>URL Domain:</span>
+                <span className="font-mono text-foreground truncate max-w-36">
+                  {hoveredSpot.bookmark.domain}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Folder Group:</span>
+                <span className="truncate max-w-36 text-foreground font-medium">
+                  {getParentName(hoveredSpot.bookmark)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Last Clicked:</span>
+                <span className="font-mono text-foreground font-semibold">
+                  {hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt
+                    ? `${new Date(hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt!).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "numeric" })} (${hoveredSpot.timeAgoLabel || `${hoveredSpot.daysAgo}d ago`})`
+                    : `Never (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Total visits:</span>
+                <span className="font-mono tabular-nums font-semibold text-foreground">
+                  {hoveredSpot.bookmark.visitCount || 0}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-xs text-center text-primary font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
+              <span>Open preview & details</span>
+              <ArrowUpRight className="h-3 w-3" />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Unified Box Dashboard Renderer
+  const renderWidget = (
+    widget: HomeWidgetConfig,
+    index: number,
+    isFirst: boolean,
+    isLast: boolean
+  ) => {
+    const commonProps = {
+      id: widget.id,
+      span: widget.span ?? "1",
+      isFirst,
+      isLast,
+      onToggleSpan: () => handleToggleWidgetSpan(widget.id),
+      onMoveUp: () => handleMoveWidget(widget.id, "up"),
+      onMoveDown: () => handleMoveWidget(widget.id, "down"),
+      onDragStart: (e: React.DragEvent) => handleWidgetDragStart(e, widget.id),
+      onDragOver: handleWidgetDragOver,
+      onDrop: (e: React.DragEvent) => handleWidgetDrop(e, widget.id),
+    };
+
+    switch (widget.id) {
       case "folders":
-        return renderQuickAccessFolders();
+        return (
+          <DashboardWidgetBox
+            key="folders"
+            {...commonProps}
+            title="Quick Access"
+            icon={<Compass className="h-4 w-4 text-primary" />}
+            badgeText={`${quickAccessList.length} sites`}
+            viewMode={widgetViews["folders"] ?? "grid"}
+            availableViews={["grid", "list", "compact"]}
+            onViewModeChange={(m) => handleSetWidgetView("folders", m)}
+            onViewAll={() => {
+              onSelectFolder(null);
+              onSelectView("all");
+            }}
+            viewAllLabel="View all"
+          >
+            <BookmarkItemsView
+              items={quickAccessList}
+              mode={widgetViews["folders"] ?? "grid"}
+              emptyMessage="No bookmarks available yet in Quick Access"
+              onOpenPreview={onOpenPreview}
+              onEditBookmark={onEditBookmark}
+              onToggleArchive={onToggleArchive}
+              onDeleteBookmark={onDeleteBookmark}
+              handleSiteVisit={handleSiteVisit}
+              formatTimeAgo={formatTimeAgo}
+              getParentName={getParentName}
+            />
+          </DashboardWidgetBox>
+        );
+
       case "recent":
-        return renderRecentlyVisited();
+        return (
+          <DashboardWidgetBox
+            key="recent"
+            {...commonProps}
+            title="Recently Visited"
+            icon={<History className="h-4 w-4 text-blue-500" />}
+            badgeText={`${recentlyVisited.length} sites`}
+            viewMode={widgetViews["recent"] ?? "list"}
+            availableViews={["grid", "list", "compact"]}
+            onViewModeChange={(m) => handleSetWidgetView("recent", m)}
+            onViewAll={() => {
+              onSelectFolder(null);
+              onSelectView("recent");
+            }}
+            viewAllLabel="View history"
+          >
+            <BookmarkItemsView
+              items={recentlyVisited}
+              mode={widgetViews["recent"] ?? "list"}
+              emptyMessage="No recently visited links recorded. Click any bookmark to start building history."
+              onOpenPreview={onOpenPreview}
+              onEditBookmark={onEditBookmark}
+              onToggleFavorite={onToggleFavorite}
+              onToggleArchive={onToggleArchive}
+              onDeleteBookmark={onDeleteBookmark}
+              handleSiteVisit={handleSiteVisit}
+              formatTimeAgo={formatTimeAgo}
+              getParentName={getParentName}
+            />
+          </DashboardWidgetBox>
+        );
+
       case "favorites":
-        return renderStarredFavorites();
+        return (
+          <DashboardWidgetBox
+            key="favorites"
+            {...commonProps}
+            title="Starred Favorites"
+            icon={<Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+            badgeText={totalFavoritesCount > 0 ? `${totalFavoritesCount} ${totalFavoritesCount === 1 ? "site" : "sites"}` : undefined}
+            viewMode={widgetViews["favorites"] ?? "grid"}
+            availableViews={["grid", "list", "compact"]}
+            onViewModeChange={(m) => handleSetWidgetView("favorites", m)}
+            onViewAll={() => {
+              onSelectFolder(null);
+              onSelectView("favorites");
+            }}
+            viewAllLabel="View favorites"
+          >
+            <BookmarkItemsView
+              items={favorites}
+              mode={widgetViews["favorites"] ?? "grid"}
+              emptyMessage="No favorites starred yet. Click the star on any bookmark to pin it here."
+              onOpenPreview={onOpenPreview}
+              onEditBookmark={onEditBookmark}
+              onToggleArchive={onToggleArchive}
+              onDeleteBookmark={onDeleteBookmark}
+              handleSiteVisit={handleSiteVisit}
+              formatTimeAgo={formatTimeAgo}
+              getParentName={getParentName}
+            />
+          </DashboardWidgetBox>
+        );
+
       case "unsorted":
-        return renderUnsortedInbox();
+        return (
+          <DashboardWidgetBox
+            key="unsorted"
+            {...commonProps}
+            title="Inbox / Unsorted Sites"
+            icon={<Inbox className="h-4 w-4 text-emerald-500" />}
+            badgeText={totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} unfiled`}
+            viewMode={widgetViews["unsorted"] ?? "compact"}
+            availableViews={["grid", "list", "compact"]}
+            onViewModeChange={(m) => handleSetWidgetView("unsorted", m)}
+            onViewAll={() => {
+              onSelectFolder(null);
+              onSelectView("unsorted");
+            }}
+            viewAllLabel={`Open inbox (${totalUnsortedCount})`}
+          >
+            {totalUnsortedCount === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto" />
+                <div className="text-xs font-semibold text-foreground">Inbox Zero</div>
+                <p className="text-xs text-muted-foreground">
+                  All bookmarks in your workspace are filed into folder collections.
+                </p>
+              </div>
+            ) : (
+              <BookmarkItemsView
+                items={unorganized}
+                mode={widgetViews["unsorted"] ?? "compact"}
+                emptyMessage="All bookmarks organized"
+                onOpenPreview={onOpenPreview}
+                onEditBookmark={onEditBookmark}
+                onToggleFavorite={onToggleFavorite}
+                onToggleArchive={onToggleArchive}
+                onDeleteBookmark={onDeleteBookmark}
+                handleSiteVisit={handleSiteVisit}
+                formatTimeAgo={formatTimeAgo}
+                getParentName={getParentName}
+              />
+            )}
+          </DashboardWidgetBox>
+        );
+
+      case "scratchpad":
+        return (
+          <DashboardWidgetBox
+            key="scratchpad"
+            {...commonProps}
+            title="Scratchpad & Notes"
+            icon={<StickyNote className="h-4 w-4 text-amber-500" />}
+            badgeText="Auto-saved"
+          >
+            <ScratchpadWidget bare={true} />
+          </DashboardWidgetBox>
+        );
+
+      case "heatmap":
+        return (
+          <DashboardWidgetBox
+            key="heatmap"
+            {...commonProps}
+            title="Annual Activity Heatmap"
+            icon={<Calendar className="h-4 w-4 text-primary" />}
+            badgeText="365 Days"
+          >
+            <ActivityHeatmap365 bookmarks={bookmarks} onOpenPreview={onOpenPreview} bare={true} />
+          </DashboardWidgetBox>
+        );
+
       case "spectrum":
-        return renderDotSpectrum();
+        return (
+          <DashboardWidgetBox
+            key="spectrum"
+            {...commonProps}
+            title="Activity Spectrum"
+            icon={<Ghost className="h-4 w-4 text-purple-500" />}
+            badgeText={spectrumData.isHourly ? "24h Activity" : `${inactiveThreshold}d Division`}
+            extraHeaderAction={renderDotSpectrumExtraHeader()}
+          >
+            {renderDotSpectrumContent()}
+          </DashboardWidgetBox>
+        );
+
       case "analytics":
-        return renderAnalytics();
+        return (
+          <DashboardWidgetBox
+            key="analytics"
+            {...commonProps}
+            title="Workspace Analytics"
+            icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+            badgeText={`${totalCount} bookmarks`}
+          >
+            <div className="p-4">
+              <GlobalHomepageAnalytics
+                bookmarks={bookmarks}
+                folders={folders}
+                folderTree={folderTree}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                onSelectTag={(tag) => {
+                  onSelectTag?.(tag);
+                  onSelectFolder(null);
+                  onSelectView("all");
+                }}
+                onSelectDomain={onSelectDomain}
+              />
+            </div>
+          </DashboardWidgetBox>
+        );
+
       default:
         return null;
     }
@@ -1388,37 +1281,39 @@ export function WorkspaceHome({
         </div>
       )}
 
-      {/* Dynamic User-Customizable Homepage Widgets (1.1, 1.2, 1.3: 1-Col or 2-Col Dashboard Grid) */}
-      {homeColumns === "2" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {homeWidgets.map((widget) => {
-            if (!widget.visible) return null;
-            const isWide =
-              widget.id === "heatmap" ||
-              widget.id === "spectrum" ||
-              widget.id === "analytics";
-            return (
-              <div
-                key={widget.id}
-                className={isWide ? "lg:col-span-2" : "lg:col-span-1 h-full"}
+      {/* Dynamic User-Customizable Homepage Widgets */}
+      {(() => {
+        const visibleWidgets = homeWidgets.filter((w) => w.visible);
+        if (visibleWidgets.length === 0) {
+          return (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground space-y-2">
+              <p>All dashboard widgets are currently hidden.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLayoutModalOpen(true)}
+                className="text-xs"
               >
-                {renderWidget(widget.id)}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {homeWidgets.map((widget) => {
-            if (!widget.visible) return null;
-            return (
-              <React.Fragment key={widget.id}>
-                {renderWidget(widget.id)}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      )}
+                Customize Layout to Show Widgets
+              </Button>
+            </div>
+          );
+        }
+
+        const widgetElements = visibleWidgets.map((widget, idx) =>
+          renderWidget(widget, idx, idx === 0, idx === visibleWidgets.length - 1)
+        );
+
+        return homeColumns === "2" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {widgetElements}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {widgetElements}
+          </div>
+        );
+      })()}
 
 
       {/* 6. Tags & Categories Explorer */}
@@ -1455,6 +1350,15 @@ export function WorkspaceHome({
           </div>
         </section>
       )}
+
+      {/* Homepage Layout Customizer Modal (1.2) */}
+      <HomeLayoutModal
+        open={layoutModalOpen}
+        onOpenChange={setLayoutModalOpen}
+        widgets={homeWidgets}
+        onSaveWidgets={handleSaveWidgets}
+        onResetDefaults={handleResetWidgets}
+      />
     </div>
   );
 }

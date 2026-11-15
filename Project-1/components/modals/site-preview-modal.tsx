@@ -27,6 +27,8 @@ import {
   FileText,
   CheckCircle2,
   X,
+  ChevronDown,
+  Plus,
 } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
@@ -71,13 +73,44 @@ export function SitePreviewModal({
   const [copyModalOpen, setCopyModalOpen] = React.useState(false);
   const [snapshotError, setSnapshotError] = React.useState(false);
 
+  // 2.3: Inline Folder & Tag Editor state
+  const [currentTags, setCurrentTags] = React.useState<string[]>([]);
+  const [isAddingTag, setIsAddingTag] = React.useState(false);
+  const [newTagInput, setNewTagInput] = React.useState("");
+  const [folderSaving, setFolderSaving] = React.useState(false);
+  const [tagsSaving, setTagsSaving] = React.useState(false);
+
+  // 2.4: 1-Click Formatted Citations & Markdown Copy state
+  const [copyMenuOpen, setCopyMenuOpen] = React.useState(false);
+  const [copiedFormat, setCopiedFormat] = React.useState<string | null>(null);
+  const copyMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (copyMenuRef.current && !copyMenuRef.current.contains(e.target as Node)) {
+        setCopyMenuOpen(false);
+      }
+    }
+    if (copyMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [copyMenuOpen]);
+
   // Sync state whenever bookmark changes
   React.useEffect(() => {
     if (bookmark) {
       setDescription(bookmark.description || "");
+      setCurrentTags(
+        bookmark.tags?.map((t) => (typeof t === "string" ? t : t.name)) || []
+      );
       setIsEditingDescription(false);
       setSaveSuccess(false);
       setSnapshotError(false);
+      setIsAddingTag(false);
+      setNewTagInput("");
+      setCopyMenuOpen(false);
+      setCopiedFormat(null);
     }
   }, [bookmark]);
 
@@ -102,6 +135,87 @@ export function SitePreviewModal({
     navigator.clipboard.writeText(description);
     setCopiedNotes(true);
     setTimeout(() => setCopiedNotes(false), 2000);
+  };
+
+  // 2.3: Inline Folder Change
+  const handleInlineFolderChange = async (newFolderId: string) => {
+    const targetId = newFolderId ? newFolderId : null;
+    setFolderSaving(true);
+    try {
+      const res = await fetch(`/api/bookmarks/${bookmark.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId: targetId }),
+      });
+      const data = await res.json();
+      if (data.success && data.bookmark) {
+        onUpdateBookmark?.(data.bookmark);
+        onMoveBookmark?.(bookmark.id, targetId);
+      }
+    } catch (e) {
+      console.error("Failed to update folder:", e);
+    } finally {
+      setFolderSaving(false);
+    }
+  };
+
+  // 2.3: Inline Tag Management
+  const handleSaveTags = async (tagsToSave: string[]) => {
+    setTagsSaving(true);
+    try {
+      const res = await fetch(`/api/bookmarks/${bookmark.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagNames: tagsToSave }),
+      });
+      const data = await res.json();
+      if (data.success && data.bookmark) {
+        setCurrentTags(tagsToSave);
+        onUpdateBookmark?.(data.bookmark);
+      }
+    } catch (e) {
+      console.error("Failed to update tags:", e);
+    } finally {
+      setTagsSaving(false);
+    }
+  };
+
+  const handleRemoveTag = (tagName: string) => {
+    const updated = currentTags.filter((t) => t.toLowerCase() !== tagName.toLowerCase());
+    handleSaveTags(updated);
+  };
+
+  const handleAddTag = (tagName: string) => {
+    const trimmed = tagName.trim().replace(/^#/, "");
+    if (!trimmed || currentTags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) return;
+    const updated = [...currentTags, trimmed];
+    handleSaveTags(updated);
+    setNewTagInput("");
+    setIsAddingTag(false);
+  };
+
+  // 2.4: 1-Click Formatted Citations & Markdown Copy
+  const handleCopyCitation = async (type: "url" | "markdown" | "html" | "bibtex") => {
+    let text = "";
+    if (type === "url") {
+      text = bookmark.url;
+    } else if (type === "markdown") {
+      text = `[${bookmark.title}](${bookmark.url})`;
+    } else if (type === "html") {
+      text = `<a href="${bookmark.url}">${bookmark.title}</a>`;
+    } else if (type === "bibtex") {
+      const cleanKey = (bookmark.domain || "site").replace(/[^a-zA-Z0-9]/g, "") + "_" + bookmark.id.slice(0, 6);
+      text = `@misc{${cleanKey},\n  title = {{${bookmark.title}}},\n  howpublished = {\\url{${bookmark.url}}},\n  note = {Accessed on ${new Date().toISOString().slice(0, 10)}}\n}`;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedFormat(type);
+      setTimeout(() => setCopiedFormat(null), 2000);
+      setCopyMenuOpen(false);
+    } catch (e) {
+      console.error("Copy error:", e);
+    }
   };
 
   // Save manual notes / description to DB
@@ -311,27 +425,70 @@ export function SitePreviewModal({
                 </span>
               </Button>
 
-              {/* Copy URL */}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCopyLink}
-                className="h-8 px-2 sm:px-2.5 text-xs gap-1.5 cursor-pointer border-border hover:bg-secondary"
-                title="Copy website URL"
-              >
-                {copiedUrl ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                    <span className="hidden md:inline text-emerald-600 font-medium">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    <span className="hidden md:inline">Copy Link</span>
-                  </>
+              {/* 2.4: 1-Click Formatted Citations & Markdown Copy */}
+              <div ref={copyMenuRef} className="relative">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCopyMenuOpen((prev) => !prev)}
+                  className="h-8 px-2 sm:px-2.5 text-xs gap-1 cursor-pointer border-border hover:bg-secondary"
+                  title="Copy citation or formatted link (Markdown, HTML, BibTeX, URL)"
+                >
+                  {copiedFormat ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-emerald-600 font-medium">Copied {copiedFormat}!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      <span className="hidden md:inline">Copy</span>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </>
+                  )}
+                </Button>
+
+                {copyMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-52 rounded-lg border border-border bg-popover p-1.5 shadow-md z-50 text-xs animate-in fade-in-50 duration-150">
+                    <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground border-b border-border/50 mb-1">
+                      Copy Link / Citation
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCitation("url")}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="font-medium text-foreground">Plain URL</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">https://...</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCitation("markdown")}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="font-medium text-foreground">Markdown Link</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">[Title](url)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCitation("html")}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="font-medium text-foreground">HTML Link</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">&lt;a&gt;...&lt;/a&gt;</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCitation("bibtex")}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="font-medium text-foreground">BibTeX Citation</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">@misc</span>
+                    </button>
+                  </div>
                 )}
-              </Button>
+              </div>
 
               {/* Native Open External Link */}
               <a
@@ -423,48 +580,100 @@ export function SitePreviewModal({
                 </div>
               </div>
 
-              {/* Row 2: Folder Location */}
+              {/* Row 2: Folder Location (2.3: Inline Editable) */}
               <div className="flex items-center gap-3">
                 <span className="w-16 text-xs font-mono text-muted-foreground flex items-center gap-1.5 shrink-0">
                   <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>Folder</span>
                 </span>
-                <div className="flex items-center gap-1.5 font-medium text-foreground truncate">
-                  {currentFolder ? (
-                    <>
-                      <FolderIconRenderer
-                        icon={currentFolder.icon}
-                        color={currentFolder.color}
-                        className="h-3.5 w-3.5 shrink-0"
-                      />
-                      <span className="truncate">{currentFolder.name}</span>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground font-normal">Unsorted (Inbox)</span>
-                  )}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <select
+                    value={bookmark.folderId || ""}
+                    onChange={(e) => handleInlineFolderChange(e.target.value)}
+                    disabled={folderSaving}
+                    className="h-7 px-2 rounded-md bg-secondary border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer max-w-xs truncate"
+                  >
+                    <option value="">Unsorted (Inbox)</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                  {folderSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
                 </div>
               </div>
 
-              {/* Row 3: Tags */}
+              {/* Row 3: Tags (2.3: Inline Editable) */}
               <div className="flex items-center gap-3">
                 <span className="w-16 text-xs font-mono text-muted-foreground flex items-center gap-1.5 shrink-0">
                   <TagIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>Tags</span>
                 </span>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {bookmark.tags && bookmark.tags.length > 0 ? (
-                    bookmark.tags.map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant="secondary"
-                        className="text-xs font-mono px-2 py-0.5 bg-secondary text-foreground border-none"
+                <div className="flex items-center gap-1.5 flex-wrap flex-1">
+                  {currentTags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="secondary"
+                      className="text-xs font-mono px-2 py-0.5 bg-secondary text-foreground border border-border/50 flex items-center gap-1"
+                    >
+                      <span>#{tag}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        disabled={tagsSaving}
+                        className="text-muted-foreground hover:text-foreground cursor-pointer"
+                        title={`Remove tag #${tag}`}
                       >
-                        #{tag.name}
-                      </Badge>
-                    ))
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </Badge>
+                  ))}
+
+                  {isAddingTag ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddTag(newTagInput);
+                          } else if (e.key === "Escape") {
+                            setIsAddingTag(false);
+                          }
+                        }}
+                        placeholder="tag name..."
+                        autoFocus
+                        className="h-6 px-1.5 w-24 text-[11px] font-mono rounded bg-background border border-input text-foreground focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddTag(newTagInput)}
+                        className="h-6 px-1.5 text-[11px] rounded bg-primary text-primary-foreground cursor-pointer"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingTag(false)}
+                        className="h-6 px-1 text-muted-foreground cursor-pointer"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   ) : (
-                    <span className="text-muted-foreground text-xs font-mono">No tags assigned</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingTag(true)}
+                      className="text-xs font-mono px-1.5 py-0.5 rounded border border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus className="h-2.5 w-2.5" />
+                      <span>Add tag</span>
+                    </button>
                   )}
+                  {tagsSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
                 </div>
               </div>
 
@@ -548,14 +757,24 @@ export function SitePreviewModal({
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Write detailed notes or description for this site..."
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                        e.preventDefault();
+                        handleSaveDescription();
+                      }
+                    }}
+                    placeholder="Write detailed notes, annotations, or description for this site (Markdown supported)..."
                     rows={8}
-                    className="w-full text-xs sm:text-sm p-3.5 bg-background border border-border rounded-md leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-ring font-sans text-foreground"
+                    className="w-full text-xs sm:text-sm p-3.5 bg-background border border-border rounded-md leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-ring font-sans text-foreground font-mono"
                   />
-                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
-                    <span>
-                      {description.trim().split(/\s+/).filter(Boolean).length} words
-                    </span>
+                  <div className="flex items-center justify-between text-xs font-mono text-muted-foreground flex-wrap gap-2">
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <span>Markdown: **bold**, - lists, [links](url)</span>
+                      <span>•</span>
+                      <span>Ctrl+S to save</span>
+                      <span>•</span>
+                      <span>{description.trim().split(/\s+/).filter(Boolean).length} words</span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button
                         type="button"

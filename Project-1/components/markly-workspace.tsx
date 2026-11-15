@@ -1439,7 +1439,11 @@ export function MarklyWorkspace({
         <div
           ref={mainScrollRef}
           className={`flex-1 ${
-            activeView === "trash" ? "overflow-hidden p-0" : "overflow-y-auto p-6 space-y-6"
+            activeView === "trash"
+              ? "overflow-hidden p-0"
+              : activeView === "home"
+              ? "overflow-y-auto p-3.5 sm:p-4 space-y-3.5"
+              : "overflow-y-auto p-6 space-y-6"
           }`}
         >
           {activeDomain ? (

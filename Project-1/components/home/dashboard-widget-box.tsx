@@ -289,12 +289,12 @@ export function BookmarkItemsView({
   // 1. Grid View (Responsive Bookmark Tile Cards)
   if (mode === "grid") {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3">
         {items.map((bm) => (
           <div
             key={bm.id}
             onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-            className="rounded-xl border border-border bg-card hover:bg-secondary/30 p-3 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+            className="rounded-xl border border-border bg-card hover:bg-secondary/30 p-2.5 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-2.5 group cursor-pointer"
           >
             <div className="flex items-center gap-2.5 truncate min-w-0">
               <BookmarkIcon
@@ -367,7 +367,7 @@ export function BookmarkItemsView({
             <div
               key={bm.id}
               onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-              className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group text-xs"
+              className="px-3.5 py-2 flex items-center justify-between gap-2.5 hover:bg-muted/40 transition-colors cursor-pointer group text-xs"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <BookmarkIcon
@@ -438,7 +438,7 @@ export function BookmarkItemsView({
         <div
           key={bm.id}
           onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-          className="px-4 py-1.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors cursor-pointer group text-xs"
+          className="px-3.5 py-1.5 flex items-center justify-between gap-2.5 hover:bg-muted/30 transition-colors cursor-pointer group text-xs"
         >
           <div className="flex items-center gap-2 truncate min-w-0">
             <BookmarkIcon

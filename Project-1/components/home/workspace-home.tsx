@@ -1229,9 +1229,9 @@ export function WorkspaceHome({
   };
 
   return (
-    <div className="space-y-8 pb-12 animate-in fade-in duration-300">
+    <div className="space-y-3.5 pb-8 animate-in fade-in duration-300">
       {/* Workspace Hero Banner */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-xs">
+      <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -1525,7 +1525,7 @@ export function WorkspaceHome({
         }
 
         return (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {blocks.map((block, bIdx) => {
               if (block.type === "full") {
                 return (
@@ -1553,8 +1553,8 @@ export function WorkspaceHome({
                   >
                     {/* Left Column */}
                     <div
-                      style={{ width: `calc(${colSplit}% - 8px)` }}
-                      className="space-y-6 min-w-0"
+                      style={{ width: `calc(${colSplit}% - 6px)` }}
+                      className="space-y-3 min-w-0"
                     >
                       {col1.map(({ widget, idx }) =>
                         renderWidget(
@@ -1569,11 +1569,11 @@ export function WorkspaceHome({
                     {/* Notion Draggable Divider */}
                     <div
                       onMouseDown={startColDrag}
-                      className="w-4 -mx-2 relative flex items-center justify-center cursor-col-resize group flex-shrink-0 self-stretch z-10 select-none py-2"
+                      className="w-3 -mx-1.5 relative flex items-center justify-center cursor-col-resize group flex-shrink-0 self-stretch z-10 select-none py-1"
                       title="Drag left or right to resize columns (Notion style)"
                     >
                       <div
-                        className={`w-[2px] h-full transition-colors rounded-full ${
+                        className={`w-[1.5px] h-full transition-colors rounded-full ${
                           isColDragging ? "bg-primary" : "bg-border group-hover:bg-primary/70"
                         }`}
                       />
@@ -1581,8 +1581,8 @@ export function WorkspaceHome({
 
                     {/* Right Column */}
                     <div
-                      style={{ width: `calc(${100 - colSplit}% - 8px)` }}
-                      className="space-y-6 min-w-0"
+                      style={{ width: `calc(${100 - colSplit}% - 6px)` }}
+                      className="space-y-3 min-w-0"
                     >
                       {col2.map(({ widget, idx }) =>
                         renderWidget(
@@ -1596,7 +1596,7 @@ export function WorkspaceHome({
                   </div>
 
                   {/* Mobile & Tablet Fallback: Single Column Stack */}
-                  <div className="flex flex-col gap-6 lg:hidden">
+                  <div className="flex flex-col gap-3 lg:hidden">
                     {block.widgets.map(({ widget, idx }) =>
                       renderWidget(
                         widget,

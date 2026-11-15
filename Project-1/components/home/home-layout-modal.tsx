@@ -34,6 +34,7 @@ import {
   MoveLeft,
   MoveRight,
 } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
 export type HomeWidgetKey =
   | "heatmap"
@@ -90,6 +91,15 @@ export function HomeLayoutModal({
   const [localWidgets, setLocalWidgets] = React.useState<HomeWidgetConfig[]>(widgets);
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
+
+  // Adaptive Resizable Modal state with custom width & height persisted
+  const { modalStyle, hasCustomSize, handleRestoreDefaults, startResize } = useResizableModal({
+    modalId: "home_layout",
+    defaultVerticalWidth: 640,
+    defaultHorizontalWidth: 980,
+    defaultVerticalHeight: 700,
+    defaultHorizontalHeight: 660,
+  });
 
   React.useEffect(() => {
     setLocalWidgets(widgets);
@@ -193,7 +203,12 @@ export function HomeLayoutModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col bg-card border border-border p-5 text-foreground overflow-hidden">
+      <DialogContent
+        style={modalStyle}
+        className="relative flex flex-col bg-card border border-border p-5 text-foreground overflow-hidden max-w-[95vw] max-h-[92vh]"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader className="space-y-1 pb-2.5 border-b border-border/60">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -210,9 +225,22 @@ export function HomeLayoutModal({
               </div>
             </div>
 
-            <span className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border hidden sm:inline-block">
-              {localWidgets.filter((w) => w.visible).length} / {localWidgets.length} visible
-            </span>
+            <div className="flex items-center gap-2">
+              {hasCustomSize && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaults}
+                  title="Restore default modal size"
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              )}
+
+              <span className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border hidden sm:inline-block">
+                {localWidgets.filter((w) => w.visible).length} / {localWidgets.length} visible
+              </span>
+            </div>
           </div>
         </DialogHeader>
 

@@ -100,10 +100,10 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
   // Client-side admin check from user session
   const clientAdmin = React.useMemo(() => {
-    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
-    const uEmail = (user?.email || user?.user_metadata?.email || "").trim().toLowerCase();
+    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
 
-    if (adminEnv && uEmail && (adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
+    if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
       return true;
     }
 
@@ -194,6 +194,15 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       setMainTab("admin");
     }
   }, [clientAdmin]);
+
+  React.useEffect(() => {
+    const handleOpenAdmin = () => {
+      setIsAdmin(true);
+      setMainTab("admin");
+    };
+    window.addEventListener("markly-open-admin-feedback", handleOpenAdmin);
+    return () => window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
+  }, []);
 
   React.useEffect(() => {
     loadFeedbacks();

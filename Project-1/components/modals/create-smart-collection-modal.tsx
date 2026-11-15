@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Sparkles, Loader2, Check, AlertCircle, Plus, Trash2, Columns2, Rows2, Eye } from "lucide-react";
+import { Sparkles, Loader2, Check, AlertCircle, Plus, Trash2, Columns2, Rows2, Eye, RotateCcw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
 interface CreateSmartCollectionModalProps {
   isOpen: boolean;
@@ -135,34 +136,39 @@ export function CreateSmartCollectionModal({
     }
   };
 
-  // Modal format: horizontal (2-col side-by-side) vs vertical (stacked)
-  const [modalFormat, setModalFormat] = React.useState<"vertical" | "horizontal">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("markly_smart_modal_format");
-        if (stored === "vertical" || stored === "horizontal") return stored;
-        return window.innerWidth >= 768 ? "horizontal" : "vertical";
-      } catch {}
-    }
-    return "horizontal";
-  });
-
-  const toggleModalFormat = (format: "vertical" | "horizontal") => {
-    setModalFormat(format);
-    try {
-      localStorage.setItem("markly_smart_modal_format", format);
-    } catch {}
+  const handleRandomColor = () => {
+    const randomHex = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)].value;
+    setColor(randomHex);
   };
+
+  const handleResetColor = () => {
+    setColor("#8b5cf6");
+  };
+
+  // Adaptive Resizable Modal state with custom width & height persisted
+  const {
+    format: modalFormat,
+    toggleFormat: toggleModalFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "smart_collection",
+    defaultVerticalWidth: 560,
+    defaultHorizontalWidth: 960,
+    defaultVerticalHeight: 680,
+    defaultHorizontalHeight: 650,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className={`${
-          modalFormat === "horizontal"
-            ? "sm:max-w-3xl md:max-w-4xl max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
-            : "sm:max-w-lg max-h-[90vh] flex flex-col bg-card border-border p-5 text-foreground overflow-hidden"
-        }`}
+        style={modalStyle}
+        className="relative flex flex-col bg-card border-border p-5 text-foreground overflow-hidden max-w-[95vw] max-h-[92vh]"
       >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader className="space-y-1 pb-2 border-b border-border/60">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -177,32 +183,46 @@ export function CreateSmartCollectionModal({
               </div>
             </div>
 
-            {/* Layout format toggle button */}
-            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] font-medium shrink-0 ml-3">
-              <button
-                type="button"
-                onClick={() => toggleModalFormat("vertical")}
-                title="Vertical stacked layout"
-                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                  modalFormat === "vertical"
-                    ? "bg-card text-foreground shadow-2xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Rows2 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleModalFormat("horizontal")}
-                title="Horizontal side-by-side layout"
-                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                  modalFormat === "horizontal"
-                    ? "bg-card text-foreground shadow-2xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Columns2 className="h-3.5 w-3.5" />
-              </button>
+            <div className="flex items-center gap-1.5 shrink-0 ml-3">
+              {/* Restore size button */}
+              {hasCustomSize && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaults}
+                  title="Restore default modal size"
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              )}
+
+              {/* Layout format toggle button */}
+              <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] font-medium">
+                <button
+                  type="button"
+                  onClick={() => toggleModalFormat("vertical")}
+                  title="Vertical stacked layout"
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                    modalFormat === "vertical"
+                      ? "bg-card text-foreground shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Rows2 className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleModalFormat("horizontal")}
+                  title="Horizontal side-by-side layout"
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                    modalFormat === "horizontal"
+                      ? "bg-card text-foreground shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Columns2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </DialogHeader>
@@ -393,7 +413,29 @@ export function CreateSmartCollectionModal({
 
                   {/* Color Palette Selector */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground">Theme Color</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-foreground">Theme Color</label>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleRandomColor}
+                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          title="Generate random color"
+                        >
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          <span>Random</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleResetColor}
+                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          title="Reset color to default"
+                        >
+                          <RotateCcw className="h-3 w-3 text-muted-foreground" />
+                          <span>Reset</span>
+                        </button>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
                       {COLOR_PALETTE.map((c) => {
                         const isSelected = color === c.value;
@@ -591,7 +633,29 @@ export function CreateSmartCollectionModal({
 
                 {/* Color Palette Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">Theme Color</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-foreground">Theme Color</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleRandomColor}
+                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        title="Generate random color"
+                      >
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        <span>Random</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetColor}
+                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        title="Reset color to default"
+                      >
+                        <RotateCcw className="h-3 w-3 text-muted-foreground" />
+                        <span>Reset</span>
+                      </button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
                     {COLOR_PALETTE.map((c) => {
                       const isSelected = color === c.value;

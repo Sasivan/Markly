@@ -30,6 +30,7 @@ import {
   Bookmark,
   Share2,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
 import { Badge } from "@/components/ui/badge";
@@ -207,6 +208,24 @@ export function Sidebar({
       return () => window.removeEventListener("markly-avatar-updated", handler);
     }
   }, []);
+
+  // Check if current authenticated user has administrator privileges
+  const isUserAdmin = React.useMemo(() => {
+    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) return true;
+    if (
+      user?.app_metadata?.role === "admin" ||
+      user?.user_metadata?.role === "admin" ||
+      user?.role === "admin" ||
+      user?.app_metadata?.is_admin === true ||
+      user?.user_metadata?.is_admin === true ||
+      process.env.NEXT_PUBLIC_DEV_ADMIN === "true"
+    ) {
+      return true;
+    }
+    return false;
+  }, [user]);
 
   // 5.2: Saved Searches state and live sync
   interface SavedSearchItem {
@@ -738,6 +757,22 @@ export function Sidebar({
 
         {/* Pinned Bottom Left Feedback & Profile in Collapsed Rail */}
         <div className="p-2 border-t border-sidebar-border flex flex-col items-center gap-1.5 justify-center flex-shrink-0 bg-sidebar-bg">
+          {/* Admin Moderation Button for Authorized Admins */}
+          {isUserAdmin && (
+            <button
+              type="button"
+              onClick={() => {
+                onSelectFolder(null);
+                onSelectView("feedback");
+                window.dispatchEvent(new CustomEvent("markly-open-admin-feedback"));
+              }}
+              title="Admin Feedback Moderation Console"
+              className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+            >
+              <ShieldCheck className="h-4 w-4" />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -847,58 +882,60 @@ export function Sidebar({
       >
         {/* Workspace Brand Header - Locked to exact 10px coordinate as collapsed */}
         <div className="h-12 border-b border-sidebar-border flex items-center justify-between px-2.5 bg-sidebar-bg flex-shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/* Markly Logo: Exact same size and position as collapsed, toggles collapse */}
-            <button
-              type="button"
-              onClick={() => setCollapsed(true)}
-              title="Collapse sidebar (Ctrl+\)"
-              className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs shrink-0"
-            >
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Markly Logo: Exact same size and position as collapsed */}
+            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-semibold text-xs shrink-0 shadow-xs">
               M
-            </button>
+            </div>
             <span className="font-semibold text-xs text-foreground tracking-tight truncate">
               Markly
             </span>
+
+            {/* Small left/right arrow buttons to switch page right next to website name */}
+            <div className="flex items-center gap-0.5 ml-0.5 bg-secondary/80 p-0.5 rounded-md border border-border/60">
+              <button
+                type="button"
+                onClick={() => setSidebarPage("nav")}
+                disabled={sidebarPage === "nav"}
+                title="Page 1: Navigation & Views"
+                className={`h-5 w-5 rounded flex items-center justify-center cursor-pointer transition-colors ${
+                  sidebarPage === "nav"
+                    ? "bg-card text-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSidebarPage("folders")}
+                disabled={sidebarPage === "folders"}
+                title="Page 2: Folder Tree Hierarchy"
+                className={`h-5 w-5 rounded flex items-center justify-center cursor-pointer transition-colors ${
+                  sidebarPage === "folders"
+                    ? "bg-card text-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
-          {/* Clean Unslop Page Switcher Segmented Control */}
-          <div className="flex items-center bg-secondary/70 p-0.5 rounded-lg border border-border/50 text-[11px] font-medium">
-            <button
-              type="button"
-              onClick={() => setSidebarPage("nav")}
-              title="Page 1: Navigation & Views"
-              className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                sidebarPage === "nav"
-                  ? "bg-card text-foreground font-semibold shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Nav
-            </button>
-            <button
-              type="button"
-              onClick={() => setSidebarPage("folders")}
-              title="Page 2: Folder Tree Hierarchy"
-              className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                sidebarPage === "folders"
-                  ? "bg-card text-foreground font-semibold shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Folders
-            </button>
-          </div>
+          {/* Clean Collapse Button at the right edge of open sidebar */}
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Collapse sidebar (Ctrl+\)"
+            className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center cursor-pointer transition-colors shrink-0"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Page 1: Workspace Nav Section */}
         {sidebarPage === "nav" && (
-        <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-1 text-xs select-none">
-          <div className="px-2 py-1 text-xs font-medium text-muted-foreground flex items-center justify-between">
-            <span>Navigation</span>
-            <span className="text-[10px] font-mono text-muted-foreground">Page 1/2</span>
-          </div>
-
+        <div className="flex-1 overflow-y-auto min-h-0 py-2 px-2 space-y-1 text-xs select-none">
           {/* Home Page Link */}
           <button
             type="button"
@@ -1353,6 +1390,29 @@ export function Sidebar({
             <span className="truncate">Feedback & support</span>
           </button>
         </div>
+
+        {/* Admin Moderation Button for Authorized Admins */}
+        {isUserAdmin && (
+          <div className="px-3 py-1 border-t border-sidebar-border/40 bg-sidebar-bg flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                onSelectFolder(null);
+                onSelectView("feedback");
+                window.dispatchEvent(new CustomEvent("markly-open-admin-feedback"));
+              }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
+            >
+              <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <span className="truncate">Admin moderation</span>
+              <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold">
+                Admin
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Sidebar Footer: Realtime User Profile */}
         <div className="p-2.5 border-t border-sidebar-border flex items-center justify-between text-xs text-muted-foreground flex-shrink-0 bg-sidebar-bg">

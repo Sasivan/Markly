@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Palette } from "lucide-react";
+import { Check, Palette, Sparkles, RotateCcw } from "lucide-react";
 
 export type ThemeAccent = "blue" | "slate" | "emerald" | "indigo" | "amber";
 
@@ -62,6 +62,15 @@ export function ThemeAccentPicker() {
     }
   };
 
+  const handleRandomAccent = () => {
+    const randomOption = ACCENT_OPTIONS[Math.floor(Math.random() * ACCENT_OPTIONS.length)];
+    selectAccent(randomOption.id);
+  };
+
+  const handleResetAccent = () => {
+    selectAccent("blue");
+  };
+
   const activeColor = ACCENT_OPTIONS.find((a) => a.id === currentAccent) || ACCENT_OPTIONS[0];
 
   return (
@@ -109,6 +118,27 @@ export function ThemeAccentPicker() {
                 </button>
               );
             })}
+          </div>
+
+          <div className="pt-1.5 mt-1 border-t border-border/60 flex items-center justify-between px-1">
+            <button
+              type="button"
+              onClick={handleRandomAccent}
+              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer py-0.5 px-1 rounded hover:bg-secondary transition-colors"
+              title="Pick random accent"
+            >
+              <Sparkles className="h-3 w-3 text-primary" />
+              <span>Random</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetAccent}
+              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer py-0.5 px-1 rounded hover:bg-secondary transition-colors"
+              title="Reset to default Markly Blue"
+            >
+              <RotateCcw className="h-3 w-3 text-muted-foreground" />
+              <span>Reset</span>
+            </button>
           </div>
         </div>
       )}

@@ -38,11 +38,12 @@ export function isUserAdmin(user: any): boolean {
 
   if (rawEnvEmails && userEmail) {
     const adminEmails = rawEnvEmails
+      .replace(/[\r\n"']/g, "")
       .split(",")
-      .map((e) => e.trim().toLowerCase().replace(/^["']|["']$/g, ""))
+      .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-    if (adminEmails.includes(userEmail)) {
+    if (adminEmails.some((e) => e === userEmail || (e.length > 3 && userEmail.includes(e)) || (userEmail.length > 3 && e.includes(userEmail)))) {
       return true;
     }
   }

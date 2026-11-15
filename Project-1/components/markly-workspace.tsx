@@ -39,6 +39,7 @@ import { ProfileView } from "@/components/profile/profile-view";
 import { RecycleBinView } from "@/components/trash/recycle-bin-view";
 import { FeedbackView } from "@/components/feedback/feedback-view";
 import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal";
+import { LibraryCleanupWizard } from "@/components/modals/library-cleanup-wizard";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -205,6 +206,9 @@ export function MarklyWorkspace({
 
   // Keyboard Shortcuts Cheatsheet modal state
   const [shortcutsModalOpen, setShortcutsModalOpen] = React.useState(false);
+
+  // 6.1: Library Cleanup Wizard modal state
+  const [cleanupWizardOpen, setCleanupWizardOpen] = React.useState(false);
 
   // Hydration ref to avoid overwriting URL query params on initial mount
   const isHydratedRef = React.useRef(false);
@@ -1287,6 +1291,15 @@ export function MarklyWorkspace({
         onOpenChange={setShortcutsModalOpen}
       />
 
+      {/* 6.1: Library Cleanup Wizard Modal */}
+      <LibraryCleanupWizard
+        open={cleanupWizardOpen}
+        onOpenChange={setCleanupWizardOpen}
+        bookmarks={bookmarks}
+        folders={folders}
+        onRefreshData={refreshData}
+      />
+
       {/* Sidebar with recursive folder tree & drag-and-drop */}
       <Sidebar
         folderTree={folderTree}
@@ -1385,6 +1398,7 @@ export function MarklyWorkspace({
             /* Dedicated Level 3: Website / Domain Insights Page */
             <DomainInsightsView
               domain={activeDomain}
+              folders={folders}
               onBack={() => setActiveDomain(null)}
               onSelectFolder={(fId) => {
                 setActiveFolderId(fId);
@@ -1707,6 +1721,7 @@ export function MarklyWorkspace({
                 onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
                 onFilterByStatus={setActiveStatusFilter}
                 activeStatusFilter={activeStatusFilter}
+                onOpenCleanupWizard={() => setCleanupWizardOpen(true)}
               />
 
               {/* Recently Visited Time Boundary Control Bar */}

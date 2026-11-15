@@ -19,6 +19,7 @@ import {
   Activity,
   BarChart3,
   Edit,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,11 +39,12 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import type { BookmarkWithDetails } from "@/server/db/schema";
+import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import { formatDateTime } from "@/lib/utils";
 
 interface DomainInsightsViewProps {
   domain: string;
+  folders?: FolderType[];
   onBack: () => void;
   onSelectFolder: (folderId: string) => void;
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
@@ -57,6 +59,7 @@ const HEALTH_COLORS = {
 
 export function DomainInsightsView({
   domain,
+  folders,
   onBack,
   onSelectFolder,
   onEditBookmark,
@@ -65,6 +68,70 @@ export function DomainInsightsView({
   const [data, setData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"overview" | "graph" | "bookmarks">("overview");
+
+  // 6.3: Domain Batch Operations State
+  const [targetFolderId, setTargetFolderId] = React.useState<string>("");
+  const [bulkTagInput, setBulkTagInput] = React.useState<string>("");
+  const [isBatchOperating, setIsBatchOperating] = React.useState(false);
+  const [batchMsg, setBatchMsg] = React.useState<string | null>(null);
+
+  const handleBatchMove = async () => {
+    if (!data?.bookmarks?.length || !targetFolderId) return;
+    setIsBatchOperating(true);
+    try {
+      const ids = data.bookmarks.map((b: any) => b.id);
+      const res = await fetch("/api/bookmarks/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "move",
+          ids,
+          folderId: targetFolderId === "__UNSORTED__" ? null : targetFolderId,
+        }),
+      });
+      if (res.ok) {
+        setBatchMsg(`Moved ${ids.length} bookmarks to selected folder.`);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+        setTimeout(() => setBatchMsg(null), 3000);
+      }
+    } catch (err) {
+      console.error("Domain batch move error:", err);
+    } finally {
+      setIsBatchOperating(false);
+    }
+  };
+
+  const handleBatchTag = async () => {
+    if (!data?.bookmarks?.length || !bulkTagInput.trim()) return;
+    setIsBatchOperating(true);
+    try {
+      const tagName = bulkTagInput.trim().replace(/^#/, "");
+      await Promise.all(
+        data.bookmarks.map(async (b: any) => {
+          const existingTags = (b.tags || []).map((t: any) => t.name);
+          if (!existingTags.includes(tagName)) {
+            await fetch(`/api/bookmarks/${b.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tags: [...existingTags, tagName] }),
+            });
+          }
+        })
+      );
+      setBatchMsg(`Tagged ${data.bookmarks.length} bookmarks with #${tagName}.`);
+      setBulkTagInput("");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      }
+      setTimeout(() => setBatchMsg(null), 3000);
+    } catch (err) {
+      console.error("Domain batch tag error:", err);
+    } finally {
+      setIsBatchOperating(false);
+    }
+  };
 
   React.useEffect(() => {
     let isMounted = true;
@@ -438,6 +505,71 @@ export function DomainInsightsView({
             </h3>
             <span className="text-xs font-mono text-muted-foreground">{data.bookmarks.length} total</span>
           </div>
+
+          {/* 6.3: Domain Batch Operations Toolbar */}
+          <div className="p-3 rounded-lg border border-border bg-muted/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground">Batch Operations:</span>
+              <span className="text-muted-foreground font-mono">Apply to all {data.bookmarks.length} links</span>
+            </div>
+
+            <div className="flex items-center flex-wrap gap-2">
+              {folders && folders.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={targetFolderId}
+                    onChange={(e) => setTargetFolderId(e.target.value)}
+                    className="h-7 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none"
+                  >
+                    <option value="">Move all to...</option>
+                    <option value="__UNSORTED__">Unsorted</option>
+                    {folders
+                      .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
+                      .map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!targetFolderId || isBatchOperating}
+                    onClick={handleBatchMove}
+                    className="text-xs h-7 px-2.5"
+                  >
+                    Move All
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  placeholder="Add tag to all..."
+                  value={bulkTagInput}
+                  onChange={(e) => setBulkTagInput(e.target.value)}
+                  className="h-7 w-28 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!bulkTagInput.trim() || isBatchOperating}
+                  onClick={handleBatchTag}
+                  className="text-xs h-7 px-2.5"
+                >
+                  Tag All
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {batchMsg && (
+            <div className="p-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
+              <Check className="h-3.5 w-3.5" />
+              <span>{batchMsg}</span>
+            </div>
+          )}
 
           <div className="space-y-2">
             {data.bookmarks.map((bm: BookmarkWithDetails) => (

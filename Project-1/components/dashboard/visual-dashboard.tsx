@@ -19,7 +19,9 @@ import {
   Tag as TagIcon,
   MousePointerClick,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   ResponsiveContainer,
   PieChart,
@@ -61,6 +63,7 @@ interface VisualDashboardProps {
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
   onFilterByStatus?: (status: "alive" | "dead" | null) => void;
   activeStatusFilter?: "alive" | "dead" | null;
+  onOpenCleanupWizard?: () => void;
 }
 
 const PALETTE = [
@@ -87,9 +90,33 @@ export function VisualDashboard({
   onOpenPreview,
   onFilterByStatus,
   activeStatusFilter,
+  onOpenCleanupWizard,
 }: VisualDashboardProps) {
   const [collapsed, setCollapsed] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"tags" | "engagement" | "health" | "wall" | "graph">("tags");
+  const [isScanningHealth, setIsScanningHealth] = React.useState(false);
+  const [healthScanMsg, setHealthScanMsg] = React.useState<string | null>(null);
+
+  const handleRunHealthScan = async () => {
+    setIsScanningHealth(true);
+    setHealthScanMsg(null);
+    try {
+      const res = await fetch("/api/health-check", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setHealthScanMsg(json.message || "Health scan complete.");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        }
+      } else {
+        setHealthScanMsg(json.error || "Health check failed.");
+      }
+    } catch {
+      setHealthScanMsg("Unable to run health scan.");
+    } finally {
+      setIsScanningHealth(false);
+    }
+  };
 
   // 1. Tags computed strictly for all bookmarks present on this specific page (including nested subfolders)
   const tagData = React.useMemo(() => {
@@ -619,6 +646,37 @@ export function VisualDashboard({
                 ) : (
                   <div className="p-3.5 rounded-md border border-border bg-card text-xs text-muted-foreground">
                     Zero broken links detected in the current view.
+                  </div>
+                )}
+
+                {/* 6.2: Link Rot Monitor & 6.1: Cleanup Wizard Action Buttons */}
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isScanningHealth}
+                    onClick={handleRunHealthScan}
+                    className="text-xs h-8 gap-1.5 flex-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isScanningHealth ? "animate-spin" : ""}`} />
+                    <span>{isScanningHealth ? "Scanning Links..." : "Scan Links Now"}</span>
+                  </Button>
+
+                  {onOpenCleanupWizard && (
+                    <Button
+                      size="sm"
+                      onClick={onOpenCleanupWizard}
+                      className="text-xs h-8 gap-1.5 flex-1 bg-primary text-primary-foreground cursor-pointer"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>Cleanup Wizard</span>
+                    </Button>
+                  )}
+                </div>
+
+                {healthScanMsg && (
+                  <div className="text-[11px] font-mono text-muted-foreground p-2 rounded bg-muted/40 border border-border">
+                    {healthScanMsg}
                   </div>
                 )}
               </div>

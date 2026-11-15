@@ -100,6 +100,13 @@ export function KnowledgeGraph({
   const [linkDistance, setLinkDistance] = React.useState(80); // Controls spring resting distance
   const [showLabels, setShowLabels] = React.useState(true);
 
+  // Obsidian Advanced Graph Filters & Aesthetics (Item 4)
+  const [selectedFolderFilter, setSelectedFolderFilter] = React.useState<string>("all");
+  const [nodeShape, setNodeShape] = React.useState<"circle" | "square" | "diamond" | "hexagon" | "by-type">("circle");
+  const [colorScheme, setColorScheme] = React.useState<"default" | "folder" | "recency" | "status">("default");
+  const [showOrphans, setShowOrphans] = React.useState(true);
+  const [nodeScale, setNodeScale] = React.useState(1.0);
+
   // Selected node for Inspector
   const [selectedNode, setSelectedNode] = React.useState<GraphNode | null>(null);
   const [copiedUrl, setCopiedUrl] = React.useState(false);
@@ -187,17 +194,61 @@ export function KnowledgeGraph({
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    // Filter nodes by active settings
-    const activeNodes = nodes.filter((n) => {
+    // Helper for drawing various node shapes (circle, square, diamond, hexagon)
+    const drawShape = (c: CanvasRenderingContext2D, shape: string, x: number, y: number, r: number) => {
+      c.beginPath();
+      if (shape === "square") {
+        c.rect(x - r, y - r, r * 2, r * 2);
+      } else if (shape === "diamond") {
+        c.moveTo(x, y - r * 1.25);
+        c.lineTo(x + r * 1.25, y);
+        c.lineTo(x, y + r * 1.25);
+        c.lineTo(x - r * 1.25, y);
+        c.closePath();
+      } else if (shape === "hexagon") {
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          const hx = x + r * 1.15 * Math.cos(angle);
+          const hy = y + r * 1.15 * Math.sin(angle);
+          if (i === 0) c.moveTo(hx, hy);
+          else c.lineTo(hx, hy);
+        }
+        c.closePath();
+      } else {
+        // Default circle / dot
+        c.arc(x, y, r, 0, Math.PI * 2);
+      }
+    };
+
+    // Filter nodes by active settings (including folder filter & orphans)
+    let activeNodes = nodes.filter((n) => {
       if (!visibleTypes[n.type]) return false;
       if (favoritesOnly && n.type === "bookmark" && !n.data?.isFavorite) return false;
+      if (selectedFolderFilter !== "all") {
+        if (n.type === "folder" && n.id !== selectedFolderFilter) return false;
+        if (n.type === "bookmark" && n.data?.folderId !== selectedFolderFilter) return false;
+      }
       return true;
     });
 
     const activeNodeIdSet = new Set(activeNodes.map((n) => n.id));
-    const activeEdges = edges.filter(
+    let activeEdges = edges.filter(
       (e) => activeNodeIdSet.has(e.source) && activeNodeIdSet.has(e.target)
     );
+
+    // Degree connection count for orphan filtering
+    if (!showOrphans) {
+      const degreeMap = new Map<string, number>();
+      for (const e of activeEdges) {
+        degreeMap.set(e.source, (degreeMap.get(e.source) || 0) + 1);
+        degreeMap.set(e.target, (degreeMap.get(e.target) || 0) + 1);
+      }
+      activeNodes = activeNodes.filter((n) => (degreeMap.get(n.id) || 0) > 0);
+      const remainingNodeIds = new Set(activeNodes.map((n) => n.id));
+      activeEdges = activeEdges.filter(
+        (e) => remainingNodeIds.has(e.source) && remainingNodeIds.has(e.target)
+      );
+    }
 
     const nodeById = new Map<string, GraphNode>();
     for (const n of activeNodes) nodeById.set(n.id, n);
@@ -324,7 +375,7 @@ export function KnowledgeGraph({
       for (const node of activeNodes) {
         const nx = node.x || 0;
         const ny = node.y || 0;
-        const r = node.size || 10;
+        const r = (node.size || 10) * nodeScale;
 
         const isHovered = hoveredNode?.id === node.id;
         const isNeighbor = hoveredNeighbors?.has(node.id);
@@ -341,25 +392,55 @@ export function KnowledgeGraph({
         ctx.save();
         ctx.globalAlpha = alpha;
 
+        // Shape determination
+        const effectiveShape =
+          nodeShape === "by-type"
+            ? node.type === "folder"
+              ? "square"
+              : node.type === "tag"
+              ? "diamond"
+              : node.type === "domain"
+              ? "hexagon"
+              : "circle"
+            : nodeShape;
+
+        // Color determination
+        let nodeColor = node.color;
+        if (colorScheme === "folder") {
+          if (node.type === "folder") {
+            nodeColor = node.data?.color || node.color;
+          } else if (node.type === "bookmark" && node.data?.folderId) {
+            const parentFolder = nodes.find((f) => f.id === node.data?.folderId);
+            if (parentFolder) nodeColor = parentFolder.color || parentFolder.data?.color || node.color;
+          }
+        } else if (colorScheme === "recency") {
+          if (node.type === "bookmark") {
+            const last = node.data?.lastClickedAt || node.data?.lastVisitedAt;
+            const diffDays = last ? (Date.now() - last) / 86400000 : 999;
+            nodeColor = diffDays <= 7 ? "#10b981" : diffDays <= 30 ? "#3b82f6" : "#64748b";
+          }
+        } else if (colorScheme === "status") {
+          if (node.type === "bookmark") {
+            nodeColor = node.data?.status === "dead" ? "#ef4444" : "#10b981";
+          }
+        }
+
         // Selection or Search glow ring
         if (isSelected || matchesSearch) {
-          ctx.beginPath();
-          ctx.arc(nx, ny, r + 5, 0, Math.PI * 2);
+          drawShape(ctx, effectiveShape, nx, ny, r + 4);
           ctx.strokeStyle = isSelected ? "#3b82f6" : "#f59e0b";
           ctx.lineWidth = 2.5;
           ctx.stroke();
         }
 
         // Node Body
-        ctx.beginPath();
-        ctx.arc(nx, ny, r, 0, Math.PI * 2);
-        ctx.fillStyle = node.color;
+        drawShape(ctx, effectiveShape, nx, ny, r);
+        ctx.fillStyle = nodeColor;
         ctx.fill();
 
         // Favorite Amber Rim
         if (node.type === "bookmark" && node.data?.isFavorite) {
-          ctx.beginPath();
-          ctx.arc(nx, ny, r + 2, 0, Math.PI * 2);
+          drawShape(ctx, effectiveShape, nx, ny, r + 2);
           ctx.strokeStyle = "#E8B75B";
           ctx.lineWidth = 1.8;
           ctx.stroke();
@@ -391,7 +472,7 @@ export function KnowledgeGraph({
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [nodes, edges, visibleTypes, favoritesOnly, nodeSpacing, linkDistance, showLabels, selectedNode, searchQuery]);
+  }, [nodes, edges, visibleTypes, favoritesOnly, nodeSpacing, linkDistance, showLabels, selectedNode, searchQuery, selectedFolderFilter, nodeShape, colorScheme, showOrphans, nodeScale]);
 
   // Coordinate Conversion Helper
   const getCanvasMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -745,6 +826,99 @@ export function KnowledgeGraph({
                     <span className="font-medium text-foreground">Favorites Only</span>
                   </div>
                 </label>
+
+                <label className="flex items-center justify-between p-1.5 rounded-md hover:bg-secondary cursor-pointer transition-colors">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={showOrphans}
+                      onChange={(e) => setShowOrphans(e.target.checked)}
+                      className="rounded h-3.5 w-3.5"
+                    />
+                    <Sparkles className="h-3 w-3 text-primary" />
+                    <span className="font-medium text-foreground">Show Orphan Nodes</span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Specific Folder Filter */}
+              <div className="space-y-1 pt-1">
+                <label className="text-[11px] font-medium text-muted-foreground">Filter to Folder:</label>
+                <select
+                  value={selectedFolderFilter}
+                  onChange={(e) => setSelectedFolderFilter(e.target.value)}
+                  className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 text-foreground"
+                >
+                  <option value="all">All Folders (Full Graph)</option>
+                  {nodes
+                    .filter((n) => n.type === "folder")
+                    .map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Obsidian Display & Styling Controls (Item 4) */}
+            <div className="space-y-2.5 pt-2 border-t border-border/80">
+              <div className="text-xs font-mono text-muted-foreground">
+                Obsidian Node Styling
+              </div>
+
+              {/* Color Scheme */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                  <span>Color Scheme:</span>
+                  <span className="font-mono text-primary capitalize">{colorScheme}</span>
+                </div>
+                <select
+                  value={colorScheme}
+                  onChange={(e) => setColorScheme(e.target.value as any)}
+                  className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 text-foreground"
+                >
+                  <option value="default">Default Type Colors</option>
+                  <option value="folder">Inherit Folder Colors</option>
+                  <option value="recency">Activity / Recency Tiers</option>
+                  <option value="status">Link Health (Reachable vs Dead)</option>
+                </select>
+              </div>
+
+              {/* Shape / Dot Variation */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                  <span>Node Shapes / Dots:</span>
+                  <span className="font-mono text-primary capitalize">{nodeShape}</span>
+                </div>
+                <select
+                  value={nodeShape}
+                  onChange={(e) => setNodeShape(e.target.value as any)}
+                  className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 text-foreground"
+                >
+                  <option value="circle">Circles (Classic Dots)</option>
+                  <option value="square">Rounded Squares</option>
+                  <option value="diamond">Obsidian Diamonds</option>
+                  <option value="hexagon">Tech Hexagons</option>
+                  <option value="by-type">Shape by Entity Type</option>
+                </select>
+              </div>
+
+              {/* Node Size Multiplier */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                  <span>Dot Size Scale:</span>
+                  <span className="font-mono text-xs">{nodeScale.toFixed(1)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.6"
+                  max="2.0"
+                  step="0.1"
+                  value={nodeScale}
+                  onChange={(e) => setNodeScale(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-muted rounded-md appearance-none cursor-pointer"
+                />
               </div>
             </div>
 

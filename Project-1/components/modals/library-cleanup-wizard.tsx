@@ -12,6 +12,11 @@ import {
   Folder as FolderIcon,
   Check,
   ExternalLink,
+  Filter,
+  CheckSquare,
+  Square,
+  ArrowRight,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Dialog,
@@ -64,11 +69,25 @@ export function LibraryCleanupWizard({
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
 
-  // 1. Identify Duplicate Bookmarks
+  // Advanced Duplicate Cleanup Configuration State
+  const [duplicateScopeFolderId, setDuplicateScopeFolderId] = React.useState<string>("all");
+  const [preserveStrategy, setPreserveStrategy] = React.useState<"most_visited" | "oldest" | "newest" | "starred">("most_visited");
+  const [destinationFolderId, setDestinationFolderId] = React.useState<string>("keep_original");
+  const [selectedGroupKeys, setSelectedGroupKeys] = React.useState<Set<string>>(new Set());
+  const [customSurvivorMap, setCustomSurvivorMap] = React.useState<Map<string, string>>(new Map());
+
+  // 1. Identify Duplicate Bookmarks (respecting selected folder scope)
   const duplicateGroups = React.useMemo(() => {
     const map = new Map<string, BookmarkWithDetails[]>();
     for (const b of bookmarks) {
       if (b.isArchived) continue;
+      if (duplicateScopeFolderId !== "all") {
+        if (duplicateScopeFolderId === "unsorted") {
+          if (b.folderId) continue;
+        } else if (b.folderId !== duplicateScopeFolderId) {
+          continue;
+        }
+      }
       const key = normalizeUrl(b.url);
       if (!map.has(key)) {
         map.set(key, []);
@@ -83,11 +102,53 @@ export function LibraryCleanupWizard({
       }
     }
     return groups;
-  }, [bookmarks]);
+  }, [bookmarks, duplicateScopeFolderId]);
+
+  // Keep all groups selected initially whenever scope/groups change
+  React.useEffect(() => {
+    setSelectedGroupKeys(new Set(duplicateGroups.map((g) => g.key)));
+  }, [duplicateGroups]);
+
+  // Survivor resolution helper
+  const getSurvivor = React.useCallback(
+    (group: { key: string; items: BookmarkWithDetails[] }) => {
+      const customId = customSurvivorMap.get(group.key);
+      if (customId) {
+        const found = group.items.find((b) => b.id === customId);
+        if (found) return found;
+      }
+
+      const sorted = [...group.items].sort((a, b) => {
+        if (preserveStrategy === "starred") {
+          if (a.isFavorite && !b.isFavorite) return -1;
+          if (!a.isFavorite && b.isFavorite) return 1;
+        }
+        if (preserveStrategy === "newest") {
+          return b.createdAt - a.createdAt;
+        }
+        if (preserveStrategy === "oldest") {
+          return a.createdAt - b.createdAt;
+        }
+        // Default: most visited
+        const vDiff = (b.visitCount || 0) - (a.visitCount || 0);
+        if (vDiff !== 0) return vDiff;
+        return a.createdAt - b.createdAt;
+      });
+
+      return sorted[0];
+    },
+    [customSurvivorMap, preserveStrategy]
+  );
 
   const totalDuplicateCount = React.useMemo(() => {
     return duplicateGroups.reduce((acc, g) => acc + (g.items.length - 1), 0);
   }, [duplicateGroups]);
+
+  const selectedDuplicatesCount = React.useMemo(() => {
+    return duplicateGroups
+      .filter((g) => selectedGroupKeys.has(g.key))
+      .reduce((acc, g) => acc + (g.items.length - 1), 0);
+  }, [duplicateGroups, selectedGroupKeys]);
 
   // 2. Identify Dead / Broken Links
   const brokenLinks = React.useMemo(() => {
@@ -101,7 +162,6 @@ export function LibraryCleanupWizard({
 
     return folders.filter((f) => {
       if (f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_")) return false;
-      // If folder has subfolders or has bookmarks, it's not empty
       if (parentIds.has(f.id)) return false;
       if (foldersWithBookmarks.has(f.id)) return false;
       return true;
@@ -110,22 +170,50 @@ export function LibraryCleanupWizard({
 
   const totalIssuesCount = totalDuplicateCount + brokenLinks.length + emptyFolders.length;
 
+  // Toggle selection for group
+  const handleToggleGroup = (key: string) => {
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleSelectAllGroups = () => {
+    setSelectedGroupKeys(new Set(duplicateGroups.map((g) => g.key)));
+  };
+
+  const handleDeselectAllGroups = () => {
+    setSelectedGroupKeys(new Set());
+  };
+
+  const handleSetCustomSurvivor = (groupKey: string, bookmarkId: string) => {
+    setCustomSurvivorMap((prev) => {
+      const next = new Map(prev);
+      next.set(groupKey, bookmarkId);
+      return next;
+    });
+  };
+
   // Actions
   const handleMergeDuplicates = async () => {
-    if (duplicateGroups.length === 0) return;
+    const activeGroups = duplicateGroups.filter((g) => selectedGroupKeys.has(g.key));
+    if (activeGroups.length === 0) return;
     setIsProcessing(true);
     setSuccessMessage(null);
     try {
       const idsToDelete: string[] = [];
-      for (const group of duplicateGroups) {
-        // Keep the one with highest visits or oldest
-        const sorted = [...group.items].sort((a, b) => {
-          const vDiff = (b.visitCount || 0) - (a.visitCount || 0);
-          if (vDiff !== 0) return vDiff;
-          return a.createdAt - b.createdAt;
-        });
-        const toDelete = sorted.slice(1).map((b) => b.id);
+      const idsToMove: string[] = [];
+
+      for (const group of activeGroups) {
+        const survivor = getSurvivor(group);
+        const toDelete = group.items.filter((b) => b.id !== survivor.id).map((b) => b.id);
         idsToDelete.push(...toDelete);
+
+        if (destinationFolderId !== "keep_original") {
+          idsToMove.push(survivor.id);
+        }
       }
 
       if (idsToDelete.length > 0) {
@@ -136,7 +224,16 @@ export function LibraryCleanupWizard({
         });
       }
 
-      setSuccessMessage(`Merged ${totalDuplicateCount} duplicate bookmarks.`);
+      if (idsToMove.length > 0) {
+        const targetFolder = destinationFolderId === "unsorted" ? null : destinationFolderId;
+        await fetch("/api/bookmarks/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "move", ids: idsToMove, folderId: targetFolder }),
+        });
+      }
+
+      setSuccessMessage(`Merged ${idsToDelete.length} duplicates across ${activeGroups.length} URLs.`);
       onRefreshData();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
@@ -403,37 +500,194 @@ export function LibraryCleanupWizard({
           )}
 
           {activeTab === "duplicates" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Duplicate Configuration Bar */}
+              <div className="p-3.5 rounded-xl border border-border bg-secondary/30 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                  <span>Duplicate Cleanup Strategy & Scope</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  {/* Scope Selector */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground font-medium block">
+                      Target Scope
+                    </label>
+                    <select
+                      value={duplicateScopeFolderId}
+                      onChange={(e) => setDuplicateScopeFolderId(e.target.value)}
+                      className="w-full h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="all">Entire Workspace Library</option>
+                      <option value="unsorted">Inbox / Unsorted Only</option>
+                      {folders
+                        .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>
+                            Folder: {f.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Preservation Strategy */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground font-medium block">
+                      Preserve Survivor Rule
+                    </label>
+                    <select
+                      value={preserveStrategy}
+                      onChange={(e) => setPreserveStrategy(e.target.value as any)}
+                      className="w-full h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="most_visited">Keep Most Visited (Clicks)</option>
+                      <option value="oldest">Keep Oldest (Original Bookmark)</option>
+                      <option value="newest">Keep Newest (Latest Added)</option>
+                      <option value="starred">Keep Starred / Favorites First</option>
+                    </select>
+                  </div>
+
+                  {/* Move Destination */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground font-medium block">
+                      Survivor Destination
+                    </label>
+                    <select
+                      value={destinationFolderId}
+                      onChange={(e) => setDestinationFolderId(e.target.value)}
+                      className="w-full h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <option value="keep_original">Keep in Original Folder</option>
+                      <option value="unsorted">Move to Inbox / Unsorted</option>
+                      {folders
+                        .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>
+                            Move to: {f.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group Action Controls */}
+              {duplicateGroups.length > 0 && (
+                <div className="flex items-center justify-between text-xs border-b border-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllGroups}
+                      className="text-primary hover:underline font-medium text-[11px] cursor-pointer"
+                    >
+                      Select All ({duplicateGroups.length})
+                    </button>
+                    <span className="text-muted-foreground">•</span>
+                    <button
+                      type="button"
+                      onClick={handleDeselectAllGroups}
+                      className="text-muted-foreground hover:text-foreground text-[11px] cursor-pointer"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-[11px] font-mono">
+                      {selectedDuplicatesCount} duplicates selected
+                    </span>
+                    <Button
+                      size="sm"
+                      disabled={isProcessing || selectedDuplicatesCount === 0}
+                      onClick={handleMergeDuplicates}
+                      className="h-7 px-2.5 text-xs bg-primary text-primary-foreground cursor-pointer shadow-xs"
+                    >
+                      <span>Merge Selected ({selectedDuplicatesCount})</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Duplicate Groups List */}
               {duplicateGroups.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
-                  Zero duplicate bookmarks found in your library.
+                  Zero duplicate bookmarks found in the selected scope.
                 </div>
               ) : (
-                duplicateGroups.map((group) => (
-                  <div key={group.key} className="p-3 rounded-lg border border-border bg-card space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs text-muted-foreground truncate max-w-sm">
-                        {group.key}
-                      </span>
-                      <Badge variant="secondary" className="font-mono text-[10px]">
-                        {group.items.length} copies
-                      </Badge>
-                    </div>
-                    <div className="space-y-1 pl-2 border-l-2 border-primary/40">
-                      {group.items.map((b, idx) => (
-                        <div key={b.id} className="flex items-center justify-between text-xs py-0.5">
-                          <span className="truncate max-w-md font-medium text-foreground">
-                            {idx === 0 ? "(Keep) " : "(Duplicate) "}
-                            {b.title}
+                duplicateGroups.map((group) => {
+                  const survivor = getSurvivor(group);
+                  const isChecked = selectedGroupKeys.has(group.key);
+
+                  return (
+                    <div
+                      key={group.key}
+                      className={`p-3 rounded-xl border transition-colors space-y-2.5 ${
+                        isChecked ? "border-border bg-card" : "border-border/40 bg-card/40 opacity-70"
+                      }`}
+                    >
+                      {/* Group Header */}
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleGroup(group.key)}
+                            className="rounded border-border text-primary focus:ring-0 cursor-pointer h-3.5 w-3.5"
+                          />
+                          <span className="font-mono text-xs text-foreground font-medium truncate max-w-sm sm:max-w-md">
+                            {group.key}
                           </span>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {b.folderName || "Unsorted"}
-                          </span>
-                        </div>
-                      ))}
+                        </label>
+                        <Badge variant="secondary" className="font-mono text-[10px] shrink-0">
+                          {group.items.length} copies
+                        </Badge>
+                      </div>
+
+                      {/* Group Copies */}
+                      <div className="space-y-1.5 pl-5 border-l-2 border-border/80">
+                        {group.items.map((b) => {
+                          const isSurvivor = b.id === survivor.id;
+                          return (
+                            <div
+                              key={b.id}
+                              onClick={() => handleSetCustomSurvivor(group.key, b.id)}
+                              className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors border ${
+                                isSurvivor
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-foreground font-medium"
+                                  : "bg-secondary/40 border-transparent hover:border-border text-muted-foreground"
+                              }`}
+                              title={isSurvivor ? "Survivor (Will be kept)" : "Duplicate (Click to keep this one instead)"}
+                            >
+                              <div className="flex items-center gap-2 truncate min-w-0 mr-2">
+                                <Badge
+                                  variant={isSurvivor ? "default" : "outline"}
+                                  className={`text-[10px] font-mono uppercase px-1.5 py-0 ${
+                                    isSurvivor
+                                      ? "bg-emerald-600 text-white"
+                                      : "border-muted-foreground/30 text-muted-foreground"
+                                  }`}
+                                >
+                                  {isSurvivor ? "Keep" : "Delete"}
+                                </Badge>
+                                <span className="truncate">{b.title || b.url}</span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-[11px] font-mono text-muted-foreground shrink-0">
+                                <span>{b.folderName || "Unsorted"}</span>
+                                <span>•</span>
+                                <span>{b.visitCount || 0} visits</span>
+                                {b.isFavorite && (
+                                  <span className="text-amber-500 font-bold">★</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}

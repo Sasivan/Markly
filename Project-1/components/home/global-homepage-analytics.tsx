@@ -319,8 +319,8 @@ export function GlobalHomepageAnalytics({
                 <defs>
                   {CATEGORY_PALETTE.map((pal) => (
                     <linearGradient key={pal.gradId} id={pal.gradId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={pal.fill} stopOpacity={0.65} />
-                      <stop offset="95%" stopColor={pal.fill} stopOpacity={0.06} />
+                      <stop offset="5%" stopColor={pal.fill} stopOpacity={0.28} />
+                      <stop offset="95%" stopColor={pal.fill} stopOpacity={0.02} />
                     </linearGradient>
                   ))}
                 </defs>

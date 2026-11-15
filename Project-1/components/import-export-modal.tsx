@@ -146,40 +146,6 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
             </div>
           </div>
 
-          {/* 7.3: Browser Bookmarklet */}
-          <div className="rounded-md border border-border p-3.5 space-y-2.5 bg-card">
-            <h4 className="font-semibold text-foreground flex items-center gap-1.5">
-              <Bookmark className="h-3.5 w-3.5 text-primary" />
-              <span>1-Click Browser Bookmarklet</span>
-            </h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Drag this button to your browser bookmarks bar (Chrome, Safari, Firefox, Edge, Arc) to instantly save any tab to Markly with 1 click:
-            </p>
-            <div className="flex items-center gap-2 pt-1 flex-wrap">
-              <a
-                href={bookmarkletCode}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleCopyBookmarklet();
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold text-xs shadow-xs cursor-grab active:cursor-grabbing border border-primary/20 select-none"
-                title="Drag me to your browser bookmarks bar!"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>+ Save to Markly</span>
-              </a>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCopyBookmarklet}
-                className="text-xs h-8 gap-1.5 cursor-pointer"
-              >
-                {copiedBookmarklet ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                <span>{copiedBookmarklet ? "Copied JS Code" : "Copy Code"}</span>
-              </Button>
-            </div>
-          </div>
 
           {/* Import Section */}
           <div className="rounded-md border border-border p-3.5 space-y-2 bg-card">

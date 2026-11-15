@@ -11,6 +11,9 @@ import {
   Globe,
   ArrowRight,
   Sparkles,
+  PlusCircle,
+  Check,
+  Download,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -39,6 +42,76 @@ export default function PublicSharePage() {
   const [collection, setCollection] = React.useState<SharedCollection | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [mounted, setMounted] = React.useState(false);
+  const [importing, setImporting] = React.useState(false);
+  const [imported, setImported] = React.useState(false);
+
+  const handleAddToLibrary = async () => {
+    if (!collection || collection.items.length === 0) return;
+    setImporting(true);
+    try {
+      const folderRes = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: collection.name,
+          icon: collection.icon || "Folder",
+          color: collection.color || "#2563eb",
+        }),
+      });
+
+      if (folderRes.ok) {
+        const folderData = await folderRes.json();
+        const folderId = folderData?.folder?.id;
+        for (const item of collection.items) {
+          try {
+            await fetch("/api/bookmarks", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: item.title,
+                url: item.url,
+                folderId: folderId || null,
+                description: item.description || "",
+                tags: item.tags || [],
+              }),
+            });
+          } catch {
+            // continue
+          }
+        }
+        setImported(true);
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1200);
+      } else {
+        const pending = {
+          folderName: collection.name,
+          icon: collection.icon,
+          color: collection.color,
+          items: collection.items,
+        };
+        localStorage.setItem("markly_pending_import_collection", JSON.stringify(pending));
+        setImported(true);
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1200);
+      }
+    } catch {
+      const pending = {
+        folderName: collection.name,
+        icon: collection.icon,
+        color: collection.color,
+        items: collection.items,
+      };
+      localStorage.setItem("markly_pending_import_collection", JSON.stringify(pending));
+      setImported(true);
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1200);
+    } finally {
+      setImporting(false);
+    }
+  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -95,13 +168,40 @@ export default function PublicSharePage() {
           </span>
         </div>
 
-        <a
-          href="/"
-          className="h-8 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs flex items-center gap-1.5 transition-colors shadow-xs"
-        >
-          <span>Open Markly App</span>
-          <ArrowRight className="h-3 w-3" />
-        </a>
+        <div className="flex items-center gap-2">
+          {collection && collection.items.length > 0 && (
+            <button
+              type="button"
+              onClick={handleAddToLibrary}
+              disabled={importing || imported}
+              className={`h-8 px-3 rounded-lg font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs ${
+                imported
+                  ? "bg-emerald-600 text-white"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
+              }`}
+            >
+              {imported ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Added to Library! Opening...</span>
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  <span>{importing ? "Adding..." : "Add to My Library"}</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <a
+            href="/"
+            className="h-8 px-3 rounded-lg border border-border bg-card hover:bg-secondary text-foreground font-medium text-xs flex items-center gap-1.5 transition-colors"
+          >
+            <span>Open App</span>
+            <ArrowRight className="h-3 w-3" />
+          </a>
+        </div>
       </header>
 
       {/* Main Container */}
@@ -128,9 +228,36 @@ export default function PublicSharePage() {
               </h1>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-            A public collection of curated web resources and tools, organized on Markly.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+              A public collection of curated web resources and tools, organized on Markly.
+            </p>
+
+            {collection && collection.items.length > 0 && (
+              <button
+                type="button"
+                onClick={handleAddToLibrary}
+                disabled={importing || imported}
+                className={`h-8 px-3.5 rounded-lg font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs ${
+                  imported
+                    ? "bg-emerald-600 text-white"
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                }`}
+              >
+                {imported ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Added to Library!</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span>{importing ? "Adding..." : `Add ${collection.items.length} Links to My Library`}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
 
           {/* In-Collection Search Input */}
           <div className="pt-2">

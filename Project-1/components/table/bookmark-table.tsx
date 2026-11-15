@@ -38,6 +38,7 @@ import {
   FolderPlus,
   Bookmark,
   Filter,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,24 @@ interface BookmarkTableProps {
   onControlledViewModeChange?: (mode: "table" | "board" | "cards" | "list" | "compact") => void;
 }
 
+// Notion-Style Multi-Column Filter Rules
+export type ColumnFilterField =
+  | "title"
+  | "domain"
+  | "folder"
+  | "tags"
+  | "status"
+  | "favorite"
+  | "visitCount"
+  | "recency";
+
+export interface ColumnFilterRule {
+  id: string;
+  field: ColumnFilterField;
+  operator: string;
+  value: string;
+}
+
 export function BookmarkTable({
   data,
   allBookmarks,
@@ -98,6 +117,17 @@ export function BookmarkTable({
   controlledViewMode,
   onControlledViewModeChange,
 }: BookmarkTableProps) {
+const TABLE_COLUMN_OPTIONS = [
+  { id: "title", label: "Title & URL" },
+  { id: "domain", label: "Domain" },
+  { id: "folder", label: "Folder Group" },
+  { id: "tags", label: "Tags" },
+  { id: "status", label: "Health Status" },
+  { id: "lastVisitedAt", label: "Last Clicked" },
+  { id: "visitCount", label: "Visits" },
+  { id: "createdAt", label: "Date Added" },
+];
+
   // Persisted Sorting
   const [sorting, setSorting] = React.useState<SortingState>(() => {
     if (typeof window !== "undefined") {
@@ -189,40 +219,30 @@ export function BookmarkTable({
     return {};
   });
 
-  // 5.1: Quick Filter Chips with Persistence
-  type FilterChipKey = "all" | "starred" | "ai" | "unvisited" | "broken" | "recent_week";
-  const [activeChip, setActiveChipState] = React.useState<FilterChipKey>(() => {
-    if (typeof window !== "undefined") {
+  const handleToggleColumn = (colId: string, isVisible: boolean) => {
+    setColumnVisibility((prev) => {
+      const next = { ...prev, [colId]: isVisible };
       try {
-        const stored = localStorage.getItem("markly_table_active_chip") as FilterChipKey;
-        if (stored) return stored;
+        localStorage.setItem("markly_table_columns", JSON.stringify(next));
       } catch {}
-    }
-    return "all";
-  });
-
-  const setActiveChip = (chip: FilterChipKey) => {
-    setActiveChipState(chip);
-    try {
-      localStorage.setItem("markly_table_active_chip", chip);
-    } catch {}
+      return next;
+    });
   };
 
-  // Search Scope: "all" (entire DB library) vs "current" (current folder/view) with Persistence
-  const [searchScope, setSearchScopeState] = React.useState<"all" | "current">(() => {
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFilterRule[]>(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("markly_table_search_scope") as "all" | "current";
-        if (stored === "all" || stored === "current") return stored;
+        const stored = localStorage.getItem("markly_notion_column_filters");
+        if (stored) return JSON.parse(stored);
       } catch {}
     }
-    return "all";
+    return [];
   });
 
-  const setSearchScope = (scope: "all" | "current") => {
-    setSearchScopeState(scope);
+  const handleSaveColumnFilters = (filters: ColumnFilterRule[]) => {
+    setColumnFilters(filters);
     try {
-      localStorage.setItem("markly_table_search_scope", scope);
+      localStorage.setItem("markly_notion_column_filters", JSON.stringify(filters));
     } catch {}
   };
 
@@ -315,9 +335,9 @@ function fuzzyMatch(text: string, query: string): boolean {
   // Filter data by status and search filter across all views (Table, Board, Cards, List, Compact)
   const filteredData = React.useMemo(() => {
     const isSearching = Boolean(globalFilter && globalFilter.trim().length > 0);
-    // When searching with scope "all", search across entire database
+    // When searching, search across all bookmarks if provided, otherwise data
     let result =
-      isSearching && searchScope === "all" && allBookmarks && allBookmarks.length > 0
+      isSearching && allBookmarks && allBookmarks.length > 0
         ? allBookmarks
         : data;
 
@@ -325,18 +345,54 @@ function fuzzyMatch(text: string, query: string): boolean {
       result = result.filter((item) => item.status === statusFilter);
     }
 
-    // 5.1: Quick Filter Chips
-    if (activeChip === "starred") {
-      result = result.filter((b) => b.isFavorite);
-    } else if (activeChip === "ai") {
-      result = result.filter((b) => Boolean(b.description && b.description.length > 20));
-    } else if (activeChip === "unvisited") {
-      result = result.filter((b) => (b.visitCount || 0) === 0);
-    } else if (activeChip === "broken") {
-      result = result.filter((b) => b.status === "dead");
-    } else if (activeChip === "recent_week") {
-      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      result = result.filter((b) => b.createdAt >= oneWeekAgo);
+    // Apply Notion Multi-Column Filter Rules
+    for (const rule of columnFilters) {
+      if (rule.field === "status") {
+        if (rule.value !== "all") {
+          result = result.filter((item) => item.status === rule.value);
+        }
+      } else if (rule.field === "favorite") {
+        if (rule.value === "starred") {
+          result = result.filter((b) => b.isFavorite);
+        } else if (rule.value === "unstarred") {
+          result = result.filter((b) => !b.isFavorite);
+        }
+      } else if (rule.field === "visitCount") {
+        if (rule.value === "unvisited") {
+          result = result.filter((b) => (b.visitCount || 0) === 0);
+        } else if (rule.value === "visited") {
+          result = result.filter((b) => (b.visitCount || 0) > 0);
+        }
+      } else if (rule.field === "folder") {
+        if (rule.value === "__UNSORTED__") {
+          result = result.filter((b) => !b.folderId || b.folderId === "__UNSORTED__" || b.folderId.startsWith("fld_unsorted_"));
+        } else if (rule.value && rule.value !== "all") {
+          result = result.filter((b) => b.folderId === rule.value);
+        }
+      } else if (rule.field === "tags") {
+        if (rule.value) {
+          const needle = rule.value.toLowerCase().replace(/^#/, "");
+          result = result.filter((b) =>
+            b.tags?.some((t: any) => (typeof t === "string" ? t : t.name).toLowerCase() === needle)
+          );
+        }
+      } else if (rule.field === "domain") {
+        if (rule.value) {
+          result = result.filter((b) => b.domain?.toLowerCase().includes(rule.value.toLowerCase()));
+        }
+      } else if (rule.field === "title") {
+        if (rule.value) {
+          result = result.filter((b) => b.title?.toLowerCase().includes(rule.value.toLowerCase()));
+        }
+      } else if (rule.field === "recency") {
+        if (rule.value === "week") {
+          const cutoff = Date.now() - 7 * 86400000;
+          result = result.filter((b) => b.createdAt >= cutoff);
+        } else if (rule.value === "month") {
+          const cutoff = Date.now() - 30 * 86400000;
+          result = result.filter((b) => b.createdAt >= cutoff);
+        }
+      }
     }
 
     // 5.3: Typo-Tolerant & Fuzzy Search across all fields: title, domain, URL, description, notes, tags, folder
@@ -368,7 +424,7 @@ function fuzzyMatch(text: string, query: string): boolean {
       });
     }
     return result;
-  }, [data, allBookmarks, folders, statusFilter, globalFilter, activeChip, searchScope]);
+  }, [data, allBookmarks, folders, statusFilter, globalFilter, columnFilters]);
 
   // Notion-style Board / Kanban Columns
   const kanbanColumns = React.useMemo(() => {
@@ -1132,112 +1188,109 @@ function fuzzyMatch(text: string, query: string): boolean {
         isArchiveView={filteredData.length > 0 && filteredData.every((b) => b.isArchived)}
       />
 
-      {/* Table Controls Header: Search, View Toggle, Status Filter, Column Visibility */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        {/* Left: Quick Add Bookmark, Global Search & Status Filter */}
-        <div className="flex items-center gap-2 flex-1 max-w-md">
-          {onOpenAddModal && (
-            <Button
-              size="sm"
-              onClick={onOpenAddModal}
-              className="h-8 px-2.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer flex items-center gap-1 shadow-2xs flex-shrink-0"
-              title="Add new bookmark (N)"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Add</span>
-            </Button>
-          )}
-
-          <div className="relative flex-1">
-            <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5 pointer-events-none" />
-            <Input
-              id="markly-global-search-input"
-              data-markly-search-input="true"
-              type="text"
-              placeholder="Search title, description, domain, tags, URL... (/ to focus)"
-              value={globalFilter}
-              onChange={(e) => {
-                setGlobalFilter(e.target.value);
-                onSearchChange?.(e.target.value);
-              }}
-              className="pl-8 pr-7 text-xs h-8 bg-background"
-            />
-            {globalFilter.trim().length > 1 && (
-              <button
-                type="button"
-                onClick={handleSaveSearch}
-                title={savedSearchSuccess ? "Search Saved!" : "Save this search to sidebar"}
-                className="absolute right-2 top-2 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
-              >
-                {savedSearchSuccess ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
-                ) : (
-                  <Bookmark className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
-          </div>
-
-          {/* Search Scope Toggle (Entire DB vs Current View) */}
-          {allBookmarks && allBookmarks.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setSearchScope(searchScope === "all" ? "current" : "all")}
-              className={`h-8 px-2 rounded-md border text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
-                searchScope === "all"
-                  ? "bg-primary/10 text-primary border-primary/30"
-                  : "bg-secondary/40 text-muted-foreground border-border hover:bg-secondary"
-              }`}
-              title="Toggle search scope: Entire Library Database vs Current View"
-            >
-              <Globe className="h-3 w-3" />
-              <span>{searchScope === "all" ? "Entire DB" : "Current View"}</span>
-            </button>
-          )}
-
-          {/* Notion-Style Filter Menu */}
+      {/* Table Controls Header: Notion Filter, Sort, View Toggles & Columns */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        {/* Left: Notion Filter & Sort */}
+        <div className="flex items-center gap-2">
+          {/* Notion-Style Multi-Column Filter Menu */}
           <div className="relative">
             <Button
               size="sm"
-              variant={statusFilter !== "all" || activeChip !== "all" ? "default" : "outline"}
+              variant={columnFilters.length > 0 || statusFilter !== "all" ? "default" : "outline"}
               onClick={() => {
                 setFilterMenuOpen(!filterMenuOpen);
                 setSortMenuOpen(false);
                 setColMenuOpen(false);
               }}
-              className="text-xs h-8 gap-1 px-2.5 cursor-pointer"
-              title="Notion Filter Menu"
+              className="text-xs h-8 gap-1.5 px-3 cursor-pointer"
+              title="Filter by any column property"
             >
-              <Filter className="h-3 w-3" />
+              <Filter className="h-3.5 w-3.5" />
               <span>Filter</span>
-              {(statusFilter !== "all" || activeChip !== "all") && (
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 ml-0.5" />
+              {(columnFilters.length > 0 || statusFilter !== "all") && (
+                <span className="h-2 w-2 rounded-full bg-amber-400 ml-0.5" />
               )}
             </Button>
 
             {filterMenuOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-border bg-card p-3 shadow-xl z-50 text-xs text-foreground space-y-2.5 animate-in zoom-in-95">
+              <div className="absolute left-0 top-full mt-1.5 w-72 rounded-xl border border-border bg-card p-3 shadow-xl z-50 text-xs text-foreground space-y-3 animate-in zoom-in-95">
                 <div className="font-semibold text-xs text-foreground border-b border-border pb-1.5 flex items-center justify-between">
-                  <span>Filter Properties</span>
-                  {(statusFilter !== "all" || activeChip !== "all") && (
+                  <span>Filter by Columns</span>
+                  {(columnFilters.length > 0 || statusFilter !== "all") && (
                     <button
                       type="button"
                       onClick={() => {
+                        handleSaveColumnFilters([]);
                         setStatusFilter("all");
-                        setActiveChip("all");
                       }}
                       className="text-[11px] text-primary hover:underline cursor-pointer font-normal"
                     >
-                      Clear
+                      Clear All
                     </button>
                   )}
                 </div>
 
+                {/* Filter 1: Folder Collection */}
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground font-medium">Folder Group</label>
+                  <select
+                    value={columnFilters.find((f) => f.field === "folder")?.value || "all"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const next = columnFilters.filter((f) => f.field !== "folder");
+                      if (val !== "all") {
+                        next.push({ id: "fld", field: "folder", operator: "equals", value: val });
+                      }
+                      handleSaveColumnFilters(next);
+                    }}
+                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
+                  >
+                    <option value="all">All Folders</option>
+                    <option value="__UNSORTED__">Unsorted (No Folder)</option>
+                    {folders
+                      .filter((f) => f.id !== "__UNSORTED__")
+                      .map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Filter 2: Starred / Favorite */}
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground font-medium">Favorite Status</label>
+                  <select
+                    value={columnFilters.find((f) => f.field === "favorite")?.value || "all"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const next = columnFilters.filter((f) => f.field !== "favorite");
+                      if (val !== "all") {
+                        next.push({ id: "fav", field: "favorite", operator: "equals", value: val });
+                      }
+                      handleSaveColumnFilters(next);
+                    }}
+                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
+                  >
+                    <option value="all">All Items</option>
+                    <option value="starred">Starred Favorites Only</option>
+                    <option value="unstarred">Unstarred Only</option>
+                  </select>
+                </div>
+
+                {/* Filter 3: Health Status */}
                 <div className="space-y-1">
                   <label className="text-[11px] text-muted-foreground font-medium">Health Status</label>
                   <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    value={columnFilters.find((f) => f.field === "status")?.value || "all"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const next = columnFilters.filter((f) => f.field !== "status");
+                      if (val !== "all") {
+                        next.push({ id: "stat", field: "status", operator: "equals", value: val });
+                      }
+                      handleSaveColumnFilters(next);
+                    }}
                     className="w-full h-7 text-xs rounded border border-input bg-background px-2"
                   >
                     <option value="all">All Statuses</option>
@@ -1246,18 +1299,45 @@ function fuzzyMatch(text: string, query: string): boolean {
                   </select>
                 </div>
 
+                {/* Filter 4: Visits */}
                 <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground font-medium">Quick Category</label>
+                  <label className="text-[11px] text-muted-foreground font-medium">Visit Count</label>
                   <select
-                    value={activeChip}
-                    onChange={(e) => setActiveChip(e.target.value as any)}
+                    value={columnFilters.find((f) => f.field === "visitCount")?.value || "all"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const next = columnFilters.filter((f) => f.field !== "visitCount");
+                      if (val !== "all") {
+                        next.push({ id: "vis", field: "visitCount", operator: "equals", value: val });
+                      }
+                      handleSaveColumnFilters(next);
+                    }}
                     className="w-full h-7 text-xs rounded border border-input bg-background px-2"
                   >
-                    <option value="all">All Bookmarks</option>
-                    <option value="starred">Starred Favorites Only</option>
-                    <option value="ai">AI Summary Available</option>
-                    <option value="unvisited">Unvisited Sites</option>
-                    <option value="recent_week">Added This Past Week</option>
+                    <option value="all">Any Visit Count</option>
+                    <option value="unvisited">Unvisited (0 visits)</option>
+                    <option value="visited">Visited (1+ visits)</option>
+                  </select>
+                </div>
+
+                {/* Filter 5: Date Added / Recency */}
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground font-medium">Date Added</label>
+                  <select
+                    value={columnFilters.find((f) => f.field === "recency")?.value || "all"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const next = columnFilters.filter((f) => f.field !== "recency");
+                      if (val !== "all") {
+                        next.push({ id: "rec", field: "recency", operator: "equals", value: val });
+                      }
+                      handleSaveColumnFilters(next);
+                    }}
+                    className="w-full h-7 text-xs rounded border border-input bg-background px-2"
+                  >
+                    <option value="all">Any Time</option>
+                    <option value="week">Past 7 Days</option>
+                    <option value="month">Past 30 Days</option>
                   </select>
                 </div>
               </div>
@@ -1274,15 +1354,15 @@ function fuzzyMatch(text: string, query: string): boolean {
                 setFilterMenuOpen(false);
                 setColMenuOpen(false);
               }}
-              className="text-xs h-8 gap-1 px-2.5 cursor-pointer"
+              className="text-xs h-8 gap-1.5 px-3 cursor-pointer"
               title="Notion Sort Menu"
             >
-              <ArrowUpDown className="h-3 w-3" />
+              <ArrowUpDown className="h-3.5 w-3.5" />
               <span>Sort</span>
             </Button>
 
             {sortMenuOpen && (
-              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-52 rounded-xl border border-border bg-card p-2.5 shadow-xl z-50 text-xs text-foreground space-y-1.5 animate-in zoom-in-95">
+              <div className="absolute left-0 top-full mt-1.5 w-52 rounded-xl border border-border bg-card p-2.5 shadow-xl z-50 text-xs text-foreground space-y-1.5 animate-in zoom-in-95">
                 <div className="font-semibold text-xs text-foreground border-b border-border pb-1">
                   Sort By
                 </div>
@@ -1322,8 +1402,8 @@ function fuzzyMatch(text: string, query: string): boolean {
         </div>
 
         {/* Right: View Toggles & Columns */}
-        <div className="flex items-center gap-1.5 self-end sm:self-auto">
-          {/* View Mode Switcher (5 Notion-Inspired Space-Optimized Modes) */}
+        <div className="flex items-center gap-2">
+          {/* View Mode Switcher (5 Notion-Inspired Modes) */}
           <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border">
             <button
               type="button"
@@ -1391,7 +1471,7 @@ function fuzzyMatch(text: string, query: string): boolean {
             </select>
           )}
 
-          {/* Column Visibility Menu */}
+          {/* Column Visibility Menu (Persisted across refreshes) */}
           <div className="relative">
             <Button
               size="sm"
@@ -1401,70 +1481,91 @@ function fuzzyMatch(text: string, query: string): boolean {
                 setFilterMenuOpen(false);
                 setSortMenuOpen(false);
               }}
-              className="text-xs h-8 gap-1 px-2.5"
+              className="text-xs h-8 gap-1.5 px-3 cursor-pointer"
+              title="Choose visible table columns"
             >
-              <SlidersHorizontal className="h-3 w-3" />
+              <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Columns</span>
             </Button>
 
             {colMenuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-border bg-card p-2 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95">
-                <div className="font-medium px-2 py-1 text-xs text-muted-foreground border-b border-border mb-1">
-                  Toggle Columns
+              <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-border bg-card p-2.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
+                <div className="font-semibold px-2 py-1 text-xs text-foreground border-b border-border mb-1 flex items-center justify-between">
+                  <span>Toggle Columns</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">Persisted</span>
                 </div>
-                {table
-                  .getAllLeafColumns()
-                  .filter((col) => col.id !== "select" && col.id !== "actions")
-                  .map((col) => (
+                {TABLE_COLUMN_OPTIONS.map((col) => {
+                  const isVisible = columnVisibility[col.id] !== false;
+                  return (
                     <label
                       key={col.id}
-                      className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent cursor-pointer text-xs"
+                      className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-secondary cursor-pointer text-xs transition-colors"
                     >
+                      <span className="text-foreground">{col.label}</span>
                       <input
                         type="checkbox"
-                        checked={col.getIsVisible()}
-                        onChange={col.getToggleVisibilityHandler()}
-                        className="rounded text-primary h-3 w-3"
+                        checked={isVisible}
+                        onChange={(e) => handleToggleColumn(col.id, e.target.checked)}
+                        className="rounded text-primary h-3.5 w-3.5 accent-primary cursor-pointer"
                       />
-                      <span className="capitalize">{col.id}</span>
                     </label>
-                  ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* 5.1: Quick Filter Chips Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-        {[
-          { id: "all", label: "All Items", count: data.length },
-          { id: "starred", label: "Starred", count: data.filter((b) => b.isFavorite).length },
-          { id: "ai", label: "AI Summary", count: data.filter((b) => Boolean(b.description && b.description.length > 20)).length },
-          { id: "unvisited", label: "Unvisited", count: data.filter((b) => (b.visitCount || 0) === 0).length },
-          { id: "broken", label: "Broken Links", count: data.filter((b) => b.status === "dead").length },
-          { id: "recent_week", label: "Added This Week", count: data.filter((b) => b.createdAt >= Date.now() - 7 * 86400000).length },
-        ].map((chip) => {
-          const isActive = activeChip === chip.id;
-          return (
-            <button
-              key={chip.id}
-              type="button"
-              onClick={() => setActiveChip(chip.id as FilterChipKey)}
-              className={`h-6 px-2.5 rounded-full border text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
-                isActive
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-secondary/60 text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <span>{chip.label}</span>
-              <span className={`text-[10px] font-mono px-1 rounded-full ${isActive ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
-                {chip.count}
+      {/* Active Notion Filter Pills */}
+      {columnFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+          <span className="text-[11px] text-muted-foreground font-medium mr-1">Active filters:</span>
+          {columnFilters.map((rule) => {
+            let label = "";
+            if (rule.field === "folder") {
+              const f = folders.find((item) => item.id === rule.value);
+              label = `Folder: ${rule.value === "__UNSORTED__" ? "Unsorted" : f ? f.name : rule.value}`;
+            } else if (rule.field === "favorite") {
+              label = rule.value === "starred" ? "Starred Only" : "Unstarred";
+            } else if (rule.field === "status") {
+              label = rule.value === "alive" ? "Reachable" : "Broken";
+            } else if (rule.field === "visitCount") {
+              label = rule.value === "unvisited" ? "Unvisited" : "Visited";
+            } else if (rule.field === "recency") {
+              label = rule.value === "week" ? "Added past 7d" : "Added past 30d";
+            } else {
+              label = `${rule.field}: ${rule.value}`;
+            }
+
+            return (
+              <span
+                key={rule.id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-medium"
+              >
+                <span>{label}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSaveColumnFilters(columnFilters.filter((f) => f.id !== rule.id));
+                  }}
+                  className="hover:text-primary-foreground hover:bg-primary/40 rounded p-0.5 transition-colors cursor-pointer"
+                  title="Remove filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </span>
-            </button>
-          );
-        })}
-      </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => handleSaveColumnFilters([])}
+            className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer underline ml-1"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* Main View Display */}
       {viewMode === "table" ? (

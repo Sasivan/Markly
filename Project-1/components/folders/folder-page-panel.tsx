@@ -272,9 +272,9 @@ export function FolderPagePanel({
           </div>
         </div>
 
-        {/* Right: Folder Options Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-          {/* Quick Add Bookmark to this folder (Icon-Only + Button) */}
+        {/* Right: Folder Options Toolbar (Icon-Only Buttons) */}
+        <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0">
+          {/* Quick Add Bookmark to this folder */}
           {onAddBookmarkToFolder && (
             <Button
               size="sm"
@@ -292,47 +292,31 @@ export function FolderPagePanel({
             onClick={() => onToggleIncludeSubfolders(!includeSubfolders)}
             title={
               includeSubfolders
-                ? "Subfolders included (Click to show this folder only)"
-                : "This folder only (Click to include subfolders)"
+                ? "Subfolders included: ON (Click to show this folder only)"
+                : "This folder only: OFF (Click to include subfolders)"
             }
-            className={`h-8 px-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer text-xs font-medium transition-colors border ${
+            className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center cursor-pointer text-xs font-medium transition-colors border ${
               includeSubfolders
                 ? "bg-secondary text-foreground border-border shadow-xs"
                 : "bg-background text-muted-foreground border-border hover:text-foreground hover:bg-secondary"
             }`}
           >
             {includeSubfolders ? (
-              <FolderTree className="h-3.5 w-3.5 text-foreground" />
+              <FolderTree className="h-4 w-4 text-primary" />
             ) : (
-              <FolderIcon className="h-3.5 w-3.5" />
+              <FolderIcon className="h-4 w-4" />
             )}
-            <span className="hidden sm:inline">
-              {includeSubfolders ? "Subfolders: ON" : "Subfolders: OFF"}
-            </span>
           </button>
-
-          {/* New Subfolder Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onNewSubfolder(currentFolder.id)}
-            className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs"
-            title="Create a subfolder inside this folder"
-          >
-            <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Subfolder</span>
-          </Button>
 
           {/* Move Folder Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => onMoveFolder(currentFolder)}
-            className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs"
+            className="h-8 w-8 p-0 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs flex items-center justify-center"
             title="Move this folder to another location or root"
           >
-            <FolderInput className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Move</span>
+            <FolderInput className="h-4 w-4 text-muted-foreground" />
           </Button>
 
           {/* Copy Folder Button */}
@@ -341,24 +325,22 @@ export function FolderPagePanel({
               variant="outline"
               size="sm"
               onClick={() => onCopyFolder(currentFolder)}
-              className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs"
+              className="h-8 w-8 p-0 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs flex items-center justify-center"
               title="Copy this folder and its contents to another project folder"
             >
-              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Copy</span>
+              <Copy className="h-4 w-4 text-muted-foreground" />
             </Button>
           )}
 
-          {/* Share Collection Button (3.1) */}
+          {/* Share Collection Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShareModalOpen(true)}
-            className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs"
+            className="h-8 w-8 p-0 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs flex items-center justify-center"
             title="Share this collection publicly"
           >
-            <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Share</span>
+            <Share2 className="h-4 w-4 text-muted-foreground" />
           </Button>
 
           {/* Customize Icon & Color Button */}
@@ -366,11 +348,10 @@ export function FolderPagePanel({
             variant="outline"
             size="sm"
             onClick={() => onCustomizeFolder(currentFolder)}
-            className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs"
+            className="h-8 w-8 p-0 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs flex items-center justify-center"
             title="Customize folder icon and color"
           >
-            <Palette className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Customize</span>
+            <Palette className="h-4 w-4 text-muted-foreground" />
           </Button>
 
           {/* Delete Folder Button */}
@@ -378,11 +359,10 @@ export function FolderPagePanel({
             variant="outline"
             size="sm"
             onClick={() => onDeleteFolder(currentFolder)}
-            className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-destructive/20 hover:bg-destructive/10 text-destructive shadow-xs"
+            className="h-8 w-8 p-0 cursor-pointer border-destructive/20 hover:bg-destructive/10 text-destructive shadow-xs flex items-center justify-center"
             title="Delete this folder"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>Delete</span>
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>

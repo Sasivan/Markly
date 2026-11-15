@@ -41,6 +41,8 @@ import { FeedbackView } from "@/components/feedback/feedback-view";
 import { KeyboardShortcutsModal } from "@/components/modals/keyboard-shortcuts-modal";
 import { LibraryCleanupWizard } from "@/components/modals/library-cleanup-wizard";
 import { ShareCollectionModal } from "@/components/folders/share-collection-modal";
+import { ChromeExtensionModal } from "@/components/modals/chrome-extension-modal";
+import { SharedLinksView } from "@/components/shared/shared-links-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -110,7 +112,7 @@ interface MarklyWorkspaceProps {
     tagDistribution: { name: string; color: string; count: number }[];
     timeline: { date: string; count: number }[];
   };
-  initialView?: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback";
+  initialView?: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared";
   initialFolderId?: string | null;
   initialSidebarCollapsed?: boolean;
 }
@@ -133,7 +135,7 @@ export function MarklyWorkspace({
 
   // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback">(
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared">(
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
@@ -213,6 +215,9 @@ export function MarklyWorkspace({
 
   // 6.1: Library Cleanup Wizard modal state
   const [cleanupWizardOpen, setCleanupWizardOpen] = React.useState(false);
+
+  // Chrome Extension modal state (Item 7)
+  const [chromeExtensionOpen, setChromeExtensionOpen] = React.useState(false);
 
   // Hydration ref to avoid overwriting URL query params on initial mount
   const isHydratedRef = React.useRef(false);
@@ -1321,6 +1326,12 @@ export function MarklyWorkspace({
         onRefreshData={refreshData}
       />
 
+      {/* Chrome Browser Extension Modal (Item 7) */}
+      <ChromeExtensionModal
+        open={chromeExtensionOpen}
+        onOpenChange={setChromeExtensionOpen}
+      />
+
       {/* Sidebar with recursive folder tree & drag-and-drop */}
       <Sidebar
         folderTree={folderTree}
@@ -1364,6 +1375,7 @@ export function MarklyWorkspace({
           onToggleSidebar={toggleSidebarCollapse}
           onOpenAddModal={() => openAddModal()}
           onOpenImportExport={() => setImportExportOpen(true)}
+          onOpenChromeExtension={() => setChromeExtensionOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
           onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
           onOpenShortcuts={() => setShortcutsModalOpen(true)}
@@ -1613,6 +1625,18 @@ export function MarklyWorkspace({
                 setActiveFolderId(null);
               }}
             />
+          ) : activeView === "shared" && !activeFolderId ? (
+            /* Dedicated Shared Links & Collections View */
+            <SharedLinksView
+              folders={folders}
+              bookmarks={bookmarks}
+              onOpenShareModal={(f) => setSharingFolder(f)}
+              onRefreshData={refreshData}
+              onSelectFolder={(fId) => {
+                setActiveFolderId(fId);
+                setActiveView("all");
+              }}
+            />
           ) : (
             <>
               {/* Dedicated Folder Page Options & Navigation Panel */}
@@ -1758,86 +1782,112 @@ export function MarklyWorkspace({
                 onOpenCleanupWizard={() => setCleanupWizardOpen(true)}
               />
 
-              {/* Recently Visited Time Boundary Control Bar */}
+              {/* Recently Visited Standardized Dashboard Box (Item 5) */}
               {activeView === "recent" && !activeFolderId && (
-                <div className="p-4 rounded-2xl border border-slate-200 dark:border-neutral-800 bg-white dark:bg-[#181818] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-9 w-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                      <Clock className="h-4 w-4" />
+                <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden animate-in fade-in space-y-0">
+                  {/* Header Bar */}
+                  <div className="px-5 py-3.5 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-sm font-semibold text-foreground">Recently Visited Sites</h2>
+                          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-secondary text-foreground font-medium border border-border/60">
+                            {filteredBookmarks.length} {filteredBookmarks.length === 1 ? "site" : "sites"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Tracked strictly by actual clicks and visits. Unvisited sites are excluded.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>Recently Visited Sites</span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-neutral-800 text-muted-foreground">
-                          {filteredBookmarks.length} {filteredBookmarks.length === 1 ? "site" : "sites"}
+
+                    {/* Interactive Recency Controls */}
+                    <div className="flex flex-wrap items-center gap-2.5 bg-secondary/50 px-3 py-1.5 rounded-xl border border-border/60 text-xs">
+                      <div className="flex items-center gap-1.5 font-medium text-foreground text-xs">
+                        <span className="text-muted-foreground">Recency Window:</span>
+                        <span className="font-mono tabular-nums font-semibold text-primary">
+                          {recentDays === 1 ? "1 Day (24h)" : `${recentDays} Days`}
                         </span>
-                      </h2>
-                      <p className="text-[11px] text-muted-foreground">
-                        Tracked strictly by actual clicks and visits. Unvisited sites are excluded.
-                      </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min={1}
+                          max={90}
+                          step={1}
+                          value={recentDays}
+                          onChange={(e) => setRecentDays(Number(e.target.value))}
+                          className="w-24 sm:w-32 h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary border border-border"
+                          aria-label="Adjust Recency Window"
+                        />
+                        <div className="flex items-center gap-1">
+                          {[
+                            { label: "1D", val: 1 },
+                            { label: "7D", val: 7 },
+                            { label: "14D", val: 14 },
+                            { label: "30D", val: 30 },
+                            { label: "60D", val: 60 },
+                            { label: "90D", val: 90 },
+                          ].map((p) => (
+                            <button
+                              key={p.val}
+                              type="button"
+                              onClick={() => setRecentDays(p.val)}
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium transition-colors cursor-pointer ${
+                                recentDays === p.val
+                                  ? "bg-primary text-primary-foreground font-bold"
+                                  : "bg-secondary text-muted-foreground hover:text-foreground border border-border/60"
+                              }`}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Interactive Recency Day Range Bar (1 to 90 Days) */}
-                  <div className="flex flex-col gap-1.5 w-full sm:w-72 bg-slate-50 dark:bg-neutral-900/80 p-2.5 rounded-xl border border-slate-200 dark:border-neutral-800 self-start sm:self-auto shadow-2xs">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5 text-blue-500" />
-                        <span>Recency Window:</span>
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-600 text-white font-mono shadow-2xs">
-                        {recentDays} {recentDays === 1 ? "day" : "days"}
-                      </span>
+                  {/* Filled Space-Taking Metrics Row */}
+                  <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-muted/20">
+                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+                      <div className="text-[11px] text-muted-foreground">Active in window</div>
+                      <div className="text-lg font-bold font-mono text-foreground">{filteredBookmarks.length}</div>
+                      <div className="text-[10px] text-muted-foreground">Sites opened in past {recentDays}d</div>
                     </div>
 
-                    <div className="relative pt-1 px-1">
-                      <input
-                        type="range"
-                        min={1}
-                        max={90}
-                        step={1}
-                        value={recentDays}
-                        onChange={(e) => setRecentDays(Number(e.target.value))}
-                        className="w-full h-2 bg-slate-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-hidden"
-                      />
-                      <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-1">
-                        <span
-                          onClick={() => setRecentDays(1)}
-                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 1 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                        >
-                          1d
-                        </span>
-                        <span
-                          onClick={() => setRecentDays(7)}
-                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 7 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                        >
-                          7d
-                        </span>
-                        <span
-                          onClick={() => setRecentDays(14)}
-                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 14 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                        >
-                          14d
-                        </span>
-                        <span
-                          onClick={() => setRecentDays(30)}
-                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 30 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                        >
-                          30d
-                        </span>
-                        <span
-                          onClick={() => setRecentDays(60)}
-                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 60 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                        >
-                          60d
-                        </span>
-                        <span
-                          onClick={() => setRecentDays(90)}
-                          className={`cursor-pointer hover:text-foreground transition-colors ${recentDays === 90 ? "font-bold text-blue-600 dark:text-blue-400" : ""}`}
-                        >
-                          90d
-                        </span>
+                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+                      <div className="text-[11px] text-muted-foreground">Recency ratio</div>
+                      <div className="text-lg font-bold font-mono text-blue-500">
+                        {bookmarks.length > 0 ? Math.round((filteredBookmarks.length / bookmarks.length) * 100) : 0}%
                       </div>
+                      <div className="text-[10px] text-muted-foreground">Of total {bookmarks.length} bookmarks</div>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+                      <div className="text-[11px] text-muted-foreground">Total clicks logged</div>
+                      <div className="text-lg font-bold font-mono text-emerald-500">
+                        {filteredBookmarks.reduce((acc, b) => acc + (b.visitCount || 0), 0)}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Across recent sites</div>
+                    </div>
+
+                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+                      <div className="text-[11px] text-muted-foreground">Most active domain</div>
+                      <div className="text-sm font-semibold font-mono text-foreground truncate mt-1">
+                        {(() => {
+                          const map = new Map<string, number>();
+                          for (const b of filteredBookmarks) {
+                            if (b.domain) map.set(b.domain, (map.get(b.domain) || 0) + (b.visitCount || 1));
+                          }
+                          const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+                          return sorted[0]?.[0] || "None yet";
+                        })()}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Highest frequency site</div>
                     </div>
                   </div>
                 </div>

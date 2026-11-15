@@ -15,6 +15,7 @@ import {
   ChevronDown,
   CheckCircle2,
   Keyboard,
+  Puzzle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -25,6 +26,7 @@ import type { Folder } from "@/server/db/schema";
 interface AppHeaderProps {
   onOpenAddModal: () => void;
   onOpenImportExport: () => void;
+  onOpenChromeExtension?: () => void;
   onOpenSearch?: () => void;
   onOpenApiKeyModal?: () => void;
   onOpenProfile?: () => void;
@@ -39,6 +41,7 @@ interface AppHeaderProps {
 export function AppHeader({
   onOpenAddModal,
   onOpenImportExport,
+  onOpenChromeExtension,
   onOpenSearch,
   onOpenApiKeyModal,
   onOpenProfile,
@@ -143,6 +146,18 @@ export function AppHeader({
         >
           <ArrowUpDown className="h-3.5 w-3.5" />
         </button>
+
+        {/* 2.5. Chrome Browser Extension */}
+        {onOpenChromeExtension && (
+          <button
+            type="button"
+            onClick={onOpenChromeExtension}
+            title="Markly Chrome Extension (Save sites directly from your browser)"
+            className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-secondary flex items-center justify-center text-foreground cursor-pointer transition-colors"
+          >
+            <Puzzle className="h-3.5 w-3.5 text-primary" />
+          </button>
+        )}
 
         {/* 3. API Key & AI Settings */}
         <button

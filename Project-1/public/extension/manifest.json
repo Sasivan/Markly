@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Markly - Smart Bookmark Saver",
+  "version": "1.0.0",
+  "description": "Save bookmarks, organize into collections, add tags, and sync with your Markly library in 1 click.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Save to Markly"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+M",
+        "mac": "Alt+M"
+      },
+      "description": "Open Markly bookmark saver"
+    }
+  }
+}

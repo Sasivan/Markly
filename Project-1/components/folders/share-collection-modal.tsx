@@ -67,6 +67,27 @@ export function ShareCollectionModal({
         const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
         const url = `${window.location.origin}/share/${folder.id}?data=${encoded}`;
         setShareUrl(url);
+
+        // Register in local shared registry
+        const stored = localStorage.getItem("markly_shared_folders");
+        const list = stored ? JSON.parse(stored) : [];
+        const existingIdx = list.findIndex((item: any) => item.folderId === folder.id);
+        const record = {
+          folderId: folder.id,
+          name: folder.name,
+          icon: folder.icon,
+          color: folder.color,
+          url,
+          count: folderBookmarks.length,
+          sharedAt: new Date().toISOString(),
+        };
+        if (existingIdx >= 0) {
+          list[existingIdx] = record;
+        } else {
+          list.unshift(record);
+        }
+        localStorage.setItem("markly_shared_folders", JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent("markly-shared-updated"));
       } catch {
         setShareUrl(`${window.location.origin}/share/${folder.id}`);
       }

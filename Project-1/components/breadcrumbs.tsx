@@ -7,12 +7,12 @@ import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
 interface BreadcrumbsProps {
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared";
   folders: Folder[];
   includeSubfolders: boolean;
   onToggleIncludeSubfolders: (val: boolean) => void;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared") => void;
   totalBookmarksCount: number;
   onOpenSearch?: () => void;
   onShareFolder?: (folder: Folder) => void;
@@ -125,6 +125,10 @@ export function Breadcrumbs({
               ) : activeView === "trash" ? (
                 <>
                   <Trash2 className="h-3.5 w-3.5 text-destructive" /> Recycle bin
+                </>
+              ) : activeView === "shared" ? (
+                <>
+                  <Share2 className="h-3.5 w-3.5 text-muted-foreground" /> Shared Links & Collections
                 </>
               ) : (
                 <>

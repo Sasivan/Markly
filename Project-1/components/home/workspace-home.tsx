@@ -418,54 +418,58 @@ export function WorkspaceHome({
     let timeMarkers: { val: number; label: string; xPercent: number }[] = [];
     let gridLines: { xPercent: number; isMajor: boolean }[] = [];
 
-    if (isHourly) {
-      // 24 hours mode (1 day)
-      // Major markers: 0h (Now), 4h, 8h, 12h, 16h, 20h, 24h+
-      const hourlyIntervals = [0, 4, 8, 12, 16, 20, 24];
-      timeMarkers = hourlyIntervals.map((h) => ({
-        val: h,
-        label: h === 0 ? "Now (0h)" : h === 24 ? "24h+ (Dormant)" : `${h}h`,
-        xPercent: (h / 24) * 100,
-      }));
+    const lanes = [
+      { id: "24h", label: isHourly ? "< 6h" : "Past 24h", minDays: 0, maxDays: 1, center: 100, color: "#10b981" },
+      { id: "7d", label: isHourly ? "6 - 12h" : "2 - 7 Days", minDays: 1, maxDays: 7, center: 300, color: "#3b82f6" },
+      { id: "14d", label: isHourly ? "12 - 18h" : "8 - 14 Days", minDays: 7, maxDays: 14, center: 500, color: "#6366f1" },
+      { id: "30d", label: isHourly ? "18 - 24h" : "15 - 30 Days", minDays: 14, maxDays: Math.min(30, inactiveThreshold), center: 700, color: "#f59e0b" },
+      { id: "dormant", label: isHourly ? "24h+ (Dormant)" : `${inactiveThreshold}d+ (Dormant)`, minDays: inactiveThreshold, maxDays: Infinity, center: 900, color: "#64748b" },
+    ];
 
-      // Grid lines every 2 hours
-      for (let h = 0; h <= 24; h += 2) {
-        gridLines.push({
-          xPercent: (h / 24) * 100,
-          isMajor: h % 4 === 0,
-        });
+    timeMarkers = lanes.map((l) => ({
+      val: l.minDays,
+      label: l.label,
+      xPercent: (l.center / 1000) * 100,
+    }));
+
+    // Grid boundary lines dividing the 5 swimlanes (at 200, 400, 600, 800)
+    [200, 400, 600, 800].forEach((xVal) => {
+      gridLines.push({
+        xPercent: (xVal / 1000) * 100,
+        isMajor: true,
+      });
+    });
+
+    // Group bookmarks into lanes
+    const laneBuckets: Record<string, BookmarkWithDetails[]> = {
+      "24h": [],
+      "7d": [],
+      "14d": [],
+      "30d": [],
+      dormant: [],
+    };
+
+    unarchived.forEach((bm) => {
+      const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
+      if (!lastTime) {
+        laneBuckets.dormant.push(bm);
+        return;
       }
-    } else {
-      // N days mode (e.g. 7, 14, 30, 60, 90 days)
-      const N = Math.max(2, inactiveThreshold);
-      let step = 1;
-      if (N > 60) step = 15;
-      else if (N > 30) step = 10;
-      else if (N > 14) step = 5;
-      else if (N > 7) step = 2;
-      else step = 1;
+      const diffMs = Math.max(0, now - lastTime);
+      const daysAgo = diffMs / (1000 * 60 * 60 * 24);
 
-      const markers: number[] = [1];
-      for (let d = step; d < N; d += step) {
-        if (d > 1 && !markers.includes(d)) markers.push(d);
+      if (daysAgo >= inactiveThreshold) {
+        laneBuckets.dormant.push(bm);
+      } else if (daysAgo < 1) {
+        laneBuckets["24h"].push(bm);
+      } else if (daysAgo < 7) {
+        laneBuckets["7d"].push(bm);
+      } else if (daysAgo < 14) {
+        laneBuckets["14d"].push(bm);
+      } else {
+        laneBuckets["30d"].push(bm);
       }
-      if (!markers.includes(N)) markers.push(N);
-
-      timeMarkers = markers.map((d) => ({
-        val: d,
-        label: d === 1 ? "Day 1" : d === N ? `${d}d+ (Dormant)` : `${d}d`,
-        xPercent: ((d - 1) / Math.max(1, N - 1)) * 100,
-      }));
-
-      // Dynamic grid divisions: divide row into days
-      const gridStep = N <= 14 ? 1 : N <= 30 ? 2 : N <= 60 ? 5 : 10;
-      for (let d = 1; d <= N; d += gridStep) {
-        gridLines.push({
-          xPercent: ((d - 1) / Math.max(1, N - 1)) * 100,
-          isMajor: markers.includes(d),
-        });
-      }
-    }
+    });
 
     const dots: {
       bookmark: BookmarkWithDetails;
@@ -477,61 +481,59 @@ export function WorkspaceHome({
       isInactive: boolean;
     }[] = [];
 
-    unarchived.forEach((bm, idx) => {
-      const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
-      const diffMs = lastTime ? Math.max(0, now - lastTime) : Infinity;
-      const hoursAgo = diffMs / (1000 * 60 * 60);
-      const daysAgo = diffMs / (1000 * 60 * 60 * 24);
+    lanes.forEach((lane) => {
+      const items = laneBuckets[lane.id] || [];
+      const cols = 5;
+      const colSpacing = 26;
+      const rowSpacing = 22;
+      const totalWidth = (cols - 1) * colSpacing;
+      const startX = lane.center - totalWidth / 2;
+      const startY = 32;
 
-      let normX = 0; // 0 to 1
-      let isInactive = false;
-      let timeAgoLabel = "";
+      items.forEach((bm, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const x = Number((startX + col * colSpacing).toFixed(1));
+        const y = Number(Math.min(145, startY + row * rowSpacing).toFixed(1));
 
-      if (isHourly) {
-        if (!lastTime || hoursAgo >= 24) {
-          normX = 0.94 + ((idx * 7) % 45) / 1000;
-          isInactive = true;
-          timeAgoLabel = !lastTime ? "Never clicked" : `${Math.floor(hoursAgo)}h ago (>24h)`;
-        } else {
-          normX = Math.max(0.04, Math.min(0.94, hoursAgo / 24));
-          isInactive = hoursAgo >= 24;
-          timeAgoLabel = hoursAgo < 1 ? "< 1h ago" : `${Math.floor(hoursAgo)}h ago`;
-        }
-      } else {
-        const N = inactiveThreshold;
-        if (!lastTime || daysAgo >= N) {
-          normX = 0.93 + ((idx * 11) % 50) / 1000;
-          isInactive = true;
-          timeAgoLabel = !lastTime ? "Never clicked" : `${Math.floor(daysAgo)}d ago (≥${N}d)`;
-        } else {
-          normX = Math.max(0.04, Math.min(0.93, (daysAgo - 1) / Math.max(1, N - 1)));
-          isInactive = daysAgo >= N;
-          timeAgoLabel = daysAgo < 1 ? "Today" : `${Math.floor(daysAgo)}d ago`;
-        }
-      }
+        const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
+        const diffMs = lastTime ? Math.max(0, now - lastTime) : Infinity;
+        const daysAgo = lastTime ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : 999;
+        const hoursAgo = lastTime ? Math.floor(diffMs / (1000 * 60 * 60)) : 9999;
 
-      // Map to SVG coordinates (viewBox 0 0 1000 200) with fixed precision
-      const jitterX = ((idx * 17) % 18) - 9;
-      const x = Number(Math.min(960, Math.max(40, 50 + normX * 880 + jitterX)).toFixed(2));
-      // Vertical curve distribution (40 to 150 px)
-      const y = Number((40 + ((idx * 31 + Math.floor(normX * 100) * 11) % 110)).toFixed(2));
+        let timeAgoLabel = "";
+        if (!lastTime) timeAgoLabel = "Never clicked";
+        else if (daysAgo < 1) timeAgoLabel = hoursAgo < 1 ? "< 1h ago" : `${hoursAgo}h ago`;
+        else timeAgoLabel = `${daysAgo}d ago`;
 
-      const color = DOT_PALETTE[idx % DOT_PALETTE.length];
-
-      dots.push({
-        bookmark: bm,
-        x,
-        y,
-        color,
-        timeAgoLabel,
-        daysAgo: lastTime ? Math.floor(daysAgo) : 999,
-        isInactive,
+        dots.push({
+          bookmark: bm,
+          x,
+          y,
+          color: lane.color,
+          timeAgoLabel,
+          daysAgo,
+          isInactive: lane.id === "dormant",
+        });
       });
     });
 
-    const inactiveCount = dots.filter((d) => d.isInactive).length;
+    const inactiveCount = laneBuckets.dormant.length;
+    const totalUnarchived = Math.max(1, unarchived.length);
 
-    return { isHourly, timeMarkers, gridLines, dots, inactiveCount };
+    const distributionTiers = lanes.map((l) => {
+      const count = (laneBuckets[l.id] || []).length;
+      const percent = Math.round((count / totalUnarchived) * 100);
+      return {
+        id: l.id,
+        label: l.label,
+        color: l.color,
+        count,
+        percent,
+      };
+    });
+
+    return { isHourly, timeMarkers, gridLines, dots, inactiveCount, distributionTiers };
   }, [bookmarks, inactiveThreshold]);
 
   // Workspace summary calculations
@@ -765,6 +767,50 @@ export function WorkspaceHome({
           </div>
         )}
       </div>
+
+      {/* Recency Velocity Distribution Bar */}
+      {spectrumData.distributionTiers && (
+        <div className="space-y-2 pt-1 border-t border-border/60">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+            <span>Activity Swimlane Velocity</span>
+            <span className="font-mono tabular-nums">{bookmarks.filter((b) => !b.isArchived).length} sites tracked</span>
+          </div>
+
+          {/* Segmented Bar */}
+          <div className="h-2 w-full rounded-full bg-secondary overflow-hidden flex">
+            {spectrumData.distributionTiers.map((tier) => (
+              <div
+                key={tier.id}
+                style={{
+                  width: `${tier.percent}%`,
+                  backgroundColor: tier.color,
+                }}
+                className="h-full transition-all duration-300"
+                title={`${tier.label}: ${tier.count} sites (${tier.percent}%)`}
+              />
+            ))}
+          </div>
+
+          {/* Legend with Counts and Percentages */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+            {spectrumData.distributionTiers.map((tier) => (
+              <div
+                key={tier.id}
+                className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground"
+              >
+                <span
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: tier.color }}
+                />
+                <span className="truncate">{tier.label}:</span>
+                <span className="font-semibold text-foreground ml-auto tabular-nums">
+                  {tier.count} ({tier.percent}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1046,39 +1092,11 @@ export function WorkspaceHome({
               variant="outline"
               onClick={() => setLayoutModalOpen(true)}
               className="text-xs h-8 px-2.5 rounded-lg border-border cursor-pointer flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-              title="Customize widget order and visibility"
+              title="Customize widget order, visibility and column layout"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Layout</span>
             </Button>
-
-            {/* 1-Col vs 2-Col Dashboard Switcher */}
-            <div className="flex items-center bg-secondary p-0.5 rounded-lg border border-border">
-              <button
-                type="button"
-                onClick={() => handleSetColumns("1")}
-                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                  homeColumns === "1"
-                    ? "bg-card text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="1 Column View (Single Stream)"
-              >
-                <Rows3 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetColumns("2")}
-                className={`p-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                  homeColumns === "2"
-                    ? "bg-card text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="2 Columns View (Dashboard Grid)"
-              >
-                <Columns2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
           </div>
         </div>
 

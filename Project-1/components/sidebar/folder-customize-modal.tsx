@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { Sparkles, Dices, RefreshCw } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 
 interface FolderCustomizeModalProps {
@@ -14,6 +15,15 @@ interface FolderCustomizeModalProps {
   onOpenChange: (open: boolean) => void;
   onSave: (folderId: string, updates: { name: string; icon: string; color: string }) => void;
 }
+
+const HARMONIC_PRESETS = [
+  { name: "Vibrant", colors: ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2"] },
+  { name: "Pastel", colors: ["#93c5fd", "#c4b5fd", "#f9a8d4", "#fdba74", "#86efac", "#67e8f9"] },
+  { name: "Nordic", colors: ["#334155", "#475569", "#0f766e", "#0369a1", "#4338ca", "#581c87"] },
+  { name: "Sunset", colors: ["#f43f5e", "#fb7185", "#f97316", "#fb923c", "#f59e0b", "#eab308"] },
+  { name: "Forest", colors: ["#065f46", "#047857", "#059669", "#10b981", "#34d399", "#84cc16"] },
+  { name: "Neon", colors: ["#00f0ff", "#ff007f", "#7928ca", "#00dfd8", "#ff4b4b", "#ffe600"] },
+];
 
 const COLOR_PALETTE = [
   { name: "Blue", value: "#3b82f6" },
@@ -44,6 +54,21 @@ export function FolderCustomizeModal({
   const [selectedIcon, setSelectedIcon] = React.useState("Folder");
   const [selectedColor, setSelectedColor] = React.useState("#3b82f6");
   const [saving, setSaving] = React.useState(false);
+
+  const handleRandomHarmonicColor = () => {
+    // Generate aesthetic harmonious color
+    const hue = Math.floor(Math.random() * 360);
+    const sat = 75;
+    const light = 55;
+    const a = (sat * Math.min(light, 100 - light)) / 100;
+    const f = (n: number) => {
+      const k = (n + hue / 30) % 12;
+      const color = light / 100 - (a / 100) * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, "0");
+    };
+    const hex = `#${f(0)}${f(8)}${f(4)}`;
+    setSelectedColor(hex);
+  };
 
   React.useEffect(() => {
     if (folder) {
@@ -118,12 +143,21 @@ export function FolderCustomizeModal({
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="font-medium text-foreground">
                 Color palette & badge
               </label>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRandomHarmonicColor}
+                  className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                  title="Generate random harmonious color"
+                >
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span>Generate</span>
+                </button>
                 <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
                   <span>Custom:</span>
                   <input
@@ -144,6 +178,7 @@ export function FolderCustomizeModal({
               </div>
             </div>
 
+            {/* Standard Swatches */}
             <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
               {COLOR_PALETTE.map((c) => (
                 <button
@@ -159,6 +194,34 @@ export function FolderCustomizeModal({
                   title={c.name}
                 />
               ))}
+            </div>
+
+            {/* Harmonic Palettes Generator */}
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <Dices className="h-3 w-3 text-primary" />
+                <span>Harmonic Palettes Generator</span>
+              </span>
+              <div className="grid grid-cols-3 gap-1.5">
+                {HARMONIC_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => {
+                      const randomColor = preset.colors[Math.floor(Math.random() * preset.colors.length)];
+                      setSelectedColor(randomColor);
+                    }}
+                    className="p-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary flex flex-col gap-1 text-left cursor-pointer transition-colors"
+                  >
+                    <span className="text-[10px] font-medium text-foreground">{preset.name}</span>
+                    <div className="flex gap-0.5">
+                      {preset.colors.slice(0, 5).map((col, i) => (
+                        <span key={i} className="h-2 flex-1 rounded-xs" style={{ backgroundColor: col }} />
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

@@ -27,6 +27,7 @@ import {
   MessageSquarePlus,
   X,
   Bookmark,
+  Share2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,11 +45,11 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared";
   totalBookmarksCount: number;
   unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
@@ -171,6 +172,26 @@ export function Sidebar({
 
   // Custom avatar live listener
   const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
+
+  // Shared folders live listener
+  const [sharedCount, setSharedCount] = React.useState(0);
+
+  React.useEffect(() => {
+    const updateCount = () => {
+      try {
+        const stored = localStorage.getItem("markly_shared_folders");
+        if (stored) {
+          const list = JSON.parse(stored);
+          setSharedCount(Array.isArray(list) ? list.length : 0);
+          return;
+        }
+      } catch {}
+      setSharedCount(0);
+    };
+    updateCount();
+    window.addEventListener("markly-shared-updated", updateCount);
+    return () => window.removeEventListener("markly-shared-updated", updateCount);
+  }, []);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -606,6 +627,23 @@ export function Sidebar({
             <Star className="h-4 w-4" />
           </button>
 
+          {/* Shared Links Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("shared");
+            }}
+            title="Shared Links & Collections"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "shared" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+
           {/* Archive Option */}
           <button
             type="button"
@@ -919,6 +957,28 @@ export function Sidebar({
           >
             <Star className={`h-4 w-4 flex-shrink-0 ${activeView === "favorites" ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
             <span className="truncate">Favorites</span>
+          </button>
+
+          {/* Shared Links */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("shared");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "shared"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <Share2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="truncate">Shared</span>
+            {sharedCount > 0 && (
+              <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
+                {sharedCount}
+              </span>
+            )}
           </button>
 
           {/* Archive */}

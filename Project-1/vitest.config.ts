@@ -7,6 +7,13 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, "**/e2e.test.ts", "tests/e2e.test.ts"],
     globals: true,
     environment: "node",
+    fileParallelism: false,
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
   resolve: {
     alias: {

@@ -61,3 +61,4 @@ CREATE POLICY "Admin can delete feedback replies"
     (auth.jwt() -> 'app_metadata' ->> 'is_admin')::boolean = true OR
     auth.jwt() ->> 'role' = 'service_role'
   );
+

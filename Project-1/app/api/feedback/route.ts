@@ -6,18 +6,24 @@ import { requireUser, handleAuthError } from "@/server/auth/require-user";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
-
 const createFeedbackSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(150, "Title cannot exceed 150 characters"),
   message: z.string().trim().min(5, "Message must be at least 5 characters").max(3000, "Message cannot exceed 3000 characters"),
   category: z.enum(["feature", "bug", "improvement", "general"]).default("general"),
 });
 
+function checkIsAdmin(user: any): boolean {
+  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
+    return true;
+  }
+  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
+}
+
 export async function GET(req: Request) {
   try {
     const user = await requireUser();
-    const isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isAdmin = checkIsAdmin(user);
 
     const myFeedback = BookmarkRepository.getFeedbacks(user.id);
     const allFeedback = isAdmin ? BookmarkRepository.getFeedbacks() : [];

@@ -229,3 +229,4 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
     </Dialog>
   );
 }
+

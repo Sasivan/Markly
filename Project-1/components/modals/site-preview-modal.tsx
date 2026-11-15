@@ -36,6 +36,8 @@ import {
   StickyNote,
   BookOpen,
   ShieldCheck,
+  Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
@@ -102,16 +104,38 @@ export function SitePreviewModal({
   const [copiedFormat, setCopiedFormat] = React.useState<string | null>(null);
   const copyMenuRef = React.useRef<HTMLDivElement>(null);
 
-  // Advanced Feature States: Tabs, Notes, Snapshots, and Wayback Healer
-  const [activeModalTab, setActiveModalTab] = React.useState<"overview" | "snapshot" | "notes">("overview");
+  // Advanced Feature States: Tabs, Notes, and Wayback Healer
+  const [activeModalTab, setActiveModalTab] = React.useState<"overview" | "notes">("overview");
   const [personalNotes, setPersonalNotes] = React.useState("");
   const [isEditingNotes, setIsEditingNotes] = React.useState(false);
   const [notesSaving, setNotesSaving] = React.useState(false);
   const [notesSuccess, setNotesSuccess] = React.useState(false);
 
-  const [cachedContent, setCachedContent] = React.useState<string | null>(null);
-  const [isTakingSnapshot, setIsTakingSnapshot] = React.useState(false);
-  const [snapshotSuccess, setSnapshotSuccess] = React.useState(false);
+  // Cover Style: "screenshot" (Live Site / og:image) vs "snapshot" (Geometric Gradient Art)
+  const [coverStyle, setCoverStyle] = React.useState<"screenshot" | "snapshot">("screenshot");
+
+  React.useEffect(() => {
+    if (bookmark?.id && typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`markly_cover_pref_${bookmark.id}`);
+        if (stored === "screenshot" || stored === "snapshot") {
+          setCoverStyle(stored);
+        } else {
+          setCoverStyle("screenshot");
+        }
+      } catch {}
+    }
+  }, [bookmark?.id]);
+
+  const toggleCoverStyle = () => {
+    const next = coverStyle === "screenshot" ? "snapshot" : "screenshot";
+    setCoverStyle(next);
+    if (bookmark?.id) {
+      try {
+        localStorage.setItem(`markly_cover_pref_${bookmark.id}`, next);
+      } catch {}
+    }
+  };
 
   const [isHealing, setIsHealing] = React.useState(false);
   const [healSuccess, setHealSuccess] = React.useState(false);
@@ -143,10 +167,8 @@ export function SitePreviewModal({
       setCopyMenuOpen(false);
       setCopiedFormat(null);
       setPersonalNotes((bookmark as any).notes || "");
-      setCachedContent((bookmark as any).cachedContent || null);
       setIsEditingNotes(false);
       setNotesSuccess(false);
-      setSnapshotSuccess(false);
       setHealSuccess(false);
       setActiveModalTab("overview");
     }
@@ -218,31 +240,6 @@ export function SitePreviewModal({
       console.warn("Failed to save notes:", e);
     } finally {
       setNotesSaving(false);
-    }
-  };
-
-  // Permanent Offline Snapshot Capture
-  const handleTakeSnapshot = async () => {
-    if (!bookmark) return;
-    setIsTakingSnapshot(true);
-    try {
-      const snapshotText = `# Offline Web Snapshot of ${bookmark.title}\n\n- Source URL: ${bookmark.url}\n- Captured at: ${new Date().toLocaleString()}\n- Domain: ${bookmark.domain}\n\n## Page Content Snapshot\n${bookmark.description || "Article content captured and archived in local database."}\n\n*This snapshot is stored permanently in your local Markly SQLite database for offline distraction-free reading.*`;
-      const res = await fetch(`/api/bookmarks/${bookmark.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cachedContent: snapshotText }),
-      });
-      const data = await res.json();
-      if (data.success && data.bookmark) {
-        setCachedContent(snapshotText);
-        setSnapshotSuccess(true);
-        onUpdateBookmark?.(data.bookmark);
-        setTimeout(() => setSnapshotSuccess(false), 3000);
-      }
-    } catch (e) {
-      console.warn("Snapshot error:", e);
-    } finally {
-      setIsTakingSnapshot(false);
     }
   };
 
@@ -715,7 +712,7 @@ export function SitePreviewModal({
                   allowFullScreen
                 />
               </div>
-            ) : snapshotUrl ? (
+            ) : (coverStyle === "screenshot" && snapshotUrl) ? (
               <div className="relative rounded-md overflow-hidden border border-border bg-card aspect-21/9 max-h-52 group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -724,6 +721,18 @@ export function SitePreviewModal({
                   className="w-full h-full object-cover object-top"
                   onError={() => setSnapshotError(true)}
                 />
+                {/* Top overlay controls */}
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={toggleCoverStyle}
+                    className="text-[11px] font-mono text-white/90 hover:text-white bg-black/60 hover:bg-black/80 px-2.5 py-1 rounded-md backdrop-blur-xs flex items-center gap-1.5 transition-colors border border-white/10 cursor-pointer shadow-xs"
+                    title="Switch to Snapshot Art cover"
+                  >
+                    <Sparkles className="h-3 w-3 text-amber-300" />
+                    <span>Snapshot Art</span>
+                  </button>
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3.5">
                   <span className="text-white text-xs font-mono bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-sm">
                     {bookmark.domain}
@@ -749,6 +758,20 @@ export function SitePreviewModal({
                 className="relative rounded-md overflow-hidden border border-border aspect-21/9 max-h-48 flex flex-col items-center justify-center p-4 select-none group"
                 style={{ background: getDomainGradient(bookmark.domain || bookmark.title || "markly") }}
               >
+                {/* Top overlay toggle when screenshot is available */}
+                {snapshotUrl && (
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={toggleCoverStyle}
+                      className="text-[11px] font-mono text-white/90 hover:text-white bg-black/60 hover:bg-black/80 px-2.5 py-1 rounded-md backdrop-blur-xs flex items-center gap-1.5 transition-colors border border-white/10 cursor-pointer shadow-xs"
+                      title="Switch to live website screenshot"
+                    >
+                      <ImageIcon className="h-3 w-3 text-blue-300" />
+                      <span>Live Screenshot</span>
+                    </button>
+                  </div>
+                )}
                 <div className="p-3 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-2 flex items-center justify-center">
                   <BookmarkIcon
                     src={bookmark.iconUrl}
@@ -992,24 +1015,6 @@ export function SitePreviewModal({
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
                 )}
               </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveModalTab("snapshot")}
-                className={`px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 cursor-pointer transition-colors ${
-                  activeModalTab === "snapshot"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                <span>Offline Snapshot</span>
-                {cachedContent && (
-                  <span className="text-[10px] font-mono px-1 rounded bg-secondary text-muted-foreground">
-                    Cached
-                  </span>
-                )}
-              </button>
             </div>
 
             {/* TAB 1: Overview & Knowledge */}
@@ -1198,66 +1203,6 @@ export function SitePreviewModal({
                       className="h-7 text-xs cursor-pointer mt-1"
                     >
                       <span>Add Note</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 3: Permanent Offline Web Snapshot */}
-            {activeModalTab === "snapshot" && (
-              <div className="rounded-md border border-border bg-card p-4 space-y-3">
-                <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/60 flex-wrap">
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <BookOpen className="h-4 w-4 text-primary" />
-                      <span>Permanent Offline Snapshot (Web Cache)</span>
-                    </h3>
-                    {snapshotSuccess && (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 animate-in fade-in">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Snapshot Cached in Database
-                      </span>
-                    )}
-                  </div>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleTakeSnapshot}
-                    disabled={isTakingSnapshot}
-                    className="h-7 px-2.5 text-xs text-foreground cursor-pointer gap-1.5 border-border hover:bg-secondary"
-                  >
-                    {isTakingSnapshot ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
-                    <span>{cachedContent ? "Re-take Snapshot" : "Capture Snapshot"}</span>
-                  </Button>
-                </div>
-
-                {cachedContent ? (
-                  <div className="space-y-3 py-1">
-                    <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pb-1 border-b border-border/40">
-                      <span>Stored permanently in SQLite DB • Offline Accessible</span>
-                      <span>{cachedContent.split(/\s+/).length} words</span>
-                    </div>
-                    <div className="p-4 rounded-lg bg-background border border-border text-xs sm:text-sm leading-relaxed text-foreground whitespace-pre-wrap font-sans max-h-96 overflow-y-auto">
-                      {cachedContent}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground text-xs space-y-2 rounded-xl border border-dashed border-border p-4">
-                    <BookOpen className="h-7 w-7 mx-auto text-primary/60" />
-                    <p className="font-semibold text-foreground text-sm">No offline snapshot taken yet.</p>
-                    <p className="text-muted-foreground text-xs">
-                      Permanent snapshots preserve the article content in your database so you can read it even if the site is modified or goes offline.
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={handleTakeSnapshot}
-                      disabled={isTakingSnapshot}
-                      className="h-7 text-xs bg-primary text-primary-foreground cursor-pointer gap-1.5 mt-1"
-                    >
-                      {isTakingSnapshot ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
-                      <span>Capture Snapshot Now</span>
                     </Button>
                   </div>
                 )}

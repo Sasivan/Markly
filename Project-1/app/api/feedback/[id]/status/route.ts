@@ -6,11 +6,17 @@ import { requireUser, handleAuthError } from "@/server/auth/require-user";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
-
 const statusSchema = z.object({
   status: z.enum(["received", "under_review", "processing", "fixed", "planned", "closed"]),
 });
+
+function checkIsAdmin(user: any): boolean {
+  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
+    return true;
+  }
+  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
+}
 
 export async function PATCH(
   req: Request,
@@ -18,7 +24,7 @@ export async function PATCH(
 ) {
   try {
     const user = await requireUser(req);
-    const isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isAdmin = checkIsAdmin(user);
 
     if (!isAdmin) {
       return NextResponse.json(

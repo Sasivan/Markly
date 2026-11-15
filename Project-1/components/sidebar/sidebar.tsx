@@ -47,11 +47,11 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections";
   totalBookmarksCount: number;
   unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
@@ -106,27 +106,6 @@ export function Sidebar({
   const [sidebarWidth, setSidebarWidth] = React.useState(260);
   const [isResizing, setIsResizing] = React.useState(false);
 
-  // VS Code style section collapse & global tree expand/collapse with persistence
-  const [isFoldersSectionOpen, setIsFoldersSectionOpen] = React.useState(true);
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem("markly_folders_section_open");
-      if (stored !== null) {
-        setIsFoldersSectionOpen(stored === "true");
-      }
-    } catch {}
-  }, []);
-
-  const toggleFoldersSection = React.useCallback(() => {
-    setIsFoldersSectionOpen((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("markly_folders_section_open", String(next));
-      } catch {}
-      return next;
-    });
-  }, []);
   const [globalForceExpanded, setGlobalForceExpanded] = React.useState<boolean | null>(null);
   const [isAllFoldersExpanded, setIsAllFoldersExpanded] = React.useState(true);
 
@@ -543,18 +522,15 @@ export function Sidebar({
   if (collapsed) {
     return (
       <aside className="w-12 flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none">
-        {/* Workspace Brand Header - clean M logo navigating to homepage on click */}
+        {/* Workspace Brand Header - click arrow to expand sidebar */}
         <div className="h-12 border-b border-sidebar-border flex items-center justify-center bg-sidebar-bg flex-shrink-0">
           <button
             type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("home");
-            }}
-            title="Markly Home"
-            className="h-6 w-6 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-medium text-xs cursor-pointer transition-transform active:scale-95"
+            onClick={() => setCollapsed(false)}
+            title="Expand Sidebar (Ctrl+\)"
+            className="h-7 w-7 rounded-md bg-secondary hover:bg-primary hover:text-primary-foreground flex items-center justify-center text-foreground cursor-pointer transition-colors"
           >
-            M
+            <PanelLeftOpen className="h-4 w-4" />
           </button>
         </div>
 
@@ -585,6 +561,23 @@ export function Sidebar({
             className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <Search className="h-4 w-4" />
+          </button>
+
+          {/* Smart Collections Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("smart-collections");
+            }}
+            title="Smart Collections"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "smart-collections" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-purple-400" />
           </button>
 
           {/* All Sites Option */}
@@ -834,7 +827,7 @@ export function Sidebar({
         className="relative flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none"
       >
         {/* Workspace Brand Header */}
-        <div className="h-12 border-b border-sidebar-border flex items-center px-3.5 bg-sidebar-bg">
+        <div className="h-12 border-b border-sidebar-border flex items-center justify-between px-3.5 bg-sidebar-bg">
           <button
             type="button"
             onClick={() => {
@@ -851,16 +844,19 @@ export function Sidebar({
               Markly
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
+            title="Collapse sidebar (Ctrl+\)"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Workspace Nav Section */}
-        <div
-          className={`p-2 space-y-1 text-xs select-none transition-colors ${
-            isFoldersSectionOpen
-              ? "flex-shrink-0 border-b border-sidebar-border/60"
-              : "flex-1 overflow-y-auto min-h-0"
-          }`}
-        >
+        <div className="p-2 space-y-1 text-xs select-none flex-shrink-0 border-b border-sidebar-border/60 max-h-[46vh] overflow-y-auto">
           <div className="px-2 py-1 text-xs font-medium text-muted-foreground flex items-center justify-between">
             <span>Workspace</span>
           </div>
@@ -994,6 +990,26 @@ export function Sidebar({
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">{totalBookmarksCount}</span>
           </button>
 
+          {/* Smart Collections Page */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("smart-collections");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "smart-collections" && !activeFolderId
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-purple-400 flex-shrink-0" />
+            <span className="truncate">Smart collections</span>
+            <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
+              {smartCollections.length}
+            </span>
+          </button>
+
           {/* Folder Collections */}
           <button
             type="button"
@@ -1122,14 +1138,8 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Folders Section Header */}
-        <div
-          className={`p-2 transition-colors select-none ${
-            isFoldersSectionOpen
-              ? "flex-1 overflow-y-auto min-h-0"
-              : "flex-shrink-0 mt-auto border-t border-sidebar-border bg-sidebar-bg"
-          }`}
-        >
+        {/* Folders Section */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-2 select-none space-y-0.5">
           <div
             onDragOver={handleRootDragOver}
             onDragLeave={handleRootDragLeave}
@@ -1138,19 +1148,10 @@ export function Sidebar({
               isRootDragOver ? "bg-primary/10 text-primary ring-1 ring-primary/40" : ""
             }`}
           >
-            <button
-              type="button"
-              onClick={toggleFoldersSection}
-              className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors"
-              title={isFoldersSectionOpen ? "Collapse Folders Section" : "Expand Folders Section"}
-            >
-              {isFoldersSectionOpen ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
+            <div className="flex items-center gap-1.5 font-semibold text-foreground">
+              <Folder className="h-3.5 w-3.5 text-primary" />
               <span>Folders</span>
-            </button>
+            </div>
 
             <div className="flex items-center gap-1">
               {/* Unified Toggle All Folders Icon */}
@@ -1183,8 +1184,7 @@ export function Sidebar({
           </div>
 
           {/* Recursive Folder Tree Items */}
-          {isFoldersSectionOpen && (
-            <div className="space-y-0.5 mt-1">
+          <div className="space-y-0.5 mt-1">
               {/* 3.4: Quick Folder Filter Input */}
               <div className="px-1 py-1 mb-1">
                 <div className="relative flex items-center">
@@ -1301,7 +1301,6 @@ export function Sidebar({
                 {isRootDragOver ? "Drop for Root Level" : null}
               </div>
             </div>
-          )}
         </div>
 
         {/* Feedback & Support Nav Button */}

@@ -54,3 +54,4 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: false, error: "Failed to delete smart collection" }, { status: 500 });
   }
 }
+

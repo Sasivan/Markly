@@ -7,6 +7,7 @@ import {
   FolderTree,
   Globe,
   Activity,
+  TrendingUp,
   ArrowLeft,
   Home,
 } from "lucide-react";
@@ -44,6 +45,7 @@ import { ShareCollectionModal } from "@/components/folders/share-collection-moda
 import { ChromeExtensionModal } from "@/components/modals/chrome-extension-modal";
 import { StashTabsModal } from "@/components/modals/stash-tabs-modal";
 import { SharedLinksView } from "@/components/shared/shared-links-view";
+import { SmartCollectionsView } from "@/components/collections/smart-collections-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -136,7 +138,7 @@ export function MarklyWorkspace({
 
   // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared">(
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections">(
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
@@ -1647,6 +1649,16 @@ export function MarklyWorkspace({
                 setActiveView("all");
               }}
             />
+          ) : activeView === "smart-collections" && !activeFolderId ? (
+            /* Dedicated Smart Collections View */
+            <SmartCollectionsView
+              bookmarks={bookmarks}
+              onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
+              onNavigateHome={() => {
+                setActiveView("home");
+                setActiveFolderId(null);
+              }}
+            />
           ) : (
             <>
               {/* Dedicated Folder Page Options & Navigation Panel */}
@@ -1795,67 +1807,69 @@ export function MarklyWorkspace({
               {/* Recently Visited Standardized Dashboard Box (Item 5) */}
               {activeView === "recent" && !activeFolderId && (
                 <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden animate-in fade-in space-y-0">
-                  {/* Header Bar */}
-                  <div className="px-5 py-3.5 border-b border-border bg-card/90 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20">
-                        <Clock className="h-4 w-4" />
+                  {/* Header Bar with Filled Threshold Box Styling */}
+                  <div className="p-5 border-b border-border bg-card/90">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20 shrink-0">
+                          <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-base font-bold text-foreground">Recently Visited Sites</h2>
+                            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold border border-primary/20">
+                              {filteredBookmarks.length} {filteredBookmarks.length === 1 ? "site" : "sites"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Tracked strictly by verified user clicks and visit timestamps. Unvisited links are excluded.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-sm font-semibold text-foreground">Recently Visited Sites</h2>
-                          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-secondary text-foreground font-medium border border-border/60">
-                            {filteredBookmarks.length} {filteredBookmarks.length === 1 ? "site" : "sites"}
+
+                      {/* Interactive Recency Threshold Controls */}
+                      <div className="flex flex-wrap items-center gap-3 bg-secondary/60 p-2.5 rounded-xl border border-border">
+                        <div className="flex items-center gap-2 text-xs font-medium">
+                          <span className="text-muted-foreground">Threshold:</span>
+                          <span className="font-mono font-bold text-primary px-2 py-0.5 rounded bg-background border border-border/80">
+                            {recentDays === 1 ? "1 Day (24h)" : `${recentDays} Days`}
                           </span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Tracked strictly by actual clicks and visits. Unvisited sites are excluded.
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* Interactive Recency Controls */}
-                    <div className="flex flex-wrap items-center gap-2.5 bg-secondary/50 px-3 py-1.5 rounded-xl border border-border/60 text-xs">
-                      <div className="flex items-center gap-1.5 font-medium text-foreground text-xs">
-                        <span className="text-muted-foreground">Recency Window:</span>
-                        <span className="font-mono tabular-nums font-semibold text-primary">
-                          {recentDays === 1 ? "1 Day (24h)" : `${recentDays} Days`}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min={1}
-                          max={90}
-                          step={1}
-                          value={recentDays}
-                          onChange={(e) => setRecentDays(Number(e.target.value))}
-                          className="w-24 sm:w-32 h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary border border-border"
-                          aria-label="Adjust Recency Window"
-                        />
-                        <div className="flex items-center gap-1">
-                          {[
-                            { label: "1D", val: 1 },
-                            { label: "7D", val: 7 },
-                            { label: "14D", val: 14 },
-                            { label: "30D", val: 30 },
-                            { label: "60D", val: 60 },
-                            { label: "90D", val: 90 },
-                          ].map((p) => (
-                            <button
-                              key={p.val}
-                              type="button"
-                              onClick={() => setRecentDays(p.val)}
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium transition-colors cursor-pointer ${
-                                recentDays === p.val
-                                  ? "bg-primary text-primary-foreground font-bold"
-                                  : "bg-secondary text-muted-foreground hover:text-foreground border border-border/60"
-                              }`}
-                            >
-                              {p.label}
-                            </button>
-                          ))}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={1}
+                            max={90}
+                            step={1}
+                            value={recentDays}
+                            onChange={(e) => setRecentDays(Number(e.target.value))}
+                            className="w-28 sm:w-36 h-1.5 bg-background rounded-lg appearance-none cursor-pointer accent-primary border border-border"
+                            aria-label="Adjust Recency Window"
+                          />
+                          <div className="flex items-center gap-1">
+                            {[
+                              { label: "1D", val: 1 },
+                              { label: "7D", val: 7 },
+                              { label: "14D", val: 14 },
+                              { label: "30D", val: 30 },
+                              { label: "60D", val: 60 },
+                              { label: "90D", val: 90 },
+                            ].map((p) => (
+                              <button
+                                key={p.val}
+                                type="button"
+                                onClick={() => setRecentDays(p.val)}
+                                className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-colors cursor-pointer ${
+                                  recentDays === p.val
+                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                    : "bg-background text-muted-foreground hover:text-foreground border border-border/60"
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1863,31 +1877,59 @@ export function MarklyWorkspace({
 
                   {/* Filled Space-Taking Metrics Row */}
                   <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-muted/20">
-                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
-                      <div className="text-[11px] text-muted-foreground">Active in window</div>
-                      <div className="text-lg font-bold font-mono text-foreground">{filteredBookmarks.length}</div>
-                      <div className="text-[10px] text-muted-foreground">Sites opened in past {recentDays}d</div>
+                    <div className="p-3.5 rounded-lg border border-border bg-card shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Active in window</span>
+                        <Clock className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="text-xl font-bold font-mono text-foreground">{filteredBookmarks.length}</div>
+                      <div className="text-[10px] text-muted-foreground">Sites clicked in past {recentDays}d</div>
+                      <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, Math.round((filteredBookmarks.length / Math.max(bookmarks.length, 1)) * 100))}%`,
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
-                      <div className="text-[11px] text-muted-foreground">Recency ratio</div>
-                      <div className="text-lg font-bold font-mono text-blue-500">
+                    <div className="p-3.5 rounded-lg border border-border bg-card shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Library coverage</span>
+                        <Activity className="h-3.5 w-3.5 text-blue-500" />
+                      </div>
+                      <div className="text-xl font-bold font-mono text-blue-500">
                         {bookmarks.length > 0 ? Math.round((filteredBookmarks.length / bookmarks.length) * 100) : 0}%
                       </div>
                       <div className="text-[10px] text-muted-foreground">Of total {bookmarks.length} bookmarks</div>
+                      <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mt-1">
+                        <div
+                          className="bg-blue-500 h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, bookmarks.length > 0 ? Math.round((filteredBookmarks.length / bookmarks.length) * 100) : 0)}%`,
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
-                      <div className="text-[11px] text-muted-foreground">Total clicks logged</div>
-                      <div className="text-lg font-bold font-mono text-emerald-500">
+                    <div className="p-3.5 rounded-lg border border-border bg-card shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Total clicks logged</span>
+                        <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                      </div>
+                      <div className="text-xl font-bold font-mono text-emerald-500">
                         {filteredBookmarks.reduce((acc, b) => acc + (b.visitCount || 0), 0)}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">Across recent sites</div>
+                      <div className="text-[10px] text-muted-foreground">Verified visits in window</div>
                     </div>
 
-                    <div className="p-3 rounded-lg border border-border bg-card shadow-2xs space-y-1">
-                      <div className="text-[11px] text-muted-foreground">Most active domain</div>
-                      <div className="text-sm font-semibold font-mono text-foreground truncate mt-1">
+                    <div className="p-3.5 rounded-lg border border-border bg-card shadow-2xs space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>Most active domain</span>
+                        <Globe className="h-3.5 w-3.5 text-amber-500" />
+                      </div>
+                      <div className="text-sm font-semibold font-mono text-foreground truncate">
                         {(() => {
                           const map = new Map<string, number>();
                           for (const b of filteredBookmarks) {

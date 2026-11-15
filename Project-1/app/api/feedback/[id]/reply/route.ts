@@ -6,11 +6,17 @@ import { requireUser, handleAuthError } from "@/server/auth/require-user";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
-
 const replySchema = z.object({
-  message: z.string().trim().min(1, "Reply message cannot be empty").max(2000, "Reply cannot exceed 2000 characters"),
+  message: z.string().min(1, "Reply message is required").max(5000),
 });
+
+function checkIsAdmin(user: any): boolean {
+  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
+    return true;
+  }
+  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
+}
 
 export async function POST(
   req: Request,
@@ -29,7 +35,7 @@ export async function POST(
       );
     }
 
-    const isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isAdmin = checkIsAdmin(user);
 
     // Verify feedback exists and if not admin, ensure user owns this feedback
     const userFeedbacks = BookmarkRepository.getFeedbacks(isAdmin ? undefined : user.id);

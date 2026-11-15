@@ -328,6 +328,29 @@ const TABLE_COLUMN_OPTIONS = [
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false);
   const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
 
+  const filterMenuRef = React.useRef<HTMLDivElement>(null);
+  const sortMenuRef = React.useRef<HTMLDivElement>(null);
+  const colMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Close menus on outside click
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+        setSortMenuOpen(false);
+      }
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
+        setColMenuOpen(false);
+      }
+    }
+    if (filterMenuOpen || sortMenuOpen || colMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [filterMenuOpen, sortMenuOpen, colMenuOpen]);
+
 // 5.3: Typo-Tolerant & Subsequence Fuzzy Matching
 function fuzzyMatch(text: string, query: string): boolean {
   if (!query) return true;
@@ -1292,7 +1315,7 @@ function getDomainGradient(str: string): string {
         {/* Left: Notion Filter & Sort */}
         <div className="flex items-center gap-2">
           {/* Notion-Style Multi-Column Filter Menu */}
-          <div className="relative">
+          <div className="relative" ref={filterMenuRef}>
             <Button
               size="sm"
               variant={columnFilters.length > 0 || statusFilter !== "all" ? "default" : "outline"}
@@ -1554,7 +1577,7 @@ function getDomainGradient(str: string): string {
           </div>
 
           {/* Notion-Style Sort Menu */}
-          <div className="relative">
+          <div className="relative" ref={sortMenuRef}>
             <Button
               size="sm"
               variant="outline"
@@ -1681,7 +1704,7 @@ function getDomainGradient(str: string): string {
           )}
 
           {/* Column Visibility Menu (Persisted across refreshes) */}
-          <div className="relative">
+          <div className="relative" ref={colMenuRef}>
             <Button
               size="sm"
               variant="outline"

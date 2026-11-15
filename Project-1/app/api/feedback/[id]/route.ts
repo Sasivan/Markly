@@ -5,7 +5,13 @@ import { requireUser, handleAuthError } from "@/server/auth/require-user";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+function checkIsAdmin(user: any): boolean {
+  if (user.app_metadata?.role === "admin" || user.user_metadata?.role === "admin") {
+    return true;
+  }
+  const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  return Boolean(adminEmail && (user.email || "").trim().toLowerCase() === adminEmail);
+}
 
 export async function DELETE(
   req: Request,
@@ -13,7 +19,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireUser(req);
-    const isAdmin = (user.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const isAdmin = checkIsAdmin(user);
 
     if (!isAdmin) {
       return NextResponse.json(

@@ -94,6 +94,7 @@ export function VisualDashboard({
 }: VisualDashboardProps) {
   const [collapsed, setCollapsed] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<"tags" | "engagement" | "health" | "wall" | "graph">("tags");
+  const [selectedEngagementTier, setSelectedEngagementTier] = React.useState<string | null>(null);
   const [isScanningHealth, setIsScanningHealth] = React.useState(false);
   const [healthScanMsg, setHealthScanMsg] = React.useState<string | null>(null);
 
@@ -146,13 +147,27 @@ export function VisualDashboard({
     let totalVisits = 0;
     let mostVisitedSite: BookmarkWithDetails | null = null;
 
+    const frequentItems: BookmarkWithDetails[] = [];
+    const activeItems: BookmarkWithDetails[] = [];
+    const occasionalItems: BookmarkWithDetails[] = [];
+    const dormantItems: BookmarkWithDetails[] = [];
+
     for (const bm of bookmarks) {
       const v = bm.visitCount || 0;
       totalVisits += v;
-      if (v >= 5) frequent++;
-      else if (v >= 2) active++;
-      else if (v === 1) occasional++;
-      else dormant++;
+      if (v >= 5) {
+        frequent++;
+        frequentItems.push(bm);
+      } else if (v >= 2) {
+        active++;
+        activeItems.push(bm);
+      } else if (v === 1) {
+        occasional++;
+        occasionalItems.push(bm);
+      } else {
+        dormant++;
+        dormantItems.push(bm);
+      }
 
       if (!mostVisitedSite || v > (mostVisitedSite.visitCount || 0)) {
         mostVisitedSite = bm;
@@ -163,10 +178,10 @@ export function VisualDashboard({
     const avgVisits = (totalVisits / total).toFixed(1);
 
     const tiers = [
-      { tier: "Frequent (≥5)", count: frequent, percentage: Math.round((frequent / total) * 100), color: "#10b981", desc: "Regularly visited" },
-      { tier: "Active (2-4)", count: active, percentage: Math.round((active / total) * 100), color: "#3b82f6", desc: "Frequently used" },
-      { tier: "Occasional (1)", count: occasional, percentage: Math.round((occasional / total) * 100), color: "#f59e0b", desc: "Accessed once" },
-      { tier: "Dormant (0)", count: dormant, percentage: Math.round((dormant / total) * 100), color: "#8b5cf6", desc: "Never opened" },
+      { key: "frequent", tier: "Frequent (≥5)", count: frequent, percentage: Math.round((frequent / total) * 100), color: "#10b981", desc: "Regularly visited", items: frequentItems },
+      { key: "active", tier: "Active (2-4)", count: active, percentage: Math.round((active / total) * 100), color: "#3b82f6", desc: "Frequently used", items: activeItems },
+      { key: "occasional", tier: "Occasional (1)", count: occasional, percentage: Math.round((occasional / total) * 100), color: "#f59e0b", desc: "Accessed once", items: occasionalItems },
+      { key: "dormant", tier: "Dormant (0)", count: dormant, percentage: Math.round((dormant / total) * 100), color: "#8b5cf6", desc: "Never opened", items: dormantItems },
     ];
 
     return {
@@ -176,8 +191,21 @@ export function VisualDashboard({
       dormantCount: dormant,
       frequentCount: frequent,
       mostVisitedSite,
+      frequentItems,
+      activeItems,
+      occasionalItems,
+      dormantItems,
+      allVisitedItems: [...frequentItems, ...activeItems, ...occasionalItems],
     };
   }, [bookmarks]);
+
+  const activeTierBookmarks = React.useMemo(() => {
+    if (!selectedEngagementTier) return [];
+    if (selectedEngagementTier === "all_visited") return engagementData.allVisitedItems;
+    if (selectedEngagementTier === "active_all") return [...engagementData.frequentItems, ...engagementData.activeItems];
+    const found = engagementData.tiers.find((t) => t.key === selectedEngagementTier);
+    return found ? found.items : [];
+  }, [selectedEngagementTier, engagementData]);
 
   // 3. Health & Reachability computed strictly from active bookmarks
   const healthData = React.useMemo(() => {
@@ -461,6 +489,50 @@ export function VisualDashboard({
                       );
                     })}
                   </div>
+
+                  {/* Matching Tag Bookmarks Drawer */}
+                  {activeTagFilter && (
+                    <div className="rounded-lg border border-border bg-card/90 p-3 space-y-2 mt-2 animate-in fade-in">
+                      <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <TagIcon className="h-3.5 w-3.5 text-primary" />
+                          <span>Tag: #{activeTagFilter}</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground">
+                            {bookmarks.filter((b) => b.tags?.some((t) => (typeof t === "string" ? t : t.name) === activeTagFilter)).length} sites
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onSelectTag(null)}
+                          className="text-xs text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded cursor-pointer"
+                          title="Clear tag filter"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {bookmarks
+                          .filter((b) => b.tags?.some((t) => (typeof t === "string" ? t : t.name) === activeTagFilter))
+                          .map((bm) => (
+                            <div
+                              key={bm.id}
+                              onClick={() => onOpenPreview?.(bm)}
+                              className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/60 cursor-pointer text-xs transition-colors border border-transparent hover:border-border"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <BookmarkIcon src={bm.iconUrl} alt={bm.title} domain={bm.domain} className="h-4 w-4 shrink-0" />
+                                <span className="font-medium text-foreground truncate">{bm.title}</span>
+                                <span className="text-[11px] text-muted-foreground font-mono shrink-0">({bm.domain})</span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-mono text-muted-foreground">{bm.visitCount || 0} visits</span>
+                                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -471,45 +543,76 @@ export function VisualDashboard({
             <div className="space-y-4 min-h-56">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-mono text-muted-foreground">
-                  Bookmark Engagement & Visit Frequency Tiers
+                  Bookmark Engagement & Visit Frequency Tiers (Click bar or tier to inspect sites)
                 </div>
                 <div className="text-xs text-muted-foreground font-mono">
                   {engagementData.totalVisits} total visits • {engagementData.avgVisits} avg/site
                 </div>
               </div>
 
-              {/* 4 Summary Stat Cards */}
+              {/* 4 Clickable Summary Stat Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedEngagementTier((prev) => (prev === "all_visited" ? null : "all_visited"))}
+                  className={`p-3 rounded-md border text-left cursor-pointer transition-colors space-y-1 ${
+                    selectedEngagementTier === "all_visited" ? "border-primary bg-primary/10 shadow-xs" : "border-border bg-card hover:border-primary/50"
+                  }`}
+                  title="Click to view all visited bookmarks"
+                >
                   <span className="text-xs text-muted-foreground font-mono">Total Visits</span>
                   <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.totalVisits}
                   </div>
-                </div>
+                </button>
                 <div className="p-3 rounded-md border border-border bg-card space-y-1">
                   <span className="text-xs text-muted-foreground font-mono">Avg / Site</span>
                   <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.avgVisits}
                   </div>
                 </div>
-                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedEngagementTier((prev) => (prev === "active_all" ? null : "active_all"))}
+                  className={`p-3 rounded-md border text-left cursor-pointer transition-colors space-y-1 ${
+                    selectedEngagementTier === "active_all" ? "border-primary bg-primary/10 shadow-xs" : "border-border bg-card hover:border-primary/50"
+                  }`}
+                  title="Click to view all active sites (≥2 visits)"
+                >
                   <span className="text-xs text-muted-foreground font-mono">Active (≥2)</span>
                   <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.tiers[0].count + engagementData.tiers[1].count}
                   </div>
-                </div>
-                <div className="p-3 rounded-md border border-border bg-card space-y-1">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedEngagementTier((prev) => (prev === "dormant" ? null : "dormant"))}
+                  className={`p-3 rounded-md border text-left cursor-pointer transition-colors space-y-1 ${
+                    selectedEngagementTier === "dormant" ? "border-primary bg-primary/10 shadow-xs" : "border-border bg-card hover:border-primary/50"
+                  }`}
+                  title="Click to view all unvisited sites (0 visits)"
+                >
                   <span className="text-xs text-muted-foreground font-mono">Dormant (0)</span>
                   <div className="text-lg font-bold text-foreground font-mono">
                     {engagementData.dormantCount}
                   </div>
-                </div>
+                </button>
               </div>
 
               {/* Bar Chart Representing Interaction Tiers */}
               <div className="h-44 w-full bg-card rounded-md p-2.5 border border-border">
                 <ResponsiveContainer width="100%" height="100%" style={{ outline: "none" }}>
-                  <BarChart data={engagementData.tiers} margin={{ top: 10, right: 15, left: -15, bottom: 0 }} style={{ outline: "none" }}>
+                  <BarChart
+                    data={engagementData.tiers}
+                    margin={{ top: 10, right: 15, left: -15, bottom: 0 }}
+                    style={{ outline: "none", cursor: "pointer" }}
+                    onClick={(e: any) => {
+                      if (e && e.activePayload && e.activePayload.length) {
+                        const d = e.activePayload[0].payload;
+                        setSelectedEngagementTier((prev) => (prev === d.key ? null : d.key));
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" opacity={0.06} />
                     <XAxis dataKey="tier" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#94a3b8" />
@@ -523,7 +626,7 @@ export function VisualDashboard({
                               <div className="font-mono text-xs">
                                 {d.count} sites ({d.percentage}%)
                               </div>
-                              <span className="text-xs text-muted-foreground">{d.desc}</span>
+                              <span className="text-xs text-muted-foreground">{d.desc} • Click to inspect sites</span>
                             </div>
                           );
                         }
@@ -532,12 +635,73 @@ export function VisualDashboard({
                     />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} cursor="pointer" style={{ outline: "none" }}>
                       {engagementData.tiers.map((entry, idx) => (
-                        <Cell key={`tier-${idx}`} fill={entry.color} cursor="pointer" style={{ outline: "none" }} />
+                        <Cell
+                          key={`tier-${idx}`}
+                          fill={entry.color}
+                          opacity={!selectedEngagementTier || selectedEngagementTier === entry.key ? 1 : 0.4}
+                          cursor="pointer"
+                          style={{ outline: "none" }}
+                          onClick={() => setSelectedEngagementTier((prev) => (prev === entry.key ? null : entry.key))}
+                        />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+
+              {/* Matching Engagement Tier Bookmarks Drawer */}
+              {selectedEngagementTier && (
+                <div className="rounded-lg border border-border bg-card/90 p-3 space-y-2 mt-2 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            engagementData.tiers.find((t) => t.key === selectedEngagementTier)?.color || "#3b82f6",
+                        }}
+                      />
+                      <span className="font-semibold text-xs text-foreground">
+                        {selectedEngagementTier === "all_visited"
+                          ? "All Visited Sites"
+                          : selectedEngagementTier === "active_all"
+                          ? "Active Sites (≥2 visits)"
+                          : engagementData.tiers.find((t) => t.key === selectedEngagementTier)?.tier || "Sites"}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground">
+                        {activeTierBookmarks.length} sites
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEngagementTier(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded cursor-pointer"
+                      title="Close tier view"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {activeTierBookmarks.map((bm) => (
+                      <div
+                        key={bm.id}
+                        onClick={() => onOpenPreview?.(bm)}
+                        className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/60 cursor-pointer text-xs transition-colors border border-transparent hover:border-border"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <BookmarkIcon src={bm.iconUrl} alt={bm.title} domain={bm.domain} className="h-4 w-4 shrink-0" />
+                          <span className="font-medium text-foreground truncate">{bm.title}</span>
+                          <span className="text-[11px] text-muted-foreground font-mono shrink-0">({bm.domain})</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-mono font-semibold text-primary">{bm.visitCount || 0} visits</span>
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

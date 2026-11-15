@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import JSZip from "jszip";
 import {
   Dialog,
   DialogContent,
@@ -38,17 +39,25 @@ export function ChromeExtensionModal({
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      // Trigger download of extension files directly from public directory
+      const zip = new JSZip();
       const files = ["manifest.json", "popup.html", "popup.js", "background.js"];
       for (const f of files) {
-        const a = document.createElement("a");
-        a.href = `/extension/${f}`;
-        a.download = f;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        await new Promise((r) => setTimeout(r, 200));
+        const res = await fetch(`/extension/${f}`);
+        if (!res.ok) throw new Error(`Failed to load ${f}`);
+        const content = await res.text();
+        zip.file(f, content);
       }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "markly-chrome-extension.zip";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to generate extension zip:", err);
     } finally {
       setDownloading(false);
     }
@@ -178,7 +187,7 @@ export function ChromeExtensionModal({
                 className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 gap-1.5 cursor-pointer shadow-xs font-semibold"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>{downloading ? "Downloading..." : "Download Extension Files"}</span>
+                <span>{downloading ? "Generating ZIP..." : "Download Extension ZIP"}</span>
               </Button>
             </div>
           </div>

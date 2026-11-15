@@ -16,16 +16,18 @@ interface CreateSmartCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: () => void;
+  bookmarks?: any[];
 }
 
 export function CreateSmartCollectionModal({
   isOpen,
   onClose,
   onCreated,
+  bookmarks = [],
 }: CreateSmartCollectionModalProps) {
   const [name, setName] = React.useState("");
   const [color, setColor] = React.useState("#8b5cf6");
-  const [ruleField, setRuleField] = React.useState<"tags" | "favorite" | "domain" | "status" | "notes">("favorite");
+  const [ruleField, setRuleField] = React.useState<"tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency">("favorite");
   const [ruleValue, setRuleValue] = React.useState("starred");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -35,6 +37,8 @@ export function CreateSmartCollectionModal({
     { name: "Development & GitHub", color: "#3b82f6", field: "domain", value: "github.com" },
     { name: "Articles with Notes", color: "#10b981", field: "notes", value: "has_notes" },
     { name: "Broken Sites to Heal", color: "#ef4444", field: "status", value: "dead" },
+    { name: "Frequently Visited Sites", color: "#6366f1", field: "visitCount", value: "5" },
+    { name: "Added This Week", color: "#10b981", field: "recency", value: "7" },
   ];
 
   const handleApplyPreset = (p: typeof PRESETS[0]) => {
@@ -147,6 +151,8 @@ export function CreateSmartCollectionModal({
                   if (val === "favorite") setRuleValue("starred");
                   else if (val === "status") setRuleValue("dead");
                   else if (val === "notes") setRuleValue("has_notes");
+                  else if (val === "visitCount") setRuleValue("5");
+                  else if (val === "recency") setRuleValue("7");
                   else setRuleValue("");
                 }}
                 className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -156,6 +162,8 @@ export function CreateSmartCollectionModal({
                 <option value="tags">Tag Name</option>
                 <option value="status">Health Status</option>
                 <option value="notes">Has Personal Notes</option>
+                <option value="visitCount">Visit Count / Engagement</option>
+                <option value="recency">Date Added Recency</option>
               </select>
             </div>
 
@@ -186,6 +194,28 @@ export function CreateSmartCollectionModal({
                   className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <option value="has_notes">Has Personal Notes</option>
+                </select>
+              ) : ruleField === "visitCount" ? (
+                <select
+                  value={ruleValue}
+                  onChange={(e) => setRuleValue(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="5">Frequent (≥5 visits)</option>
+                  <option value="2">Active (≥2 visits)</option>
+                  <option value="1">Visited At Least Once (≥1 visit)</option>
+                  <option value="0">Unvisited / Dormant (0 visits)</option>
+                </select>
+              ) : ruleField === "recency" ? (
+                <select
+                  value={ruleValue}
+                  onChange={(e) => setRuleValue(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="1">Added in Past 24 Hours</option>
+                  <option value="7">Added in Past 7 Days</option>
+                  <option value="30">Added in Past 30 Days</option>
+                  <option value="90">Added in Past 90 Days</option>
                 </select>
               ) : (
                 <Input
@@ -242,3 +272,4 @@ export function CreateSmartCollectionModal({
     </Dialog>
   );
 }
+

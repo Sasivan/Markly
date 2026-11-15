@@ -1,18 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Database, User, Trash2, Search, Globe, FolderTree, Share2 } from "lucide-react";
+import { ChevronRight, Folder as FolderIcon, Layers, Star, Clock, Inbox, Archive, Compass, Database, User, Trash2, Search, Globe, FolderTree, Share2, Sparkles } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
 interface BreadcrumbsProps {
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared";
+  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections";
   folders: Folder[];
   includeSubfolders: boolean;
   onToggleIncludeSubfolders: (val: boolean) => void;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections") => void;
   totalBookmarksCount: number;
   onOpenSearch?: () => void;
   onShareFolder?: (folder: Folder) => void;
@@ -129,6 +129,10 @@ export function Breadcrumbs({
               ) : activeView === "shared" ? (
                 <>
                   <Share2 className="h-3.5 w-3.5 text-muted-foreground" /> Shared Links & Collections
+                </>
+              ) : activeView === "smart-collections" ? (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 text-purple-400" /> Smart Collections
                 </>
               ) : (
                 <>

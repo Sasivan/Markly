@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#2563eb"/>
-  <text x="32" y="47" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="42" font-weight="800" fill="#ffffff" text-anchor="middle">M</text>
+  <defs>
+    <linearGradient id="markly-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#markly-grad)"/>
+  <path d="M20 14h24a2 2 0 0 1 2 2v34.5a1 1 0 0 1-1.6.8L32 41.5 21.6 51.3a1 1 0 0 1-1.6-.8V16a2 2 0 0 1 2-2z" fill="#ffffff" fill-opacity="0.96"/>
+  <path d="M26 23l6 7 6-7v12h-3v-7l-3 3.5L29 28v7h-3V23z" fill="#1d4ed8"/>
 </svg>

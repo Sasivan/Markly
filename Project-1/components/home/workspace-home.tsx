@@ -24,12 +24,21 @@ import {
   Trash2,
   Globe,
   Archive,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { GlobalHomepageAnalytics } from "./global-homepage-analytics";
+import { ActivityHeatmap365 } from "./activity-heatmap-365";
+import { ScratchpadWidget } from "./scratchpad-widget";
+import {
+  HomeLayoutModal,
+  DEFAULT_HOME_WIDGETS,
+  type HomeWidgetConfig,
+  type HomeWidgetKey,
+} from "./home-layout-modal";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
 
@@ -69,6 +78,51 @@ export function WorkspaceHome({
   onOpenPreview,
 }: WorkspaceHomeProps) {
   const { user } = useAuth();
+
+  // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
+  const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
+  const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("markly_home_widgets");
+      if (saved) {
+        const parsed = JSON.parse(saved) as HomeWidgetConfig[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged: HomeWidgetConfig[] = [];
+          for (const p of parsed) {
+            const def = DEFAULT_HOME_WIDGETS.find((d) => d.id === p.id);
+            if (def) merged.push({ ...def, visible: p.visible ?? true });
+          }
+          for (const def of DEFAULT_HOME_WIDGETS) {
+            if (!merged.some((m) => m.id === def.id)) merged.push(def);
+          }
+          setHomeWidgets(merged);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleSaveWidgets = (newWidgets: HomeWidgetConfig[]) => {
+    setHomeWidgets(newWidgets);
+    try {
+      localStorage.setItem("markly_home_widgets", JSON.stringify(newWidgets));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleResetWidgets = () => {
+    setHomeWidgets(DEFAULT_HOME_WIDGETS);
+    try {
+      localStorage.removeItem("markly_home_widgets");
+    } catch {
+      // ignore
+    }
+  };
+
   // Realtime visit handler
   const handleSiteVisit = async (bm: BookmarkWithDetails) => {
     if (onRecordVisit) {
@@ -365,6 +419,643 @@ export function WorkspaceHome({
     return current.name;
   };
 
+  const renderQuickAccessFolders = () => (
+    <section key="folders" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
+            <Compass className="h-3.5 w-3.5" />
+          </div>
+          <h2 className="text-sm font-semibold text-foreground">Quick Access</h2>
+          <span className="text-xs text-muted-foreground font-mono">Frequent & daily drivers (top 6)</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onSelectFolder(null);
+            onSelectView("all");
+          }}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer font-medium"
+        >
+          <span>View All Sites</span>
+          <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {quickAccessList.map((bm) => (
+          <div
+            key={bm.id}
+            onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+            className="rounded-xl border border-border bg-card p-3 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 truncate min-w-0">
+              <BookmarkIcon
+                src={bm.iconUrl}
+                alt={bm.title}
+                domain={bm.domain}
+                className="h-6 w-6 rounded object-contain bg-background flex-shrink-0 border border-border/40"
+              />
+              <div className="truncate">
+                <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
+                  {bm.title}
+                </span>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                  <span className="truncate max-w-28 font-mono">{bm.domain}</span>
+                  <span>•</span>
+                  <span className="font-mono tabular-nums">{bm.visitCount || 0} visits</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              {onToggleArchive && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleArchive(bm);
+                  }}
+                  className="h-7 w-7 rounded-md bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
+                  title="Archive bookmark"
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {onDeleteBookmark && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDeleteBookmark(bm.id, bm.title);
+                  }}
+                  className="h-7 w-7 rounded-md bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
+                  title="Delete bookmark"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <a
+                href={bm.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => handleSiteVisit(bm)}
+                className="h-7 w-7 rounded-md bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-colors"
+                title="Launch Site"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderRecentlyVisited = () => (
+    <section key="recent" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
+            <History className="h-3.5 w-3.5" />
+          </div>
+          <h2 className="text-sm font-semibold text-foreground">Recently Visited</h2>
+          <span className="text-xs text-muted-foreground font-mono">Last opened links</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onSelectFolder(null);
+            onSelectView("recent");
+          }}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
+        >
+          <span>View History</span>
+          <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
+        {recentlyVisited.length === 0 ? (
+          <div className="p-6 text-center text-xs text-muted-foreground">
+            No recently visited links recorded. Click any bookmark to start building history.
+          </div>
+        ) : (
+          recentlyVisited.map((bm) => {
+            const timeAgo = formatTimeAgo(bm.lastClickedAt || bm.lastVisitedAt || bm.createdAt);
+            return (
+              <div
+                key={bm.id}
+                onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+                className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <BookmarkIcon
+                    src={bm.iconUrl}
+                    alt={bm.title}
+                    domain={bm.domain}
+                    className="h-5 w-5 rounded object-contain flex-shrink-0"
+                  />
+                  <div className="truncate">
+                    <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
+                      {bm.title}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                      <span className="truncate max-w-28 font-mono">{bm.domain}</span>
+                      <span>•</span>
+                      <span className="truncate max-w-28">{getParentName(bm)}</span>
+                      <span>•</span>
+                      <span className="font-mono">{timeAgo}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {onToggleFavorite && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleFavorite(bm)}
+                      className={`h-6 w-6 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                        bm.isFavorite ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title={bm.isFavorite ? "Remove favorite" : "Add to favorites"}
+                    >
+                      <Star className={`h-3 w-3 ${bm.isFavorite ? "fill-amber-500" : ""}`} />
+                    </button>
+                  )}
+                  {onToggleArchive && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleArchive(bm)}
+                      className="h-6 w-6 rounded bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                      title="Archive bookmark"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <a
+                    href={bm.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => handleSiteVisit(bm)}
+                    className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                    title="Launch site"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+      {/* Homepage Layout Customizer Modal (1.2) */}
+      <HomeLayoutModal
+        open={layoutModalOpen}
+        onOpenChange={setLayoutModalOpen}
+        widgets={homeWidgets}
+        onSaveWidgets={handleSaveWidgets}
+        onResetDefaults={handleResetWidgets}
+      />
+
+              </div>
+            );
+          })
+        )}
+      </div>
+    </section>
+  );
+
+  const renderStarredFavorites = () => (
+    <section key="favorites" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded bg-secondary text-amber-500 flex items-center justify-center">
+            <Star className="h-3.5 w-3.5 fill-amber-500" />
+          </div>
+          <h2 className="text-sm font-semibold text-foreground">Starred Favorites</h2>
+          {totalFavoritesCount > 0 && (
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">
+              {totalFavoritesCount} {totalFavoritesCount === 1 ? "site" : "sites"}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onSelectFolder(null);
+            onSelectView("favorites");
+          }}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
+        >
+          <span>View Favorites</span>
+          <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
+        {favorites.length === 0 ? (
+          <div className="p-6 text-center text-xs text-muted-foreground">
+            No favorites starred yet. Click the star on any bookmark to pin it here.
+          </div>
+        ) : (
+          favorites.map((bm) => (
+            <div
+              key={bm.id}
+              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+              className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <BookmarkIcon
+                  src={bm.iconUrl}
+                  alt={bm.title}
+                  domain={bm.domain}
+                  className="h-5 w-5 rounded object-contain flex-shrink-0"
+                />
+                <div className="truncate">
+                  <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
+                    {bm.title}
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                    <span className="truncate max-w-28 font-mono">{bm.domain}</span>
+                    <span>•</span>
+                    <span className="truncate max-w-28">{getParentName(bm)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                {onToggleArchive && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleArchive(bm)}
+                    className="h-6 w-6 rounded bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                    title="Archive bookmark"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <a
+                  href={bm.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => handleSiteVisit(bm)}
+                  className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                  title="Launch site"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+
+  const renderUnsortedInbox = () => (
+    <section key="unsorted" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
+            <Inbox className="h-3.5 w-3.5" />
+          </div>
+          <h2 className="text-sm font-semibold text-foreground">Inbox / Unsorted Sites</h2>
+          <span className="text-xs text-muted-foreground font-mono tabular-nums">
+            {totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} unfiled`}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onSelectFolder(null);
+            onSelectView("unsorted");
+          }}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
+        >
+          <span>Open Inbox ({totalUnsortedCount})</span>
+          <ArrowRight className="h-3 w-3" />
+        </button>
+      </div>
+
+      {totalUnsortedCount === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-6 text-center space-y-1.5">
+          <CheckCircle2 className="h-6 w-6 text-muted-foreground mx-auto" />
+          <div className="text-xs font-semibold text-foreground">Inbox Zero</div>
+          <p className="text-xs text-muted-foreground">
+            All bookmarks in your workspace are filed into folder collections.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {unorganized.map((bm) => (
+            <div
+              key={bm.id}
+              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+              className="rounded-xl border border-border bg-card p-3.5 shadow-xs flex flex-col justify-between gap-3 cursor-pointer hover:border-border-hover transition-colors group"
+              title="Click to view details and preview"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <BookmarkIcon
+                    src={bm.iconUrl}
+                    alt={bm.title}
+                    domain={bm.domain}
+                    className="h-5 w-5 rounded object-contain flex-shrink-0"
+                  />
+                  <span className="text-xs font-mono text-muted-foreground">
+                    Unfiled
+                  </span>
+                </div>
+                <div className="text-xs font-medium text-foreground line-clamp-1 block group-hover:text-primary transition-colors">
+                  {bm.title}
+                </div>
+                <p className="text-xs text-muted-foreground font-mono truncate">{bm.domain}</p>
+              </div>
+
+              <div className="pt-2 border-t border-border flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground flex items-center gap-1 transition-colors">
+                  <span>Organize</span>
+                  <ArrowRight className="h-3 w-3" />
+                </span>
+                <a
+                  href={bm.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSiteVisit(bm);
+                  }}
+                  className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
+                  title="Open link"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+
+  const renderDotSpectrum = () => (
+    <section key="spectrum" className="space-y-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-lg bg-secondary text-muted-foreground flex items-center justify-center flex-shrink-0">
+            <Ghost className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">Activity Spectrum</h2>
+              <span className="text-xs bg-secondary text-muted-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
+                {spectrumData.isHourly ? "24-Hour Activity Division" : `${inactiveThreshold}-Day Dynamic Division`}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Inspect last visited timestamp • Click dot to launch site
+            </p>
+          </div>
+        </div>
+
+        {/* Range Slider: 1 Day (Hourly) to 90 Days */}
+        <div className="flex flex-wrap items-center gap-2.5 bg-secondary/40 p-2 rounded-xl border border-border text-xs">
+          <div className="flex items-center gap-1.5 font-medium text-foreground">
+            <span className="text-muted-foreground text-xs">Threshold:</span>
+            <span className="font-medium font-mono tabular-nums">
+              {inactiveThreshold === 1 ? "1 Day (24 Hours)" : `${inactiveThreshold} Days`}
+            </span>
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">({spectrumData.inactiveCount} dormant)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={1}
+              max={90}
+              step={1}
+              value={inactiveThreshold}
+              onChange={(e) => setInactiveThreshold(Number(e.target.value))}
+              className="w-32 h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary border border-border"
+              aria-label="Adjust Inactivity Timeline Threshold"
+            />
+            {/* Quick Presets */}
+            <div className="flex items-center gap-1">
+              {[
+                { label: "1D", val: 1 },
+                { label: "7D", val: 7 },
+                { label: "14D", val: 14 },
+                { label: "30D", val: 30 },
+                { label: "90D", val: 90 },
+              ].map((preset) => (
+                <button
+                  key={preset.val}
+                  type="button"
+                  onClick={() => setInactiveThreshold(preset.val)}
+                  className={`px-1.5 py-0.5 rounded text-xs font-mono font-medium transition-colors cursor-pointer ${
+                    inactiveThreshold === preset.val
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground hover:text-foreground border border-border"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-4">
+        {/* Dynamic Continuous Multi-Line Coordinate Matrix Container */}
+        <div className="relative w-full h-44 rounded-lg bg-secondary/30 border border-border overflow-hidden select-none">
+          <svg className="w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
+            <defs>
+              <pattern id="spectrum-grid" width="40" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-border/30" />
+              </pattern>
+            </defs>
+
+            <rect width="1000" height="200" fill="url(#spectrum-grid)" />
+
+            {/* Dynamic Division Grid Lines */}
+            {spectrumData.gridLines.map((line, i) => (
+              <line
+                key={`grid-${i}`}
+                x1={line.xPercent * 10}
+                y1={0}
+                x2={line.xPercent * 10}
+                y2={200}
+                stroke="currentColor"
+                strokeWidth={line.isMajor ? "1" : "0.5"}
+                strokeDasharray={line.isMajor ? "none" : "2 2"}
+                className={line.isMajor ? "text-border" : "text-border/40"}
+              />
+            ))}
+
+            {/* Inactive Dormant Threshold Barrier Line */}
+            <line
+              x1={940}
+              y1={0}
+              x2={940}
+              y2={200}
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+              className="text-muted-foreground"
+            />
+
+            {/* Render Bookmark Dots */}
+            {spectrumData.dots.map((dot) => {
+              const isHovered = hoveredSpot?.bookmark.id === dot.bookmark.id;
+              return (
+                <g key={dot.bookmark.id} className="cursor-pointer">
+                  <circle
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={isHovered ? 6 : 4}
+                    fill={dot.color}
+                    className="stroke-card transition-all duration-150"
+                    strokeWidth={isHovered ? 2 : 1}
+                    onMouseEnter={() =>
+                      setHoveredSpot({
+                        bookmark: dot.bookmark,
+                        x: (dot.x / 1000) * 100,
+                        y: (dot.y / 200) * 100,
+                        timeAgoLabel: dot.timeAgoLabel,
+                        daysAgo: dot.daysAgo,
+                      })
+                    }
+                    onMouseLeave={() => setHoveredSpot(null)}
+                    onClick={() => {
+                      if (onOpenPreview) {
+                        onOpenPreview(dot.bookmark);
+                      } else {
+                        handleSiteVisit(dot.bookmark);
+                        window.open(dot.bookmark.url, "_blank");
+                      }
+                    }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Dynamic Bottom Time Axis */}
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-xs font-mono text-muted-foreground pt-1.5 border-t border-border px-3">
+            {spectrumData.timeMarkers.map((m, i) => (
+              <div key={`tm-${i}`} className="text-center" style={{ width: `${100 / spectrumData.timeMarkers.length}%` }}>
+                <span className="font-medium text-muted-foreground">{m.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tooltip Over the Spot (Last Time Clicked) */}
+          {hoveredSpot && (
+            <div
+              className="absolute z-30 cursor-pointer pointer-events-auto transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground hover:border-primary/50 transition-colors"
+              style={{
+                left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
+                top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
+              }}
+              onClick={() => {
+                if (onOpenPreview) {
+                  onOpenPreview(hoveredSpot.bookmark);
+                } else {
+                  handleSiteVisit(hoveredSpot.bookmark);
+                  window.open(hoveredSpot.bookmark.url, "_blank");
+                }
+              }}
+            >
+              <div className="flex items-center gap-2 border-b border-border pb-1.5 font-medium">
+                <BookmarkIcon
+                  src={hoveredSpot.bookmark.iconUrl}
+                  domain={hoveredSpot.bookmark.domain}
+                  className="h-4 w-4 rounded object-contain flex-shrink-0"
+                />
+                <div className="truncate text-foreground font-semibold">
+                  {hoveredSpot.bookmark.title}
+                </div>
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>URL Domain:</span>
+                  <span className="font-mono text-foreground truncate max-w-36">
+                    {hoveredSpot.bookmark.domain}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Folder Group:</span>
+                  <span className="truncate max-w-36 text-foreground font-medium">
+                    {getParentName(hoveredSpot.bookmark)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Last Clicked:</span>
+                  <span className="font-mono text-foreground font-semibold">
+                    {hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt
+                      ? `${new Date(hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt!).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "numeric" })} (${hoveredSpot.timeAgoLabel || `${hoveredSpot.daysAgo}d ago`})`
+                      : `Never (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Total visits:</span>
+                  <span className="font-mono tabular-nums font-semibold text-foreground">
+                    {hoveredSpot.bookmark.visitCount || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-xs text-center text-primary font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
+                <span>Open preview & details</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderAnalytics = () => (
+    <div key="analytics">
+      <GlobalHomepageAnalytics
+        bookmarks={bookmarks}
+        folders={folders}
+        folderTree={folderTree}
+        onSelectFolder={(fId) => onSelectFolder(fId)}
+        onSelectTag={(tag) => {
+          onSelectTag?.(tag);
+          onSelectFolder(null);
+          onSelectView("all");
+        }}
+        onSelectDomain={onSelectDomain}
+      />
+    </div>
+  );
+
+  const renderWidget = (id: HomeWidgetKey) => {
+    switch (id) {
+      case "heatmap":
+        return <ActivityHeatmap365 key="heatmap" bookmarks={bookmarks} onOpenPreview={onOpenPreview} />;
+      case "scratchpad":
+        return <ScratchpadWidget key="scratchpad" />;
+      case "folders":
+        return renderQuickAccessFolders();
+      case "recent":
+        return renderRecentlyVisited();
+      case "favorites":
+        return renderStarredFavorites();
+      case "unsorted":
+        return renderUnsortedInbox();
+      case "spectrum":
+        return renderDotSpectrum();
+      case "analytics":
+        return renderAnalytics();
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12 animate-in fade-in duration-300">
       {/* Workspace Hero Banner */}
@@ -406,6 +1097,15 @@ export function WorkspaceHome({
             >
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               <span>Browse All Sites ({totalCount})</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setLayoutModalOpen(true)}
+              className="text-xs h-8 px-2.5 rounded-lg border-border cursor-pointer flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+              title="Customize widget order and visibility"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Layout</span>
             </Button>
           </div>
         </div>
@@ -514,641 +1214,18 @@ export function WorkspaceHome({
         </div>
       )}
 
-      {/* 1. Quick Access Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
-              <Compass className="h-3.5 w-3.5" />
-            </div>
-            <h2 className="text-sm font-semibold text-foreground">Quick Access</h2>
-            <span className="text-xs text-muted-foreground font-mono">Frequent & daily drivers (top 6)</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("all");
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer font-medium"
-          >
-            <span>View All Sites</span>
-            <ArrowRight className="h-3 w-3" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {quickAccessList.map((bm) => (
-            <div
-              key={bm.id}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-              className="rounded-xl border border-border bg-card p-3 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-3 group cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5 truncate min-w-0">
-                <BookmarkIcon
-                  src={bm.iconUrl}
-                  alt={bm.title}
-                  domain={bm.domain}
-                  className="h-6 w-6 rounded object-contain bg-background flex-shrink-0 border border-border/40"
-                />
-                <div className="truncate">
-                  <span
-                    className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer"
-                  >
-                    {bm.title}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                    <span className="truncate max-w-28 font-mono">{bm.domain}</span>
-                    <span>•</span>
-                    <span className="font-mono tabular-nums">{bm.visitCount || 0} visits</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                {onToggleArchive && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onToggleArchive(bm);
-                    }}
-                    className="h-7 w-7 rounded-md bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
-                    title="Archive bookmark"
-                  >
-                    <Archive className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                {onDeleteBookmark && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDeleteBookmark(bm.id, bm.title);
-                    }}
-                    className="h-7 w-7 rounded-md bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center flex-shrink-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
-                    title="Delete bookmark"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <a
-                  href={bm.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => handleSiteVisit(bm)}
-                  className="h-7 w-7 rounded-md bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0 transition-colors"
-                  title="Launch Site"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Grid: 2. Recently Visited & 3. Favorites */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 3. Recently Visited */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
-                <History className="h-3.5 w-3.5" />
-              </div>
-              <h2 className="text-sm font-semibold text-foreground">Recently Visited</h2>
-              {totalVisitedCount > 0 && (
-                <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                  {totalVisitedCount} {totalVisitedCount === 1 ? "site" : "sites"}
-                </span>
-              )}
-            </div>
-            {/* Clean View All Navigation Link */}
-            <button
-              type="button"
-              onClick={() => {
-                onSelectFolder(null);
-                onSelectView("recent");
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
-            >
-              <span>View All</span>
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-
-          {recentlyVisited.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground bg-card rounded-xl border border-dashed border-border">
-              <Clock className="h-6 w-6 mx-auto mb-2 text-muted-foreground/60" />
-              <p className="font-medium text-foreground">No visit activity recorded yet</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Click or launch any bookmark to track it in your chronological activity stream.</p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
-              {recentlyVisited.map((bm) => {
-                const lastTime = bm.lastClickedAt || bm.lastVisitedAt;
-                return (
-                  <div
-                    key={bm.id}
-                    onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                    className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <BookmarkIcon
-                        src={bm.iconUrl}
-                        alt={bm.title}
-                        domain={bm.domain}
-                        className="h-5 w-5 rounded object-contain flex-shrink-0"
-                      />
-                      <div className="truncate">
-                        <span
-                          className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer"
-                        >
-                          {bm.title}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                          <span className="font-mono tabular-nums text-muted-foreground font-medium">
-                            {lastTime ? `Visited ${formatTimeAgo(lastTime)}` : "Not visited yet"}
-                          </span>
-                          <span>•</span>
-                          <span className="truncate max-w-32">{getParentName(bm)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {onDeleteBookmark && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onDeleteBookmark(bm.id, bm.title);
-                          }}
-                          className="h-6 w-6 rounded bg-secondary hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
-                          title="Delete bookmark"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      )}
-                      <a
-                        href={bm.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => handleSiteVisit(bm)}
-                        className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                        title="Open link"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* 4. Favorites */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded bg-secondary text-amber-500 flex items-center justify-center">
-                <Star className="h-3.5 w-3.5 fill-amber-500" />
-              </div>
-              <h2 className="text-sm font-semibold text-foreground">Starred Favorites</h2>
-              {totalFavoritesCount > 0 && (
-                <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                  {totalFavoritesCount} {totalFavoritesCount === 1 ? "site" : "sites"}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                onSelectFolder(null);
-                onSelectView("favorites");
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
-            >
-              <span>View Favorites</span>
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card shadow-xs divide-y divide-border overflow-hidden">
-            {favorites.length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">
-                No favorites starred yet. Click the star on any bookmark to pin it here.
-              </div>
-            ) : (
-              favorites.map((bm) => (
-                <div
-                  key={bm.id}
-                  onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                  className="p-3 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <BookmarkIcon
-                      src={bm.iconUrl}
-                      alt={bm.title}
-                      domain={bm.domain}
-                      className="h-5 w-5 rounded object-contain flex-shrink-0"
-                    />
-                    <div className="truncate">
-                      <span
-                        className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer"
-                      >
-                        {bm.title}
-                      </span>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                        <span className="truncate max-w-28 font-mono">{bm.domain}</span>
-                        <span>•</span>
-                        <span className="truncate max-w-28">{getParentName(bm)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    {onToggleArchive && (
-                      <button
-                        type="button"
-                        onClick={() => onToggleArchive(bm)}
-                        className="h-6 w-6 rounded bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
-                        title="Archive bookmark"
-                      >
-                        <Archive className="h-3 w-3" />
-                      </button>
-                    )}
-                    <a
-                      href={bm.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => handleSiteVisit(bm)}
-                      className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                      title="Launch site"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+      {/* Dynamic User-Customizable Homepage Widgets (1.1, 1.2, 1.3) */}
+      <div className="space-y-8">
+        {homeWidgets.map((widget) => {
+          if (!widget.visible) return null;
+          return (
+            <React.Fragment key={widget.id}>
+              {renderWidget(widget.id)}
+            </React.Fragment>
+          );
+        })}
       </div>
 
-      {/* 5. Inbox / Unsorted Sites Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-secondary text-muted-foreground flex items-center justify-center">
-              <Inbox className="h-3.5 w-3.5" />
-            </div>
-            <h2 className="text-sm font-semibold text-foreground">Inbox / Unsorted Sites</h2>
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">
-              {totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} unfiled`}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("unsorted");
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium flex items-center gap-1"
-          >
-            <span>Open Inbox ({totalUnsortedCount})</span>
-            <ArrowRight className="h-3 w-3" />
-          </button>
-        </div>
-
-        {totalUnsortedCount === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-6 text-center space-y-1.5">
-            <CheckCircle2 className="h-6 w-6 text-muted-foreground mx-auto" />
-            <div className="text-xs font-semibold text-foreground">Inbox Zero</div>
-            <p className="text-xs text-muted-foreground">
-              All bookmarks in your workspace are filed into folder collections.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {unorganized.map((bm) => (
-              <div
-                key={bm.id}
-                onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-                className="rounded-xl border border-border bg-card p-3.5 shadow-xs flex flex-col justify-between gap-3 cursor-pointer hover:border-border-hover transition-colors group"
-                title="Click to view details and preview"
-              >
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <BookmarkIcon
-                      src={bm.iconUrl}
-                      alt={bm.title}
-                      domain={bm.domain}
-                      className="h-5 w-5 rounded object-contain flex-shrink-0"
-                    />
-                    <span className="text-xs font-mono text-muted-foreground">
-                      Unfiled
-                    </span>
-                  </div>
-                  <div className="text-xs font-medium text-foreground line-clamp-1 block group-hover:text-primary transition-colors">
-                    {bm.title}
-                  </div>
-                  <p className="text-xs text-muted-foreground font-mono truncate">{bm.domain}</p>
-                </div>
-
-                <div className="pt-2 border-t border-border flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground flex items-center gap-1 transition-colors">
-                    <span>Organize</span>
-                    <ArrowRight className="h-3 w-3" />
-                  </span>
-                  <a
-                    href={bm.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSiteVisit(bm);
-                    }}
-                    className="text-muted-foreground hover:text-foreground p-1 hover:bg-secondary rounded transition-colors"
-                    title="Open link"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* 6. Forgotten Bookmarks Section with Dynamic Hourly/Daily Slider Divisions & Site Dots */}
-      <section className="space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-lg bg-secondary text-muted-foreground flex items-center justify-center flex-shrink-0">
-              <Ghost className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-foreground">Activity Spectrum</h2>
-                <span className="text-xs bg-secondary text-muted-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
-                  {spectrumData.isHourly ? "24-Hour Activity Division" : `${inactiveThreshold}-Day Dynamic Division`}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Inspect last visited timestamp • Click dot to launch site
-              </p>
-            </div>
-          </div>
-
-          {/* Range Slider: 1 Day (Hourly) to 90 Days */}
-          <div className="flex flex-wrap items-center gap-2.5 bg-secondary/40 p-2 rounded-xl border border-border text-xs">
-            <div className="flex items-center gap-1.5 font-medium text-foreground">
-              <span className="text-muted-foreground text-xs">Threshold:</span>
-              <span className="font-medium font-mono tabular-nums">
-                {inactiveThreshold === 1 ? "1 Day (24 Hours)" : `${inactiveThreshold} Days`}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono tabular-nums">({spectrumData.inactiveCount} dormant)</span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="90"
-              value={inactiveThreshold}
-              onChange={(e) => setInactiveThreshold(Number(e.target.value))}
-              className="w-28 sm:w-36 accent-foreground cursor-pointer"
-              title="Adjust threshold (1 day = hourly division, >1 = dynamic daily division)"
-            />
-            <div className="flex items-center gap-1">
-              {[1, 7, 14, 30, 60, 90].map((d) => (
-                <button
-                  type="button"
-                  key={`preset-${d}`}
-                  onClick={() => setInactiveThreshold(d)}
-                  className={`px-2 py-0.5 rounded text-xs font-mono cursor-pointer transition-colors ${
-                    inactiveThreshold === d
-                      ? "bg-foreground text-background font-medium"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {d === 1 ? "1d (24h)" : `${d}d`}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* INTERACTIVE AREA SPECTRUM WITH DYNAMIC HOURLY / DAILY GRID DIVISIONS */}
-        <div className="relative rounded-xl border border-border bg-card p-4 shadow-xs overflow-hidden">
-          <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center justify-between">
-            <span>
-              {spectrumData.isHourly
-                ? "Hourly activity division (0h to 24h)"
-                : `Daily grid division across ${inactiveThreshold} days (Day 1 to ${inactiveThreshold}d+)`}
-            </span>
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">
-              {spectrumData.dots.length} sites • {spectrumData.inactiveCount} dormant
-            </span>
-          </div>
-
-          <div className="relative w-full h-56 select-none">
-            {/* SVG Area Background Curve & Dynamic Grid Lines */}
-            <svg
-              className="w-full h-full overflow-visible outline-none focus:outline-none"
-              style={{ outline: "none" }}
-              tabIndex={-1}
-              viewBox="0 0 1000 200"
-              preserveAspectRatio="none"
-            >
-              {/* Horizontal Guidelines */}
-              <line x1="40" y1="40" x2="960" y2="40" stroke="currentColor" strokeOpacity={0.06} strokeDasharray="3 3" />
-              <line x1="40" y1="100" x2="960" y2="100" stroke="currentColor" strokeOpacity={0.06} strokeDasharray="3 3" />
-              <line x1="40" y1="160" x2="960" y2="160" stroke="currentColor" strokeOpacity={0.12} />
-
-              {/* Dynamic Vertical Grid Division Lines */}
-              {spectrumData.gridLines.map((gl, i) => {
-                const gx = 50 + (gl.xPercent / 100) * 880;
-                return (
-                  <line
-                    key={`gl-${i}`}
-                    x1={gx}
-                    y1={gl.isMajor ? 28 : 38}
-                    x2={gx}
-                    y2={160}
-                    stroke="currentColor"
-                    strokeOpacity={gl.isMajor ? "0.12" : "0.04"}
-                    strokeDasharray={gl.isMajor ? undefined : "2 2"}
-                  />
-                );
-              })}
-
-              {/* Area Background Shape */}
-              <path
-                d="M 40,160 Q 250,65 500,90 T 800,60 T 960,45 L 960,160 L 40,160 Z"
-                fill="currentColor"
-                fillOpacity={0.03}
-              />
-              {/* Area Top Boundary Stroke */}
-              <path
-                d="M 40,160 Q 250,65 500,90 T 800,60 T 960,45"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-                opacity="0.25"
-              />
-
-              {/* Small, Crisp, Interactive Dots for Each Site */}
-              {spectrumData.dots.map((dot, idx) => {
-                const isHovered = hoveredSpot?.bookmark.id === dot.bookmark.id;
-                return (
-                  <g
-                    key={`dot-${dot.bookmark.id}-${idx}`}
-                    className="cursor-pointer outline-none focus:outline-none"
-                    style={{ outline: "none" }}
-                    tabIndex={-1}
-                    onMouseEnter={() => {
-                      setHoveredSpot({
-                        bookmark: dot.bookmark,
-                        x: (dot.x / 1000) * 100,
-                        y: (dot.y / 200) * 100,
-                        daysAgo: dot.daysAgo,
-                        timeAgoLabel: dot.timeAgoLabel,
-                      });
-                    }}
-                    onMouseLeave={() => setHoveredSpot(null)}
-                    onClick={() => {
-                      if (onOpenPreview) {
-                        onOpenPreview(dot.bookmark);
-                      } else {
-                        handleSiteVisit(dot.bookmark);
-                        window.open(dot.bookmark.url, "_blank");
-                      }
-                    }}
-                  >
-                    {isHovered && (
-                      <circle
-                        suppressHydrationWarning
-                        cx={dot.x}
-                        cy={dot.y}
-                        r="6.5"
-                        fill="none"
-                        stroke={dot.color}
-                        strokeWidth="1.5"
-                        strokeOpacity="0.4"
-                      />
-                    )}
-                    <circle
-                      suppressHydrationWarning
-                      cx={dot.x}
-                      cy={dot.y}
-                      r={isHovered ? "4.5" : dot.isInactive ? "2.6" : "3.2"}
-                      fill={dot.color}
-                      fillOpacity={dot.isInactive ? 0.35 : 0.95}
-                      stroke={isHovered ? dot.color : dot.isInactive ? "currentColor" : "transparent"}
-                      strokeOpacity={dot.isInactive ? 0.3 : 0.85}
-                      strokeWidth={isHovered ? "1.5" : "0.75"}
-                      className="transition-opacity duration-150"
-                    />
-                  </g>
-                );
-              })}
-            </svg>
-
-            {/* Dynamic Bottom Time Axis */}
-            <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between text-xs font-mono text-muted-foreground pt-1.5 border-t border-border px-3">
-              {spectrumData.timeMarkers.map((m, i) => (
-                <div key={`tm-${i}`} className="text-center" style={{ width: `${100 / spectrumData.timeMarkers.length}%` }}>
-                  <span className="font-medium text-muted-foreground">{m.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Tooltip Over the Spot (Last Time Clicked) */}
-            {hoveredSpot && (
-              <div
-                className="absolute z-30 cursor-pointer pointer-events-auto transform -translate-x-1/2 -translate-y-full mb-3 bg-card border border-border p-3 rounded-xl shadow-lg text-xs space-y-1.5 min-w-56 text-card-foreground hover:border-primary/50 transition-colors"
-                style={{
-                  left: `${Math.min(88, Math.max(12, hoveredSpot.x))}%`,
-                  top: `${Math.min(75, Math.max(15, hoveredSpot.y))}%`,
-                }}
-                onClick={() => {
-                  if (onOpenPreview) {
-                    onOpenPreview(hoveredSpot.bookmark);
-                  } else {
-                    handleSiteVisit(hoveredSpot.bookmark);
-                    window.open(hoveredSpot.bookmark.url, "_blank");
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2 border-b border-border pb-1.5 font-medium">
-                  <BookmarkIcon
-                    src={hoveredSpot.bookmark.iconUrl}
-                    domain={hoveredSpot.bookmark.domain}
-                    className="h-4 w-4 rounded object-contain flex-shrink-0"
-                  />
-                  <div className="truncate text-foreground font-semibold">
-                    {hoveredSpot.bookmark.title}
-                  </div>
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Domain:</span>
-                    <span className="font-mono text-foreground">
-                      {hoveredSpot.bookmark.domain}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Category:</span>
-                    <span className="text-foreground">
-                      {getParentName(hoveredSpot.bookmark)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between font-medium pt-0.5 border-t border-border">
-                    <span className="text-muted-foreground">Last clicked:</span>
-                    <span className="font-mono tabular-nums text-foreground">
-                      {hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt
-                        ? `${new Date(hoveredSpot.bookmark.lastClickedAt || hoveredSpot.bookmark.lastVisitedAt!).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "numeric" })} (${hoveredSpot.timeAgoLabel || `${hoveredSpot.daysAgo}d ago`})`
-                        : `Never (Added ${new Date(hoveredSpot.bookmark.createdAt).toLocaleDateString()})`}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Total visits:</span>
-                    <span className="font-mono tabular-nums font-semibold text-foreground">
-                      {hoveredSpot.bookmark.visitCount || 0}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-xs text-center text-primary font-medium pt-1 border-t border-border flex items-center justify-center gap-1">
-                  <span>Open preview & details</span>
-                  <ArrowUpRight className="h-3 w-3" />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Global Homepage Visual Analytics: 3 Exact Charts from Reference (Stacked Area, Radar Fingerprint, Donut) */}
-      <GlobalHomepageAnalytics
-        bookmarks={bookmarks}
-        folders={folders}
-        folderTree={folderTree}
-        onSelectFolder={(fId) => onSelectFolder(fId)}
-        onSelectTag={(tag) => {
-          onSelectTag?.(tag);
-          onSelectFolder(null);
-          onSelectView("all");
-        }}
-        onSelectDomain={onSelectDomain}
-      />
 
       {/* 6. Tags & Categories Explorer */}
       {topTags.length > 0 && (

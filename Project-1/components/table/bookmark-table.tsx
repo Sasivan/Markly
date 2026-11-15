@@ -36,6 +36,7 @@ import {
   Plus,
   Globe,
   FolderPlus,
+  Bookmark,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -103,9 +104,72 @@ export function BookmarkTable({
       setGlobalFilter(externalSearchQuery);
     }
   }, [externalSearchQuery]);
+
+  React.useEffect(() => {
+    const handleSetSearch = (e: any) => {
+      if (e.detail?.query !== undefined) {
+        setGlobalFilter(e.detail.query);
+        onSearchChange?.(e.detail.query);
+      }
+    };
+    window.addEventListener("markly-set-search", handleSetSearch);
+    return () => window.removeEventListener("markly-set-search", handleSetSearch);
+  }, [onSearchChange]);
+
+  const [savedSearchSuccess, setSavedSearchSuccess] = React.useState(false);
+  const handleSaveSearch = () => {
+    if (!globalFilter.trim()) return;
+    try {
+      const stored = localStorage.getItem("markly_saved_searches");
+      const list: Array<{ id: string; name: string; query: string }> = stored ? JSON.parse(stored) : [];
+      if (!list.some((s) => s.query.toLowerCase() === globalFilter.trim().toLowerCase())) {
+        list.push({
+          id: Date.now().toString(),
+          name: globalFilter.trim(),
+          query: globalFilter.trim(),
+        });
+        localStorage.setItem("markly_saved_searches", JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent("markly-saved-searches-updated"));
+      }
+      setSavedSearchSuccess(true);
+      setTimeout(() => setSavedSearchSuccess(false), 2000);
+    } catch {}
+  };
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  
+  // 4.1: Persisted Column Visibility
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_table_columns");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return {};
+  });
+
+  // 5.1: Quick Filter Chips
+  type FilterChipKey = "all" | "starred" | "ai" | "unvisited" | "broken" | "recent_week";
+  const [activeChip, setActiveChip] = React.useState<FilterChipKey>("all");
+
+  // 4.4: Snapshot Fallback Switcher ("thumbnail" | "icon" | "monogram")
+  const [cardFallbackMode, setCardFallbackMode] = React.useState<"thumbnail" | "icon" | "monogram">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_card_fallback") as any;
+        if (stored && ["thumbnail", "icon", "monogram"].includes(stored)) return stored;
+      } catch {}
+    }
+    return "thumbnail";
+  });
+
+  const setCardFallback = (mode: "thumbnail" | "icon" | "monogram") => {
+    setCardFallbackMode(mode);
+    try {
+      localStorage.setItem("markly_card_fallback", mode);
+    } catch {}
+  };
   
   // 5 Notion-Inspired View Modes with persistent memory
   const [internalViewMode, setInternalViewMode] = React.useState<"table" | "board" | "cards" | "list" | "compact">(() => {
@@ -140,12 +204,58 @@ export function BookmarkTable({
   // Column visibility dropdown
   const [colMenuOpen, setColMenuOpen] = React.useState(false);
 
+// 5.3: Typo-Tolerant & Subsequence Fuzzy Matching
+function fuzzyMatch(text: string, query: string): boolean {
+  if (!query) return true;
+  text = text.toLowerCase();
+  query = query.toLowerCase();
+  if (text.includes(query)) return true;
+  // Subsequence matching (e.g. "ghub" matches "github")
+  let ti = 0;
+  let qi = 0;
+  while (ti < text.length && qi < query.length) {
+    if (text[ti] === query[qi]) qi++;
+    ti++;
+  }
+  if (qi === query.length) return true;
+  // Typo tolerance
+  const words = text.split(/\s+/);
+  for (const w of words) {
+    if (Math.abs(w.length - query.length) <= 2) {
+      let dist = 0;
+      const minLen = Math.min(w.length, query.length);
+      for (let i = 0; i < minLen; i++) {
+        if (w[i] !== query[i]) dist++;
+      }
+      dist += Math.abs(w.length - query.length);
+      if (dist <= 1 || (query.length > 5 && dist <= 2)) return true;
+    }
+  }
+  return false;
+}
+
   // Filter data by status and search filter across all views (Table, Board, Cards, List, Compact)
   const filteredData = React.useMemo(() => {
     let result = data;
     if (statusFilter !== "all") {
       result = result.filter((item) => item.status === statusFilter);
     }
+
+    // 5.1: Quick Filter Chips
+    if (activeChip === "starred") {
+      result = result.filter((b) => b.isFavorite);
+    } else if (activeChip === "ai") {
+      result = result.filter((b) => Boolean(b.description && b.description.length > 20));
+    } else if (activeChip === "unvisited") {
+      result = result.filter((b) => (b.visitCount || 0) === 0);
+    } else if (activeChip === "broken") {
+      result = result.filter((b) => b.status === "dead");
+    } else if (activeChip === "recent_week") {
+      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      result = result.filter((b) => b.createdAt >= oneWeekAgo);
+    }
+
+    // 5.3: Typo-Tolerant & Fuzzy Search
     const q = (globalFilter || "").toLowerCase().trim();
     if (q) {
       const searchTokens = q.split(/\s+/).filter(Boolean);
@@ -160,11 +270,11 @@ export function BookmarkTable({
         ]
           .join(" ")
           .toLowerCase();
-        return searchTokens.every((token) => searchable.includes(token));
+        return searchTokens.every((token) => fuzzyMatch(searchable, token));
       });
     }
     return result;
-  }, [data, statusFilter, globalFilter]);
+  }, [data, statusFilter, globalFilter, activeChip]);
 
   // Notion-style Board / Kanban Columns
   const kanbanColumns = React.useMemo(() => {
@@ -311,6 +421,15 @@ export function BookmarkTable({
   const selectedIds = React.useMemo(() => {
     return Object.keys(rowSelection).filter(Boolean);
   }, [rowSelection]);
+
+  // 4.3: Drag-and-Drop Batch Organization
+  const handleBookmarkDragStart = (e: React.DragEvent, bookmarkId: string) => {
+    const ids = selectedIds.includes(bookmarkId) && selectedIds.length > 1
+      ? selectedIds
+      : [bookmarkId];
+    e.dataTransfer.setData("application/x-markly-bookmarks", JSON.stringify(ids));
+    e.dataTransfer.effectAllowed = "move";
+  };
 
   const handleBulkMove = async (folderId: string | null) => {
     const ids = [...selectedIds];
@@ -772,7 +891,15 @@ export function BookmarkTable({
     },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: (updaterOrValue) => {
+      setColumnVisibility((prev) => {
+        const next = typeof updaterOrValue === "function" ? updaterOrValue(prev) : updaterOrValue;
+        try {
+          localStorage.setItem("markly_table_columns", JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -843,8 +970,22 @@ export function BookmarkTable({
                 setGlobalFilter(e.target.value);
                 onSearchChange?.(e.target.value);
               }}
-              className="pl-8 text-xs h-8 bg-background"
+              className="pl-8 pr-7 text-xs h-8 bg-background"
             />
+            {globalFilter.trim().length > 1 && (
+              <button
+                type="button"
+                onClick={handleSaveSearch}
+                title={savedSearchSuccess ? "Search Saved!" : "Save this search to sidebar"}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+              >
+                {savedSearchSuccess ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                ) : (
+                  <Bookmark className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
           </div>
 
           <select
@@ -914,6 +1055,20 @@ export function BookmarkTable({
             </button>
           </div>
 
+          {/* 4.4: Card Fallback Switcher (Cards view only) */}
+          {viewMode === "cards" && (
+            <select
+              value={cardFallbackMode}
+              onChange={(e) => setCardFallback(e.target.value as any)}
+              className="h-8 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              title="Card Cover Style: Snapshot, Domain Icon, or Monogram"
+            >
+              <option value="thumbnail">Snapshot Cover</option>
+              <option value="icon">Icon Cover</option>
+              <option value="monogram">Monogram Cover</option>
+            </select>
+          )}
+
           {/* Column Visibility Menu */}
           <div className="relative">
             <Button
@@ -954,14 +1109,45 @@ export function BookmarkTable({
         </div>
       </div>
 
+      {/* 5.1: Quick Filter Chips Bar */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+        {[
+          { id: "all", label: "All Items", count: data.length },
+          { id: "starred", label: "Starred", count: data.filter((b) => b.isFavorite).length },
+          { id: "ai", label: "AI Summary", count: data.filter((b) => Boolean(b.description && b.description.length > 20)).length },
+          { id: "unvisited", label: "Unvisited", count: data.filter((b) => (b.visitCount || 0) === 0).length },
+          { id: "broken", label: "Broken Links", count: data.filter((b) => b.status === "dead").length },
+          { id: "recent_week", label: "Added This Week", count: data.filter((b) => b.createdAt >= Date.now() - 7 * 86400000).length },
+        ].map((chip) => {
+          const isActive = activeChip === chip.id;
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => setActiveChip(chip.id as FilterChipKey)}
+              className={`h-6 px-2.5 rounded-full border text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
+                isActive
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary/60 text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <span>{chip.label}</span>
+              <span className={`text-[10px] font-mono px-1 rounded-full ${isActive ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"}`}>
+                {chip.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Main View Display */}
       {viewMode === "table" ? (
         <div className="rounded-lg border border-border bg-card shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[75vh]">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-20 bg-card border-b border-border shadow-xs">
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} className="border-b border-border bg-muted/30 text-muted-foreground font-medium">
+                  <tr key={headerGroup.id} className="border-b border-border bg-muted/40 text-muted-foreground font-medium">
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
@@ -985,6 +1171,8 @@ export function BookmarkTable({
                   table.getRowModel().rows.map((row) => (
                     <tr
                       key={row.id}
+                      draggable={true}
+                      onDragStart={(e) => handleBookmarkDragStart(e, row.original.id)}
                       onClick={() => onOpenPreview?.(row.original)}
                       className={`hover:bg-muted/30 transition-colors group cursor-pointer outline-none focus:outline-none ${
                         row.getIsSelected() ? "bg-primary/5" : ""
@@ -1020,6 +1208,25 @@ export function BookmarkTable({
           {kanbanColumns.map((col) => (
             <div
               key={col.id}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("application/x-markly-bookmarks")) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              onDrop={(e) => {
+                const bookmarksJson = e.dataTransfer.getData("application/x-markly-bookmarks");
+                if (bookmarksJson) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  try {
+                    const ids = JSON.parse(bookmarksJson);
+                    if (Array.isArray(ids) && ids.length > 0) {
+                      handleBulkMove(col.id === "__UNSORTED__" ? null : col.id);
+                    }
+                  } catch {}
+                }
+              }}
               className="w-72 flex-shrink-0 rounded-xl border border-border bg-card flex flex-col max-h-[75vh] shadow-xs"
             >
               {/* Column Header */}
@@ -1043,6 +1250,8 @@ export function BookmarkTable({
                   col.bookmarks.map((bm) => (
                     <div
                       key={bm.id}
+                      draggable={true}
+                      onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
                       onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
                       className="group p-2.5 rounded-lg border border-border bg-background hover:border-border-hover transition-colors text-xs space-y-1.5 cursor-pointer shadow-xs outline-none focus:outline-none"
                     >
@@ -1171,21 +1380,45 @@ export function BookmarkTable({
             return (
               <div
                 key={bm.id}
+                draggable={true}
+                onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
                 onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
                 className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer outline-none focus:outline-none"
               >
-                {/* Notion-Style Card Cover: Visual Snapshot */}
+                {/* Notion-Style Card Cover: Visual Snapshot / Icon / Monogram */}
                 <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={snapshotUrl}
-                    alt={bm.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover object-top"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = "none";
-                    }}
-                  />
+                  {cardFallbackMode === "monogram" ? (
+                    <div className="h-full w-full bg-muted/40 flex items-center justify-center">
+                      <div className="h-16 w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-3xl font-bold font-mono uppercase select-none">
+                        {bm.title?.charAt(0) || bm.domain?.charAt(0) || "M"}
+                      </div>
+                    </div>
+                  ) : cardFallbackMode === "icon" ? (
+                    <div className="h-full w-full bg-muted/30 flex flex-col items-center justify-center gap-2">
+                      <div className="p-3 rounded-2xl bg-card border border-border shadow-xs">
+                        <BookmarkIcon
+                          src={bm.iconUrl}
+                          alt={bm.title}
+                          domain={bm.domain}
+                          className="h-8 w-8 rounded object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-muted-foreground truncate max-w-[80%]">
+                        {bm.domain}
+                      </span>
+                    </div>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={snapshotUrl}
+                      alt={bm.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover object-top"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  )}
                   <div className="absolute bottom-2 left-2.5 bg-black/60 backdrop-blur-xs text-white text-xs font-mono px-2 py-0.5 rounded shadow-xs truncate max-w-[80%]">
                     {bm.domain}
                   </div>
@@ -1312,6 +1545,8 @@ export function BookmarkTable({
           {filteredData.map((bm) => (
             <div
               key={bm.id}
+              draggable={true}
+              onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
               onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
               className="flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer outline-none focus:outline-none"
             >
@@ -1439,6 +1674,8 @@ export function BookmarkTable({
           {filteredData.map((bm) => (
             <div
               key={bm.id}
+              draggable={true}
+              onDragStart={(e) => handleBookmarkDragStart(e, bm.id)}
               onClick={() => (onOpenPreview ? onOpenPreview(bm) : recordVisit(bm))}
               className="flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors cursor-pointer"
             >

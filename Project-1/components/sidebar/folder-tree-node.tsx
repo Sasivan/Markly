@@ -100,6 +100,12 @@ export function FolderTreeNodeComponent({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (e.dataTransfer.types.includes("application/x-markly-bookmarks")) {
+      setDropIndicator("inside");
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const height = rect.height;
@@ -118,11 +124,37 @@ export function FolderTreeNodeComponent({
     setDropIndicator(null);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const pos = dropIndicator || "inside";
     setDropIndicator(null);
+
+    // 4.3: Batch move bookmarks into folder
+    const bookmarksJson = e.dataTransfer.getData("application/x-markly-bookmarks");
+    if (bookmarksJson) {
+      try {
+        const ids = JSON.parse(bookmarksJson);
+        if (Array.isArray(ids) && ids.length > 0) {
+          const res = await fetch("/api/bookmarks/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "move",
+              ids,
+              folderId: node.id,
+            }),
+          });
+          if (res.ok) {
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to move bookmarks via drag and drop:", err);
+      }
+      return;
+    }
+
     const draggedFolderId =
       e.dataTransfer.getData("application/x-markly-folder") || e.dataTransfer.getData("text/plain");
     if (!draggedFolderId || draggedFolderId === node.id) return;

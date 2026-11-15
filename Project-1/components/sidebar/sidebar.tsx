@@ -26,6 +26,7 @@ import {
   Edit2,
   MessageSquarePlus,
   X,
+  Bookmark,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -184,7 +185,48 @@ export function Sidebar({
     }
   }, []);
 
-  // Resizing logic
+  // 5.2: Saved Searches state and live sync
+  interface SavedSearchItem {
+    id: string;
+    name: string;
+    query: string;
+  }
+  const [savedSearches, setSavedSearches] = React.useState<SavedSearchItem[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_saved_searches");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const stored = localStorage.getItem("markly_saved_searches");
+        if (stored) setSavedSearches(JSON.parse(stored));
+        else setSavedSearches([]);
+      } catch {}
+    };
+    window.addEventListener("markly-saved-searches-updated", handleUpdate);
+    return () => window.removeEventListener("markly-saved-searches-updated", handleUpdate);
+  }, []);
+
+  const handleDeleteSavedSearch = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const updated = savedSearches.filter((s) => s.id !== id);
+    setSavedSearches(updated);
+    try {
+      localStorage.setItem("markly_saved_searches", JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleSelectSavedSearch = (query: string) => {
+    onSelectFolder(null);
+    onSelectView("all");
+    window.dispatchEvent(new CustomEvent("markly-set-search", { detail: { query } }));
+  };
   const startResizing = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -396,10 +438,32 @@ export function Sidebar({
     setIsRootDragOver(false);
   };
 
-  const handleRootDrop = (e: React.DragEvent) => {
+  const handleRootDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsRootDragOver(false);
+
+    // 4.3: Batch move bookmarks to root / unsorted
+    const bookmarksJson = e.dataTransfer.getData("application/x-markly-bookmarks");
+    if (bookmarksJson) {
+      try {
+        const ids = JSON.parse(bookmarksJson);
+        if (Array.isArray(ids) && ids.length > 0) {
+          const res = await fetch("/api/bookmarks/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "move", ids, folderId: null }),
+          });
+          if (res.ok) {
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to move bookmarks to root:", err);
+      }
+      return;
+    }
+
     const draggedFolderId =
       e.dataTransfer.getData("application/x-markly-folder") || e.dataTransfer.getData("text/plain");
     if (!draggedFolderId) return;
@@ -736,6 +800,35 @@ export function Sidebar({
             <span className="truncate">Search</span>
             <kbd className="ml-auto text-xs bg-muted border border-border px-1.5 py-0.5 rounded font-mono text-muted-foreground">⌘K</kbd>
           </button>
+
+          {/* 5.2: Saved Searches */}
+          {savedSearches.length > 0 && (
+            <div className="pt-1 pb-1 space-y-0.5 border-y border-sidebar-border/40 my-1">
+              <div className="px-2 py-0.5 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+                <span>Saved searches</span>
+              </div>
+              {savedSearches.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleSelectSavedSearch(item.query)}
+                  className="group flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg cursor-pointer text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+                >
+                  <div className="flex items-center gap-2 truncate min-w-0">
+                    <Bookmark className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">{item.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteSavedSearch(e, item.id)}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive cursor-pointer transition-opacity"
+                    title="Remove saved search"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* All Sites */}
           <button

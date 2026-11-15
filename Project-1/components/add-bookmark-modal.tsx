@@ -26,10 +26,16 @@ import {
   Clock,
   Layers,
   Clipboard,
+  GitBranch,
 } from "lucide-react";
 import type { Folder, BookmarkWithDetails, FolderTreeNode } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
+import {
+  FolderRoutingModal,
+  getSavedRoutingRules,
+  matchFolderRule,
+} from "@/components/folders/folder-routing-modal";
 import { getAiRequestHeaders, getDailyAiQuota, incrementDailyAiUsage, type DailyAiQuota } from "@/lib/ai-config";
 import confetti from "canvas-confetti";
 
@@ -81,6 +87,10 @@ export function AddBookmarkModal({
   const [customTitle, setCustomTitle] = React.useState("");
   const [customDescription, setCustomDescription] = React.useState("");
   const [showMoreOptions, setShowMoreOptions] = React.useState(false);
+
+  // 3.2: Smart Auto-Routing Rules state
+  const [routingModalOpen, setRoutingModalOpen] = React.useState(false);
+  const [autoRoutedMessage, setAutoRoutedMessage] = React.useState<string | null>(null);
 
   // Simplified, Elegant Inline Folder Creator State
   const [isCreatingFolder, setIsCreatingFolder] = React.useState(false);
@@ -135,8 +145,24 @@ export function AddBookmarkModal({
       setIsCreatingFolder(false);
       setNewFolderName("");
       setNewFolderParentId("");
+      setAutoRoutedMessage(null);
     }
   }, [open]);
+
+  // 3.2: Check Auto-Routing Rules whenever URL or title is populated
+  React.useEffect(() => {
+    if (!url.trim()) {
+      setAutoRoutedMessage(null);
+      return;
+    }
+    const rules = getSavedRoutingRules();
+    const matched = matchFolderRule(url, customTitle || scrapedData?.title || "", rules);
+    if (matched && folders.some((f) => f.id === matched.folderId)) {
+      setSelectedFolderId(matched.folderId);
+      const targetName = folders.find((f) => f.id === matched.folderId)?.name || "Folder";
+      setAutoRoutedMessage(`Auto-routed to "${targetName}" (${matched.pattern})`);
+    }
+  }, [url, scrapedData?.title, customTitle, folders]);
 
   // Handle Quick Inline Folder Creation (clean, no forced emoji popup)
   const handleCreateFolderInline = async (e?: React.FormEvent) => {
@@ -520,18 +546,37 @@ export function AddBookmarkModal({
           {/* Destination Folder Selector */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-foreground flex items-center gap-1">
-                <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Destination Folder</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setIsCreatingFolder(!isCreatingFolder)}
-                className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
-              >
-                <Plus className="h-3 w-3" />
-                <span>{isCreatingFolder ? "Cancel" : "New Folder"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-foreground flex items-center gap-1">
+                  <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Destination Folder</span>
+                </label>
+                {autoRoutedMessage && (
+                  <span className="text-[10px] text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    {autoRoutedMessage}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRoutingModalOpen(true)}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer font-medium"
+                  title="Configure smart auto-routing rules"
+                >
+                  <GitBranch className="h-3 w-3" />
+                  <span>Rules</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingFolder(!isCreatingFolder)}
+                  className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>{isCreatingFolder ? "Cancel" : "New Folder"}</span>
+                </button>
+              </div>
             </div>
 
             {/* Clean, Simple Inline Folder Creator */}
@@ -811,6 +856,13 @@ export function AddBookmarkModal({
             </div>
           )}
         </form>
+
+        {/* 3.2: Folder Routing Modal */}
+        <FolderRoutingModal
+          open={routingModalOpen}
+          onOpenChange={setRoutingModalOpen}
+          folders={folders}
+        />
       </DialogContent>
     </Dialog>
   );

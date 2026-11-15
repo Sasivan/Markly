@@ -15,14 +15,17 @@ import {
   Check,
   X,
   Copy,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import type { Folder as FolderType, FolderTreeNode } from "@/server/db/schema";
+import { ShareCollectionModal } from "./share-collection-modal";
+import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
 interface FolderPagePanelProps {
   currentFolder: FolderType;
   folders: FolderType[];
+  bookmarks?: BookmarkWithDetails[];
   directBookmarksCount: number;
   totalDescendantBookmarksCount: number;
   childFolders: FolderType[];
@@ -58,7 +61,9 @@ export function FolderPagePanel({
   onCopyFolder,
   onDeleteFolder,
   onAddBookmarkToFolder,
+  bookmarks = [],
 }: FolderPagePanelProps) {
+  const [shareModalOpen, setShareModalOpen] = React.useState(false);
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editName, setEditName] = React.useState(currentFolder.name);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -344,6 +349,18 @@ export function FolderPagePanel({
             </Button>
           )}
 
+          {/* Share Collection Button (3.1) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShareModalOpen(true)}
+            className="h-8 px-2.5 text-xs font-medium gap-1.5 cursor-pointer border-border hover:bg-secondary text-foreground shadow-xs"
+            title="Share this collection publicly"
+          >
+            <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Share</span>
+          </Button>
+
           {/* Customize Icon & Color Button */}
           <Button
             variant="outline"
@@ -433,6 +450,13 @@ export function FolderPagePanel({
           </div>
         </div>
       )}
+      {/* 3.1: Share Collection Modal */}
+      <ShareCollectionModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        folder={currentFolder}
+        bookmarks={bookmarks}
+      />
     </div>
   );
 }

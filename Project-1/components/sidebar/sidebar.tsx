@@ -25,6 +25,7 @@ import {
   Globe,
   Edit2,
   MessageSquarePlus,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -128,6 +129,31 @@ export function Sidebar({
     setIsAllFoldersExpanded(next);
     setGlobalForceExpanded(next);
   };
+
+  // 3.4: Quick Folder Filter state
+  const [folderFilterQuery, setFolderFilterQuery] = React.useState("");
+
+  const filteredFolderTree = React.useMemo(() => {
+    if (!folderFilterQuery.trim()) return folderTree;
+    const q = folderFilterQuery.toLowerCase();
+
+    function filterNode(node: FolderTreeNode): FolderTreeNode | null {
+      const selfMatch = node.name.toLowerCase().includes(q);
+      const filteredChildren = (node.children || [])
+        .map(filterNode)
+        .filter(Boolean) as FolderTreeNode[];
+
+      if (selfMatch || filteredChildren.length > 0) {
+        return {
+          ...node,
+          children: filteredChildren,
+        };
+      }
+      return null;
+    }
+
+    return folderTree.map(filterNode).filter(Boolean) as FolderTreeNode[];
+  }, [folderTree, folderFilterQuery]);
 
   // New folder modal state
   const [addFolderModalOpen, setAddFolderModalOpen] = React.useState(false);
@@ -898,6 +924,30 @@ export function Sidebar({
           {/* Recursive Folder Tree Items */}
           {isFoldersSectionOpen && (
             <div className="space-y-0.5 mt-1">
+              {/* 3.4: Quick Folder Filter Input */}
+              <div className="px-1 py-1 mb-1">
+                <div className="relative flex items-center">
+                  <Search className="absolute left-2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    value={folderFilterQuery}
+                    onChange={(e) => setFolderFilterQuery(e.target.value)}
+                    placeholder="Filter folders..."
+                    className="w-full h-6 pl-6 pr-5 rounded-md bg-secondary/50 border border-sidebar-border text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  {folderFilterQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setFolderFilterQuery("")}
+                      className="absolute right-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Clear folder filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Permanent System Folder: Unsorted */}
               {(() => {
                 const unsortedFolder = folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_"));
@@ -944,13 +994,13 @@ export function Sidebar({
                 );
               })()}
 
-              {folderTree.map((node) => (
+              {filteredFolderTree.map((node) => (
                 <FolderTreeNodeComponent
                   key={node.id}
                   node={node}
                   depth={0}
                   activeFolderId={activeFolderId}
-                  forceExpanded={globalForceExpanded}
+                  forceExpanded={Boolean(folderFilterQuery.trim()) || globalForceExpanded}
                   onSelect={(id, isParent) => {
                     onSelectFolder(id, isParent);
                   }}
@@ -968,6 +1018,12 @@ export function Sidebar({
                   onDropFolder={handleDropFolder}
                 />
               ))}
+
+              {folderFilterQuery.trim() && filteredFolderTree.length === 0 && (
+                <div className="py-2 px-3 text-center text-[11px] text-muted-foreground font-mono">
+                  No matching folders
+                </div>
+              )}
 
               {/* Drop to Root Level Target */}
               <div

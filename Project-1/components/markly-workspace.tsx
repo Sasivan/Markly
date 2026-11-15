@@ -1620,6 +1620,7 @@ export function MarklyWorkspace({
                     onCopyFolder={(folder) => setPanelCopyFolder(folder)}
                     onDeleteFolder={(folder) => setPanelDeleteFolder(folder)}
                     onAddBookmarkToFolder={(fId) => openAddModal(fId)}
+                    bookmarks={bookmarks}
                   />
                 );
               })()}

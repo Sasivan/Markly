@@ -28,6 +28,7 @@ import {
   Compass,
   PieChart,
   Globe,
+  Plus,
   BarChart3,
   Columns3,
   Rows3,
@@ -388,6 +389,29 @@ export function HomeLayoutModal({
             })}
           </div>
         </div>
+
+        {/* Available Presets to Add or Restore */}
+        {DEFAULT_HOME_WIDGETS.some((def) => !localWidgets.some((w) => w.id === def.id)) && (
+          <div className="pt-2 pb-1 border-t border-border/60">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center justify-between">
+              <span>Add / Restore Deleted Presets</span>
+              <span className="text-[10px] font-normal lowercase">click to add back to board</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {DEFAULT_HOME_WIDGETS.filter((def) => !localWidgets.some((w) => w.id === def.id)).map((def) => (
+                <button
+                  key={def.id}
+                  type="button"
+                  onClick={() => setLocalWidgets((prev) => [...prev, def])}
+                  className="px-2 py-1 rounded-md text-xs font-medium border border-border bg-secondary/50 hover:bg-secondary text-foreground flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Plus className="h-3 w-3 text-primary" />
+                  <span>{def.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-border mt-2">

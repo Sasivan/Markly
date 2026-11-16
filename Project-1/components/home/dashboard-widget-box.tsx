@@ -35,6 +35,8 @@ interface DashboardWidgetBoxProps {
   badgeText?: string | number;
   span?: "1" | "2";
   colSpan?: WidgetColSpan;
+  initialColSpan?: WidgetColSpan;
+  minHeight?: number;
   onColSpanChange?: (span: WidgetColSpan) => void;
   rowSpan?: 1 | 2;
   onRowSpanChange?: (span: 1 | 2) => void;
@@ -52,9 +54,12 @@ interface DashboardWidgetBoxProps {
   onEditWidget?: () => void;
   onDuplicateWidget?: () => void;
   onDeleteWidget?: () => void;
-  onDragStart: (e: React.DragEvent) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  showItemLimitPicker?: boolean;
+  itemLimit?: number | "all";
+  onItemLimitChange?: (limit: number | "all") => void;
   children: React.ReactNode;
 }
 
@@ -65,6 +70,8 @@ export function DashboardWidgetBox({
   badgeText,
   span = "1",
   colSpan,
+  initialColSpan,
+  minHeight,
   onColSpanChange,
   rowSpan,
   onRowSpanChange,
@@ -85,6 +92,9 @@ export function DashboardWidgetBox({
   onDragStart,
   onDragOver,
   onDrop,
+  showItemLimitPicker,
+  itemLimit,
+  onItemLimitChange,
   children,
 }: DashboardWidgetBoxProps) {
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
@@ -119,6 +129,7 @@ export function DashboardWidgetBox({
       } catch {}
     }
     if (colSpan) return colSpan;
+    if (initialColSpan) return initialColSpan;
     return span === "2" ? 12 : 6;
   });
 
@@ -176,6 +187,34 @@ export function DashboardWidgetBox({
   const [actionMenuOpen, setActionMenuOpen] = React.useState(false);
   const actionMenuRef = React.useRef<HTMLDivElement>(null);
 
+  const [limitMenuOpen, setLimitMenuOpen] = React.useState(false);
+  const limitMenuRef = React.useRef<HTMLDivElement>(null);
+
+  const [internalLimit, setInternalLimit] = React.useState<number | "all">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_box_item_limit_" + id);
+        if (stored) {
+          if (stored === "all") return "all";
+          const num = Number(stored);
+          if (!isNaN(num) && num > 0) return num;
+        }
+      } catch {}
+    }
+    return itemLimit ?? "all";
+  });
+
+  const activeLimit = itemLimit ?? internalLimit;
+
+  const handleSelectLimit = (lim: number | "all") => {
+    setInternalLimit(lim);
+    try {
+      localStorage.setItem("markly_box_item_limit_" + id, String(lim));
+    } catch {}
+    onItemLimitChange?.(lim);
+    setLimitMenuOpen(false);
+  };
+
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
@@ -184,12 +223,15 @@ export function DashboardWidgetBox({
       if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
         setActionMenuOpen(false);
       }
+      if (limitMenuRef.current && !limitMenuRef.current.contains(event.target as Node)) {
+        setLimitMenuOpen(false);
+      }
     }
-    if (colMenuOpen || actionMenuOpen) {
+    if (colMenuOpen || actionMenuOpen || limitMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [colMenuOpen, actionMenuOpen]);
+  }, [colMenuOpen, actionMenuOpen, limitMenuOpen]);
 
   const startResize = React.useCallback(
     (direction: "width" | "height" | "both", startEvent: React.MouseEvent) => {
@@ -377,6 +419,52 @@ export function DashboardWidgetBox({
         <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
 
+          {/* Site Limit Selector (Adaptive / 6 / 8 / 12 / 16 / 24 / 36 / All) */}
+          {(showItemLimitPicker || availableViews) && (
+            <div className="relative" ref={limitMenuRef}>
+              <button
+                type="button"
+                onClick={() => setLimitMenuOpen(!limitMenuOpen)}
+                className="h-6 px-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-foreground border border-border/50 text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
+                title="Change number of sites displayed"
+              >
+                <span>{activeLimit === "all" ? "All" : `${activeLimit} sites`}</span>
+                <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
+              </button>
+
+              {limitMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-32 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                  <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase border-b border-border/50">
+                    Sites to Show
+                  </div>
+                  {[
+                    { label: "Adaptive (All)", val: "all" as const },
+                    { label: "6 sites", val: 6 },
+                    { label: "8 sites", val: 8 },
+                    { label: "12 sites", val: 12 },
+                    { label: "16 sites", val: 16 },
+                    { label: "24 sites", val: 24 },
+                    { label: "36 sites", val: 36 },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.val)}
+                      type="button"
+                      onClick={() => handleSelectLimit(opt.val)}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer text-[11px] ${
+                        activeLimit === opt.val
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {activeLimit === opt.val && <Check className="h-3 w-3 text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Compact View Switcher Popover */}
           {availableViews && availableViews.length > 0 && onViewModeChange && viewMode && (
             <div className="relative" ref={viewBoxMenuRef}>
@@ -555,13 +643,14 @@ interface BookmarkItemsViewProps {
   items: BookmarkWithDetails[];
   mode: WidgetViewMode;
   emptyMessage: string;
+  limit?: number | "all";
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
   onToggleFavorite?: (bm: BookmarkWithDetails) => void;
   onToggleArchive?: (bm: BookmarkWithDetails) => void;
-  onDeleteBookmark?: (id: string, title?: string) => void;
+  onDeleteBookmark?: ((id: string, title?: string) => void) | ((bm: BookmarkWithDetails) => void);
   handleSiteVisit: (bm: BookmarkWithDetails) => void;
-  formatTimeAgo: (timestamp: number) => string;
+  formatTimeAgo: (timestamp: any) => string;
   getParentName: (bm: BookmarkWithDetails) => string;
 }
 
@@ -569,6 +658,7 @@ export function BookmarkItemsView({
   items,
   mode,
   emptyMessage,
+  limit,
   onOpenPreview,
   onEditBookmark,
   onToggleFavorite,
@@ -578,7 +668,9 @@ export function BookmarkItemsView({
   formatTimeAgo,
   getParentName,
 }: BookmarkItemsViewProps) {
-  if (items.length === 0) {
+  const displayItems = limit && limit !== "all" ? items.slice(0, limit) : items;
+
+  if (displayItems.length === 0) {
     return (
       <div className="p-8 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
         <Bookmark className="h-5 w-5 text-muted-foreground/30" />
@@ -591,7 +683,7 @@ export function BookmarkItemsView({
   if (mode === "grid") {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5 p-3">
-        {items.map((bm) => (
+        {displayItems.map((bm) => (
           <div
             key={bm.id}
             onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
@@ -662,7 +754,7 @@ export function BookmarkItemsView({
   if (mode === "list") {
     return (
       <div className="divide-y divide-border">
-        {items.map((bm) => {
+        {displayItems.map((bm) => {
           const timeAgo = formatTimeAgo(bm.lastClickedAt || bm.lastVisitedAt || bm.createdAt);
           return (
             <div
@@ -735,7 +827,7 @@ export function BookmarkItemsView({
   // 3. Compact View (Dense 1-Line Rows)
   return (
     <div className="divide-y divide-border/60">
-      {items.map((bm) => (
+      {displayItems.map((bm) => (
         <div
           key={bm.id}
           onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}

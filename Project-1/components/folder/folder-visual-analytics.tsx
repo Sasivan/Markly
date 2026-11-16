@@ -22,6 +22,11 @@ import {
   AlertTriangle,
   RotateCcw,
   SlidersHorizontal,
+  Compass,
+  Star,
+  History,
+  Folder as FolderIcon,
+  Globe,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, Pie } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -29,23 +34,28 @@ import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "@/components/viz/viz-chart";
 import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
+import { ObservablePlotView } from "@/components/viz/observable-plot-view";
+import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
+import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
 export interface FolderFilter {
   type: "domain" | "status" | "tag" | "folder";
   value: string;
 }
 
-export type VisualKind = "chart" | "tags" | "engagement" | "wall" | "graph";
+export type VisualKind = "chart" | "tags" | "engagement" | "wall" | "graph" | "plot" | "sites";
 
 export interface TabVisual {
   id: string;
   title: string;
   kind?: VisualKind;
   chartConfig?: VizConfig;
+  plotConfig?: any;
+  colSpan?: WidgetColSpan;
+  siteFilter?: "all" | "favorites" | "recent";
   graphDepth?: number;
-  // Legacy flat fields if loaded directly from VizConfig:
   chartType?: VizChartType;
   dimension?: any;
   measure?: any;
@@ -65,6 +75,10 @@ interface FolderVisualAnalyticsProps {
   activeFilter: FolderFilter | null;
   onFilterChange: (filter: FolderFilter | null) => void;
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
+  onEditBookmark?: (bm: BookmarkWithDetails) => void;
+  onToggleFavorite?: (bm: BookmarkWithDetails) => void;
+  onToggleArchive?: (bm: BookmarkWithDetails) => void;
+  onDeleteBookmark?: ((bm: BookmarkWithDetails) => void) | ((id: string, title?: string) => void);
 }
 
 const DEFAULT_TAB_LABEL = "Overview";
@@ -75,6 +89,7 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
       id: `fld_domain_${folderId}`,
       title: "Domain Breakdown",
       kind: "chart",
+      colSpan: 6,
       chartConfig: {
         version: 1,
         id: `fld_domain_${folderId}`,
@@ -92,11 +107,13 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
       id: `fld_tags_${folderId}`,
       title: "Tag Frequency & Cloud",
       kind: "tags",
+      colSpan: 6,
     },
     {
       id: `fld_status_${folderId}`,
       title: "Link Health Status",
       kind: "chart",
+      colSpan: 6,
       chartConfig: {
         version: 1,
         id: `fld_status_${folderId}`,
@@ -115,15 +132,30 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
 
 function normalizeVisual(v: any): TabVisual {
   if (v.kind) return v;
-  if (v.id?.startsWith("tags_") || v.chartType === "tags") return { id: v.id, title: v.title || "Tag Frequency", kind: "tags" };
-  if (v.id?.startsWith("engagement_") || v.chartType === "engagement") return { id: v.id, title: v.title || "Engagement Spectrum", kind: "engagement" };
-  if (v.id?.startsWith("wall_") || v.chartType === "wall") return { id: v.id, title: v.title || "Favicon Wall", kind: "wall" };
-  if (v.id?.startsWith("graph_") || v.chartType === "graph") return { id: v.id, title: v.title || "Knowledge Graph", kind: "graph" };
+  if (v.id?.startsWith("plot_") || v.chartType === "plot") {
+    return { id: v.id, title: v.title || "Observable Plot", kind: "plot", plotConfig: v.plotConfig, colSpan: v.colSpan || 6 };
+  }
+  if (v.id?.startsWith("tags_") || v.chartType === "tags") {
+    return { id: v.id, title: v.title || "Tag Frequency", kind: "tags", colSpan: v.colSpan || 6 };
+  }
+  if (v.id?.startsWith("engagement_") || v.chartType === "engagement") {
+    return { id: v.id, title: v.title || "Engagement Spectrum", kind: "engagement", colSpan: v.colSpan || 6 };
+  }
+  if (v.id?.startsWith("wall_") || v.chartType === "wall") {
+    return { id: v.id, title: v.title || "Favicon Wall", kind: "wall", colSpan: v.colSpan || 12 };
+  }
+  if (v.id?.startsWith("graph_") || v.chartType === "graph") {
+    return { id: v.id, title: v.title || "Knowledge Graph", kind: "graph", colSpan: v.colSpan || 12 };
+  }
+  if (v.id?.startsWith("sites_") || v.kind === "sites") {
+    return { id: v.id, title: v.title || "Quick Access Sites", kind: "sites", siteFilter: v.siteFilter || "all", colSpan: v.colSpan || 6 };
+  }
   return {
     id: v.id || `viz_${Date.now()}`,
     title: v.title || "Visual Chart",
     kind: "chart",
     chartConfig: v.chartConfig || v,
+    colSpan: v.colSpan || 6,
   };
 }
 
@@ -171,7 +203,12 @@ export function FolderVisualAnalytics({
   activeFilter,
   onFilterChange,
   onOpenPreview,
+  onEditBookmark,
+  onToggleFavorite,
+  onToggleArchive,
+  onDeleteBookmark,
 }: FolderVisualAnalyticsProps) {
+  // Collapsed / Expanded state
   const [isExpanded, setIsExpanded] = React.useState<boolean>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -192,9 +229,26 @@ export function FolderVisualAnalytics({
     });
   };
 
-  const defaultVisuals = React.useMemo(() => makeDefaultVisuals(folderId), [folderId]);
+  // Visual limits and view modes persisted
+  const [visualLimits, setVisualLimits] = React.useState<Record<string, number | "all">>({});
+  const [visualViewModes, setVisualViewModes] = React.useState<Record<string, "grid" | "list" | "compact">>({});
 
-  const [tabs, setTabs] = React.useState<Tab[]>(() => loadTabs(folderId, defaultVisuals));
+  const handleSetVisualLimit = (vizId: string, limit: number | "all") => {
+    setVisualLimits((prev) => ({ ...prev, [vizId]: limit }));
+    try {
+      localStorage.setItem(`markly_box_item_limit_${vizId}`, String(limit));
+    } catch {}
+  };
+
+  const handleSetVisualViewMode = (vizId: string, mode: "grid" | "list" | "compact") => {
+    setVisualViewModes((prev) => ({ ...prev, [vizId]: mode }));
+    try {
+      localStorage.setItem(`markly_widget_view_${vizId}`, mode);
+    } catch {}
+  };
+
+  // Multi-Tab Visual System
+  const [tabs, setTabs] = React.useState<Tab[]>(() => loadTabs(folderId, makeDefaultVisuals(folderId)));
   const [activeTabId, setActiveTabId] = React.useState<string>(() => tabs[0]?.id ?? "tab_default");
   const [renamingTabId, setRenamingTabId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
@@ -251,6 +305,14 @@ export function FolderVisualAnalytics({
     setTabVisuals(activeTab.id, activeTab.visuals.filter((v) => v.id !== vizId));
   };
 
+  const handleVisualColSpanChange = (vizId: string, colSpan: WidgetColSpan) => {
+    if (!activeTab) return;
+    setTabVisuals(
+      activeTab.id,
+      activeTab.visuals.map((v) => (v.id === vizId ? { ...v, colSpan } : v))
+    );
+  };
+
   const [builderOpen, setBuilderOpen] = React.useState(false);
   const [editingViz, setEditingViz] = React.useState<VizConfig | null>(null);
   const [presetMenuOpen, setPresetMenuOpen] = React.useState(false);
@@ -288,18 +350,22 @@ export function FolderVisualAnalytics({
       title: newConfig.title,
       kind: "chart",
       chartConfig: newConfig,
+      colSpan: 6,
     };
     setTabVisuals(activeTab.id, [...activeTab.visuals, newVisual]);
     setPresetMenuOpen(false);
   };
 
-  // Add Special Visual Preset (Tags, Engagement, Wall, Graph)
-  const handleAddSpecialVisual = (kind: VisualKind, title: string) => {
+  // Add Special Visual Preset (Tags, Engagement, Wall, Graph, Sites, Plot)
+  const handleAddSpecialVisual = (kind: VisualKind, title: string, siteFilter?: "all" | "favorites" | "recent") => {
     if (!activeTab) return;
     const newVisual: TabVisual = {
       id: `${kind}_${Date.now()}`,
       title,
       kind,
+      colSpan: kind === "graph" || kind === "wall" ? 12 : 6,
+      siteFilter,
+      plotConfig: kind === "plot" ? { type: "barX" } : undefined,
     };
     setTabVisuals(activeTab.id, [...activeTab.visuals, newVisual]);
     setPresetMenuOpen(false);
@@ -318,7 +384,7 @@ export function FolderVisualAnalytics({
     } else {
       setTabVisuals(activeTab.id, [
         ...activeTab.visuals,
-        { id: config.id, title: config.title, kind: "chart", chartConfig: config },
+        { id: config.id, title: config.title, kind: "chart", chartConfig: config, colSpan: 6 },
       ]);
     }
     setBuilderOpen(false);
@@ -350,7 +416,7 @@ export function FolderVisualAnalytics({
     }
   };
 
-  // 1. Tag Data Computation
+  // Compute Tags Data
   const tagData = React.useMemo(() => {
     const map = new Map<string, number>();
     for (const bm of bookmarks) {
@@ -370,19 +436,15 @@ export function FolderVisualAnalytics({
       .sort((a, b) => b.count - a.count);
   }, [bookmarks]);
 
-  // 2. Engagement Data Computation
-  const [selectedEngagementTier, setSelectedEngagementTier] = React.useState<string | null>(null);
-
+  // Compute Engagement Data
   const engagementData = React.useMemo(() => {
     let frequent = 0;
     let active = 0;
     let occasional = 0;
     let dormant = 0;
-    let totalVisits = 0;
 
     for (const bm of bookmarks) {
       const v = bm.visitCount || 0;
-      totalVisits += v;
       if (v >= 5) frequent++;
       else if (v >= 2) active++;
       else if (v === 1) occasional++;
@@ -390,12 +452,8 @@ export function FolderVisualAnalytics({
     }
 
     const total = bookmarks.length || 1;
-    const avgVisits = Math.round((totalVisits / total) * 10) / 10;
 
     return {
-      totalVisits,
-      avgVisits,
-      dormantCount: dormant,
       tiers: [
         { key: "frequent", tier: "Frequent (≥5)", count: frequent, percentage: Math.round((frequent / total) * 100), color: "#2563eb" },
         { key: "active", tier: "Active (2-4)", count: active, percentage: Math.round((active / total) * 100), color: "#0d9488" },
@@ -405,6 +463,8 @@ export function FolderVisualAnalytics({
     };
   }, [bookmarks]);
 
+  const [selectedEngagementTier, setSelectedEngagementTier] = React.useState<string | null>(null);
+
   const activeTierBookmarks = React.useMemo(() => {
     if (!selectedEngagementTier) return [];
     return bookmarks.filter((bm) => {
@@ -412,59 +472,94 @@ export function FolderVisualAnalytics({
       if (selectedEngagementTier === "frequent") return v >= 5;
       if (selectedEngagementTier === "active") return v >= 2 && v < 5;
       if (selectedEngagementTier === "occasional") return v === 1;
-      if (selectedEngagementTier === "dormant") return v === 0;
-      if (selectedEngagementTier === "all_visited") return v > 0;
-      if (selectedEngagementTier === "active_all") return v >= 2;
-      return true;
+      return v === 0;
     });
   }, [bookmarks, selectedEngagementTier]);
 
-  if (bookmarks.length === 0) return null;
+  const getVisualIcon = (kind?: VisualKind) => {
+    switch (kind) {
+      case "tags":
+        return <TagIcon className="h-4 w-4 text-pink-500" />;
+      case "engagement":
+        return <TrendingUp className="h-4 w-4 text-emerald-500" />;
+      case "wall":
+        return <LayoutGrid className="h-4 w-4 text-amber-500" />;
+      case "graph":
+        return <Layers className="h-4 w-4 text-indigo-500" />;
+      case "sites":
+        return <Compass className="h-4 w-4 text-primary" />;
+      case "plot":
+        return <Activity className="h-4 w-4 text-cyan-500" />;
+      default:
+        return <BarChart3 className="h-4 w-4 text-primary" />;
+    }
+  };
+
+  const getSitesListForVisual = (siteFilter?: "all" | "favorites" | "recent") => {
+    if (siteFilter === "favorites") {
+      return bookmarks.filter((b) => !b.isArchived && b.isFavorite);
+    }
+    if (siteFilter === "recent") {
+      return [...bookmarks]
+        .filter((b) => !b.isArchived && (b.lastVisitedAt || b.lastClickedAt || (b.visitCount || 0) > 0))
+        .sort((a, b) => {
+          const tA = new Date(a.lastClickedAt || a.lastVisitedAt || a.createdAt).getTime();
+          const tB = new Date(b.lastClickedAt || b.lastVisitedAt || b.createdAt).getTime();
+          return tB - tA;
+        });
+    }
+    return bookmarks.filter((b) => !b.isArchived);
+  };
+
+  const formatTimeAgo = (dateStr?: string | null) => {
+    if (!dateStr) return "Never";
+    const d = new Date(dateStr);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
+
+  const getParentName = (bm: BookmarkWithDetails) => {
+    if (!bm.folderId) return "Unsorted";
+    return folders.find((f) => f.id === bm.folderId)?.name || "Folder";
+  };
 
   return (
-    <div className="rounded-xl border border-border/80 bg-card shadow-xs overflow-hidden transition-all duration-200">
-      {/* Header Bar */}
-      <div className="px-4 py-2.5 bg-secondary/30 border-b border-border/60 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity text-left min-w-0"
-        >
-          <div className="h-6 w-6 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+    <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden mb-4 animate-in fade-in">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-secondary/30 border-b border-border/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <BarChart3 className="h-3.5 w-3.5" />
           </div>
-          <div className="truncate">
-            <div className="text-xs font-semibold text-foreground flex items-center gap-2">
-              <span>Visual Analytics & Intelligence</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/60">
-                {activeTab?.visuals.length ?? 0} visual{activeTab?.visuals.length !== 1 ? "s" : ""} · {tabs.length} tab{tabs.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <p className="text-[11px] text-muted-foreground truncate hidden sm:block">
-              Interactive charts & intelligence for <strong className="text-foreground">{folderName}</strong>. Multiple visuals per tab supported.
-            </p>
-          </div>
-        </button>
+          <span className="text-xs font-semibold text-foreground truncate">
+            {folderName} Visual Intelligence & Tabs
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-secondary border border-border/60 hidden sm:inline">
+            {bookmarks.length} sites
+          </span>
+        </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5">
+          {/* Active Filter Pill */}
           {activeFilter && (
-            <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/30 px-2 py-0.5 rounded-md text-xs animate-in fade-in">
-              <Filter className="h-3 w-3" />
-              <span className="font-medium text-[11px]">
-                {activeFilter.type}: <strong>{activeFilter.value}</strong>
-              </span>
+            <div className="flex items-center gap-1 bg-primary/15 text-primary border border-primary/30 px-2 py-0.5 rounded-full text-[11px] font-mono">
+              <span className="capitalize">{activeFilter.type}:</span>
+              <span className="font-semibold">{activeFilter.value}</span>
               <button
                 type="button"
                 onClick={() => onFilterChange(null)}
-                className="hover:text-destructive cursor-pointer ml-1 p-0.5"
+                className="hover:bg-primary/20 rounded-full p-0.5 cursor-pointer ml-0.5"
                 title="Clear filter"
               >
-                <X className="h-3 w-3" />
+                <X className="h-2.5 w-2.5" />
               </button>
             </div>
           )}
 
-          {/* Add Visual Dropdown */}
+          {/* Add Visual Dropdown (At least 8 presets + Custom Builder) */}
           <div className="relative" ref={presetMenuRef}>
             <Button
               type="button"
@@ -478,12 +573,42 @@ export function FolderVisualAnalytics({
             </Button>
 
             {presetMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-60 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
+              <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
                 <div className="font-semibold px-2 py-1 text-[11px] text-muted-foreground border-b border-border mb-1">
-                  Add to &ldquo;{activeTab?.label ?? "Tab"}&rdquo;
+                  Add Preset to &ldquo;{activeTab?.label ?? "Tab"}&rdquo;
                 </div>
                 
-                {/* Core Specialized Visuals */}
+                {/* 1. Quick Access Sites Preset */}
+                <button
+                  type="button"
+                  onClick={() => handleAddSpecialVisual("sites", "Quick Access (Sites)", "all")}
+                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
+                >
+                  <Compass className="h-3.5 w-3.5 text-primary" />
+                  <span>Quick Access (Sites)</span>
+                </button>
+
+                {/* 2. Starred Favorites Preset */}
+                <button
+                  type="button"
+                  onClick={() => handleAddSpecialVisual("sites", "Starred Favorites", "favorites")}
+                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
+                >
+                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                  <span>Starred Favorites (Sites)</span>
+                </button>
+
+                {/* 3. Recently Visited Preset */}
+                <button
+                  type="button"
+                  onClick={() => handleAddSpecialVisual("sites", "Recently Visited", "recent")}
+                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
+                >
+                  <History className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Recently Visited (Sites)</span>
+                </button>
+
+                {/* 4. Tag Frequency & Cloud */}
                 <button
                   type="button"
                   onClick={() => handleAddSpecialVisual("tags", "Tag Frequency & Cloud")}
@@ -492,6 +617,8 @@ export function FolderVisualAnalytics({
                   <TagIcon className="h-3.5 w-3.5 text-pink-500" />
                   <span>Tag Frequency & Cloud</span>
                 </button>
+
+                {/* 5. Engagement Spectrum */}
                 <button
                   type="button"
                   onClick={() => handleAddSpecialVisual("engagement", "Engagement Spectrum")}
@@ -500,6 +627,8 @@ export function FolderVisualAnalytics({
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
                   <span>Engagement Spectrum</span>
                 </button>
+
+                {/* 6. Visual Favicon Wall */}
                 <button
                   type="button"
                   onClick={() => handleAddSpecialVisual("wall", "Visual Favicon Wall")}
@@ -508,6 +637,8 @@ export function FolderVisualAnalytics({
                   <LayoutGrid className="h-3.5 w-3.5 text-amber-500" />
                   <span>Visual Favicon Wall</span>
                 </button>
+
+                {/* 7. Knowledge Graph */}
                 <button
                   type="button"
                   onClick={() => handleAddSpecialVisual("graph", "Knowledge Graph")}
@@ -517,10 +648,21 @@ export function FolderVisualAnalytics({
                   <span>Knowledge Graph</span>
                 </button>
 
+                {/* 8. Observable Plot (Ranked BarX / Bubble) */}
+                <button
+                  type="button"
+                  onClick={() => handleAddSpecialVisual("plot", "Observable Ranked BarX")}
+                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
+                >
+                  <Activity className="h-3.5 w-3.5 text-cyan-500" />
+                  <span>Observable Plot (BarX / Bubble)</span>
+                </button>
+
                 <div className="border-t border-border/60 my-1 pt-1 font-semibold px-2 text-[10px] uppercase tracking-wider text-muted-foreground">
                   Chart Presets
                 </div>
 
+                {/* 9. Top Domains Bar */}
                 <button
                   type="button"
                   onClick={() => handleAddChartPreset("bar", "domain", "Top Domains Bar")}
@@ -529,6 +671,8 @@ export function FolderVisualAnalytics({
                   <BarChart3 className="h-3.5 w-3.5 text-primary" />
                   <span>Top Domains Bar</span>
                 </button>
+
+                {/* 10. Health Status Donut */}
                 <button
                   type="button"
                   onClick={() => handleAddChartPreset("donut", "status", "Health Status Donut")}
@@ -537,6 +681,8 @@ export function FolderVisualAnalytics({
                   <PieChart className="h-3.5 w-3.5 text-emerald-500" />
                   <span>Health Status Donut</span>
                 </button>
+
+                {/* 11. Monthly Ingestion */}
                 <button
                   type="button"
                   onClick={() => handleAddChartPreset("area", "created_month", "Monthly Ingestion")}
@@ -644,7 +790,7 @@ export function FolderVisualAnalytics({
         </div>
       )}
 
-      {/* Body: Visuals for Active Tab (Supports Multiple Visuals per Tab) */}
+      {/* Body: Visuals for Active Tab in Resizable Multi-Column Grid */}
       {isExpanded && activeTab && (
         <div className="p-3.5 bg-card">
           {activeTab.visuals.length === 0 ? (
@@ -672,66 +818,83 @@ export function FolderVisualAnalytics({
               </div>
             </div>
           ) : (
-            <div
-              className={`grid grid-cols-1 gap-3.5 ${
-                activeTab.visuals.length === 1
-                  ? "grid-cols-1"
-                  : activeTab.visuals.length === 2
-                  ? "grid-cols-1 md:grid-cols-2"
-                  : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-              }`}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
               {activeTab.visuals.map((viz) => {
-                const isFullSpan = viz.kind === "graph" || viz.kind === "wall";
-                return (
-                  <div
-                    key={viz.id}
-                    className={`rounded-xl border border-border/80 bg-secondary/15 p-3.5 flex flex-col justify-between group hover:border-border transition-colors relative ${
-                      isFullSpan && activeTab.visuals.length > 1 ? "md:col-span-2 lg:col-span-3" : ""
-                    }`}
-                  >
-                    {/* Visual Card Header */}
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {viz.kind === "tags" && <TagIcon className="h-3.5 w-3.5 text-pink-500 shrink-0" />}
-                        {viz.kind === "engagement" && <TrendingUp className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
-                        {viz.kind === "wall" && <LayoutGrid className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                        {viz.kind === "graph" && <Layers className="h-3.5 w-3.5 text-indigo-500 shrink-0" />}
-                        {(!viz.kind || viz.kind === "chart") && <BarChart3 className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        <span className="text-xs font-semibold text-foreground truncate">
-                          {viz.title}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {viz.kind === "chart" && viz.chartConfig && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingViz(viz.chartConfig!);
-                              setBuilderOpen(true);
-                            }}
-                            className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
-                            title="Edit visual in builder"
-                          >
-                            <Sparkles className="h-3 w-3" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteVisual(viz.id)}
-                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
-                          title="Remove visual"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
+                const currentSpan = viz.colSpan || (viz.kind === "graph" || viz.kind === "wall" ? 12 : 6);
+                const sitesList = viz.kind === "sites" ? getSitesListForVisual(viz.siteFilter) : [];
+                const activeLimit = visualLimits[viz.id] ?? "all";
 
-                    {/* Visual Card Body */}
-                    <div className="flex-1 min-h-[170px]">
-                      {/* 1. TAGS VISUAL */}
+                return (
+                  <DashboardWidgetBox
+                    key={viz.id}
+                    id={viz.id}
+                    title={viz.title}
+                    icon={getVisualIcon(viz.kind)}
+                    initialColSpan={currentSpan}
+                    onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
+                    minHeight={viz.kind === "graph" ? 340 : 250}
+                    badgeText={String(viz.kind || "chart").toUpperCase()}
+                    onEditWidget={
+                      viz.kind === "chart" && viz.chartConfig
+                        ? () => {
+                            setEditingViz(viz.chartConfig!);
+                            setBuilderOpen(true);
+                          }
+                        : undefined
+                    }
+                    onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                    showItemLimitPicker={viz.kind === "sites" || viz.kind === "wall"}
+                    itemLimit={activeLimit}
+                    onItemLimitChange={(lim) => handleSetVisualLimit(viz.id, lim)}
+                    viewMode={viz.kind === "sites" ? (visualViewModes[viz.id] ?? "grid") : undefined}
+                    availableViews={viz.kind === "sites" ? ["grid", "list", "compact"] : undefined}
+                    onViewModeChange={viz.kind === "sites" ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
+                  >
+                    <div className="p-3 flex-1 flex flex-col justify-between">
+                      {/* 1. SITES PRESET (Quick Access / Favorites / Recent) */}
+                      {viz.kind === "sites" && (
+                        <div className="flex-1">
+                          <BookmarkItemsView
+                            items={sitesList}
+                            mode={visualViewModes[viz.id] ?? "grid"}
+                            limit={activeLimit}
+                            emptyMessage={`No ${viz.title.toLowerCase()} recorded in this folder yet.`}
+                            onOpenPreview={onOpenPreview}
+                            onEditBookmark={onEditBookmark}
+                            onToggleFavorite={onToggleFavorite}
+                            onToggleArchive={onToggleArchive}
+                            onDeleteBookmark={onDeleteBookmark}
+                            handleSiteVisit={(bm) => {
+                              window.open(bm.url, "_blank");
+                            }}
+                            formatTimeAgo={formatTimeAgo}
+                            getParentName={getParentName}
+                          />
+                        </div>
+                      )}
+
+                      {/* 2. OBSERVABLE PLOT VIEW */}
+                      {viz.kind === "plot" && (
+                        <div className="h-56 w-full flex-1">
+                          <ObservablePlotView
+                            data={bookmarks.slice(0, 30).map((b) => ({
+                              dimension: b.domain || "Unknown",
+                              value: b.visitCount || 1,
+                            }))}
+                            config={{
+                              type: viz.plotConfig?.type || "barX",
+                              x: "value",
+                              y: "dimension",
+                              fill: "#3b82f6",
+                              height: 220,
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* 3. TAGS VISUAL */}
                       {viz.kind === "tags" && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1">
                           <div className="h-36 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart
@@ -744,7 +907,7 @@ export function FolderVisualAnalytics({
                                 }}
                               >
                                 <defs>
-                                  <linearGradient id="tagAreaGradFolder" x1="0" y1="0" x2="0" y2="1">
+                                  <linearGradient id={`tagAreaGradFolder_${viz.id}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
                                     <stop offset="95%" stopColor="#ec4899" stopOpacity={0.02} />
                                   </linearGradient>
@@ -767,7 +930,7 @@ export function FolderVisualAnalytics({
                                     return null;
                                   }}
                                 />
-                                <Area type="monotone" dataKey="count" stroke="#ec4899" fill="url(#tagAreaGradFolder)" strokeWidth={2} />
+                                <Area type="monotone" dataKey="count" stroke="#ec4899" fill={`url(#tagAreaGradFolder_${viz.id})`} strokeWidth={2} />
                               </AreaChart>
                             </ResponsiveContainer>
                           </div>
@@ -795,9 +958,9 @@ export function FolderVisualAnalytics({
                         </div>
                       )}
 
-                      {/* 2. ENGAGEMENT SPECTRUM VISUAL */}
+                      {/* 4. ENGAGEMENT SPECTRUM VISUAL */}
                       {viz.kind === "engagement" && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1">
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {engagementData.tiers.map((tier) => (
                               <button
@@ -859,15 +1022,15 @@ export function FolderVisualAnalytics({
                         </div>
                       )}
 
-                      {/* 3. FAVICON WALL MATRIX VISUAL */}
+                      {/* 5. FAVICON WALL MATRIX VISUAL */}
                       {viz.kind === "wall" && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 flex-1">
                           <div className="text-[11px] text-muted-foreground font-mono flex items-center justify-between">
                             <span>Favicon Matrix ({bookmarks.length} sites)</span>
                             <span>Click icon to preview</span>
                           </div>
-                          <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 max-h-48 overflow-y-auto p-1">
-                            {bookmarks.map((bm) => (
+                          <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 max-h-56 overflow-y-auto p-1">
+                            {(typeof activeLimit === "number" ? bookmarks.slice(0, activeLimit) : bookmarks).map((bm) => (
                               <div
                                 key={bm.id}
                                 onClick={() => (onOpenPreview ? onOpenPreview(bm) : window.open(bm.url, "_blank"))}
@@ -889,9 +1052,9 @@ export function FolderVisualAnalytics({
                         </div>
                       )}
 
-                      {/* 4. KNOWLEDGE GRAPH VISUAL */}
+                      {/* 6. KNOWLEDGE GRAPH VISUAL */}
                       {viz.kind === "graph" && (
-                        <div className="h-72 w-full rounded-lg overflow-hidden border border-border bg-card">
+                        <div className="h-72 w-full rounded-lg overflow-hidden border border-border bg-card flex-1">
                           <KnowledgeGraph
                             mode={folderId.startsWith("page_") ? "global" : "folder"}
                             folderId={folderId.startsWith("page_") ? undefined : folderId}
@@ -902,27 +1065,29 @@ export function FolderVisualAnalytics({
                         </div>
                       )}
 
-                      {/* 5. STANDARD RECHARTS VIZCHART */}
+                      {/* 7. STANDARD RECHARTS VIZCHART */}
                       {(!viz.kind || viz.kind === "chart") && (
-                        <VizChart
-                          config={viz.chartConfig || (viz as any)}
-                          bookmarks={bookmarks}
-                          folders={folders}
-                          height={170}
-                          onSelectDomain={handleSelectDomain}
-                          onSelectTag={handleSelectTag}
-                          onSelectFolder={(fId) => onFilterChange(fId ? { type: "folder", value: fId } : null)}
-                          bare={true}
-                        />
+                        <div className="flex-1">
+                          <VizChart
+                            config={viz.chartConfig || (viz as any)}
+                            bookmarks={bookmarks}
+                            folders={folders}
+                            height={180}
+                            onSelectDomain={handleSelectDomain}
+                            onSelectTag={handleSelectTag}
+                            onSelectFolder={(fId) => onFilterChange(fId ? { type: "folder", value: fId } : null)}
+                            bare={true}
+                          />
+                        </div>
                       )}
-                    </div>
 
-                    {/* Visual Card Footer */}
-                    <div className="pt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border/30 mt-2">
-                      <span>Click to filter</span>
-                      <span className="uppercase">{viz.kind || (viz.chartConfig?.chartType ?? "CHART")}</span>
+                      {/* Visual Card Footer Info */}
+                      <div className="pt-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground border-t border-border/40 mt-2">
+                        <span>Click visual to filter</span>
+                        <span className="uppercase">{viz.kind || (viz.chartConfig?.chartType ?? "CHART")}</span>
+                      </div>
                     </div>
-                  </div>
+                  </DashboardWidgetBox>
                 );
               })}
             </div>

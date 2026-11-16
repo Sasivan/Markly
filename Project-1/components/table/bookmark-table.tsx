@@ -2056,7 +2056,7 @@ function getDomainGradient(str: string): string {
         </div>
       )}
 
-      {/* Visual Analytics & Intelligence Section (Folders & All Pages) */}
+      {/* Visual Analytics & Intelligence Section (Folders & All Pages with Resizable Tabs) */}
       <FolderVisualAnalytics
         folderId={activeFolderId || `page_${activeView || "all"}`}
         folderName={
@@ -2077,6 +2077,10 @@ function getDomainGradient(str: string): string {
         activeFilter={activeChartFilter}
         onFilterChange={setActiveChartFilter}
         onOpenPreview={onOpenPreview}
+        onEditBookmark={setEditingBookmark}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleArchive={handleToggleArchive}
+        onDeleteBookmark={onDeleteBookmark}
       />
 
       {/* Main View Display */}

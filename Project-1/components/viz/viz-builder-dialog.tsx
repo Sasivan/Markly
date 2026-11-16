@@ -137,6 +137,62 @@ const PRESETS: PresetItem[] = [
       otherBucket: true,
     },
   },
+  {
+    id: "favorite_shares",
+    name: "Starred vs Unstarred",
+    description: "Favorites ratio",
+    config: {
+      title: "Starred Bookmarks Ratio",
+      chartType: "donut",
+      dimension: "favorite",
+      measure: "count",
+      sort: { by: "measure", direction: "desc" },
+      limit: 3,
+      otherBucket: false,
+    },
+  },
+  {
+    id: "recent_activity_velocity",
+    name: "Weekly Momentum",
+    description: "Ingestion velocity per week",
+    config: {
+      title: "Weekly Ingestion Momentum",
+      chartType: "line",
+      dimension: "created_week",
+      measure: "count",
+      sort: { by: "dimension", direction: "asc" },
+      limit: 10,
+      otherBucket: false,
+    },
+  },
+  {
+    id: "folder_domain_diversity",
+    name: "Folder Domain Diversity",
+    description: "Distinct domains per collection",
+    config: {
+      title: "Distinct Domains by Folder",
+      chartType: "horizontal_bar",
+      dimension: "folder_top",
+      measure: "distinct_domains",
+      sort: { by: "measure", direction: "desc" },
+      limit: 8,
+      otherBucket: true,
+    },
+  },
+  {
+    id: "visit_count_buckets",
+    name: "Engagement Buckets",
+    description: "Dormant vs active link tiers",
+    config: {
+      title: "Visit Count Engagement Tiers",
+      chartType: "bar",
+      dimension: "visit_count_bucket",
+      measure: "count",
+      sort: { by: "dimension", direction: "asc" },
+      limit: 6,
+      otherBucket: false,
+    },
+  },
 ];
 
 const CHRONO_DIMENSIONS: VizDimension[] = [

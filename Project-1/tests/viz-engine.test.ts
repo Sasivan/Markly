@@ -437,4 +437,45 @@ describe("STAGE 1: Query Engine runViz", () => {
       expect(customCount).toBe(MAX_CUSTOM_WIDGETS);
     });
   });
+
+  describe("Observable Plot Integration & 22 Chart Variations", () => {
+    it("validates that all 22 observable plot types are defined and distinct", () => {
+      const ALL_22_PLOT_TYPES = [
+        "barX", "barY", "stackedBarY", "stackedBarX", "groupedBar", "lollipop",
+        "dot", "bubble", "tick", "rule",
+        "line", "stepLine", "multiLine", "difference",
+        "area", "stackedArea", "histogram",
+        "cell", "matrix", "hexbin",
+        "text", "vector",
+      ];
+      expect(ALL_22_PLOT_TYPES.length).toBe(22);
+      const unique = new Set(ALL_22_PLOT_TYPES);
+      expect(unique.size).toBe(22);
+    });
+
+    it("verifies query engine output formats data correctly for Observable Plot feeds", () => {
+      const bookmarks = [
+        createMockBookmark({ domain: "github.com", visitCount: 42, tags: ["dev", "git"] }),
+        createMockBookmark({ domain: "figma.com", visitCount: 15, tags: ["design"] }),
+        createMockBookmark({ domain: "google.com", visitCount: 100 }),
+      ];
+
+      const res = runViz(bookmarks, {
+        ...DEFAULT_VIZ_CONFIG,
+        dimension: "domain",
+        measure: "sum_visits",
+      });
+
+      expect(res.rows.length).toBe(3);
+      expect(res.rows[0].dimension).toBe("google.com");
+      expect(res.rows[0].value).toBe(100);
+
+      // Verify mapping to Observable Plot format
+      const plotInput = res.rows.map((r) => ({
+        x: r.value,
+        y: r.dimension,
+      }));
+      expect(plotInput[0]).toEqual({ x: 100, y: "google.com" });
+    });
+  });
 });

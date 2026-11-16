@@ -158,6 +158,132 @@ export function WorkspaceHome({
     });
   };
 
+  // Per-widget site limit state persisted (Adaptive / 6 / 8 / 12 / 16 / 24 / 36 / All)
+  const [widgetItemLimits, setWidgetItemLimits] = React.useState<Record<string, number | "all">>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_widget_item_limits");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return {};
+  });
+
+  const handleSetWidgetLimit = (widgetId: string, limit: number | "all") => {
+    setWidgetItemLimits((prev) => {
+      const next = { ...prev, [widgetId]: limit };
+      try {
+        localStorage.setItem("markly_widget_item_limits", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleEditBuiltinWidget = (widgetId: string) => {
+    let presetConfig: VizConfig;
+    if (widgetId === "folders") {
+      presetConfig = {
+        version: 1,
+        id: `custom:quick_access_${Date.now()}`,
+        title: "Quick Access Ecosystem",
+        chartType: "bar",
+        dimension: "domain",
+        measure: "count",
+        filters: {},
+        sort: { by: "measure", direction: "desc" },
+        limit: 8,
+        otherBucket: true,
+      };
+    } else if (widgetId === "favorites") {
+      presetConfig = {
+        version: 1,
+        id: `custom:favorites_${Date.now()}`,
+        title: "Starred Favorites Breakdown",
+        chartType: "donut",
+        dimension: "folder_top",
+        measure: "count",
+        filters: { favorite: true },
+        sort: { by: "measure", direction: "desc" },
+        limit: 6,
+        otherBucket: true,
+      };
+    } else if (widgetId === "recent") {
+      presetConfig = {
+        version: 1,
+        id: `custom:recent_${Date.now()}`,
+        title: "Recent Visits Velocity",
+        chartType: "horizontal_bar",
+        dimension: "domain",
+        measure: "sum_visits",
+        filters: {},
+        sort: { by: "measure", direction: "desc" },
+        limit: 8,
+        otherBucket: true,
+      };
+    } else if (widgetId === "unsorted") {
+      presetConfig = {
+        version: 1,
+        id: `custom:inbox_${Date.now()}`,
+        title: "Inbox Unfiled Sites Distribution",
+        chartType: "bar",
+        dimension: "domain",
+        measure: "count",
+        filters: { folderId: "__UNSORTED__" as any },
+        sort: { by: "measure", direction: "desc" },
+        limit: 8,
+        otherBucket: true,
+      };
+    } else if (widgetId === "heatmap") {
+      presetConfig = {
+        version: 1,
+        id: `custom:heatmap_${Date.now()}`,
+        title: "365-Day Activity Trend",
+        chartType: "area",
+        dimension: "created_month",
+        measure: "count",
+        filters: {},
+        sort: { by: "dimension", direction: "asc" },
+        limit: 12,
+        otherBucket: false,
+      };
+    } else if (widgetId === "spectrum") {
+      presetConfig = {
+        version: 1,
+        id: `custom:spectrum_${Date.now()}`,
+        title: "Engagement Spectrum",
+        chartType: "horizontal_bar",
+        dimension: "status",
+        measure: "count",
+        filters: {},
+        sort: { by: "measure", direction: "desc" },
+        limit: 6,
+        otherBucket: false,
+      };
+    } else {
+      presetConfig = {
+        version: 1,
+        id: `custom:${widgetId}_${Date.now()}`,
+        title: "Workspace Visual Analytics",
+        chartType: "bar",
+        dimension: "domain",
+        measure: "count",
+        filters: {},
+        sort: { by: "measure", direction: "desc" },
+        limit: 8,
+        otherBucket: true,
+      };
+    }
+
+    setEditingWidget({
+      id: presetConfig.id,
+      label: presetConfig.title,
+      visible: true,
+      kind: "custom",
+      vizConfig: presetConfig,
+    });
+    setVisualBuilderOpen(true);
+  };
+
   // Reorder widget up / down
   const handleMoveWidget = (id: HomeWidgetKey, direction: "up" | "down") => {
     setHomeWidgets((prev) => {
@@ -1078,10 +1204,15 @@ export function WorkspaceHome({
               onSelectView("all");
             }}
             viewAllLabel="View all"
+            showItemLimitPicker={true}
+            itemLimit={widgetItemLimits["folders"] ?? "all"}
+            onItemLimitChange={(lim) => handleSetWidgetLimit("folders", lim)}
+            onEditWidget={() => handleEditBuiltinWidget("folders")}
           >
             <BookmarkItemsView
               items={quickAccessList}
               mode={widgetViews["folders"] ?? "grid"}
+              limit={widgetItemLimits["folders"] ?? "all"}
               emptyMessage="No bookmarks available yet in Quick Access"
               onOpenPreview={onOpenPreview}
               onEditBookmark={onEditBookmark}
@@ -1110,10 +1241,15 @@ export function WorkspaceHome({
               onSelectView("recent");
             }}
             viewAllLabel="View history"
+            showItemLimitPicker={true}
+            itemLimit={widgetItemLimits["recent"] ?? "all"}
+            onItemLimitChange={(lim) => handleSetWidgetLimit("recent", lim)}
+            onEditWidget={() => handleEditBuiltinWidget("recent")}
           >
             <BookmarkItemsView
               items={recentlyVisited}
               mode={widgetViews["recent"] ?? "list"}
+              limit={widgetItemLimits["recent"] ?? "all"}
               emptyMessage="No recently visited links recorded. Click any bookmark to start building history."
               onOpenPreview={onOpenPreview}
               onEditBookmark={onEditBookmark}
@@ -1143,10 +1279,15 @@ export function WorkspaceHome({
               onSelectView("favorites");
             }}
             viewAllLabel="View favorites"
+            showItemLimitPicker={true}
+            itemLimit={widgetItemLimits["favorites"] ?? "all"}
+            onItemLimitChange={(lim) => handleSetWidgetLimit("favorites", lim)}
+            onEditWidget={() => handleEditBuiltinWidget("favorites")}
           >
             <BookmarkItemsView
               items={favorites}
               mode={widgetViews["favorites"] ?? "grid"}
+              limit={widgetItemLimits["favorites"] ?? "all"}
               emptyMessage="No favorites starred yet. Click the star on any bookmark to pin it here."
               onOpenPreview={onOpenPreview}
               onEditBookmark={onEditBookmark}
@@ -1175,6 +1316,10 @@ export function WorkspaceHome({
               onSelectView("unsorted");
             }}
             viewAllLabel={`Open inbox (${totalUnsortedCount})`}
+            showItemLimitPicker={true}
+            itemLimit={widgetItemLimits["unsorted"] ?? "all"}
+            onItemLimitChange={(lim) => handleSetWidgetLimit("unsorted", lim)}
+            onEditWidget={() => handleEditBuiltinWidget("unsorted")}
           >
             {totalUnsortedCount === 0 ? (
               <div className="p-8 text-center space-y-2">
@@ -1188,6 +1333,7 @@ export function WorkspaceHome({
               <BookmarkItemsView
                 items={unorganized}
                 mode={widgetViews["unsorted"] ?? "compact"}
+                limit={widgetItemLimits["unsorted"] ?? "all"}
                 emptyMessage="All bookmarks organized"
                 onOpenPreview={onOpenPreview}
                 onEditBookmark={onEditBookmark}
@@ -1210,6 +1356,7 @@ export function WorkspaceHome({
             title="Scratchpad & Notes"
             icon={<StickyNote className="h-4 w-4 text-amber-500" />}
             badgeText="Auto-saved"
+            onEditWidget={() => handleEditBuiltinWidget("scratchpad")}
           >
             <ScratchpadWidget bare={true} />
           </DashboardWidgetBox>
@@ -1223,6 +1370,7 @@ export function WorkspaceHome({
             title="Annual Activity Heatmap"
             icon={<Calendar className="h-4 w-4 text-primary" />}
             badgeText="365 Days"
+            onEditWidget={() => handleEditBuiltinWidget("heatmap")}
           >
             <ActivityHeatmap365 bookmarks={bookmarks} onOpenPreview={onOpenPreview} bare={true} />
           </DashboardWidgetBox>
@@ -1237,6 +1385,7 @@ export function WorkspaceHome({
             icon={<Ghost className="h-4 w-4 text-purple-500" />}
             badgeText={spectrumData.isHourly ? "24h Activity" : `${inactiveThreshold}d Division`}
             extraHeaderAction={renderDotSpectrumExtraHeader()}
+            onEditWidget={() => handleEditBuiltinWidget("spectrum")}
           >
             {renderDotSpectrumContent()}
           </DashboardWidgetBox>

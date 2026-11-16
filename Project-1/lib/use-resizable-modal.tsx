@@ -14,12 +14,12 @@ interface UseResizableModalOptions {
 
 export function useResizableModal({
   modalId,
-  defaultVerticalWidth = 560,
-  defaultHorizontalWidth = 980,
-  defaultVerticalHeight = 680,
-  defaultHorizontalHeight = 640,
-  minWidth = 420,
-  minHeight = 350,
+  defaultVerticalWidth = 520,
+  defaultHorizontalWidth = 840,
+  defaultVerticalHeight = 580,
+  defaultHorizontalHeight = 540,
+  minWidth = 380,
+  minHeight = 320,
 }: UseResizableModalOptions) {
   // 1. Format: vertical vs horizontal
   const [format, setFormat] = React.useState<"vertical" | "horizontal">(() => {
@@ -113,16 +113,16 @@ export function useResizableModal({
       const deltaX = e.clientX - dragRef.current.startX;
       const deltaY = e.clientY - dragRef.current.startY;
 
-      const maxWidth = typeof window !== "undefined" ? window.innerWidth * 0.95 : 1400;
-      const maxHeight = typeof window !== "undefined" ? window.innerHeight * 0.92 : 900;
+      const maxWidth = typeof window !== "undefined" ? Math.min(window.innerWidth * 0.92, 1100) : 960;
+      const maxHeight = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.86, 760) : 600;
 
       if (isResizing === "right" || isResizing === "corner") {
-        const nextW = Math.min(maxWidth, Math.max(minWidth, dragRef.current.startWidth + deltaX));
+        const nextW = Math.min(maxWidth, Math.max(minWidth, dragRef.current.startWidth + deltaX * 2));
         setCustomWidth(Math.round(nextW));
       }
 
       if (isResizing === "bottom" || isResizing === "corner") {
-        const nextH = Math.min(maxHeight, Math.max(minHeight, dragRef.current.startHeight + deltaY));
+        const nextH = Math.min(maxHeight, Math.max(minHeight, dragRef.current.startHeight + deltaY * 2));
         setCustomHeight(Math.round(nextH));
       }
     };
@@ -157,10 +157,10 @@ export function useResizableModal({
   }, [isResizing, minWidth, minHeight, modalId]);
 
   const modalStyle: React.CSSProperties = {
-    width: typeof window !== "undefined" ? `min(${effectiveWidth}px, 95vw)` : `${effectiveWidth}px`,
-    height: typeof window !== "undefined" ? `min(${effectiveHeight}px, 92vh)` : `${effectiveHeight}px`,
-    maxWidth: "95vw",
-    maxHeight: "92vh",
+    width: typeof window !== "undefined" ? `min(${effectiveWidth}px, 92vw)` : `${effectiveWidth}px`,
+    height: typeof window !== "undefined" ? `min(${effectiveHeight}px, 86vh)` : `${effectiveHeight}px`,
+    maxWidth: "92vw",
+    maxHeight: "86vh",
   };
 
   const hasCustomSize = customWidth !== null || customHeight !== null;

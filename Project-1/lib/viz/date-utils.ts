@@ -152,3 +152,4 @@ export function formatVisitCountBucket(visitCount: number | null | undefined): s
   if (count <= 50) return "21 - 50 visits";
   return "50+ visits";
 }
+

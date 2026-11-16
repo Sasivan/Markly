@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { IconSearchPicker } from "@/components/icons/icon-search-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ColorPaletteGenerator } from "@/components/ui/color-palette-generator";
 
 interface CreateSmartCollectionModalProps {
   isOpen: boolean;
@@ -155,10 +156,10 @@ export function CreateSmartCollectionModal({
     startResize,
   } = useResizableModal({
     modalId: "smart_collection",
-    defaultVerticalWidth: 560,
-    defaultHorizontalWidth: 960,
-    defaultVerticalHeight: 680,
-    defaultHorizontalHeight: 650,
+    defaultVerticalWidth: 520,
+    defaultHorizontalWidth: 840,
+    defaultVerticalHeight: 560,
+    defaultHorizontalHeight: 540,
   });
 
   return (
@@ -411,52 +412,13 @@ export function CreateSmartCollectionModal({
                     <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
                   </div>
 
-                  {/* Color Palette Selector */}
+                  {/* Universal Color Palette & Harmonic Generator */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-foreground">Theme Color</label>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={handleRandomColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Generate random color"
-                        >
-                          <Sparkles className="h-3 w-3 text-primary" />
-                          <span>Random</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleResetColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Reset color to default"
-                        >
-                          <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                          <span>Reset</span>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
-                      {COLOR_PALETTE.map((c) => {
-                        const isSelected = color === c.value;
-                        return (
-                          <button
-                            key={c.value}
-                            type="button"
-                            onClick={() => setColor(c.value)}
-                            title={c.name}
-                            className={`h-6 w-6 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                              isSelected
-                                ? "scale-110 shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-background"
-                                : "hover:scale-105 opacity-80 hover:opacity-100"
-                            }`}
-                            style={{ backgroundColor: c.value }}
-                          >
-                            {isSelected && <Check className="h-3 w-3 text-white drop-shadow-xs" />}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <ColorPaletteGenerator
+                      value={color}
+                      onChange={setColor}
+                      defaultValue="#8b5cf6"
+                    />
                   </div>
                 </div>
               </div>
@@ -631,52 +593,13 @@ export function CreateSmartCollectionModal({
                   <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
                 </div>
 
-                {/* Color Palette Selector */}
+                {/* Universal Color Palette & Harmonic Generator */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-foreground">Theme Color</label>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={handleRandomColor}
-                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Generate random color"
-                      >
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        <span>Random</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleResetColor}
-                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Reset color to default"
-                      >
-                        <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                        <span>Reset</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
-                    {COLOR_PALETTE.map((c) => {
-                      const isSelected = color === c.value;
-                      return (
-                        <button
-                          key={c.value}
-                          type="button"
-                          onClick={() => setColor(c.value)}
-                          title={c.name}
-                          className={`h-6 w-6 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                            isSelected
-                              ? "scale-110 shadow-xs ring-2 ring-primary ring-offset-2 ring-offset-background"
-                              : "hover:scale-105 opacity-80 hover:opacity-100"
-                          }`}
-                          style={{ backgroundColor: c.value }}
-                        >
-                          {isSelected && <Check className="h-3 w-3 text-white drop-shadow-xs" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <ColorPaletteGenerator
+                    value={color}
+                    onChange={setColor}
+                    defaultValue="#8b5cf6"
+                  />
                 </div>
               </div>
             )}

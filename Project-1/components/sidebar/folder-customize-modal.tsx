@@ -9,6 +9,7 @@ import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { Sparkles, Dices, RefreshCw, Columns2, Rows2, RotateCcw } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ColorPaletteGenerator } from "@/components/ui/color-palette-generator";
 
 interface FolderCustomizeModalProps {
   folder: Folder | null;
@@ -66,10 +67,10 @@ export function FolderCustomizeModal({
     startResize,
   } = useResizableModal({
     modalId: "folder_customize",
-    defaultVerticalWidth: 560,
-    defaultHorizontalWidth: 960,
-    defaultVerticalHeight: 680,
-    defaultHorizontalHeight: 650,
+    defaultVerticalWidth: 520,
+    defaultHorizontalWidth: 840,
+    defaultVerticalHeight: 560,
+    defaultHorizontalHeight: 540,
   });
 
   const handleResetColor = () => {
@@ -226,37 +227,6 @@ export function FolderCustomizeModal({
                     />
                   </div>
 
-                  {/* Harmonic Palettes Generator */}
-                  <div className="space-y-2 pt-1">
-                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                      <Dices className="h-3 w-3 text-primary" />
-                      <span>Harmonic Palettes Generator</span>
-                    </span>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {HARMONIC_PRESETS.map((preset) => (
-                        <button
-                          key={preset.name}
-                          type="button"
-                          onClick={() => {
-                            const randomColor = preset.colors[Math.floor(Math.random() * preset.colors.length)];
-                            setSelectedColor(randomColor);
-                          }}
-                          className="p-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary flex flex-col gap-1 text-left cursor-pointer transition-colors"
-                        >
-                          <span className="text-[10px] font-medium text-foreground">{preset.name}</span>
-                          <div className="flex gap-0.5">
-                            {preset.colors.slice(0, 5).map((col, i) => (
-                              <span key={i} className="h-2 flex-1 rounded-xs" style={{ backgroundColor: col }} />
-                            ))}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Icon Picker & Color Swatches */}
-                <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="font-medium text-foreground">
                       Search & select icon
@@ -266,78 +236,15 @@ export function FolderCustomizeModal({
                       onSelectIcon={setSelectedIcon}
                     />
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="font-medium text-foreground">
-                        Color palette & badge
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleRandomHarmonicColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Generate random harmonious color"
-                        >
-                          <Sparkles className="h-3 w-3 text-primary" />
-                          <span>Generate</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleResetColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Reset color to original"
-                        >
-                          <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                          <span>Reset</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleResetColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Reset color to original"
-                        >
-                          <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                          <span>Reset</span>
-                        </button>
-                        <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                          <span>Custom:</span>
-                          <input
-                            type="color"
-                            value={selectedColor.startsWith("#") && selectedColor.length === 7 ? selectedColor : "#3b82f6"}
-                            onChange={(e) => setSelectedColor(e.target.value)}
-                            className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
-                            title="Pick custom color"
-                          />
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedColor}
-                          onChange={(e) => setSelectedColor(e.target.value)}
-                          className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
-                          placeholder="#3b82f6"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Standard Swatches */}
-                    <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
-                      {COLOR_PALETTE.map((c) => (
-                        <button
-                          type="button"
-                          key={c.value}
-                          onClick={() => setSelectedColor(c.value)}
-                          className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
-                            selectedColor.toLowerCase() === c.value.toLowerCase()
-                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                              : "opacity-85 hover:opacity-100"
-                          }`}
-                          style={{ backgroundColor: c.value }}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                {/* Right Column: Universal Color Palette & Harmonic Generator */}
+                <div className="space-y-4">
+                  <ColorPaletteGenerator
+                    value={selectedColor}
+                    onChange={setSelectedColor}
+                    defaultValue={folder?.color || "#3b82f6"}
+                  />
                 </div>
               </div>
             ) : (
@@ -366,96 +273,11 @@ export function FolderCustomizeModal({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="font-medium text-foreground">
-                      Color palette & badge
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleRandomHarmonicColor}
-                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Generate random harmonious color"
-                      >
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        <span>Generate</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleResetColor}
-                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Reset color to original"
-                      >
-                        <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                        <span>Reset</span>
-                      </button>
-                      <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                        <span>Custom:</span>
-                        <input
-                          type="color"
-                          value={selectedColor.startsWith("#") && selectedColor.length === 7 ? selectedColor : "#3b82f6"}
-                          onChange={(e) => setSelectedColor(e.target.value)}
-                          className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
-                          title="Pick custom color"
-                        />
-                      </label>
-                      <input
-                        type="text"
-                        value={selectedColor}
-                        onChange={(e) => setSelectedColor(e.target.value)}
-                        className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
-                        placeholder="#3b82f6"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Standard Swatches */}
-                  <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
-                    {COLOR_PALETTE.map((c) => (
-                      <button
-                        type="button"
-                        key={c.value}
-                        onClick={() => setSelectedColor(c.value)}
-                        className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
-                          selectedColor.toLowerCase() === c.value.toLowerCase()
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                            : "opacity-85 hover:opacity-100"
-                        }`}
-                        style={{ backgroundColor: c.value }}
-                        title={c.name}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Harmonic Palettes Generator */}
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-                      <Dices className="h-3 w-3 text-primary" />
-                      <span>Harmonic Palettes Generator</span>
-                    </span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {HARMONIC_PRESETS.map((preset) => (
-                        <button
-                          key={preset.name}
-                          type="button"
-                          onClick={() => {
-                            const randomColor = preset.colors[Math.floor(Math.random() * preset.colors.length)];
-                            setSelectedColor(randomColor);
-                          }}
-                          className="p-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary flex flex-col gap-1 text-left cursor-pointer transition-colors"
-                        >
-                          <span className="text-[10px] font-medium text-foreground">{preset.name}</span>
-                          <div className="flex gap-0.5">
-                            {preset.colors.slice(0, 5).map((col, i) => (
-                              <span key={i} className="h-2 flex-1 rounded-xs" style={{ backgroundColor: col }} />
-                            ))}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ColorPaletteGenerator
+                  value={selectedColor}
+                  onChange={setSelectedColor}
+                  defaultValue={folder?.color || "#3b82f6"}
+                />
               </div>
             )}
           </div>

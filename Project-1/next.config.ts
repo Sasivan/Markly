@@ -35,6 +35,9 @@ const plannedStrictCspReportOnly = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_ADMIN_EMAIL: process.env.NEXT_PUBLIC_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "sasivan177@gmail.com",
+  },
   serverExternalPackages: ["better-sqlite3", "sharp", "ipaddr.js"],
   images: {
     remotePatterns: [

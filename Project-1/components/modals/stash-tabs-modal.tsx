@@ -11,6 +11,8 @@ import {
   X,
   ExternalLink,
   Laptop,
+  Columns3,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,6 +23,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ColorPaletteGenerator } from "@/components/ui/color-palette-generator";
 
 interface StashTabsModalProps {
   isOpen: boolean;
@@ -32,10 +36,27 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
   const [folderName, setFolderName] = React.useState(
     `Session Stash — ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
   );
+  const [folderColor, setFolderColor] = React.useState("#3b82f6");
   const [rawText, setRawText] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [successCount, setSuccessCount] = React.useState<number | null>(null);
+
+  // Resizable Modal Hook with horizontal/vertical persistence
+  const {
+    format,
+    toggleFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "stash_tabs",
+    defaultHorizontalWidth: 840,
+    defaultVerticalWidth: 520,
+    defaultHorizontalHeight: 540,
+    defaultVerticalHeight: 560,
+  });
 
   // Parse lines/links from raw text
   const detectedTabs = React.useMemo(() => {
@@ -93,27 +114,24 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
         body: JSON.stringify({
           folderName: folderName.trim() || `Session Stash (${new Date().toLocaleDateString()})`,
           tabs: detectedTabs,
+          color: folderColor,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to stash tabs.");
+        throw new Error(data.error || "Failed to stash tabs");
       }
 
       setSuccessCount(data.bookmarksCount || detectedTabs.length);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-      }
-
+      onSuccess?.();
       setTimeout(() => {
-        onSuccess?.();
         onClose();
         setSuccessCount(null);
         setRawText("");
-      }, 1200);
-    } catch (err: any) {
-      setError(err.message || "Failed to stash tabs");
+      }, 1500);
+    } catch (e: any) {
+      setError(e.message || "An error occurred while saving the session.");
     } finally {
       setLoading(false);
     }
@@ -121,112 +139,165 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md bg-card border-border p-5 text-foreground space-y-4">
-        <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-              <Layers className="h-4 w-4" />
+      <DialogContent
+        style={modalStyle}
+        className="relative bg-card border-border p-5 text-foreground flex flex-col overflow-hidden max-w-[95vw] max-h-[92vh]"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
+        <DialogHeader className="space-y-1 pb-2.5 border-b border-border/60 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div
+                className="h-8 w-8 rounded-lg flex items-center justify-center border text-white shadow-xs"
+                style={{ backgroundColor: folderColor, borderColor: `${folderColor}80` }}
+              >
+                <Layers className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold">Stash Open Tabs</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Save multi-tab browsing sessions into a dedicated folder collection.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-semibold">Stash Open Tabs</DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Save multi-tab browsing sessions like Toby into a dedicated folder.
-              </DialogDescription>
+
+            <div className="flex items-center gap-1.5">
+              {/* Format Toggle (Vertical vs Horizontal) */}
+              <button
+                type="button"
+                onClick={() => toggleFormat(format === "horizontal" ? "vertical" : "horizontal")}
+                title={`Switch to ${format === "horizontal" ? "Vertical" : "Horizontal"} popup`}
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
+              >
+                <Columns3 className="h-3.5 w-3.5" />
+              </button>
+
+              {/* Restore Defaults Button */}
+              {hasCustomSize && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaults}
+                  title="Restore default popup size"
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </DialogHeader>
 
         {error && (
-          <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
+          <div className="my-2 p-2.5 rounded-lg border border-destructive/20 bg-destructive/10 text-destructive text-xs flex items-center gap-2 shrink-0">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {successCount !== null ? (
-          <div className="py-6 text-center space-y-2">
+          <div className="py-12 text-center space-y-2 flex-1 flex flex-col items-center justify-center">
             <div className="h-10 w-10 mx-auto rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
               <Check className="h-5 w-5" />
             </div>
             <div className="text-sm font-semibold text-foreground">
               {successCount} tabs stashed into &quot;{folderName}&quot;!
             </div>
-            <p className="text-xs text-muted-foreground">Your collection has been created.</p>
+            <p className="text-xs text-muted-foreground">Your collection has been created successfully.</p>
           </div>
         ) : (
-          <div className="space-y-3.5 text-xs">
-            {/* Target Folder Name */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Session Collection Name</span>
-              </label>
-              <Input
-                value={folderName}
-                onChange={(e) => setFolderName(e.target.value)}
-                placeholder="e.g. Research Session, Morning Reading..."
-                className="h-8 text-xs bg-background"
-                disabled={loading}
-              />
-            </div>
+          <div className="flex-1 overflow-y-auto pr-1 py-3">
+            <div className={`grid gap-4 ${format === "horizontal" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
+              {/* Left Column: URLs & Folder Name */}
+              <div className="space-y-3.5 text-xs">
+                {/* Target Folder Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                    <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Session Collection Name</span>
+                  </label>
+                  <Input
+                    value={folderName}
+                    onChange={(e) => setFolderName(e.target.value)}
+                    placeholder="e.g. Research Session, Morning Reading..."
+                    className="h-8 text-xs bg-background"
+                    disabled={loading}
+                  />
+                </div>
 
-            {/* Paste URLs Area */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                  <Laptop className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>Paste URLs (one per line)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handlePasteClipboard}
-                  className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                >
-                  <Clipboard className="h-3 w-3" />
-                  <span>Paste Clipboard</span>
-                </button>
+                {/* Paste URLs Area */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Laptop className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Paste URLs (one per line)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handlePasteClipboard}
+                      className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      <Clipboard className="h-3 w-3" />
+                      <span>Paste Clipboard</span>
+                    </button>
+                  </div>
+                  <textarea
+                    value={rawText}
+                    onChange={(e) => setRawText(e.target.value)}
+                    rows={format === "horizontal" ? 8 : 4}
+                    placeholder="https://github.com&#10;https://react.dev&#10;https://news.ycombinator.com"
+                    className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    disabled={loading}
+                  />
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>
+                      Detected: <strong className="text-foreground">{detectedTabs.length}</strong> links
+                    </span>
+                    <span className="text-[10px]">Supports Markdown links and raw URLs</span>
+                  </div>
+                </div>
               </div>
-              <textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                rows={5}
-                placeholder="https://github.com&#10;https://react.dev&#10;https://news.ycombinator.com"
-                className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                disabled={loading}
-              />
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>
-                  Detected: <strong className="text-foreground">{detectedTabs.length}</strong> links
-                </span>
-                <span className="text-[10px]">Supports Markdown links and raw URLs</span>
-              </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onClose}
-                className="h-8 text-xs cursor-pointer"
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleStash}
-                disabled={loading || detectedTabs.length === 0}
-                className="h-8 text-xs bg-primary text-primary-foreground cursor-pointer gap-1.5"
-              >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Layers className="h-3.5 w-3.5" />}
-                <span>Stash {detectedTabs.length > 0 ? `(${detectedTabs.length})` : ""} Tabs</span>
-              </Button>
+              {/* Right Column: Universal Color Palette & Harmonic Generator */}
+              <div className="space-y-2">
+                <ColorPaletteGenerator
+                  value={folderColor}
+                  onChange={setFolderColor}
+                  defaultValue="#3b82f6"
+                />
+              </div>
             </div>
+          </div>
+        )}
+
+        {/* Modal Actions Footer */}
+        {successCount === null && (
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="h-8 text-xs cursor-pointer"
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleStash}
+              disabled={loading || detectedTabs.length === 0}
+              className="h-8 text-xs bg-primary text-primary-foreground cursor-pointer gap-1.5"
+            >
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Layers className="h-3.5 w-3.5" />
+              )}
+              <span>Stash {detectedTabs.length > 0 ? `(${detectedTabs.length})` : ""} Tabs</span>
+            </Button>
           </div>
         )}
       </DialogContent>
     </Dialog>
   );
 }
-

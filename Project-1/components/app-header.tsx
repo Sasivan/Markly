@@ -116,8 +116,8 @@ export function AppHeader({
 
   return (
     <header className="h-12 border-b border-border flex items-center justify-between px-4 bg-background relative z-40 flex-shrink-0">
-      {/* Left side: Mobile Sidebar Toggle Button */}
-      <div className="flex items-center gap-3 md:hidden">
+      {/* Left side: Sidebar Toggle Button (Consistently positioned on top bar) */}
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onToggleSidebar}
@@ -132,8 +132,8 @@ export function AppHeader({
         </button>
       </div>
 
-      {/* Right side: 1 single Import/Export button + Search + Theme */}
-      <div className="flex items-center gap-1.5">
+      {/* Right side: All Header Action Buttons locked to the far right with ml-auto */}
+      <div className="flex items-center gap-1.5 ml-auto">
         {/* 1. Add Bookmark Button */}
         <Button
           size="sm"

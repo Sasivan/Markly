@@ -30,6 +30,7 @@ import {
   Globe,
   BarChart3,
   Columns3,
+  Rows3,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
@@ -60,6 +61,7 @@ export interface HomeWidgetConfig {
   vizConfig?: any; // VizConfig
   span?: "1" | "2"; // 1 = Half Width, 2 = Full Width (legacy)
   colSpan?: WidgetColSpan; // 2..12 column track span
+  rowSpan?: 1 | 2; // 1 = standard height, 2 = tall (spans 2 rows)
 }
 
 export const DEFAULT_HOME_WIDGETS: HomeWidgetConfig[] = [
@@ -115,7 +117,7 @@ export function HomeLayoutModal({
     );
   };
 
-  const cycleColSpan = (id: HomeWidgetKey) => {
+  const cycleColSpan = (id: string) => {
     setLocalWidgets((prev) =>
       prev.map((w) => {
         if (w.id !== id) return w;
@@ -125,6 +127,17 @@ export function HomeLayoutModal({
         const idx = order.indexOf(current);
         const next = idx !== -1 && idx < order.length - 1 ? order[idx + 1] : order[0];
         return { ...w, colSpan: next, span: next === 12 ? "2" : "1" };
+      })
+    );
+  };
+
+  const toggleRowSpan = (id: string) => {
+    setLocalWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        const current = w.rowSpan || 1;
+        const next: 1 | 2 = current === 1 ? 2 : 1;
+        return { ...w, rowSpan: next };
       })
     );
   };
@@ -336,19 +349,39 @@ export function HomeLayoutModal({
                       <span>{widget.visible ? "Active" : "Hidden"}</span>
                     </button>
 
-                    {/* Column Width Selector */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cycleColSpan(widget.id);
-                      }}
-                      className="px-2 py-0.5 rounded-md border border-border bg-background hover:bg-accent text-foreground flex items-center gap-1 cursor-pointer transition-colors font-mono"
-                      title={`Width: ${spanLabel}. Click to cycle: Full -> Half -> 1/3 -> 1/4 -> Full`}
-                    >
-                      <Columns3 className="h-3 w-3 text-muted-foreground" />
-                      <span>{spanLabel}</span>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {/* Height: 1x vs 2x Tall */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleRowSpan(widget.id);
+                        }}
+                        className={`px-1.5 py-0.5 rounded-md border flex items-center gap-1 cursor-pointer transition-colors font-mono text-[10px] ${
+                          widget.rowSpan === 2
+                            ? "bg-primary/10 border-primary/40 text-primary font-semibold"
+                            : "bg-background border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+                        }`}
+                        title={widget.rowSpan === 2 ? "2x Tall (Spans 2 stacked rows)" : "1x Standard height. Click to make 2x tall"}
+                      >
+                        <Rows3 className="h-3 w-3" />
+                        <span>{widget.rowSpan === 2 ? "2x Tall" : "1x"}</span>
+                      </button>
+
+                      {/* Column Width Selector */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cycleColSpan(widget.id);
+                        }}
+                        className="px-2 py-0.5 rounded-md border border-border bg-background hover:bg-accent text-foreground flex items-center gap-1 cursor-pointer transition-colors font-mono"
+                        title={`Width: ${spanLabel}. Click to cycle: Full -> Half -> 1/3 -> 1/4 -> Full`}
+                      >
+                        <Columns3 className="h-3 w-3 text-muted-foreground" />
+                        <span>{spanLabel}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

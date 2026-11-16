@@ -10,11 +10,17 @@ import {
   Layers,
   ArrowRight,
   SlidersHorizontal,
+  CheckCircle2,
+  Pin,
+  Play,
+  Table as TableIcon,
+  PieChart as PieChartIcon,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { HomeWidgetConfig } from "@/components/home/home-layout-modal";
-import type { VizConfig } from "@/lib/viz";
+import type { VizConfig, VizChartType, VizDimension, VizMeasure } from "@/lib/viz";
 import { RemoteWidgetStore } from "@/lib/viz";
 import { VizChart } from "./viz-chart";
 import { VizBuilderDialog } from "./viz-builder-dialog";
@@ -38,6 +44,28 @@ export function VisualsPageView({
 }: VisualsPageViewProps) {
   const [builderOpen, setBuilderOpen] = React.useState(false);
   const [editingConfig, setEditingConfig] = React.useState<VizConfig | null>(null);
+
+  // Studio Interactive Lab state
+  const [studioPreset, setStudioPreset] = React.useState<string>("top_domains");
+  const [studioChartType, setStudioChartType] = React.useState<VizChartType>("bar");
+  const [studioDimension, setStudioDimension] = React.useState<VizDimension>("domain");
+  const [studioMeasure, setStudioMeasure] = React.useState<VizMeasure>("count");
+  const [studioPinnedSuccess, setStudioPinnedSuccess] = React.useState(false);
+
+  const activeStudioConfig: VizConfig = React.useMemo(() => {
+    return {
+      version: 1,
+      id: "studio_live_chart",
+      title: `${studioDimension.replace("_", " ").toUpperCase()} by ${studioMeasure.replace("_", " ").toUpperCase()}`,
+      chartType: studioChartType,
+      dimension: studioDimension,
+      measure: studioMeasure,
+      filters: {},
+      sort: { by: "measure", direction: "desc" },
+      limit: studioChartType === "donut" ? 7 : 10,
+      otherBucket: true,
+    };
+  }, [studioChartType, studioDimension, studioMeasure]);
 
   const widgetStore = React.useMemo(() => new RemoteWidgetStore(), []);
 
@@ -115,6 +143,17 @@ export function VisualsPageView({
         )
       );
     } catch {}
+  };
+
+  const handlePinStudioToDashboard = async () => {
+    const configToPin: VizConfig = {
+      ...activeStudioConfig,
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `viz_${Date.now()}`,
+      title: activeStudioConfig.title,
+    };
+    await handleSaveVisual(configToPin);
+    setStudioPinnedSuccess(true);
+    setTimeout(() => setStudioPinnedSuccess(false), 3000);
   };
 
   // Builtin foundational charts for the Visuals page
@@ -216,6 +255,201 @@ export function VisualsPageView({
               <span>New Visual</span>
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Visual Studio Interactive Playground */}
+      <div className="rounded-xl border border-primary/30 bg-card p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-primary text-primary-foreground uppercase tracking-wider">
+                Interactive Studio
+              </span>
+              <h2 className="text-base font-semibold text-foreground">
+                Live Visual Builder & Variations Studio
+              </h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tweak data dimensions, measures, and chart variations in real-time with your live bookmarks database.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handlePinStudioToDashboard}
+              className="text-xs h-8 cursor-pointer gap-1.5"
+            >
+              {studioPinnedSuccess ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Pinned to Dashboard!</span>
+                </>
+              ) : (
+                <>
+                  <Pin className="h-3.5 w-3.5" />
+                  <span>Pin to Dashboard</span>
+                </>
+              )}
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingConfig(activeStudioConfig);
+                setBuilderOpen(true);
+              }}
+              className="text-xs h-8 cursor-pointer gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Advanced Studio</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Studio Presets Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <span className="text-[11px] font-mono text-muted-foreground mr-1">Presets:</span>
+          {[
+            { id: "top_domains", label: "Top Domains", type: "bar" as VizChartType, dim: "domain" as VizDimension, measure: "count" as VizMeasure },
+            { id: "bookmarks_per_month", label: "Velocity Trend", type: "area" as VizChartType, dim: "created_month" as VizDimension, measure: "count" as VizMeasure },
+            { id: "by_folder", label: "By Folder", type: "donut" as VizChartType, dim: "folder_top" as VizDimension, measure: "count" as VizMeasure },
+            { id: "link_status", label: "Link Health", type: "donut" as VizChartType, dim: "status" as VizDimension, measure: "count" as VizMeasure },
+            { id: "most_visited", label: "Most Visited", type: "horizontal_bar" as VizChartType, dim: "domain" as VizDimension, measure: "sum_visits" as VizMeasure },
+            { id: "by_tag", label: "Tag Distribution", type: "donut" as VizChartType, dim: "tag" as VizDimension, measure: "count" as VizMeasure },
+            { id: "table_view", label: "Data Table", type: "table" as VizChartType, dim: "domain" as VizDimension, measure: "count" as VizMeasure },
+          ].map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => {
+                setStudioPreset(preset.id);
+                setStudioChartType(preset.type);
+                setStudioDimension(preset.dim);
+                setStudioMeasure(preset.measure);
+              }}
+              className={`px-2.5 py-1 rounded-lg border font-medium cursor-pointer transition-colors whitespace-nowrap text-xs ${
+                studioPreset === preset.id
+                  ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
+                  : "bg-secondary/60 hover:bg-secondary text-foreground border-border"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Studio Interactive Control Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
+          {/* 1. Chart Type Variation Switcher */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              1. Chart Variation
+            </label>
+            <div className="grid grid-cols-4 gap-1">
+              {[
+                { type: "bar" as VizChartType, label: "Bar" },
+                { type: "horizontal_bar" as VizChartType, label: "H-Bar" },
+                { type: "area" as VizChartType, label: "Area" },
+                { type: "line" as VizChartType, label: "Line" },
+                { type: "donut" as VizChartType, label: "Donut" },
+                { type: "number" as VizChartType, label: "Number" },
+                { type: "table" as VizChartType, label: "Table" },
+                { type: "stacked_bar" as VizChartType, label: "Stacked" },
+              ].map((c) => (
+                <button
+                  key={c.type}
+                  type="button"
+                  onClick={() => {
+                    setStudioChartType(c.type);
+                    setStudioPreset("");
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-medium border text-center cursor-pointer transition-colors ${
+                    studioChartType === c.type
+                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                      : "bg-card hover:bg-secondary text-foreground border-border"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. Group By Dimension */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              2. Data Group By
+            </label>
+            <select
+              value={studioDimension}
+              onChange={(e) => {
+                setStudioDimension(e.target.value as VizDimension);
+                setStudioPreset("");
+              }}
+              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+            >
+              <option value="domain">Web Domain (Ecosystem)</option>
+              <option value="folder_top">Top-Level Folder</option>
+              <option value="folder_leaf">Subfolder</option>
+              <option value="created_month">Creation Month</option>
+              <option value="created_day">Creation Day</option>
+              <option value="status">Link Status (Active / Broken)</option>
+              <option value="tag">Tags & Topics</option>
+              <option value="visit_count_bucket">Visit Frequency Bucket</option>
+              <option value="last_opened_bucket">Last Opened Recency</option>
+              <option value="favorite">Starred Favorite</option>
+            </select>
+          </div>
+
+          {/* 3. Measure Value */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              3. Measure Metric
+            </label>
+            <select
+              value={studioMeasure}
+              onChange={(e) => {
+                setStudioMeasure(e.target.value as VizMeasure);
+                setStudioPreset("");
+              }}
+              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+            >
+              <option value="count">Count (Total Bookmarks)</option>
+              <option value="sum_visits">Sum of Total Visits</option>
+              <option value="avg_visits">Average Visits per Link</option>
+              <option value="distinct_domains">Distinct Domains</option>
+              <option value="percent_of_total">% of Total Collection</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Live Studio Canvas */}
+        <div className="rounded-xl border border-border bg-background p-4 shadow-inner">
+          <div className="flex items-center justify-between border-b border-border/50 pb-2.5 mb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold text-foreground">
+                {activeStudioConfig.title}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-muted-foreground uppercase px-2 py-0.5 rounded bg-secondary border border-border">
+              Live Interactive Preview
+            </span>
+          </div>
+
+          <VizChart
+            config={activeStudioConfig}
+            bookmarks={bookmarks}
+            folders={folders}
+            height={260}
+            onSelectDomain={onSelectDomain}
+            onSelectTag={onSelectTag}
+            onSelectFolder={onSelectFolder}
+            bare={false}
+          />
         </div>
       </div>
 

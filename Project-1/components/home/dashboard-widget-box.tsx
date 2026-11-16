@@ -36,6 +36,8 @@ interface DashboardWidgetBoxProps {
   span?: "1" | "2";
   colSpan?: WidgetColSpan;
   onColSpanChange?: (span: WidgetColSpan) => void;
+  rowSpan?: 1 | 2;
+  onRowSpanChange?: (span: 1 | 2) => void;
   viewMode?: WidgetViewMode;
   availableViews?: WidgetViewMode[];
   onViewModeChange?: (mode: WidgetViewMode) => void;
@@ -64,6 +66,8 @@ export function DashboardWidgetBox({
   span = "1",
   colSpan,
   onColSpanChange,
+  rowSpan,
+  onRowSpanChange,
   viewMode,
   availableViews,
   onViewModeChange,
@@ -123,6 +127,32 @@ export function DashboardWidgetBox({
       setColSpanState(colSpan);
     }
   }, [colSpan]);
+
+  // Track Row Span (1 or 2 rows tall, persisted in localStorage)
+  const [rowSpanState, setRowSpanState] = React.useState<1 | 2>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_box_rowspan_" + id);
+        if (stored === "2" || stored === "1") return Number(stored) as 1 | 2;
+      } catch {}
+    }
+    return rowSpan || 1;
+  });
+
+  React.useEffect(() => {
+    if (rowSpan && rowSpan !== rowSpanState) {
+      setRowSpanState(rowSpan);
+    }
+  }, [rowSpan]);
+
+  const toggleRowSpan = () => {
+    const next: 1 | 2 = rowSpanState === 1 ? 2 : 1;
+    setRowSpanState(next);
+    try {
+      localStorage.setItem("markly_box_rowspan_" + id, String(next));
+    } catch {}
+    onRowSpanChange?.(next);
+  };
 
   // User-Customizable Box Height (Persisted in localStorage)
   const [boxHeight, setBoxHeight] = React.useState<number | null>(() => {
@@ -293,10 +323,13 @@ export function DashboardWidgetBox({
       onDrop={onDrop}
       style={{
         gridColumn: typeof window !== "undefined" && window.innerWidth >= 768 ? `span ${colSpanState} / span ${colSpanState}` : undefined,
+        gridRow: typeof window !== "undefined" && window.innerWidth >= 768 && rowSpanState === 2 ? "span 2 / span 2" : undefined,
         height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
-        minHeight: isCollapsed ? undefined : "140px",
+        minHeight: isCollapsed ? undefined : rowSpanState === 2 ? "440px" : "140px",
       }}
       className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
+        rowSpanState === 2 ? "md:row-span-2" : ""
+      } ${
         isResizing ? "ring-2 ring-primary/40 select-none" : ""
       }`}
     >
@@ -391,6 +424,21 @@ export function DashboardWidgetBox({
               )}
             </div>
           )}
+
+          {/* Height Toggle: 1x vs 2x Tall */}
+          <button
+            type="button"
+            onClick={toggleRowSpan}
+            className={`h-6 px-1.5 rounded-md border text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors ${
+              rowSpanState === 2
+                ? "bg-primary/10 border-primary/40 text-primary font-semibold"
+                : "bg-secondary/80 hover:bg-secondary text-foreground border-border/50"
+            }`}
+            title={rowSpanState === 2 ? "2x Tall (Spans 2 stacked rows). Click for 1x standard height" : "1x Standard height. Click to make 2x tall"}
+          >
+            <Rows3 className="h-3 w-3 text-muted-foreground" />
+            <span>{rowSpanState === 2 ? "2x Tall" : "1x"}</span>
+          </button>
 
           {/* Adaptive N-Col Width Track Popover (Replaces rigid 2-col button) */}
           <div className="relative" ref={colMenuRef}>
@@ -601,10 +649,10 @@ export function BookmarkItemsView({
     );
   }
 
-  // 1. Grid View (Responsive Bookmark Tile Cards)
+  // 1. Grid View (Responsive Adaptive Bookmark Tile Cards)
   if (mode === "grid") {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5 p-3">
         {items.map((bm) => (
           <div
             key={bm.id}

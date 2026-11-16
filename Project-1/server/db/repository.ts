@@ -2562,13 +2562,18 @@ export class BookmarkRepository {
   /**
    * Stash open browser tabs into a newly created session folder
    */
-  static stashOpenTabs(userId: string, folderName: string, tabs: Array<{ title: string; url: string }>) {
+  static stashOpenTabs(
+    userId: string,
+    folderName: string,
+    tabs: Array<{ title?: string; url: string }>,
+    options?: { color?: string; icon?: string }
+  ) {
     if (!userId || !Array.isArray(tabs) || tabs.length === 0) return null;
     const folder = this.createFolder({
       userId,
       name: folderName || `Stashed Tabs (${new Date().toLocaleDateString()})`,
-      icon: "Layers",
-      color: "#6366f1",
+      icon: options?.icon || "Layers",
+      color: options?.color || "#3b82f6",
     });
 
     const created: BookmarkWithDetails[] = [];

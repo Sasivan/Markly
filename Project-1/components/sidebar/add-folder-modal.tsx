@@ -9,6 +9,7 @@ import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { Sparkles, Columns2, Rows2, RotateCcw } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ColorPaletteGenerator } from "@/components/ui/color-palette-generator";
 
 interface AddFolderModalProps {
   parentId?: string | null;
@@ -59,10 +60,10 @@ export function AddFolderModal({
     startResize,
   } = useResizableModal({
     modalId: "folder_add",
-    defaultVerticalWidth: 560,
-    defaultHorizontalWidth: 960,
-    defaultVerticalHeight: 680,
-    defaultHorizontalHeight: 650,
+    defaultVerticalWidth: 520,
+    defaultHorizontalWidth: 840,
+    defaultVerticalHeight: 560,
+    defaultHorizontalHeight: 540,
   });
 
   const handleResetColor = () => {
@@ -224,67 +225,11 @@ export function AddFolderModal({
                     <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="font-medium text-foreground">
-                        Color palette & accent
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleRandomHarmonicColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Generate random harmonious color"
-                        >
-                          <Sparkles className="h-3 w-3 text-primary" />
-                          <span>Generate</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleResetColor}
-                          className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          title="Reset color to default"
-                        >
-                          <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                          <span>Reset</span>
-                        </button>
-                        <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                          <span>Custom:</span>
-                          <input
-                            type="color"
-                            value={color.startsWith("#") && color.length === 7 ? color : "#3b82f6"}
-                            onChange={(e) => setColor(e.target.value)}
-                            className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
-                            title="Pick custom color"
-                          />
-                        </label>
-                        <input
-                          type="text"
-                          value={color}
-                          onChange={(e) => setColor(e.target.value)}
-                          className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
-                          placeholder="#3b82f6"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
-                      {COLOR_PALETTE.map((c) => (
-                        <button
-                          type="button"
-                          key={c.value}
-                          onClick={() => setColor(c.value)}
-                          className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
-                            color.toLowerCase() === c.value.toLowerCase()
-                              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                              : "opacity-85 hover:opacity-100"
-                          }`}
-                          style={{ backgroundColor: c.value }}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <ColorPaletteGenerator
+                    value={color}
+                    onChange={setColor}
+                    defaultValue="#3b82f6"
+                  />
                 </div>
               </div>
             ) : (
@@ -312,67 +257,11 @@ export function AddFolderModal({
                   <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="font-medium text-foreground">
-                      Color palette & accent
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleRandomHarmonicColor}
-                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Generate random harmonious color"
-                      >
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        <span>Generate</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleResetColor}
-                        className="h-6 px-2 rounded-md bg-secondary border border-border text-[11px] font-medium text-foreground hover:bg-muted flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                        title="Reset color to default"
-                      >
-                        <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                        <span>Reset</span>
-                      </button>
-                      <label className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                        <span>Custom:</span>
-                        <input
-                          type="color"
-                          value={color.startsWith("#") && color.length === 7 ? color : "#3b82f6"}
-                          onChange={(e) => setColor(e.target.value)}
-                          className="h-5 w-5 rounded border-0 cursor-pointer p-0 bg-transparent"
-                          title="Pick custom color"
-                        />
-                      </label>
-                      <input
-                        type="text"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        className="h-6 w-16 text-xs font-mono px-1.5 rounded border border-border bg-background text-foreground"
-                        placeholder="#3b82f6"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-8 gap-2 p-2.5 rounded-lg border border-border bg-muted/30">
-                    {COLOR_PALETTE.map((c) => (
-                      <button
-                        type="button"
-                        key={c.value}
-                        onClick={() => setColor(c.value)}
-                        className={`h-6 w-6 rounded-full cursor-pointer transition-colors ${
-                          color.toLowerCase() === c.value.toLowerCase()
-                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                            : "opacity-85 hover:opacity-100"
-                        }`}
-                        style={{ backgroundColor: c.value }}
-                        title={c.name}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <ColorPaletteGenerator
+                  value={color}
+                  onChange={setColor}
+                  defaultValue="#3b82f6"
+                />
               </div>
             )}
           </div>

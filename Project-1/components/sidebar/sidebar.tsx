@@ -214,6 +214,7 @@ export function Sidebar({
   const isUserAdmin = React.useMemo(() => {
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    if (uEmail === "sasivan177@gmail.com") return true;
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) return true;
     if (
       user?.app_metadata?.role === "admin" ||
@@ -573,9 +574,9 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Collapsed Nav Rail */}
-        <div className="flex-1 py-2 flex flex-col items-center space-y-2 px-1 overflow-y-auto">
-          {/* Home Option */}
+        {/* Collapsed Nav Rail (Exact same 1-to-1 order as expanded sidebar) */}
+        <div className="flex-1 py-2 flex flex-col items-center space-y-1.5 px-1 overflow-y-auto">
+          {/* 1. Home Option */}
           <button
             type="button"
             onClick={() => {
@@ -592,7 +593,7 @@ export function Sidebar({
             <Compass className="h-4 w-4" />
           </button>
 
-          {/* Quick Search in Minimized Rail */}
+          {/* 2. Quick Search in Minimized Rail */}
           <button
             type="button"
             onClick={onOpenSearch}
@@ -602,24 +603,7 @@ export function Sidebar({
             <Search className="h-4 w-4" />
           </button>
 
-          {/* Smart Collections Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("smart-collections");
-            }}
-            title="Smart Collections"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "smart-collections" && !activeFolderId
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Sparkles className="h-4 w-4" />
-          </button>
-
-          {/* All Sites Option */}
+          {/* 3. All Sites Option */}
           <button
             type="button"
             onClick={() => {
@@ -636,75 +620,7 @@ export function Sidebar({
             <Globe className="h-4 w-4" />
           </button>
 
-          {/* Folder Collections Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("collections");
-            }}
-            title="Folder Collections"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "collections" && !activeFolderId
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Folder className="h-4 w-4" />
-          </button>
-
-          {/* Visuals Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("visuals");
-            }}
-            title="Visuals & Analytics"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "visuals" && !activeFolderId
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <BarChart3 className="h-4 w-4" />
-          </button>
-
-          {/* Knowledge Graph Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("graph");
-            }}
-            title="Interactive Knowledge Graph"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "graph" && !activeFolderId
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Layers className="h-4 w-4" />
-          </button>
-
-          {/* Recently Visited Option */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("recent");
-            }}
-            title="Recently Visited"
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-              activeView === "recent" && !activeFolderId
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <History className="h-4 w-4" />
-          </button>
-
-          {/* Favorites Option */}
+          {/* 4. Favorites Option */}
           <button
             type="button"
             onClick={() => {
@@ -721,7 +637,58 @@ export function Sidebar({
             <Star className="h-4 w-4" />
           </button>
 
-          {/* Shared Links Option */}
+          {/* 5. Recently Visited Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("recent");
+            }}
+            title="Recently Visited"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "recent" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <History className="h-4 w-4" />
+          </button>
+
+          {/* 6. Smart Collections Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("smart-collections");
+            }}
+            title="Smart Collections"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "smart-collections" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
+
+          {/* 7. Tab Sessions & Stash Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("sessions");
+            }}
+            title="Tab Sessions & Stash"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "sessions" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+          </button>
+
+          {/* 8. Shared Links Option */}
           <button
             type="button"
             onClick={() => {
@@ -738,7 +705,58 @@ export function Sidebar({
             <Share2 className="h-4 w-4" />
           </button>
 
-          {/* Archive Option */}
+          {/* 9. Folder Collections Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("collections");
+            }}
+            title="Folder Collections"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "collections" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Folder className="h-4 w-4" />
+          </button>
+
+          {/* 10. Visuals & Analytics Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("visuals");
+            }}
+            title="Visuals & Analytics"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "visuals" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4 text-primary" />
+          </button>
+
+          {/* 11. Knowledge Graph Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("graph");
+            }}
+            title="Interactive Knowledge Graph"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "graph" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+          </button>
+
+          {/* 12. Archive Option */}
           <button
             type="button"
             onClick={() => {
@@ -755,7 +773,7 @@ export function Sidebar({
             <Archive className="h-4 w-4" />
           </button>
 
-          {/* Recycle Bin Option */}
+          {/* 13. Recycle Bin Option */}
           <button
             type="button"
             onClick={() => {
@@ -771,6 +789,22 @@ export function Sidebar({
           >
             <Trash2 className="h-4 w-4" />
           </button>
+
+          {/* 14. Admin Moderation (for admins) */}
+          {isUserAdmin && (
+            <button
+              type="button"
+              onClick={() => {
+                onSelectFolder(null);
+                onSelectView("feedback");
+                window.dispatchEvent(new CustomEvent("markly-open-admin-feedback"));
+              }}
+              title="Admin Feedback Moderation"
+              className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+            >
+              <ShieldCheck className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Pinned Bottom Left Feedback & Profile in Collapsed Rail */}
@@ -939,16 +973,6 @@ export function Sidebar({
               </button>
             </div>
           </div>
-
-          {/* Clean Collapse Button at the right edge of open sidebar */}
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            title="Collapse sidebar (Ctrl+\)"
-            className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center cursor-pointer transition-colors shrink-0"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
         </div>
 
         {/* Page 1: Workspace Nav Section */}
@@ -1162,7 +1186,7 @@ export function Sidebar({
             </span>
           </button>
 
-          {/* Visuals */}
+          {/* Visuals & Custom Builder */}
           <button
             type="button"
             onClick={() => {
@@ -1171,14 +1195,17 @@ export function Sidebar({
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
               activeView === "visuals" && !activeFolderId
-                ? "bg-accent text-accent-foreground"
+                ? "bg-accent text-accent-foreground font-semibold"
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
             }`}
           >
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <BarChart3 className="h-4 w-4 text-primary" />
             </div>
-            <span className="truncate">Visuals</span>
+            <span className="truncate">Visual builder & charts</span>
+            <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+              Studio
+            </span>
           </button>
 
           {/* Knowledge Graph */}

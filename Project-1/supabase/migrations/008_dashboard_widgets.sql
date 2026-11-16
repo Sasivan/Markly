@@ -27,3 +27,4 @@ CREATE POLICY "Users can manage own dashboard widgets"
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+

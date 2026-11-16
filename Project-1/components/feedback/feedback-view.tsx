@@ -91,17 +91,15 @@ interface FeedbackViewProps {
 
 export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = React.useState(false);
-  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("my");
-  const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
-  const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Client-side admin check from user session
   const clientAdmin = React.useMemo(() => {
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+
+    if (uEmail === "sasivan177@gmail.com") {
+      return true;
+    }
 
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
       return true;
@@ -132,6 +130,29 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
     return false;
   }, [user]);
+
+  const [isAdmin, setIsAdmin] = React.useState(clientAdmin);
+  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">(clientAdmin ? "admin" : "my");
+  const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
+  const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (clientAdmin) {
+      setIsAdmin(true);
+      setMainTab("admin");
+    }
+  }, [clientAdmin]);
+
+  React.useEffect(() => {
+    const handleOpenAdmin = () => {
+      setIsAdmin(true);
+      setMainTab("admin");
+    };
+    window.addEventListener("markly-open-admin-feedback", handleOpenAdmin);
+    return () => window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
+  }, []);
 
   // Form State
   const [title, setTitle] = React.useState("");

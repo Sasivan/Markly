@@ -175,10 +175,23 @@ export function WorkspaceHome({
   };
 
   // Change column span for a widget (2 to 12 cols)
-  const handleWidgetColSpanChange = (id: HomeWidgetKey, newColSpan: WidgetColSpan) => {
+  const handleWidgetColSpanChange = (id: string, newColSpan: WidgetColSpan) => {
     setHomeWidgets((prev) => {
       const next = prev.map((w) =>
         w.id === id ? { ...w, colSpan: newColSpan, span: (newColSpan === 12 ? "2" : "1") as "1" | "2" } : w
+      );
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Change row span for a widget (1 standard vs 2 tall)
+  const handleWidgetRowSpanChange = (id: string, newRowSpan: 1 | 2) => {
+    setHomeWidgets((prev) => {
+      const next = prev.map((w) =>
+        w.id === id ? { ...w, rowSpan: newRowSpan } : w
       );
       try {
         localStorage.setItem("markly_home_widgets", JSON.stringify(next));
@@ -426,10 +439,10 @@ export function WorkspaceHome({
     if (activeAndFavs.length > 0) {
       return activeAndFavs
         .sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0) || (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0) || b.createdAt - a.createdAt)
-        .slice(0, 6);
+        .slice(0, 36);
     }
     // Fallback if no bookmarks have been visited yet: show newest additions
-    return [...unarchived].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
+    return [...unarchived].sort((a, b) => b.createdAt - a.createdAt).slice(0, 36);
   }, [bookmarks]);
 
   // 2. Recently Visited: Strict chronological timeline of actual visits
@@ -441,12 +454,12 @@ export function WorkspaceHome({
         const timeB = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0);
         return timeB - timeA;
       })
-      .slice(0, 6);
+      .slice(0, 36);
   }, [bookmarks]);
 
-  // 3. Favorites (Top 6)
+  // 3. Favorites (Up to 36)
   const favorites = React.useMemo(() => {
-    return bookmarks.filter((b) => b.isFavorite && !b.isArchived).slice(0, 6);
+    return bookmarks.filter((b) => b.isFavorite && !b.isArchived).slice(0, 36);
   }, [bookmarks]);
 
   // 4. Unsorted / Inbox: Strictly unarchived bookmarks without any folder
@@ -459,7 +472,7 @@ export function WorkspaceHome({
   }, [bookmarks]);
 
   const totalUnsortedCount = unsortedBookmarks.length;
-  const unorganized = React.useMemo(() => unsortedBookmarks.slice(0, 6), [unsortedBookmarks]);
+  const unorganized = React.useMemo(() => unsortedBookmarks.slice(0, 36), [unsortedBookmarks]);
 
   // 6. Topic & Tags Cloud
   const topTags = React.useMemo(() => {
@@ -941,6 +954,8 @@ export function WorkspaceHome({
       span: widget.span ?? "1",
       colSpan: widget.colSpan ?? (widget.span === "2" ? 12 : 6),
       onColSpanChange: (span: WidgetColSpan) => handleWidgetColSpanChange(widget.id, span),
+      rowSpan: widget.rowSpan || 1,
+      onRowSpanChange: (rSpan: 1 | 2) => handleWidgetRowSpanChange(widget.id, rSpan),
       isFirst,
       isLast,
       onToggleSpan: () => handleToggleWidgetSpan(widget.id),
@@ -1637,7 +1652,7 @@ export function WorkspaceHome({
         }
 
         return (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 w-full items-start">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 w-full items-start [grid-auto-flow:dense]">
             {visibleWidgets.map((widget, idx) =>
               renderWidget(widget, idx, idx === 0, idx === visibleWidgets.length - 1)
             )}

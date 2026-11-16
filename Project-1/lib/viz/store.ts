@@ -79,3 +79,4 @@ export class RemoteWidgetStore implements WidgetStore {
     }
   }
 }
+

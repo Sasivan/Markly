@@ -30,8 +30,8 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
         className="fixed inset-0 bg-black/70 transition-opacity animate-in fade-in"
         onClick={() => onOpenChange(false)}
       />
-      {/* Opaque high-contrast card container */}
-      <div className="relative z-50 w-full max-w-lg">{children}</div>
+      {/* Opaque high-contrast card container - Always strictly centered */}
+      <div className="relative z-50 flex items-center justify-center max-w-[94vw] max-h-[88vh] pointer-events-auto">{children}</div>
     </div>
   );
 }
@@ -44,7 +44,7 @@ export function DialogContent({
   return (
     <div
       className={cn(
-        "relative w-full rounded-xl border border-border bg-card text-card-foreground p-6 shadow-xl transition-[opacity,transform] duration-150 ease-out animate-in zoom-in-95 opacity-100",
+        "relative w-full rounded-xl border border-border bg-card text-card-foreground p-6 shadow-xl transition-[opacity,transform] duration-150 ease-out animate-in zoom-in-95 opacity-100 max-w-[94vw] max-h-[88vh]",
         className
       )}
       {...props}

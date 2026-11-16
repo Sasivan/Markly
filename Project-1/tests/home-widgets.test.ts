@@ -302,3 +302,4 @@ describe("STAGE 5: /api/home-widgets Persistence & Security Rules", () => {
     });
   });
 });
+

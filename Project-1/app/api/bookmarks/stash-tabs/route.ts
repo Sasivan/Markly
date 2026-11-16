@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser(req);
     const body = await req.json();
-    const { folderName, tabs } = body;
+    const { folderName, tabs, color, icon } = body;
 
     if (!Array.isArray(tabs) || tabs.length === 0) {
       return NextResponse.json({ success: false, error: "tabs array is required and must not be empty" }, { status: 400 });
@@ -18,7 +18,8 @@ export async function POST(req: Request) {
     const result = BookmarkRepository.stashOpenTabs(
       user.id,
       folderName || `Stashed Tabs (${new Date().toLocaleDateString()})`,
-      tabs
+      tabs,
+      { color, icon }
     );
 
     if (!result) {

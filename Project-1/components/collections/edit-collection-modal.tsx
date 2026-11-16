@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UniversalIdentityPicker } from "@/components/ui/universal-identity-picker";
+import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
+import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 import {
@@ -169,32 +170,38 @@ export function EditCollectionModal({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2 text-xs">
-          {/* Collection Name */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Collection Name
-            </label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Development, Resources, Inbox..."
-              className="h-9 text-xs"
-              required
-              autoFocus
-            />
+        <form onSubmit={handleSubmit} className="space-y-3.5 mt-2 text-xs">
+          {/* Collection Name & Unified Identity */}
+          <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Collection Name &amp; Identity
+              </label>
+              <span className="text-[10px] font-mono text-muted-foreground">Branding</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <UniversalIconPicker
+                icon={selectedIcon}
+                color={selectedColor}
+                onChange={setSelectedIcon}
+                label="Choose collection icon"
+              />
+              <UniversalColorPicker
+                color={selectedColor}
+                onChange={setSelectedColor}
+                label="Choose accent color"
+              />
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Development, Resources, Inbox..."
+                className="h-8 text-xs bg-background flex-1 font-semibold"
+                required
+                autoFocus
+              />
+            </div>
           </div>
-
-          {/* Universal Icon & Accent Color Picker */}
-          <UniversalIdentityPicker
-            icon={selectedIcon}
-            color={selectedColor}
-            onIconChange={setSelectedIcon}
-            onColorChange={setSelectedColor}
-            label="Collection Identity & Accent"
-            previewName={name || "Collection Preview"}
-          />
 
           {/* Location / Move Parent Folder Selection */}
           <div className="space-y-1.5">

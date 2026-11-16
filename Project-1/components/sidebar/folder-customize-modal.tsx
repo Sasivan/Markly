@@ -4,9 +4,10 @@ import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UniversalIdentityPicker } from "@/components/ui/universal-identity-picker";
+import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { Sparkles, Dices, RefreshCw, Columns2, Rows2, RotateCcw } from "lucide-react";
+import { Columns2, Rows2, RotateCcw } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
@@ -16,34 +17,6 @@ interface FolderCustomizeModalProps {
   onOpenChange: (open: boolean) => void;
   onSave: (folderId: string, updates: { name: string; icon: string; color: string }) => void;
 }
-
-const HARMONIC_PRESETS = [
-  { name: "Vibrant", colors: ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2"] },
-  { name: "Pastel", colors: ["#93c5fd", "#c4b5fd", "#f9a8d4", "#fdba74", "#86efac", "#67e8f9"] },
-  { name: "Nordic", colors: ["#334155", "#475569", "#0f766e", "#0369a1", "#4338ca", "#581c87"] },
-  { name: "Sunset", colors: ["#f43f5e", "#fb7185", "#f97316", "#fb923c", "#f59e0b", "#eab308"] },
-  { name: "Forest", colors: ["#065f46", "#047857", "#059669", "#10b981", "#34d399", "#84cc16"] },
-  { name: "Neon", colors: ["#00f0ff", "#ff007f", "#7928ca", "#00dfd8", "#ff4b4b", "#ffe600"] },
-];
-
-const COLOR_PALETTE = [
-  { name: "Blue", value: "#3b82f6" },
-  { name: "Indigo", value: "#6366f1" },
-  { name: "Violet", value: "#8b5cf6" },
-  { name: "Purple", value: "#a855f7" },
-  { name: "Pink", value: "#ec4899" },
-  { name: "Rose", value: "#f43f5e" },
-  { name: "Red", value: "#ef4444" },
-  { name: "Orange", value: "#f97316" },
-  { name: "Amber", value: "#f59e0b" },
-  { name: "Yellow", value: "#eab308" },
-  { name: "Lime", value: "#84cc16" },
-  { name: "Emerald", value: "#10b981" },
-  { name: "Teal", value: "#14b8a6" },
-  { name: "Cyan", value: "#06b6d4" },
-  { name: "Slate", value: "#64748b" },
-  { name: "Zinc", value: "#71717a" },
-];
 
 export function FolderCustomizeModal({
   folder,
@@ -66,30 +39,11 @@ export function FolderCustomizeModal({
     startResize,
   } = useResizableModal({
     modalId: "folder_customize",
-    defaultVerticalWidth: 520,
-    defaultHorizontalWidth: 840,
-    defaultVerticalHeight: 560,
-    defaultHorizontalHeight: 540,
+    defaultVerticalWidth: 480,
+    defaultHorizontalWidth: 720,
+    defaultVerticalHeight: 380,
+    defaultHorizontalHeight: 360,
   });
-
-  const handleResetColor = () => {
-    setSelectedColor(folder?.color || "#3b82f6");
-  };
-
-  const handleRandomHarmonicColor = () => {
-    // Generate aesthetic harmonious color
-    const hue = Math.floor(Math.random() * 360);
-    const sat = 75;
-    const light = 55;
-    const a = (sat * Math.min(light, 100 - light)) / 100;
-    const f = (n: number) => {
-      const k = (n + hue / 30) % 12;
-      const color = light / 100 - (a / 100) * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * color).toString(16).padStart(2, "0");
-    };
-    const hex = `#${f(0)}${f(8)}${f(4)}`;
-    setSelectedColor(hex);
-  };
 
   React.useEffect(() => {
     if (folder) {
@@ -126,21 +80,21 @@ export function FolderCustomizeModal({
       >
         <ModalResizeHandles onStartResize={startResize} />
 
-        <DialogHeader className="pb-2 border-b border-border/60">
+        <DialogHeader className="pb-3 border-b border-border/60">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
-                className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
-                style={{ backgroundColor: `${selectedColor}20` }}
+                className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 border border-border shadow-2xs transition-colors"
+                style={{ backgroundColor: `${selectedColor}20`, borderColor: `${selectedColor}40` }}
               >
-                <FolderIconRenderer icon={selectedIcon} className="h-5 w-5" color={selectedColor} />
+                <FolderIconRenderer icon={selectedIcon} className="h-4.5 w-4.5" color={selectedColor} />
               </div>
               <div>
                 <DialogTitle className="text-base font-semibold text-foreground">
-                  Customize folder
+                  Customize Folder
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
-                  Search icons and customize folder appearance
+                  Update folder title, icon, and accent color
                 </DialogDescription>
               </div>
             </div>
@@ -190,33 +144,50 @@ export function FolderCustomizeModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
-          <div className="overflow-y-auto flex-1 pr-1.5 py-3 space-y-4">
-            {/* Standardized Universal Identity & Accent Picker */}
-            <UniversalIdentityPicker
-              icon={selectedIcon}
-              color={selectedColor}
-              onIconChange={setSelectedIcon}
-              onColorChange={setSelectedColor}
-              label="Folder Identity & Accent"
-              previewName={name || folder.name || "Folder Preview"}
-            />
+          <div className="overflow-y-auto flex-1 pr-1 py-4 space-y-4">
+            {/* Unified Folder Branding Card */}
+            <div className="p-3.5 rounded-xl border border-border bg-secondary/30 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                  Folder Name & Identity
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Universal Icon & Accent
+                </span>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="font-medium text-foreground text-xs">
-                Folder name
-              </label>
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-8 text-xs bg-background border border-border"
-                autoFocus
-                placeholder="Enter folder name..."
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-card border border-border shrink-0 shadow-2xs">
+                  <UniversalIconPicker
+                    icon={selectedIcon}
+                    color={selectedColor}
+                    onChange={setSelectedIcon}
+                    label="Change Folder Icon"
+                    compact={true}
+                  />
+                  <UniversalColorPicker
+                    color={selectedColor}
+                    onChange={setSelectedColor}
+                    label="Change Accent Color"
+                    compact={true}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <Input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-10 text-xs bg-background border border-border font-medium"
+                    autoFocus
+                    placeholder="Enter folder name..."
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 mt-2">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 mt-auto">
             <Button
               type="button"
               variant="outline"

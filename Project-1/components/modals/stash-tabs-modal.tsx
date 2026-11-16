@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
+import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 
 interface StashTabsModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
     `Session Stash — ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
   );
   const [folderColor, setFolderColor] = React.useState("#3b82f6");
+  const [folderIcon, setFolderIcon] = React.useState("layers");
   const [rawText, setRawText] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -115,6 +117,7 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
           folderName: folderName.trim() || `Session Stash (${new Date().toLocaleDateString()})`,
           tabs: detectedTabs,
           color: folderColor,
+          icon: folderIcon,
         }),
       });
 
@@ -210,19 +213,35 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
             <div className={`grid gap-4 ${format === "horizontal" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
               {/* Left Column: URLs & Folder Name */}
               <div className="space-y-3.5 text-xs">
-                {/* Target Folder Name */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                    <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Session Collection Name</span>
-                  </label>
-                  <Input
-                    value={folderName}
-                    onChange={(e) => setFolderName(e.target.value)}
-                    placeholder="e.g. Research Session, Morning Reading..."
-                    className="h-8 text-xs bg-background"
-                    disabled={loading}
-                  />
+                {/* Target Folder Name & Identity */}
+                <div className="p-3 rounded-xl border border-border bg-secondary/25 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                      Session Collection Name &amp; Branding
+                    </label>
+                    <span className="text-[10px] text-muted-foreground font-mono">Folder Identity</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <UniversalIconPicker
+                      icon={folderIcon}
+                      color={folderColor}
+                      onChange={setFolderIcon}
+                      label="Session Icon"
+                    />
+                    <UniversalColorPicker
+                      color={folderColor}
+                      onChange={setFolderColor}
+                      label="Session Accent Color"
+                    />
+                    <Input
+                      value={folderName}
+                      onChange={(e) => setFolderName(e.target.value)}
+                      placeholder="e.g. Research Session, Morning Reading..."
+                      className="h-8 text-xs bg-background flex-1 font-medium"
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
                 {/* Paste URLs Area */}
@@ -256,20 +275,6 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
                     <span className="text-[10px]">Supports Markdown links and raw URLs</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Universal Color Palette & Accent Picker */}
-              <div className="space-y-2 p-3 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold text-foreground block">Session Accent Color</span>
-                  <span className="text-[10px] text-muted-foreground block">Pick a color for the created stash folder</span>
-                </div>
-                <UniversalColorPicker
-                  color={folderColor}
-                  onChange={setFolderColor}
-                  label="Session Accent Color"
-                  compact={false}
-                />
               </div>
             </div>
           </div>

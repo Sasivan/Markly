@@ -946,19 +946,23 @@ export function UniversalVisualBuilderModal({
         <DialogHeader className="p-4 sm:px-6 border-b border-border bg-secondary/30 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              {/* Universal Icon Picker */}
-              <UniversalIconPicker
-                icon={icon}
-                color={color}
-                onChange={setIcon}
-                label="Choose visual icon"
-              />
-              {/* Universal Color Picker */}
-              <UniversalColorPicker
-                color={color}
-                onChange={setColor}
-                label="Choose visual accent color"
-              />
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-background border border-border shadow-2xs">
+                {/* Universal Icon Picker */}
+                <UniversalIconPicker
+                  icon={icon}
+                  color={color}
+                  onChange={setIcon}
+                  label="Choose visual icon"
+                  compact={true}
+                />
+                {/* Universal Color Picker */}
+                <UniversalColorPicker
+                  color={color}
+                  onChange={setColor}
+                  label="Choose visual accent color"
+                  compact={true}
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <input
                   type="text"

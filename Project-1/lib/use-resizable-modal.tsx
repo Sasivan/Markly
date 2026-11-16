@@ -2,6 +2,17 @@
 
 import * as React from "react";
 
+export type ModalResizeDirection =
+  | "right"
+  | "left"
+  | "bottom"
+  | "top"
+  | "corner"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
 interface UseResizableModalOptions {
   modalId: string;
   defaultVerticalWidth?: number;
@@ -79,7 +90,7 @@ export function useResizableModal({
   };
 
   // Drag Resizing State
-  const [isResizing, setIsResizing] = React.useState<"right" | "bottom" | "corner" | null>(null);
+  const [isResizing, setIsResizing] = React.useState<ModalResizeDirection | null>(null);
   const dragRef = React.useRef<{
     startX: number;
     startY: number;
@@ -93,7 +104,7 @@ export function useResizableModal({
   const effectiveWidth = customWidth ?? currentDefaultWidth;
   const effectiveHeight = customHeight ?? currentDefaultHeight;
 
-  const startResize = (type: "right" | "bottom" | "corner", e: React.MouseEvent) => {
+  const startResize = (type: ModalResizeDirection, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(type);
@@ -110,18 +121,45 @@ export function useResizableModal({
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - dragRef.current.startX;
-      const deltaY = e.clientY - dragRef.current.startY;
+      const maxWidth = typeof window !== "undefined" ? Math.min(window.innerWidth * 0.94, 1200) : 960;
+      const maxHeight = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.90, 850) : 600;
 
-      const maxWidth = typeof window !== "undefined" ? Math.min(window.innerWidth * 0.92, 1100) : 960;
-      const maxHeight = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.86, 760) : 600;
-
-      if (isResizing === "right" || isResizing === "corner") {
+      // Horizontal resize (right vs left)
+      if (
+        isResizing === "right" ||
+        isResizing === "corner" ||
+        isResizing === "bottom-right" ||
+        isResizing === "top-right"
+      ) {
+        const deltaX = e.clientX - dragRef.current.startX;
+        const nextW = Math.min(maxWidth, Math.max(minWidth, dragRef.current.startWidth + deltaX * 2));
+        setCustomWidth(Math.round(nextW));
+      } else if (
+        isResizing === "left" ||
+        isResizing === "bottom-left" ||
+        isResizing === "top-left"
+      ) {
+        const deltaX = dragRef.current.startX - e.clientX;
         const nextW = Math.min(maxWidth, Math.max(minWidth, dragRef.current.startWidth + deltaX * 2));
         setCustomWidth(Math.round(nextW));
       }
 
-      if (isResizing === "bottom" || isResizing === "corner") {
+      // Vertical resize (bottom vs top)
+      if (
+        isResizing === "bottom" ||
+        isResizing === "corner" ||
+        isResizing === "bottom-right" ||
+        isResizing === "bottom-left"
+      ) {
+        const deltaY = e.clientY - dragRef.current.startY;
+        const nextH = Math.min(maxHeight, Math.max(minHeight, dragRef.current.startHeight + deltaY * 2));
+        setCustomHeight(Math.round(nextH));
+      } else if (
+        isResizing === "top" ||
+        isResizing === "top-left" ||
+        isResizing === "top-right"
+      ) {
+        const deltaY = dragRef.current.startY - e.clientY;
         const nextH = Math.min(maxHeight, Math.max(minHeight, dragRef.current.startHeight + deltaY * 2));
         setCustomHeight(Math.round(nextH));
       }
@@ -157,10 +195,10 @@ export function useResizableModal({
   }, [isResizing, minWidth, minHeight, modalId]);
 
   const modalStyle: React.CSSProperties = {
-    width: typeof window !== "undefined" ? `min(${effectiveWidth}px, 92vw)` : `${effectiveWidth}px`,
-    height: typeof window !== "undefined" ? `min(${effectiveHeight}px, 86vh)` : `${effectiveHeight}px`,
-    maxWidth: "92vw",
-    maxHeight: "86vh",
+    width: typeof window !== "undefined" ? `min(${effectiveWidth}px, 94vw)` : `${effectiveWidth}px`,
+    height: typeof window !== "undefined" ? `min(${effectiveHeight}px, 90vh)` : `${effectiveHeight}px`,
+    maxWidth: "94vw",
+    maxHeight: "90vh",
   };
 
   const hasCustomSize = customWidth !== null || customHeight !== null;
@@ -179,40 +217,81 @@ export function useResizableModal({
 }
 
 /**
- * Reusable Resize Handles Component for Dialogs
+ * Reusable 8-Directional Resize Handles Component for Dialogs
  */
 export function ModalResizeHandles({
   onStartResize,
 }: {
-  onStartResize: (type: "right" | "bottom" | "corner", e: React.MouseEvent) => void;
+  onStartResize: (type: ModalResizeDirection, e: React.MouseEvent) => void;
 }) {
   return (
     <>
-      {/* Right border drag handle */}
+      {/* Right border drag handle (East) */}
       <div
         onMouseDown={(e) => onStartResize("right", e)}
-        title="Drag right to resize modal width"
-        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
+        title="Drag right border to resize width"
+        className="absolute top-2 -right-1 bottom-2 w-3 cursor-ew-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
       />
-      {/* Bottom border drag handle */}
+      {/* Left border drag handle (West) */}
+      <div
+        onMouseDown={(e) => onStartResize("left", e)}
+        title="Drag left border to resize width"
+        className="absolute top-2 -left-1 bottom-2 w-3 cursor-ew-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
+      />
+      {/* Bottom border drag handle (South) */}
       <div
         onMouseDown={(e) => onStartResize("bottom", e)}
-        title="Drag bottom to resize modal height"
-        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
+        title="Drag bottom border to resize height"
+        className="absolute -bottom-1 left-2 right-2 h-3 cursor-ns-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
       />
-      {/* Bottom-right corner drag handle */}
+      {/* Top border drag handle (North) */}
       <div
-        onMouseDown={(e) => onStartResize("corner", e)}
-        title="Drag corner to resize width and height"
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-end justify-end p-0.5 select-none"
+        onMouseDown={(e) => onStartResize("top", e)}
+        title="Drag top border to resize height"
+        className="absolute -top-1 left-2 right-2 h-3 cursor-ns-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
+      />
+
+      {/* Bottom-right corner drag handle (South-East) */}
+      <div
+        onMouseDown={(e) => onStartResize("bottom-right", e)}
+        title="Drag bottom-right corner to freely resize width and height"
+        className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-end justify-end p-0.5 select-none"
       >
-        <svg
-          className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none"
-          viewBox="0 0 6 6"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
           <path d="M5 1L1 5M5 3L3 5M5 5H5.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      {/* Bottom-left corner drag handle (South-West) */}
+      <div
+        onMouseDown={(e) => onStartResize("bottom-left", e)}
+        title="Drag bottom-left corner to freely resize width and height"
+        className="absolute -bottom-1 -left-1 w-5 h-5 cursor-nesw-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-end justify-start p-0.5 select-none"
+      >
+        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
+          <path d="M1 1L5 5M1 3L3 5M1 5H1.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      {/* Top-right corner drag handle (North-East) */}
+      <div
+        onMouseDown={(e) => onStartResize("top-right", e)}
+        title="Drag top-right corner to freely resize width and height"
+        className="absolute -top-1 -right-1 w-5 h-5 cursor-nesw-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-start justify-end p-0.5 select-none"
+      >
+        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
+          <path d="M5 5L1 1M5 3L3 1M5 1H5.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      {/* Top-left corner drag handle (North-West) */}
+      <div
+        onMouseDown={(e) => onStartResize("top-left", e)}
+        title="Drag top-left corner to freely resize width and height"
+        className="absolute -top-1 -left-1 w-5 h-5 cursor-nwse-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-start justify-start p-0.5 select-none"
+      >
+        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
+          <path d="M1 5L5 1M1 3L3 1M1 1H1.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
         </svg>
       </div>
     </>

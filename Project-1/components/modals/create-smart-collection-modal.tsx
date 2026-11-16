@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UniversalIdentityPicker } from "@/components/ui/universal-identity-picker";
+import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
+import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
@@ -269,17 +270,35 @@ export function CreateSmartCollectionModal({
                     </div>
                   </div>
 
-                  {/* Collection Name */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-foreground">Collection Name</label>
-                    <Input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Starred Dev Tools"
-                      className="h-8 text-xs bg-background"
-                      autoFocus
-                      disabled={loading}
-                    />
+                  {/* Collection Name & Identity */}
+                  <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                        Collection Name &amp; Identity
+                      </label>
+                      <span className="text-[10px] font-mono text-muted-foreground">Branding</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <UniversalIconPicker
+                        icon={icon}
+                        color={color}
+                        onChange={setIcon}
+                        label="Choose icon"
+                      />
+                      <UniversalColorPicker
+                        color={color}
+                        onChange={setColor}
+                        label="Choose accent color"
+                      />
+                      <Input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Starred Dev Tools"
+                        className="h-8 text-xs bg-background flex-1 font-semibold"
+                        autoFocus
+                        disabled={loading}
+                      />
+                    </div>
                   </div>
 
                   {/* Filter Field & Rule Value */}
@@ -385,17 +404,30 @@ export function CreateSmartCollectionModal({
                   </div>
                 </div>
 
-                {/* Right Column: Live Badge Preview, Icon Picker, Color Palette */}
+                {/* Right Column: Live Badge Preview Card & Rule Summary */}
                 <div className="space-y-3.5">
-                  {/* Universal Identity & Accent Picker */}
-                  <UniversalIdentityPicker
-                    icon={icon}
-                    color={color}
-                    onIconChange={setIcon}
-                    onColorChange={setColor}
-                    label="Smart Collection Identity"
-                    previewName={name || "Collection Preview"}
-                  />
+                  <div className="p-3.5 rounded-xl border border-border bg-secondary/30 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-10 w-10 rounded-xl flex items-center justify-center border border-border shrink-0 shadow-2xs"
+                        style={{ backgroundColor: `${color}20`, borderColor: `${color}40` }}
+                      >
+                        <FolderIconRenderer icon={icon} className="h-5 w-5" color={color} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-foreground truncate">
+                          {name || "Collection Preview"}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-mono truncate">
+                          Rule: {ruleField} = {ruleValue || "(any)"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/60 text-xs text-muted-foreground">
+                      <span>Live Virtual View: automatically indexes all matching sites as they are created or updated.</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -448,17 +480,35 @@ export function CreateSmartCollectionModal({
                   </div>
                 </div>
 
-                {/* Collection Name */}
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-foreground">Collection Name</label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Starred Dev Tools"
-                    className="h-8 text-xs bg-background"
-                    autoFocus
-                    disabled={loading}
-                  />
+                {/* Collection Name & Identity */}
+                <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                      Collection Name &amp; Identity
+                    </label>
+                    <span className="text-[10px] font-mono text-muted-foreground">Branding</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <UniversalIconPicker
+                      icon={icon}
+                      color={color}
+                      onChange={setIcon}
+                      label="Choose icon"
+                    />
+                    <UniversalColorPicker
+                      color={color}
+                      onChange={setColor}
+                      label="Choose accent color"
+                    />
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Starred Dev Tools"
+                      className="h-8 text-xs bg-background flex-1 font-semibold"
+                      autoFocus
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
                 {/* Filter Field & Rule Value */}
@@ -562,16 +612,6 @@ export function CreateSmartCollectionModal({
                     )}
                   </div>
                 </div>
-
-                {/* Universal Identity & Accent Picker */}
-                <UniversalIdentityPicker
-                  icon={icon}
-                  color={color}
-                  onIconChange={setIcon}
-                  onColorChange={setColor}
-                  label="Smart Collection Identity"
-                  previewName={name || "Collection Preview"}
-                />
               </div>
             )}
           </div>

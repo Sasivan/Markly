@@ -131,7 +131,7 @@ export function UniversalIconPicker({
   // Resizable dimensions state
   const [popupWidth, setPopupWidth] = React.useState<number>(330);
   const [popupHeight, setPopupHeight] = React.useState<number>(390);
-  const [isResizing, setIsResizing] = React.useState<"width" | "height" | "both" | null>(null);
+  const [isResizing, setIsResizing] = React.useState<"width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw" | null>(null);
 
   // Recent Icons
   const [recentIcons, setRecentIcons] = React.useState<string[]>(() => {
@@ -234,7 +234,10 @@ export function UniversalIconPicker({
   }, [isOpen]);
 
   // Resizing handler for the portaled popup window
-  const startPopupResize = (direction: "width" | "height" | "both", startEvent: React.MouseEvent) => {
+  const startPopupResize = (
+    direction: "width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw",
+    startEvent: React.MouseEvent
+  ) => {
     startEvent.preventDefault();
     startEvent.stopPropagation();
     setIsResizing(direction);
@@ -243,22 +246,56 @@ export function UniversalIconPicker({
     const startY = startEvent.clientY;
     const initialW = popupWidth;
     const initialH = popupHeight;
+    const initialCoords = { ...coords };
 
     const prevCursor = document.body.style.cursor;
     const prevSelect = document.body.style.userSelect;
     document.body.style.userSelect = "none";
-    if (direction === "width") document.body.style.cursor = "ew-resize";
-    else if (direction === "height") document.body.style.cursor = "ns-resize";
-    else document.body.style.cursor = "nwse-resize";
+    if (direction === "width" || direction === "e" || direction === "w") {
+      document.body.style.cursor = "ew-resize";
+    } else if (direction === "height" || direction === "s" || direction === "n") {
+      document.body.style.cursor = "ns-resize";
+    } else if (direction === "ne" || direction === "sw") {
+      document.body.style.cursor = "nesw-resize";
+    } else {
+      document.body.style.cursor = "nwse-resize";
+    }
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      if (direction === "width" || direction === "both") {
+      // Horizontal resize
+      if (
+        direction === "width" ||
+        direction === "both" ||
+        direction === "e" ||
+        direction === "se" ||
+        direction === "ne"
+      ) {
         const deltaX = moveEvent.clientX - startX;
-        setPopupWidth(Math.min(650, Math.max(280, initialW + deltaX)));
+        setPopupWidth(Math.min(700, Math.max(260, initialW + deltaX)));
+      } else if (direction === "w" || direction === "sw" || direction === "nw") {
+        const deltaX = startX - moveEvent.clientX;
+        const newW = Math.min(700, Math.max(260, initialW + deltaX));
+        const appliedDelta = newW - initialW;
+        setPopupWidth(newW);
+        setCoords((prev) => ({ ...prev, left: initialCoords.left - appliedDelta }));
       }
-      if (direction === "height" || direction === "both") {
+
+      // Vertical resize
+      if (
+        direction === "height" ||
+        direction === "both" ||
+        direction === "s" ||
+        direction === "se" ||
+        direction === "sw"
+      ) {
         const deltaY = moveEvent.clientY - startY;
-        setPopupHeight(Math.min(700, Math.max(280, initialH + deltaY)));
+        setPopupHeight(Math.min(750, Math.max(260, initialH + deltaY)));
+      } else if (direction === "n" || direction === "ne" || direction === "nw") {
+        const deltaY = startY - moveEvent.clientY;
+        const newH = Math.min(750, Math.max(260, initialH + deltaY));
+        const appliedDelta = newH - initialH;
+        setPopupHeight(newH);
+        setCoords((prev) => ({ ...prev, top: initialCoords.top - appliedDelta }));
       }
     };
 
@@ -439,37 +476,91 @@ export function UniversalIconPicker({
               </div>
             )}
 
-            {/* Right Edge: Width Resize Handle */}
+            {/* Right Edge (East) */}
             <div
-              onMouseDown={(e) => startPopupResize("width", e)}
-              className="absolute top-0 -right-1 bottom-0 w-2.5 cursor-ew-resize z-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+              onMouseDown={(e) => startPopupResize("e", e)}
+              className="absolute top-2 -right-1.5 bottom-2 w-3 cursor-ew-resize z-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
               title="Drag right edge to resize width"
             >
               <div className="w-1 h-8 rounded-full bg-primary" />
             </div>
 
-            {/* Bottom Edge: Height Resize Handle */}
+            {/* Left Edge (West) */}
             <div
-              onMouseDown={(e) => startPopupResize("height", e)}
-              className="absolute -bottom-1 left-0 right-0 h-2.5 cursor-ns-resize z-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+              onMouseDown={(e) => startPopupResize("w", e)}
+              className="absolute top-2 -left-1.5 bottom-2 w-3 cursor-ew-resize z-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+              title="Drag left edge to resize width"
+            >
+              <div className="w-1 h-8 rounded-full bg-primary" />
+            </div>
+
+            {/* Bottom Edge (South) */}
+            <div
+              onMouseDown={(e) => startPopupResize("s", e)}
+              className="absolute -bottom-1.5 left-2 right-2 h-3 cursor-ns-resize z-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
               title="Drag bottom edge to resize height"
             >
               <div className="h-1 w-12 rounded-full bg-primary" />
             </div>
 
-            {/* Bottom-Right Corner: Bi-Directional Resize Grip */}
+            {/* Top Edge (North) */}
             <div
-              onMouseDown={(e) => startPopupResize("both", e)}
+              onMouseDown={(e) => startPopupResize("n", e)}
+              className="absolute -top-1.5 left-2 right-2 h-3 cursor-ns-resize z-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+              title="Drag top edge to resize height"
+            >
+              <div className="h-1 w-12 rounded-full bg-primary" />
+            </div>
+
+            {/* Bottom-Right Corner (South-East) */}
+            <div
+              onMouseDown={(e) => startPopupResize("se", e)}
               className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize z-30 flex items-end justify-end p-0.5 opacity-60 hover:opacity-100 transition-opacity"
-              title="Drag corner to freely resize icon picker"
+              title="Drag corner to freely resize"
             >
               <svg className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
                 <circle cx="14" cy="14" r="1.5" />
                 <circle cx="9" cy="14" r="1.5" />
                 <circle cx="14" cy="9" r="1.5" />
-                <circle cx="4" cy="14" r="1.5" />
-                <circle cx="9" cy="9" r="1.5" />
-                <circle cx="14" cy="4" r="1.5" />
+              </svg>
+            </div>
+
+            {/* Bottom-Left Corner (South-West) */}
+            <div
+              onMouseDown={(e) => startPopupResize("sw", e)}
+              className="absolute -bottom-1 -left-1 w-5 h-5 cursor-nesw-resize z-30 flex items-end justify-start p-0.5 opacity-60 hover:opacity-100 transition-opacity"
+              title="Drag corner to freely resize"
+            >
+              <svg className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="2" cy="14" r="1.5" />
+                <circle cx="7" cy="14" r="1.5" />
+                <circle cx="2" cy="9" r="1.5" />
+              </svg>
+            </div>
+
+            {/* Top-Right Corner (North-East) */}
+            <div
+              onMouseDown={(e) => startPopupResize("ne", e)}
+              className="absolute -top-1 -right-1 w-5 h-5 cursor-nesw-resize z-30 flex items-start justify-end p-0.5 opacity-60 hover:opacity-100 transition-opacity"
+              title="Drag corner to freely resize"
+            >
+              <svg className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="14" cy="2" r="1.5" />
+                <circle cx="9" cy="2" r="1.5" />
+                <circle cx="14" cy="7" r="1.5" />
+              </svg>
+            </div>
+
+            {/* Top-Left Corner (North-West) */}
+            <div
+              onMouseDown={(e) => startPopupResize("nw", e)}
+              className="absolute -top-1 -left-1 w-5 h-5 cursor-nwse-resize z-30 flex items-start justify-start p-0.5 opacity-60 hover:opacity-100 transition-opacity"
+              title="Drag corner to freely resize"
+            >
+              <svg className="w-3 h-3 text-muted-foreground hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="2" cy="2" r="1.5" />
+                <circle cx="7" cy="2" r="1.5" />
+                <circle cx="2" cy="7" r="1.5" />
               </svg>
             </div>
           </div>,

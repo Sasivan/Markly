@@ -196,7 +196,9 @@ export function DashboardWidgetBox({
   });
 
   const boxRef = React.useRef<HTMLDivElement>(null);
-  const [isResizing, setIsResizing] = React.useState<"width" | "height" | "both" | null>(null);
+  const [isResizing, setIsResizing] = React.useState<
+    "width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw" | null
+  >(null);
   const [colMenuOpen, setColMenuOpen] = React.useState(false);
   const colMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -253,7 +255,10 @@ export function DashboardWidgetBox({
   }, [colMenuOpen, actionMenuOpen, limitMenuOpen]);
 
   const startResize = React.useCallback(
-    (direction: "width" | "height" | "both", startEvent: React.MouseEvent) => {
+    (
+      direction: "width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw",
+      startEvent: React.MouseEvent
+    ) => {
       startEvent.preventDefault();
       startEvent.stopPropagation();
       setIsResizing(direction);
@@ -273,13 +278,33 @@ export function DashboardWidgetBox({
       const prevCursor = document.body.style.cursor;
       const prevSelect = document.body.style.userSelect;
       document.body.style.userSelect = "none";
-      if (direction === "width") document.body.style.cursor = "ew-resize";
-      else if (direction === "height") document.body.style.cursor = "ns-resize";
-      else document.body.style.cursor = "nwse-resize";
+      if (direction === "width" || direction === "e" || direction === "w") {
+        document.body.style.cursor = "ew-resize";
+      } else if (direction === "height" || direction === "s" || direction === "n") {
+        document.body.style.cursor = "ns-resize";
+      } else if (direction === "ne" || direction === "sw") {
+        document.body.style.cursor = "nesw-resize";
+      } else {
+        document.body.style.cursor = "nwse-resize";
+      }
 
       const onMouseMove = (moveEvent: MouseEvent) => {
-        if (direction === "width" || direction === "both") {
-          const deltaX = moveEvent.clientX - startX;
+        // Horizontal resizing (from right edge "e"/"width", left edge "w", or corners)
+        if (
+          direction === "width" ||
+          direction === "both" ||
+          direction === "e" ||
+          direction === "w" ||
+          direction === "se" ||
+          direction === "sw" ||
+          direction === "ne" ||
+          direction === "nw"
+        ) {
+          // If dragging from left side (w, sw, nw), pulling left (negative clientX - startX) widens
+          const deltaX =
+            direction === "w" || direction === "sw" || direction === "nw"
+              ? startX - moveEvent.clientX
+              : moveEvent.clientX - startX;
           const newWidthPx = Math.max(120, initialWidthPx + deltaX);
           const fraction = newWidthPx / parentWidth;
           const rawCols = Math.round(fraction * 12);
@@ -297,8 +322,22 @@ export function DashboardWidgetBox({
           setColSpanState(closest);
         }
 
-        if (direction === "height" || direction === "both") {
-          const deltaY = moveEvent.clientY - startY;
+        // Vertical resizing (from bottom edge "s"/"height", top edge "n", or corners)
+        if (
+          direction === "height" ||
+          direction === "both" ||
+          direction === "s" ||
+          direction === "n" ||
+          direction === "se" ||
+          direction === "sw" ||
+          direction === "ne" ||
+          direction === "nw"
+        ) {
+          // If dragging from top side (n, ne, nw), pulling up (startY - clientY) increases height
+          const deltaY =
+            direction === "n" || direction === "ne" || direction === "nw"
+              ? startY - moveEvent.clientY
+              : moveEvent.clientY - startY;
           const newHeightPx = Math.min(1600, Math.max(140, Math.round(initialHeightPx + deltaY)));
           setBoxHeight(newHeightPx);
           if (newHeightPx >= 350) {
@@ -767,33 +806,49 @@ export function DashboardWidgetBox({
         </div>
       )}
 
-      {/* Right Edge: Left-to-Right Horizontal Width Resize Handle */}
+      {/* Right Edge: Horizontal Width Resize Handle (East) */}
       <div
-        onMouseDown={(e) => startResize("width", e)}
+        onMouseDown={(e) => startResize("e", e)}
         onDoubleClick={handleCycleColSpan}
-        className="absolute top-0 -right-2 bottom-0 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-40 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+        className="absolute top-2 -right-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
         title="Drag right edge to resize column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
       >
         <div
           className={`w-1 h-14 rounded-full transition-all ${
-            isResizing === "width" || isResizing === "both"
+            isResizing === "width" || isResizing === "both" || isResizing === "e" || isResizing === "se" || isResizing === "ne"
               ? "bg-primary w-1.5 shadow-sm"
               : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
           }`}
         />
       </div>
 
-      {/* Bottom Edge: Height Resize Handle */}
+      {/* Left Edge: Horizontal Width Resize Handle (West) */}
+      <div
+        onMouseDown={(e) => startResize("w", e)}
+        onDoubleClick={handleCycleColSpan}
+        className="absolute top-2 -left-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+        title="Drag left edge to resize column width"
+      >
+        <div
+          className={`w-1 h-14 rounded-full transition-all ${
+            isResizing === "w" || isResizing === "sw" || isResizing === "nw"
+              ? "bg-primary w-1.5 shadow-sm"
+              : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
+          }`}
+        />
+      </div>
+
+      {/* Bottom Edge: Height Resize Handle (South) */}
       {!isCollapsed && (
         <div
-          onMouseDown={(e) => startResize("height", e)}
+          onMouseDown={(e) => startResize("s", e)}
           onDoubleClick={toggleRowSpan}
-          className="absolute -bottom-2 left-0 right-0 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-40 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -bottom-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag bottom edge to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
         >
           <div
             className={`h-1 w-20 rounded-full transition-all ${
-              isResizing === "height" || isResizing === "both"
+              isResizing === "height" || isResizing === "both" || isResizing === "s" || isResizing === "se" || isResizing === "sw"
                 ? "bg-primary h-1.5 shadow-sm"
                 : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
             }`}
@@ -801,12 +856,30 @@ export function DashboardWidgetBox({
         </div>
       )}
 
-      {/* Bottom-Right Corner: Bi-Directional Resize Grip */}
+      {/* Top Edge: Height Resize Handle (North) */}
       {!isCollapsed && (
         <div
-          onMouseDown={(e) => startResize("both", e)}
+          onMouseDown={(e) => startResize("n", e)}
+          onDoubleClick={toggleRowSpan}
+          className="absolute -top-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag top edge to resize box height"
+        >
+          <div
+            className={`h-1 w-20 rounded-full transition-all ${
+              isResizing === "n" || isResizing === "ne" || isResizing === "nw"
+                ? "bg-primary h-1.5 shadow-sm"
+                : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
+            }`}
+          />
+        </div>
+      )}
+
+      {/* Bottom-Right Corner (South-East) */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={(e) => startResize("se", e)}
           className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-30 flex items-end justify-end p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag corner to freely resize both width and height"
+          title="Drag bottom-right corner to freely resize width and height"
         >
           <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
             <circle cx="14" cy="14" r="1.5" />
@@ -815,6 +888,60 @@ export function DashboardWidgetBox({
             <circle cx="14" cy="9" r="1.5" />
             <circle cx="9" cy="9" r="1.5" />
             <circle cx="14" cy="4" r="1.5" />
+          </svg>
+        </div>
+      )}
+
+      {/* Bottom-Left Corner (South-West) */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={(e) => startResize("sw", e)}
+          className="absolute -bottom-1 -left-1 w-6 h-6 cursor-nesw-resize z-30 flex items-end justify-start p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag bottom-left corner to freely resize width and height"
+        >
+          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="2" cy="14" r="1.5" />
+            <circle cx="7" cy="14" r="1.5" />
+            <circle cx="12" cy="14" r="1.5" />
+            <circle cx="2" cy="9" r="1.5" />
+            <circle cx="7" cy="9" r="1.5" />
+            <circle cx="2" cy="4" r="1.5" />
+          </svg>
+        </div>
+      )}
+
+      {/* Top-Right Corner (North-East) */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={(e) => startResize("ne", e)}
+          className="absolute -top-1 -right-1 w-6 h-6 cursor-nesw-resize z-30 flex items-start justify-end p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag top-right corner to freely resize width and height"
+        >
+          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="14" cy="2" r="1.5" />
+            <circle cx="9" cy="2" r="1.5" />
+            <circle cx="4" cy="2" r="1.5" />
+            <circle cx="14" cy="7" r="1.5" />
+            <circle cx="9" cy="7" r="1.5" />
+            <circle cx="14" cy="12" r="1.5" />
+          </svg>
+        </div>
+      )}
+
+      {/* Top-Left Corner (North-West) */}
+      {!isCollapsed && (
+        <div
+          onMouseDown={(e) => startResize("nw", e)}
+          className="absolute -top-1 -left-1 w-6 h-6 cursor-nwse-resize z-30 flex items-start justify-start p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag top-left corner to freely resize width and height"
+        >
+          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="2" cy="2" r="1.5" />
+            <circle cx="7" cy="2" r="1.5" />
+            <circle cx="12" cy="2" r="1.5" />
+            <circle cx="2" cy="7" r="1.5" />
+            <circle cx="7" cy="7" r="1.5" />
+            <circle cx="2" cy="12" r="1.5" />
           </svg>
         </div>
       )}

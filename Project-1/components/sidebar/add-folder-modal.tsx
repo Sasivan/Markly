@@ -4,9 +4,10 @@ import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UniversalIdentityPicker } from "@/components/ui/universal-identity-picker";
+import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { Sparkles, Columns2, Rows2, RotateCcw } from "lucide-react";
+import { Columns2, Rows2, RotateCcw } from "lucide-react";
 import type { Folder } from "@/server/db/schema";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
@@ -17,25 +18,6 @@ interface AddFolderModalProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (name: string, icon: string, color: string, parentId?: string | null) => Promise<void>;
 }
-
-export const COLOR_PALETTE = [
-  { name: "Blue", value: "#3b82f6" },
-  { name: "Indigo", value: "#6366f1" },
-  { name: "Violet", value: "#8b5cf6" },
-  { name: "Purple", value: "#a855f7" },
-  { name: "Pink", value: "#ec4899" },
-  { name: "Rose", value: "#f43f5e" },
-  { name: "Red", value: "#ef4444" },
-  { name: "Orange", value: "#f97316" },
-  { name: "Amber", value: "#f59e0b" },
-  { name: "Yellow", value: "#eab308" },
-  { name: "Lime", value: "#84cc16" },
-  { name: "Emerald", value: "#10b981" },
-  { name: "Teal", value: "#14b8a6" },
-  { name: "Cyan", value: "#06b6d4" },
-  { name: "Slate", value: "#64748b" },
-  { name: "Zinc", value: "#71717a" },
-];
 
 export function AddFolderModal({
   parentId,
@@ -59,29 +41,11 @@ export function AddFolderModal({
     startResize,
   } = useResizableModal({
     modalId: "folder_add",
-    defaultVerticalWidth: 520,
-    defaultHorizontalWidth: 840,
-    defaultVerticalHeight: 560,
-    defaultHorizontalHeight: 540,
+    defaultVerticalWidth: 480,
+    defaultHorizontalWidth: 720,
+    defaultVerticalHeight: 380,
+    defaultHorizontalHeight: 360,
   });
-
-  const handleResetColor = () => {
-    setColor("#3b82f6");
-  };
-
-  const handleRandomHarmonicColor = () => {
-    const hue = Math.floor(Math.random() * 360);
-    const sat = 75;
-    const light = 55;
-    const a = (sat * Math.min(light, 100 - light)) / 100;
-    const f = (n: number) => {
-      const k = (n + hue / 30) % 12;
-      const c = light / 100 - (a / 100) * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * c).toString(16).padStart(2, "0");
-    };
-    const hex = `#${f(0)}${f(8)}${f(4)}`;
-    setColor(hex);
-  };
 
   React.useEffect(() => {
     if (open) {
@@ -112,21 +76,21 @@ export function AddFolderModal({
       >
         <ModalResizeHandles onStartResize={startResize} />
 
-        <DialogHeader className="pb-2 border-b border-border/60">
+        <DialogHeader className="pb-3 border-b border-border/60">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
-                className="h-10 w-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 border border-border"
-                style={{ backgroundColor: `${color}20` }}
+                className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 border border-border shadow-2xs transition-colors"
+                style={{ backgroundColor: `${color}20`, borderColor: `${color}40` }}
               >
-                <FolderIconRenderer icon={icon} className="h-5 w-5" color={color} />
+                <FolderIconRenderer icon={icon} className="h-4.5 w-4.5" color={color} />
               </div>
               <div>
                 <DialogTitle className="text-base font-semibold text-foreground">
-                  {parentFolder ? `New subfolder in "${parentFolder.name}"` : "Create new folder"}
+                  {parentFolder ? `New subfolder in "${parentFolder.name}"` : "Create New Folder"}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
-                  Choose a name, search icons, and pick a color accent
+                  Choose a folder name, pick an icon, and select an accent color
                 </DialogDescription>
               </div>
             </div>
@@ -176,34 +140,51 @@ export function AddFolderModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
-          <div className="overflow-y-auto flex-1 pr-1.5 py-3 space-y-4">
-            {/* Standardized Universal Identity & Accent Picker */}
-            <UniversalIdentityPicker
-              icon={icon}
-              color={color}
-              onIconChange={setIcon}
-              onColorChange={setColor}
-              label="New Folder Identity"
-              previewName={name || "Untitled Folder"}
-            />
+          <div className="overflow-y-auto flex-1 pr-1 py-4 space-y-4">
+            {/* Unified Folder Branding Card */}
+            <div className="p-3.5 rounded-xl border border-border bg-secondary/30 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                  Folder Name & Identity
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Universal Icon & Accent
+                </span>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="font-medium text-foreground text-xs">
-                Folder name
-              </label>
-              <Input
-                type="text"
-                placeholder="e.g. Machine Learning, React Tools, Articles..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-8 text-xs bg-background border border-border"
-                autoFocus
-                required
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-card border border-border shrink-0 shadow-2xs">
+                  <UniversalIconPicker
+                    icon={icon}
+                    color={color}
+                    onChange={setIcon}
+                    label="Select Folder Icon"
+                    compact={true}
+                  />
+                  <UniversalColorPicker
+                    color={color}
+                    onChange={setColor}
+                    label="Select Accent Color"
+                    compact={true}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <Input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-10 text-xs bg-background border border-border font-medium"
+                    autoFocus
+                    required
+                    placeholder="e.g. Machine Learning, React Tools, Articles..."
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 mt-2">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 mt-auto">
             <Button
               type="button"
               variant="outline"

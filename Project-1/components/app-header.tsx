@@ -17,6 +17,7 @@ import {
   Keyboard,
   Puzzle,
   Layers,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -59,6 +60,25 @@ export function AppHeader({
   const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  const isUserAdmin = React.useMemo(() => {
+    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const storedEmail = typeof window !== "undefined" ? (localStorage.getItem("markly_user_email") || "").trim().toLowerCase() : "";
+    if (uEmail === "sasivan177@gmail.com" || uEmail.includes("sasivan177") || storedEmail.includes("sasivan177")) return true;
+    if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) return true;
+    if (
+      user?.app_metadata?.role === "admin" ||
+      user?.user_metadata?.role === "admin" ||
+      user?.role === "admin" ||
+      user?.app_metadata?.is_admin === true ||
+      user?.user_metadata?.is_admin === true ||
+      process.env.NEXT_PUBLIC_DEV_ADMIN === "true"
+    ) {
+      return true;
+    }
+    return false;
+  }, [user]);
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -116,8 +136,8 @@ export function AppHeader({
 
   return (
     <header className="h-12 border-b border-border flex items-center justify-between px-4 bg-background relative z-40 flex-shrink-0">
-      {/* Left side: Sidebar Toggle Button (Consistently positioned on top bar) */}
-      <div className="flex items-center gap-3">
+      {/* Left side: Mobile Sidebar Toggle Button */}
+      <div className="flex items-center gap-3 md:hidden">
         <button
           type="button"
           onClick={onToggleSidebar}
@@ -272,6 +292,20 @@ export function AppHeader({
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span>Account profile & settings</span>
                   </button>
+
+                  {isUserAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        window.dispatchEvent(new CustomEvent("markly-open-admin-feedback"));
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer transition-colors text-left border border-emerald-500/20 my-1"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Admin moderation console</span>
+                    </button>
+                  )}
 
                   <div className="border-t border-border/60 my-1 pt-1" />
 

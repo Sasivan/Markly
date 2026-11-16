@@ -938,33 +938,45 @@ export function Sidebar({
             </span>
           </button>
 
-          {/* Page Switcher Buttons: Positioned at far right of header panel */}
-          <div className="flex items-center gap-0.5 ml-auto bg-secondary/80 p-0.5 rounded-md border border-border/60 shrink-0">
+          {/* Page Switcher Buttons & Collapse Sidebar Button: Positioned at right of website name panel */}
+          <div className="flex items-center gap-1.5 ml-auto shrink-0">
+            <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-md border border-border/60">
+              <button
+                type="button"
+                onClick={() => setSidebarPage("nav")}
+                disabled={sidebarPage === "nav"}
+                title="Page 1: Navigation & Views"
+                className={`h-5 w-5 rounded flex items-center justify-center cursor-pointer transition-colors ${
+                  sidebarPage === "nav"
+                    ? "bg-card text-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSidebarPage("folders")}
+                disabled={sidebarPage === "folders"}
+                title="Page 2: Folder Tree Hierarchy"
+                className={`h-5 w-5 rounded flex items-center justify-center cursor-pointer transition-colors ${
+                  sidebarPage === "folders"
+                    ? "bg-card text-foreground font-bold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+
+            {/* Collapse Sidebar Button at the right edge of open sidebar */}
             <button
               type="button"
-              onClick={() => setSidebarPage("nav")}
-              disabled={sidebarPage === "nav"}
-              title="Page 1: Navigation & Views"
-              className={`h-5 w-5 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                sidebarPage === "nav"
-                  ? "bg-card text-foreground font-bold shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={() => setCollapsed(true)}
+              title="Collapse sidebar (Ctrl+\)"
+              className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center cursor-pointer transition-colors shrink-0"
             >
-              <ChevronLeft className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setSidebarPage("folders")}
-              disabled={sidebarPage === "folders"}
-              title="Page 2: Folder Tree Hierarchy"
-              className={`h-5 w-5 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                sidebarPage === "folders"
-                  ? "bg-card text-foreground font-bold shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <ChevronRight className="h-3 w-3" />
+              <PanelLeftClose className="h-4 w-4" />
             </button>
           </div>
         </div>

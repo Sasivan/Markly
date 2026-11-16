@@ -54,6 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const u = oauthSession.session.user;
               setUser(u);
               setSession(oauthSession.session);
+              if (typeof window !== "undefined" && u.email) {
+                try {
+                  localStorage.setItem("markly_user_email", u.email);
+                } catch {}
+              }
 
               // Clean URL hash so the user doesn't see access token in address bar
               window.history.replaceState(null, "", window.location.pathname);
@@ -74,6 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data?.session?.user) {
           setUser(data.session.user);
           setSession(data.session);
+          if (typeof window !== "undefined" && data.session.user.email) {
+            try {
+              localStorage.setItem("markly_user_email", data.session.user.email);
+            } catch {}
+          }
 
           // Clean hash if present
           if (typeof window !== "undefined" && window.location.hash.includes("access_token")) {
@@ -98,6 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (newSession?.user?.id) {
         setSession(newSession);
         setUser(newSession.user);
+        if (typeof window !== "undefined" && newSession.user.email) {
+          try {
+            localStorage.setItem("markly_user_email", newSession.user.email);
+          } catch {}
+        }
       }
       setIsLoading(false);
     });
@@ -147,8 +162,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sessionData?.session?.user) {
         setUser(sessionData.session.user);
         setSession(sessionData.session);
+        if (typeof window !== "undefined" && sessionData.session.user.email) {
+          try {
+            localStorage.setItem("markly_user_email", sessionData.session.user.email);
+          } catch {}
+        }
       } else if (data.user) {
         setUser(data.user);
+        if (typeof window !== "undefined" && data.user.email) {
+          try {
+            localStorage.setItem("markly_user_email", data.user.email);
+          } catch {}
+        }
       }
 
       closeAuthModal();

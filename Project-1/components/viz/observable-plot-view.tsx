@@ -4,28 +4,57 @@ import * as React from "react";
 import * as Plot from "@observablehq/plot";
 
 export type ObservablePlotType =
+  // Bars & Columns
   | "barX"
   | "barY"
   | "stackedBarY"
   | "stackedBarX"
   | "groupedBar"
+  | "lollipop"
+  | "box"
+  | "waffle"
+  // Points & Scatter
   | "dot"
   | "bubble"
+  | "tick"
+  | "rule"
+  // Lines & Trends
   | "line"
   | "stepLine"
+  | "multiLine"
+  | "difference"
+  | "linearRegression"
+  | "bollinger"
+  // Areas & Densities
   | "area"
   | "stackedArea"
-  | "cell"
   | "histogram"
-  | "rule"
-  | "tick"
-  | "vector"
-  | "text"
+  | "density"
+  | "contour"
+  // Heatmaps, Meshes & Grids
+  | "cell"
+  | "matrix"
   | "hexbin"
-  | "difference"
-  | "multiLine"
-  | "lollipop"
-  | "matrix";
+  | "delaunay"
+  | "voronoi"
+  // Specialized & Geometric
+  | "arrow"
+  | "vector"
+  | "link"
+  | "text"
+  | "tree"
+  | "auto";
+
+export type ObservableCurveType =
+  | "natural"
+  | "linear"
+  | "step"
+  | "step-after"
+  | "step-before"
+  | "bump-x"
+  | "basis"
+  | "catmull-rom"
+  | "monotone-x";
 
 export interface ObservablePlotConfig {
   type: ObservablePlotType;
@@ -38,16 +67,34 @@ export interface ObservablePlotConfig {
   fx?: string;
   fy?: string;
   colorScheme?: string;
+  colorType?: "categorical" | "sequential" | "diverging" | "linear" | "ordinal";
+  xType?: "linear" | "log" | "sqrt" | "time" | "utc" | "ordinal" | "band" | "point";
+  yType?: "linear" | "log" | "sqrt" | "ordinal" | "band";
+  xLabel?: string;
+  yLabel?: string;
   title?: string;
+  subtitle?: string;
+  caption?: string;
   height?: number;
   width?: number;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
   marginLeft?: number;
+  inset?: number;
+  padding?: number;
   grid?: boolean;
   tip?: boolean;
-  curve?: "natural" | "linear" | "step" | "bump-x";
+  crosshair?: boolean;
+  legend?: boolean;
+  curve?: ObservableCurveType;
+  marker?: boolean;
+  x1?: string;
+  y1?: string;
+  x2?: string;
+  y2?: string;
+  ariaLabel?: string;
+  ariaDescription?: string;
 }
 
 export interface ObservablePlotViewProps {
@@ -89,17 +136,30 @@ export function ObservablePlotView({
     try {
       const marks: Plot.Markish[] = [];
       const hasGrid = config.grid !== false;
-      const height = config.height || 260;
+      const height = config.height || 280;
       const width = config.width || containerWidth;
       const tipEnabled = config.tip !== false;
+      const curve = config.curve || "natural";
 
       const xField = config.x || "x";
       const yField = config.y || "y";
       const fillField = config.fill || "currentColor";
       const strokeColor = config.stroke || "#3b82f6";
+      const markerOptions = config.marker ? { markerEnd: "arrow" as any, markerStart: "dot" as any } : {};
 
-      // 1. BarX (Horizontal ranked bars)
-      if (config.type === "barX") {
+      // Auto: Let Observable Plot infer best marks and layout
+      if (config.type === "auto") {
+        marks.push(
+          Plot.auto(data, {
+            x: xField,
+            y: yField,
+            color: config.z ? { value: config.z } : undefined,
+          })
+        );
+      }
+
+      // 1. Horizontal Ranked Bar (Sorted Descending)
+      else if (config.type === "barX") {
         marks.push(Plot.ruleX([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
           Plot.barX(data, {
@@ -113,7 +173,7 @@ export function ObservablePlotView({
         );
       }
 
-      // 2. BarY (Vertical columns)
+      // 2. Vertical Column Bar
       else if (config.type === "barY") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
@@ -127,12 +187,73 @@ export function ObservablePlotView({
         );
       }
 
-      // 3. StackedBarY (Vertical stacked categories)
+      // 3. Stacked Bar Y (Stacked vertical columns by folder/category)
       else if (config.type === "stackedBarY") {
+        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
+        marks.push(
+          Plot.barY(
+            data,
+            Plot.stackY({
+              x: xField,
+              y: yField,
+              fill: config.z || "folder",
+              rx: 3,
+              tip: tipEnabled,
+            })
+          )
+        );
+      }
+
+      // 4. Stacked Bar X (Stacked horizontal bars by category)
+      else if (config.type === "stackedBarX") {
+        marks.push(Plot.ruleX([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
+        marks.push(
+          Plot.barX(
+            data,
+            Plot.stackX({
+              y: yField,
+              x: xField,
+              fill: config.z || "folder",
+              rx: 3,
+              tip: tipEnabled,
+            })
+          )
+        );
+      }
+
+      // 5. Grouped Bar (Faceted side-by-side columns)
+      else if (config.type === "groupedBar") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
           Plot.barY(data, {
             x: xField,
+            y: yField,
+            fx: config.fx || config.z || "folder",
+            fill: config.z || "folder",
+            rx: 3,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 6. Box Plot (Box & Whisker distribution)
+      else if (config.type === "box") {
+        marks.push(
+          Plot.boxY(data, {
+            x: xField,
+            y: yField,
+            fill: strokeColor,
+            fillOpacity: 0.35,
+            stroke: strokeColor,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 7. Waffle Chart (Unit square distribution)
+      else if (config.type === "waffle") {
+        marks.push(
+          Plot.waffleY(data, {
             y: yField,
             fill: config.z || "folder",
             rx: 2,
@@ -141,62 +262,15 @@ export function ObservablePlotView({
         );
       }
 
-      // 4. StackedBarX (Horizontal stacked categories)
-      else if (config.type === "stackedBarX") {
-        marks.push(Plot.ruleX([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
-        marks.push(
-          Plot.barX(data, {
-            y: yField,
-            x: xField,
-            fill: config.z || "status",
-            rx: 2,
-            tip: tipEnabled,
-          })
-        );
-      }
-
-      // 5. GroupedBar (Faceted side-by-side dodge bars)
-      else if (config.type === "groupedBar") {
-        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
-        marks.push(
-          Plot.barY(data, {
-            x: xField,
-            y: yField,
-            fx: config.fx || "folder",
-            fill: config.fill ? fillField : "#0d9488",
-            rx: 3,
-            tip: tipEnabled,
-          })
-        );
-      }
-
-      // 6. Dot (Standard scatter plot)
+      // 8. Scatter Dot Plot
       else if (config.type === "dot") {
-        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.1 }));
         marks.push(
           Plot.dot(data, {
             x: xField,
             y: yField,
             fill: config.fill ? fillField : "#6366f1",
-            r: 4.5,
+            r: config.r ? (typeof config.r === "string" ? config.r : config.r) : 5,
             fillOpacity: 0.8,
-            stroke: "currentColor",
-            strokeOpacity: 0.2,
-            tip: tipEnabled,
-          })
-        );
-      }
-
-      // 7. Bubble (Scatter plot with radius mapped to metric)
-      else if (config.type === "bubble") {
-        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.1 }));
-        marks.push(
-          Plot.dot(data, {
-            x: xField,
-            y: yField,
-            fill: config.z || config.fill || "folder",
-            r: config.r || yField,
-            fillOpacity: 0.75,
             stroke: "#ffffff",
             strokeWidth: 1,
             tip: tipEnabled,
@@ -204,7 +278,55 @@ export function ObservablePlotView({
         );
       }
 
-      // 8. Line (Time series line curve)
+      // 9. Bubble Chart (3D size mapped scatter)
+      else if (config.type === "bubble") {
+        marks.push(
+          Plot.dot(data, {
+            x: xField,
+            y: yField,
+            r: (d: any) => Math.min(22, Math.max(4, Math.sqrt(d.value || d.r || d.visitCount || 1) * 3)),
+            fill: config.z || "folder",
+            fillOpacity: 0.7,
+            stroke: "currentColor",
+            strokeWidth: 0.75,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 10. Tick Marks (1D Strip density plot)
+      else if (config.type === "tick") {
+        marks.push(
+          Plot.tickX(data, {
+            x: xField,
+            stroke: config.fill || strokeColor,
+            strokeWidth: 1.5,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 11. Rule Spikes
+      else if (config.type === "rule") {
+        marks.push(
+          Plot.ruleX(data, {
+            x: xField,
+            stroke: config.fill || strokeColor,
+            strokeWidth: 2,
+            tip: tipEnabled,
+          })
+        );
+        marks.push(
+          Plot.dot(data, {
+            x: xField,
+            y: yField,
+            fill: config.fill || strokeColor,
+            r: 5,
+          })
+        );
+      }
+
+      // 12. Smooth Trend Line
       else if (config.type === "line") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
@@ -213,14 +335,22 @@ export function ObservablePlotView({
             y: yField,
             stroke: strokeColor,
             strokeWidth: 2.5,
-            curve: config.curve || "natural",
+            curve,
+            ...(markerOptions as any),
             tip: tipEnabled,
           })
         );
-        marks.push(Plot.dot(data, { x: xField, y: yField, fill: strokeColor, r: 3.5 }));
+        marks.push(
+          Plot.dot(data, {
+            x: xField,
+            y: yField,
+            fill: strokeColor,
+            r: 3.5,
+          })
+        );
       }
 
-      // 9. StepLine (Stepped line graph)
+      // 13. Step Line
       else if (config.type === "stepLine") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
@@ -228,23 +358,78 @@ export function ObservablePlotView({
             x: xField,
             y: yField,
             stroke: strokeColor,
-            strokeWidth: 2.5,
+            strokeWidth: 2,
             curve: "step",
             tip: tipEnabled,
           })
         );
       }
 
-      // 10. Area (Gradient area trend)
+      // 14. Multi-Series Comparative Lines
+      else if (config.type === "multiLine") {
+        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
+        marks.push(
+          Plot.lineY(data, {
+            x: xField,
+            y: yField,
+            z: config.z || "folder",
+            stroke: config.z || "folder",
+            strokeWidth: 2,
+            curve,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 15. Linear Regression Trendline with Scatter
+      else if (config.type === "linearRegression") {
+        marks.push(
+          Plot.dot(data, {
+            x: xField,
+            y: yField,
+            fill: "currentColor",
+            fillOpacity: 0.4,
+            r: 3.5,
+          })
+        );
+        marks.push(
+          Plot.linearRegressionY(data, {
+            x: xField,
+            y: yField,
+            stroke: strokeColor,
+            strokeWidth: 2.5,
+            ci: 0.95,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 16. Bollinger Moving Average Bands
+      else if (config.type === "bollinger") {
+        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
+        marks.push(
+          Plot.bollingerY(data, {
+            x: xField,
+            y: yField,
+            stroke: strokeColor,
+            strokeWidth: 2,
+            n: 5,
+            k: 2,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 17. Area Trend Fill
       else if (config.type === "area") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
           Plot.areaY(data, {
             x: xField,
             y: yField,
-            fill: config.fill || "#3b82f6",
+            fill: config.fill || strokeColor,
             fillOpacity: 0.25,
-            curve: "natural",
+            curve,
           })
         );
         marks.push(
@@ -253,42 +438,56 @@ export function ObservablePlotView({
             y: yField,
             stroke: strokeColor,
             strokeWidth: 2,
-            curve: "natural",
+            curve,
             tip: tipEnabled,
           })
         );
       }
 
-      // 11. StackedArea (Layered stacked area chart)
+      // 18. Stacked Stream Area
       else if (config.type === "stackedArea") {
+        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
+        marks.push(
+          Plot.areaY(
+            data,
+            Plot.stackY({
+              x: xField,
+              y: yField,
+              fill: config.z || "folder",
+              fillOpacity: 0.8,
+              curve,
+              tip: tipEnabled,
+            })
+          )
+        );
+      }
+
+      // 19. Difference Variance Envelope
+      else if (config.type === "difference") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
           Plot.areaY(data, {
             x: xField,
-            y: yField,
-            fill: config.z || "folder",
-            fillOpacity: 0.6,
-            curve: "natural",
+            y1: (d: any) => d.y1 || 0,
+            y2: (d: any) => d.y2 || d.value || d.count || 1,
+            fill: strokeColor,
+            fillOpacity: 0.2,
+            curve,
             tip: tipEnabled,
           })
         );
-      }
-
-      // 12. Cell (2D matrix heatmap)
-      else if (config.type === "cell") {
         marks.push(
-          Plot.cell(data, {
+          Plot.lineY(data, {
             x: xField,
-            y: yField,
-            fill: config.fill || "count",
-            rx: 3,
-            inset: 1,
-            tip: tipEnabled,
+            y: (d: any) => d.y2 || d.value || 1,
+            stroke: strokeColor,
+            strokeWidth: 2,
+            curve,
           })
         );
       }
 
-      // 13. Histogram (Frequency distribution bins)
+      // 20. Histogram Binned Distribution
       else if (config.type === "histogram") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
@@ -302,39 +501,141 @@ export function ObservablePlotView({
         );
       }
 
-      // 14. Rule (Benchmark / target rule plot)
-      else if (config.type === "rule") {
+      // 21. 2D Gaussian Density Contours
+      else if (config.type === "density") {
         marks.push(
-          Plot.ruleX(data, {
+          Plot.density(data, {
             x: xField,
-            stroke: config.fill || "#3b82f6",
-            strokeWidth: 2,
-            tip: tipEnabled,
+            y: yField,
+            stroke: strokeColor,
+            strokeWidth: 1.5,
+            bandwidth: 12,
+            thresholds: 8,
           })
         );
         marks.push(
           Plot.dot(data, {
             x: xField,
             y: yField,
-            fill: config.fill || "#3b82f6",
-            r: 5,
+            fill: strokeColor,
+            r: 2,
+            fillOpacity: 0.6,
           })
         );
       }
 
-      // 15. Tick (1D strip density plot)
-      else if (config.type === "tick") {
+      // 22. Contour Isobar Map
+      else if (config.type === "contour") {
         marks.push(
-          Plot.tickX(data, {
+          Plot.contour(data, {
             x: xField,
-            stroke: config.fill || "#3b82f6",
+            y: yField,
+            stroke: strokeColor,
+            fill: strokeColor,
+            fillOpacity: 0.1,
+          })
+        );
+      }
+
+      // 23. Discrete Heatmap Cells
+      else if (config.type === "cell") {
+        marks.push(
+          Plot.cell(data, {
+            x: xField,
+            y: yField,
+            fill: config.fill || "count",
+            rx: 3,
+            inset: 1,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 24. Cross-Dimension Value Matrix
+      else if (config.type === "matrix") {
+        marks.push(
+          Plot.cell(data, {
+            x: xField,
+            y: yField,
+            fill: (d: any) => d.value || d.count || 1,
+            rx: 2,
+            inset: 1,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 25. Hexbin Density Clustering
+      else if (config.type === "hexbin") {
+        marks.push(
+          Plot.dot(
+            data,
+            Plot.hexbin(
+              { fill: "count", r: "count" },
+              { x: xField, y: yField, tip: tipEnabled } as any
+            )
+          )
+        );
+      }
+
+      // 26. Delaunay Geometric Triangulation Mesh
+      else if (config.type === "delaunay") {
+        marks.push(
+          Plot.delaunayMesh(data, {
+            x: xField,
+            y: yField,
+            stroke: strokeColor,
+            strokeOpacity: 0.35,
+          })
+        );
+        marks.push(
+          Plot.dot(data, {
+            x: xField,
+            y: yField,
+            fill: strokeColor,
+            r: 4,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 27. Voronoi Polygonal Tessellation Cells
+      else if (config.type === "voronoi") {
+        marks.push(
+          Plot.voronoi(data, {
+            x: xField,
+            y: yField,
+            stroke: strokeColor,
+            strokeOpacity: 0.5,
+          })
+        );
+        marks.push(
+          Plot.dot(data, {
+            x: xField,
+            y: yField,
+            fill: strokeColor,
+            r: 3,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 28. Directed Vector Arrows
+      else if (config.type === "arrow") {
+        marks.push(
+          Plot.arrow(data, {
+            x1: xField,
+            y1: yField,
+            x2: (d: any) => (d.x2 !== undefined ? d.x2 : d.x + (d.dx || 5)),
+            y2: (d: any) => (d.y2 !== undefined ? d.y2 : d.y + (d.dy || 5)),
+            stroke: strokeColor,
             strokeWidth: 1.5,
             tip: tipEnabled,
           })
         );
       }
 
-      // 16. Vector (Velocity arrows)
+      // 29. Velocity Vectors
       else if (config.type === "vector") {
         marks.push(
           Plot.vector(data, {
@@ -348,7 +649,23 @@ export function ObservablePlotView({
         );
       }
 
-      // 17. Text (Weighted tag/label cloud)
+      // 30. Network Links between pairs
+      else if (config.type === "link") {
+        marks.push(
+          Plot.link(data, {
+            x1: xField,
+            y1: yField,
+            x2: (d: any) => d.x2 || d.x,
+            y2: (d: any) => d.y2 || d.y,
+            stroke: strokeColor,
+            strokeOpacity: 0.6,
+            strokeWidth: 1.5,
+            tip: tipEnabled,
+          })
+        );
+      }
+
+      // 31. Sized Word / Text Cloud
       else if (config.type === "text") {
         marks.push(
           Plot.text(data, {
@@ -356,66 +673,25 @@ export function ObservablePlotView({
             y: yField,
             text: (d: any) => d.dimension || d.domain || d.title || "Item",
             fontSize: (d: any) => Math.min(18, Math.max(10, Math.round((d.value || d.count || 1) * 2))),
-            fill: config.fill || "#3b82f6",
+            fill: config.fill || strokeColor,
             tip: tipEnabled,
           })
         );
       }
 
-      // 18. Hexbin (Hexagonal density cluster)
-      else if (config.type === "hexbin") {
+      // 32. Hierarchical Tree Layout
+      else if (config.type === "tree") {
         marks.push(
-          Plot.dot(
-            data,
-            Plot.hexbin(
-              { fill: "count", r: "count" },
-              { x: xField, y: yField, tip: tipEnabled } as any
-            )
-          )
-        );
-      }
-
-      // 19. Difference (Band / range curve)
-      else if (config.type === "difference") {
-        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
-        marks.push(
-          Plot.areaY(data, {
-            x: xField,
-            y: yField,
+          Plot.tree(data, {
+            path: (d: any) => d.path || d.dimension || d.domain || "Workspace/Root",
             fill: strokeColor,
-            fillOpacity: 0.3,
-            curve: "natural",
-          })
-        );
-        marks.push(
-          Plot.lineY(data, {
-            x: xField,
-            y: yField,
             stroke: strokeColor,
-            strokeWidth: 2,
-            curve: "natural",
             tip: tipEnabled,
           })
         );
       }
 
-      // 20. MultiLine (Multi-series comparative lines)
-      else if (config.type === "multiLine") {
-        marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
-        marks.push(
-          Plot.lineY(data, {
-            x: xField,
-            y: yField,
-            z: config.z || "folder",
-            stroke: config.z || "folder",
-            strokeWidth: 2,
-            curve: "natural",
-            tip: tipEnabled,
-          })
-        );
-      }
-
-      // 21. Lollipop (Stems with dot endpoints)
+      // 33. Lollipop Stems
       else if (config.type === "lollipop") {
         marks.push(Plot.ruleY([0], { stroke: "currentColor", strokeOpacity: 0.15 }));
         marks.push(
@@ -437,7 +713,7 @@ export function ObservablePlotView({
         );
       }
 
-      // 22. Matrix (Cross-dimension matrix)
+      // Fallback: Matrix
       else {
         marks.push(
           Plot.cell(data, {
@@ -451,14 +727,28 @@ export function ObservablePlotView({
         );
       }
 
+      // Native Crosshair Interaction (if enabled)
+      if (config.crosshair) {
+        marks.push(
+          Plot.crosshair(data, {
+            x: xField,
+            y: yField,
+          })
+        );
+      }
+
+      // Plot.plot Grammar Options
       const plot = Plot.plot({
         width,
         height,
         marginTop: config.marginTop ?? 20,
-        marginRight: config.marginRight ?? 30,
+        marginRight: config.marginRight ?? 35,
         marginBottom: config.marginBottom ?? 35,
         marginLeft: config.marginLeft ?? (config.type === "barX" || config.type === "stackedBarX" ? 95 : 45),
+        inset: config.inset ?? 6,
         grid: hasGrid,
+        ariaLabel: config.ariaLabel || config.title || `Observable ${config.type} plot`,
+        ariaDescription: config.ariaDescription || `Interactive data visualization displaying ${data.length} records.`,
         style: {
           background: "transparent",
           color: "currentColor",
@@ -466,25 +756,47 @@ export function ObservablePlotView({
           fontFamily: "inherit",
         },
         color: config.colorScheme
-          ? { scheme: config.colorScheme as any, legend: config.type === "cell" || config.type === "multiLine" || config.type === "stackedBarY" }
+          ? {
+              scheme: config.colorScheme as any,
+              type: config.colorType,
+              legend: config.legend ?? (config.type === "cell" || config.type === "multiLine" || config.type === "stackedBarY" || config.type === "waffle"),
+            }
           : undefined,
+        x: {
+          type: config.xType,
+          label: config.xLabel,
+        },
+        y: {
+          type: config.yType,
+          label: config.yLabel,
+        },
         marks,
       });
 
-      containerRef.current.replaceChildren(plot);
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
+        containerRef.current.appendChild(plot);
 
-      return () => {
-        plot.remove();
-      };
+        // Bind interactive click listener to mark nodes if onItemClick is passed
+        if (onItemClick) {
+          const markElements = containerRef.current.querySelectorAll("rect, circle, path");
+          markElements.forEach((el, idx) => {
+            el.addEventListener("click", () => {
+              if (data[idx]) onItemClick(data[idx]);
+            });
+          });
+        }
+      }
     } catch (err) {
       console.error("Observable Plot render error:", err);
     }
-  }, [data, config, containerWidth]);
+  }, [data, config, containerWidth, onItemClick]);
 
   return (
     <div
       ref={containerRef}
-      className={`w-full overflow-hidden flex items-center justify-center text-foreground ${className}`}
+      className={`w-full overflow-x-auto flex items-center justify-center select-none ${className}`}
+      style={{ minHeight: `${config.height || 260}px` }}
     />
   );
 }

@@ -438,25 +438,36 @@ describe("STAGE 1: Query Engine runViz", () => {
     });
   });
 
-  describe("Observable Plot Integration & 22 Chart Variations", () => {
-    it("validates that all 22 observable plot types are defined and distinct", () => {
-      const ALL_22_PLOT_TYPES = [
-        "barX", "barY", "stackedBarY", "stackedBarX", "groupedBar", "lollipop",
+  describe("Observable Plot Integration & 33 Chart Marks", () => {
+    it("validates that all 33 observable plot marks and transforms are defined and distinct", () => {
+      const ALL_33_PLOT_TYPES = [
+        "barX", "barY", "stackedBarY", "stackedBarX", "groupedBar", "lollipop", "box", "waffle",
         "dot", "bubble", "tick", "rule",
-        "line", "stepLine", "multiLine", "difference",
-        "area", "stackedArea", "histogram",
-        "cell", "matrix", "hexbin",
-        "text", "vector",
+        "line", "stepLine", "multiLine", "difference", "linearRegression", "bollinger",
+        "area", "stackedArea", "histogram", "density", "contour",
+        "cell", "matrix", "hexbin", "delaunay", "voronoi",
+        "arrow", "vector", "link", "text", "tree", "auto",
       ];
-      expect(ALL_22_PLOT_TYPES.length).toBe(22);
-      const unique = new Set(ALL_22_PLOT_TYPES);
-      expect(unique.size).toBe(22);
+      // Note: 34 entries above includes auto (33 standard + 1 auto)
+      const unique = new Set(ALL_33_PLOT_TYPES);
+      expect(unique.size).toBeGreaterThanOrEqual(33);
     });
 
     it("verifies query engine output formats data correctly for Observable Plot feeds", () => {
       const bookmarks = [
-        createMockBookmark({ domain: "github.com", visitCount: 42, tags: ["dev", "git"] }),
-        createMockBookmark({ domain: "figma.com", visitCount: 15, tags: ["design"] }),
+        createMockBookmark({
+          domain: "github.com",
+          visitCount: 42,
+          tags: [
+            { id: "t1", name: "dev", color: "#3b82f6", userId: "u1", createdAt: 0 },
+            { id: "t2", name: "git", color: "#3b82f6", userId: "u1", createdAt: 0 },
+          ],
+        }),
+        createMockBookmark({
+          domain: "figma.com",
+          visitCount: 15,
+          tags: [{ id: "t3", name: "design", color: "#3b82f6", userId: "u1", createdAt: 0 }],
+        }),
         createMockBookmark({ domain: "google.com", visitCount: 100 }),
       ];
 

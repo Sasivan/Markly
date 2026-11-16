@@ -1928,7 +1928,7 @@ function getDomainGradient(str: string): string {
 
           {/* 1-Click Card Cover Style Switcher for Cards View */}
           {viewMode === "cards" && (
-            <div className="hidden sm:flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] shrink-0">
+            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] shrink-0">
               {[
                 { id: "thumbnail", label: "Snapshot", icon: Camera },
                 { id: "monogram", label: "Gradient", icon: Sparkles },

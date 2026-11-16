@@ -59,33 +59,51 @@ const PLOT_VARIATIONS: Array<{
   category: "Bars" | "Points" | "Trends" | "Areas" | "Matrix" | "Special";
   desc: string;
 }> = [
+  // Bars & Distribution (8)
   { type: "barX", label: "Ranked BarX", category: "Bars", desc: "Horizontal ranked bars sorted by value" },
   { type: "barY", label: "Column BarY", category: "Bars", desc: "Vertical columns with rounded caps" },
   { type: "stackedBarY", label: "Stacked BarY", category: "Bars", desc: "Stacked columns by folder" },
   { type: "stackedBarX", label: "Stacked BarX", category: "Bars", desc: "Horizontal stacked bars" },
   { type: "groupedBar", label: "Grouped Bar", category: "Bars", desc: "Side-by-side faceted bars" },
   { type: "lollipop", label: "Lollipop Stem", category: "Bars", desc: "Stems with dot endpoints" },
+  { type: "box", label: "Box & Whisker", category: "Bars", desc: "Quartile spread and median distribution" },
+  { type: "waffle", label: "Waffle Matrix", category: "Bars", desc: "Grid of unit squares for proportions" },
 
+  // Points & Spikes (4)
   { type: "dot", label: "Scatter Dot", category: "Points", desc: "2D point scatter with opacity" },
   { type: "bubble", label: "Bubble Chart", category: "Points", desc: "3D scatter with radius mapped to metric" },
   { type: "tick", label: "1D Ticks", category: "Points", desc: "Distribution tick marks along axis" },
-  { type: "rule", label: "Stem Rules", category: "Points", desc: "Vertical spikes from zero" },
+  { type: "rule", label: "Stem Rules", category: "Points", desc: "Vertical spikes from zero baseline" },
 
+  // Trends & Regression (6)
   { type: "line", label: "Smooth Line", category: "Trends", desc: "Natural splined trend curve" },
   { type: "stepLine", label: "Stepped Line", category: "Trends", desc: "Discrete step function curve" },
   { type: "multiLine", label: "Multi-Series", category: "Trends", desc: "Comparative lines by collection" },
   { type: "difference", label: "Envelope Diff", category: "Trends", desc: "Upper/lower variance band" },
+  { type: "linearRegression", label: "Linear Regression", category: "Trends", desc: "Ordinary least-squares trendline & CI" },
+  { type: "bollinger", label: "Bollinger Bands", category: "Trends", desc: "Rolling volatility & moving average bands" },
 
+  // Areas & Densities (5)
   { type: "area", label: "Gradient Area", category: "Areas", desc: "Area fill with boundary line" },
   { type: "stackedArea", label: "Stacked Stream", category: "Areas", desc: "Multi-layer stream area" },
   { type: "histogram", label: "Histogram", category: "Areas", desc: "Auto-binned numeric distribution" },
+  { type: "density", label: "Kernel Density", category: "Areas", desc: "2D kernel density estimation contours" },
+  { type: "contour", label: "Topographic Contour", category: "Areas", desc: "Isoline level surfaces and contours" },
 
+  // Matrix & Meshes (5)
   { type: "cell", label: "Heatmap Cells", category: "Matrix", desc: "Discrete 2D color intensity matrix" },
   { type: "matrix", label: "Cross Matrix", category: "Matrix", desc: "Dimension cross-tabulation table" },
-  { type: "hexbin", label: "Hexagonal Bin", category: "Matrix", desc: "Hexagonal aggregation density" },
+  { type: "hexbin", label: "Hexagonal Bin", category: "Matrix", desc: "Hexagonal aggregation density mesh" },
+  { type: "delaunay", label: "Delaunay Mesh", category: "Matrix", desc: "Triangular spatial Delaunay graph" },
+  { type: "voronoi", label: "Voronoi Cells", category: "Matrix", desc: "Voronoi planar proximity polygons" },
 
+  // Specialized & Geometric (6)
+  { type: "arrow", label: "Directed Arrows", category: "Special", desc: "Directed vectors with arrowheads" },
+  { type: "vector", label: "Flow Vectors", category: "Special", desc: "Directional vector displacement field" },
+  { type: "link", label: "Network Links", category: "Special", desc: "Pairwise links connecting data coordinates" },
   { type: "text", label: "Word Cloud", category: "Special", desc: "Text labels sized by frequency" },
-  { type: "vector", label: "Flow Vectors", category: "Special", desc: "Directional vector arrows" },
+  { type: "tree", label: "Hierarchy Tree", category: "Special", desc: "Node-link dendritic hierarchical tree" },
+  { type: "auto", label: "Auto Graphic", category: "Special", desc: "Inferred graphical grammar representation" },
 ];
 
 const INITIAL_CORE_VISUALS: VizConfig[] = [
@@ -243,6 +261,52 @@ export function VisualsPageView({
         y1: b.visitCount || 1,
         y2: (b.visitCount || 1) + 2,
         time: new Date(b.createdAt).toLocaleDateString(undefined, { month: "short" }),
+      }));
+    }
+
+    if (plotType === "box") {
+      return bookmarks.slice(0, 100).map((b) => ({
+        dimension: folders.find((f) => f.id === b.folderId)?.name || b.domain || "Other",
+        value: b.visitCount || 0,
+        y: b.visitCount || 0,
+        x: folders.find((f) => f.id === b.folderId)?.name || "Other",
+      }));
+    }
+
+    if (plotType === "linearRegression" || plotType === "bollinger" || plotType === "density" || plotType === "contour" || plotType === "delaunay" || plotType === "voronoi") {
+      return bookmarks.slice(0, 50).map((b, i) => ({
+        x: i + 1,
+        y: (b.visitCount || 0) + (i % 4) + 1,
+        value: (b.visitCount || 0) + (i % 4) + 1,
+        dimension: b.domain || "Unknown",
+        title: b.title,
+      }));
+    }
+
+    if (plotType === "arrow" || plotType === "link") {
+      return bookmarks.slice(0, 25).map((b, i) => ({
+        x1: i * 5,
+        y1: (b.visitCount || 0) * 2,
+        x2: (i + 1) * 5,
+        y2: ((b.visitCount || 0) + 2) * 2,
+        dimension: b.domain || "Unknown",
+        value: b.visitCount || 1,
+      }));
+    }
+
+    if (plotType === "tree") {
+      return bookmarks.slice(0, 40).map((b) => ({
+        path: `${folders.find((f) => f.id === b.folderId)?.name || "Workspace"}/${b.domain || "Sites"}/${(b.title || "Bookmark").slice(0, 20)}`,
+        dimension: b.title,
+        value: 1,
+      }));
+    }
+
+    if (plotType === "waffle") {
+      return bookmarks.slice(0, 40).map((b) => ({
+        dimension: folders.find((f) => f.id === b.folderId)?.name || b.domain || "Unsorted",
+        value: 1,
+        y: 1,
       }));
     }
 
@@ -745,13 +809,51 @@ export function VisualsPageView({
               data={plotData}
               config={{
                 type: plotType,
-                x: plotType === "barX" || plotType === "stackedBarX" ? "value" : plotType === "dot" || plotType === "bubble" || plotType === "vector" || plotType === "tick" || plotType === "cell" || plotType === "matrix" ? "x" : "dimension",
-                y: plotType === "barX" || plotType === "stackedBarX" ? "dimension" : plotType === "dot" || plotType === "bubble" || plotType === "vector" || plotType === "tick" || plotType === "cell" || plotType === "matrix" ? "y" : "value",
+                x:
+                  plotType === "barX" || plotType === "stackedBarX"
+                    ? "value"
+                    : plotType === "dot" ||
+                      plotType === "bubble" ||
+                      plotType === "vector" ||
+                      plotType === "tick" ||
+                      plotType === "cell" ||
+                      plotType === "matrix" ||
+                      plotType === "linearRegression" ||
+                      plotType === "bollinger" ||
+                      plotType === "density" ||
+                      plotType === "contour" ||
+                      plotType === "delaunay" ||
+                      plotType === "voronoi"
+                    ? "x"
+                    : "dimension",
+                y:
+                  plotType === "barX" || plotType === "stackedBarX"
+                    ? "dimension"
+                    : plotType === "dot" ||
+                      plotType === "bubble" ||
+                      plotType === "vector" ||
+                      plotType === "tick" ||
+                      plotType === "cell" ||
+                      plotType === "matrix" ||
+                      plotType === "linearRegression" ||
+                      plotType === "bollinger" ||
+                      plotType === "density" ||
+                      plotType === "contour" ||
+                      plotType === "delaunay" ||
+                      plotType === "voronoi"
+                    ? "y"
+                    : "value",
+                x1: "x1",
+                y1: "y1",
+                x2: "x2",
+                y2: "y2",
                 fill: plotType === "dot" || plotType === "bubble" || plotType === "stackedBarY" || plotType === "stackedBarX" ? "folder" : plotType === "cell" ? "count" : "#3b82f6",
                 stroke: "#3b82f6",
                 z: "folder",
                 r: 6,
                 colorScheme: plotColorScheme,
+                crosshair: true,
+                grid: true,
                 height: 300,
               }}
             />

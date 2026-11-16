@@ -37,7 +37,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { GlobalHomepageAnalytics } from "./global-homepage-analytics";
 import { ActivityHeatmap365 } from "./activity-heatmap-365";
 import { ScratchpadWidget } from "./scratchpad-widget";
 import {
@@ -438,11 +437,10 @@ export function WorkspaceHome({
     const activeAndFavs = unarchived.filter((b) => (b.visitCount || 0) > 0 || b.isFavorite);
     if (activeAndFavs.length > 0) {
       return activeAndFavs
-        .sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0) || (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0) || b.createdAt - a.createdAt)
-        .slice(0, 36);
+        .sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0) || (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0) || b.createdAt - a.createdAt);
     }
     // Fallback if no bookmarks have been visited yet: show newest additions
-    return [...unarchived].sort((a, b) => b.createdAt - a.createdAt).slice(0, 36);
+    return [...unarchived].sort((a, b) => b.createdAt - a.createdAt);
   }, [bookmarks]);
 
   // 2. Recently Visited: Strict chronological timeline of actual visits
@@ -453,13 +451,12 @@ export function WorkspaceHome({
         const timeA = Math.max(a.lastClickedAt || 0, a.lastVisitedAt || 0);
         const timeB = Math.max(b.lastClickedAt || 0, b.lastVisitedAt || 0);
         return timeB - timeA;
-      })
-      .slice(0, 36);
+      });
   }, [bookmarks]);
 
-  // 3. Favorites (Up to 36)
+  // 3. Favorites (all – adaptive)
   const favorites = React.useMemo(() => {
-    return bookmarks.filter((b) => b.isFavorite && !b.isArchived).slice(0, 36);
+    return bookmarks.filter((b) => b.isFavorite && !b.isArchived);
   }, [bookmarks]);
 
   // 4. Unsorted / Inbox: Strictly unarchived bookmarks without any folder
@@ -472,7 +469,7 @@ export function WorkspaceHome({
   }, [bookmarks]);
 
   const totalUnsortedCount = unsortedBookmarks.length;
-  const unorganized = React.useMemo(() => unsortedBookmarks.slice(0, 36), [unsortedBookmarks]);
+  const unorganized = React.useMemo(() => unsortedBookmarks, [unsortedBookmarks]);
 
   // 6. Topic & Tags Cloud
   const topTags = React.useMemo(() => {
@@ -1190,19 +1187,31 @@ export function WorkspaceHome({
             title="Workspace Analytics"
             icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
             badgeText={`${totalCount} bookmarks`}
+            onEditWidget={() => {
+              setEditingWidget(widget);
+              setVisualBuilderOpen(true);
+            }}
           >
-            <div className="p-4">
-              <GlobalHomepageAnalytics
+            <div className="p-3">
+              <VizChart
+                config={{
+                  version: 1,
+                  id: "builtin_analytics_overview",
+                  title: "Workspace Analytics",
+                  chartType: "bar",
+                  dimension: "domain",
+                  measure: "count",
+                  filters: {},
+                  sort: { by: "measure", direction: "desc" },
+                  limit: 10,
+                  otherBucket: true,
+                }}
                 bookmarks={bookmarks}
                 folders={folders}
-                folderTree={folderTree}
-                onSelectFolder={(fId) => onSelectFolder(fId)}
-                onSelectTag={(tag) => {
-                  onSelectTag?.(tag);
-                  onSelectFolder(null);
-                  onSelectView("all");
-                }}
                 onSelectDomain={onSelectDomain}
+                onSelectTag={onSelectTag}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                bare={false}
               />
             </div>
           </DashboardWidgetBox>
@@ -1215,21 +1224,32 @@ export function WorkspaceHome({
             {...commonProps}
             title="Activity Velocity Momentum"
             icon={<TrendingUp className="h-4 w-4 text-primary" />}
-            badgeText="Visits vs Bookmarks"
+            badgeText="Bookmarks over time"
+            onEditWidget={() => {
+              setEditingWidget(widget);
+              setVisualBuilderOpen(true);
+            }}
           >
             <div className="p-3">
-              <GlobalHomepageAnalytics
-                initialViewMode="velocity"
+              <VizChart
+                config={{
+                  version: 1,
+                  id: "builtin_velocity",
+                  title: "Activity Velocity Momentum",
+                  chartType: "area",
+                  dimension: "created_month",
+                  measure: "count",
+                  filters: {},
+                  sort: { by: "dimension", direction: "asc" },
+                  limit: 12,
+                  otherBucket: false,
+                }}
                 bookmarks={bookmarks}
                 folders={folders}
-                folderTree={folderTree}
-                onSelectFolder={(fId) => onSelectFolder(fId)}
-                onSelectTag={(tag) => {
-                  onSelectTag?.(tag);
-                  onSelectFolder(null);
-                  onSelectView("all");
-                }}
                 onSelectDomain={onSelectDomain}
+                onSelectTag={onSelectTag}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                bare={false}
               />
             </div>
           </DashboardWidgetBox>
@@ -1242,21 +1262,32 @@ export function WorkspaceHome({
             {...commonProps}
             title="Top Web Ecosystems"
             icon={<Globe className="h-4 w-4 text-teal-600" />}
-            badgeText="Domains Over Time"
+            badgeText="Domain breakdown"
+            onEditWidget={() => {
+              setEditingWidget(widget);
+              setVisualBuilderOpen(true);
+            }}
           >
             <div className="p-3">
-              <GlobalHomepageAnalytics
-                initialViewMode="domains"
+              <VizChart
+                config={{
+                  version: 1,
+                  id: "builtin_domains",
+                  title: "Top Web Ecosystems",
+                  chartType: "bar",
+                  dimension: "domain",
+                  measure: "count",
+                  filters: {},
+                  sort: { by: "measure", direction: "desc" },
+                  limit: 8,
+                  otherBucket: true,
+                }}
                 bookmarks={bookmarks}
                 folders={folders}
-                folderTree={folderTree}
-                onSelectFolder={(fId) => onSelectFolder(fId)}
-                onSelectTag={(tag) => {
-                  onSelectTag?.(tag);
-                  onSelectFolder(null);
-                  onSelectView("all");
-                }}
                 onSelectDomain={onSelectDomain}
+                onSelectTag={onSelectTag}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                bare={false}
               />
             </div>
           </DashboardWidgetBox>
@@ -1267,23 +1298,34 @@ export function WorkspaceHome({
           <DashboardWidgetBox
             key="analytics_radar"
             {...commonProps}
-            title="Category Fingerprint Radar"
+            title="Collection Distribution"
             icon={<Folders className="h-4 w-4 text-indigo-500" />}
-            badgeText="Parent Folders"
+            badgeText="Top-level folders"
+            onEditWidget={() => {
+              setEditingWidget(widget);
+              setVisualBuilderOpen(true);
+            }}
           >
             <div className="p-3">
-              <GlobalHomepageAnalytics
-                initialViewMode="radar"
+              <VizChart
+                config={{
+                  version: 1,
+                  id: "builtin_radar",
+                  title: "Collection Distribution",
+                  chartType: "donut",
+                  dimension: "folder_top",
+                  measure: "count",
+                  filters: {},
+                  sort: { by: "measure", direction: "desc" },
+                  limit: 7,
+                  otherBucket: true,
+                }}
                 bookmarks={bookmarks}
                 folders={folders}
-                folderTree={folderTree}
-                onSelectFolder={(fId) => onSelectFolder(fId)}
-                onSelectTag={(tag) => {
-                  onSelectTag?.(tag);
-                  onSelectFolder(null);
-                  onSelectView("all");
-                }}
                 onSelectDomain={onSelectDomain}
+                onSelectTag={onSelectTag}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                bare={false}
               />
             </div>
           </DashboardWidgetBox>
@@ -1297,20 +1339,31 @@ export function WorkspaceHome({
             title="Tag Distribution Donut"
             icon={<Tag className="h-4 w-4 text-amber-500" />}
             badgeText={`${topTags.length} tags`}
+            onEditWidget={() => {
+              setEditingWidget(widget);
+              setVisualBuilderOpen(true);
+            }}
           >
             <div className="p-3">
-              <GlobalHomepageAnalytics
-                initialViewMode="tags"
+              <VizChart
+                config={{
+                  version: 1,
+                  id: "builtin_tags",
+                  title: "Tag Distribution Donut",
+                  chartType: "donut",
+                  dimension: "tag",
+                  measure: "count",
+                  filters: {},
+                  sort: { by: "measure", direction: "desc" },
+                  limit: 8,
+                  otherBucket: true,
+                }}
                 bookmarks={bookmarks}
                 folders={folders}
-                folderTree={folderTree}
-                onSelectFolder={(fId) => onSelectFolder(fId)}
-                onSelectTag={(tag) => {
-                  onSelectTag?.(tag);
-                  onSelectFolder(null);
-                  onSelectView("all");
-                }}
                 onSelectDomain={onSelectDomain}
+                onSelectTag={onSelectTag}
+                onSelectFolder={(fId) => onSelectFolder(fId)}
+                bare={false}
               />
             </div>
           </DashboardWidgetBox>

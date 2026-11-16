@@ -11,12 +11,10 @@ import {
   Filter,
   X,
   Sparkles,
-  Layers,
   Activity,
-  Check,
+  PanelTop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { VizChart } from "@/components/viz/viz-chart";
 import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
 import type { VizConfig, VizChartType } from "@/lib/viz";
@@ -25,6 +23,12 @@ import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/sche
 export interface FolderFilter {
   type: "domain" | "status" | "tag" | "folder";
   value: string;
+}
+
+interface Tab {
+  id: string;
+  label: string;
+  visuals: VizConfig[];
 }
 
 interface FolderVisualAnalyticsProps {
@@ -36,37 +40,10 @@ interface FolderVisualAnalyticsProps {
   onFilterChange: (filter: FolderFilter | null) => void;
 }
 
-export function FolderVisualAnalytics({
-  folderId,
-  folderName,
-  bookmarks,
-  folders,
-  activeFilter,
-  onFilterChange,
-}: FolderVisualAnalyticsProps) {
-  // Collapsible section state (persisted per folder)
-  const [isExpanded, setIsExpanded] = React.useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem(`markly_folder_viz_expanded_${folderId}`);
-        if (stored !== null) return stored === "true";
-      } catch {}
-    }
-    return true;
-  });
+const DEFAULT_TAB_LABEL = "Overview";
 
-  const toggleExpanded = () => {
-    setIsExpanded((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(`markly_folder_viz_expanded_${folderId}`, String(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  // Default visuals for any folder
-  const defaultFolderVisuals: VizConfig[] = React.useMemo(() => [
+function makeDefaultVisuals(folderId: string): VizConfig[] {
+  return [
     {
       version: 1,
       id: `fld_domain_${folderId}`,
@@ -103,50 +80,130 @@ export function FolderVisualAnalytics({
       limit: 6,
       otherBucket: true,
     },
-  ], [folderId]);
+  ];
+}
 
-  // Load persisted visuals for this folder
-  const [visuals, setVisuals] = React.useState<VizConfig[]>(() => {
+function loadTabs(folderId: string, defaultVisuals: VizConfig[]): Tab[] {
+  if (typeof window === "undefined") {
+    return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: defaultVisuals }];
+  }
+  try {
+    const stored = localStorage.getItem(`markly_folder_tabs_${folderId}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as Tab[];
+    }
+    // Legacy: check old flat list
+    const legacy = localStorage.getItem(`markly_folder_visuals_${folderId}`);
+    if (legacy) {
+      const parsed = JSON.parse(legacy);
+      if (Array.isArray(parsed)) {
+        return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: parsed }];
+      }
+    }
+  } catch {}
+  return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: defaultVisuals }];
+}
+
+function persistTabs(folderId: string, tabs: Tab[]) {
+  try {
+    localStorage.setItem(`markly_folder_tabs_${folderId}`, JSON.stringify(tabs));
+    // Keep legacy key in sync with active tab's visuals (tab[0]) for exports
+    if (tabs.length > 0) {
+      localStorage.setItem(`markly_folder_visuals_${folderId}`, JSON.stringify(tabs[0].visuals));
+    }
+  } catch {}
+}
+
+export function FolderVisualAnalytics({
+  folderId,
+  folderName,
+  bookmarks,
+  folders,
+  activeFilter,
+  onFilterChange,
+}: FolderVisualAnalyticsProps) {
+  const [isExpanded, setIsExpanded] = React.useState<boolean>(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem(`markly_folder_visuals_${folderId}`);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) return parsed;
-        }
+        const stored = localStorage.getItem(`markly_folder_viz_expanded_${folderId}`);
+        if (stored !== null) return stored === "true";
       } catch {}
     }
-    return defaultFolderVisuals;
+    return true;
   });
 
-  // Keep in sync with folderId change
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`markly_folder_visuals_${folderId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setVisuals(parsed);
-          return;
-        }
-      }
-    } catch {}
-    setVisuals(defaultFolderVisuals);
-  }, [folderId, defaultFolderVisuals]);
-
-  const saveVisuals = (updated: VizConfig[]) => {
-    setVisuals(updated);
-    try {
-      localStorage.setItem(`markly_folder_visuals_${folderId}`, JSON.stringify(updated));
-    } catch {}
+  const toggleExpanded = () => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(`markly_folder_viz_expanded_${folderId}`, String(next));
+      } catch {}
+      return next;
+    });
   };
 
-  const handleDeleteVisual = (id: string) => {
-    const updated = visuals.filter((v) => v.id !== id);
-    saveVisuals(updated);
+  const defaultVisuals = React.useMemo(() => makeDefaultVisuals(folderId), [folderId]);
+
+  const [tabs, setTabs] = React.useState<Tab[]>(() => loadTabs(folderId, defaultVisuals));
+  const [activeTabId, setActiveTabId] = React.useState<string>(() => tabs[0]?.id ?? "tab_default");
+  const [renamingTabId, setRenamingTabId] = React.useState<string | null>(null);
+  const [renameValue, setRenameValue] = React.useState("");
+
+  React.useEffect(() => {
+    const loaded = loadTabs(folderId, makeDefaultVisuals(folderId));
+    setTabs(loaded);
+    setActiveTabId(loaded[0]?.id ?? "tab_default");
+  }, [folderId]);
+
+  const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+
+  const updateTabs = (next: Tab[]) => {
+    setTabs(next);
+    persistTabs(folderId, next);
+  };
+
+  const handleAddTab = () => {
+    const newId = `tab_${Date.now()}`;
+    const newTab: Tab = { id: newId, label: `Tab ${tabs.length + 1}`, visuals: [] };
+    const next = [...tabs, newTab];
+    updateTabs(next);
+    setActiveTabId(newId);
+  };
+
+  const handleDeleteTab = (tabId: string) => {
+    if (tabs.length <= 1) return;
+    const next = tabs.filter((t) => t.id !== tabId);
+    updateTabs(next);
+    if (activeTabId === tabId) setActiveTabId(next[0]?.id ?? "");
+  };
+
+  const startRename = (tab: Tab) => {
+    setRenamingTabId(tab.id);
+    setRenameValue(tab.label);
+  };
+
+  const commitRename = () => {
+    if (!renamingTabId) return;
+    const next = tabs.map((t) =>
+      t.id === renamingTabId ? { ...t, label: renameValue.trim() || t.label } : t
+    );
+    updateTabs(next);
+    setRenamingTabId(null);
+  };
+
+  const setTabVisuals = (tabId: string, visuals: VizConfig[]) => {
+    const next = tabs.map((t) => (t.id === tabId ? { ...t, visuals } : t));
+    updateTabs(next);
+  };
+
+  const handleDeleteVisual = (vizId: string) => {
+    if (!activeTab) return;
+    setTabVisuals(activeTab.id, activeTab.visuals.filter((v) => v.id !== vizId));
   };
 
   const [builderOpen, setBuilderOpen] = React.useState(false);
+  const [editingViz, setEditingViz] = React.useState<VizConfig | null>(null);
   const [presetMenuOpen, setPresetMenuOpen] = React.useState(false);
   const presetMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -162,7 +219,8 @@ export function FolderVisualAnalytics({
     }
   }, [presetMenuOpen]);
 
-  const handleAddPreset = (type: "bar" | "donut" | "line" | "area" | "table", dim: any, title: string) => {
+  const handleAddPreset = (type: VizChartType, dim: any, title: string) => {
+    if (!activeTab) return;
     const newConfig: VizConfig = {
       version: 1,
       id: `fld_${Date.now()}`,
@@ -175,16 +233,22 @@ export function FolderVisualAnalytics({
       limit: type === "donut" ? 6 : 8,
       otherBucket: true,
     };
-    saveVisuals([...visuals, newConfig]);
+    setTabVisuals(activeTab.id, [...activeTab.visuals, newConfig]);
     setPresetMenuOpen(false);
   };
 
   const handleSaveCustomVisual = (config: VizConfig) => {
-    saveVisuals([...visuals, config]);
+    if (!activeTab) return;
+    const exists = activeTab.visuals.find((v) => v.id === config.id);
+    if (exists) {
+      setTabVisuals(activeTab.id, activeTab.visuals.map((v) => (v.id === config.id ? config : v)));
+    } else {
+      setTabVisuals(activeTab.id, [...activeTab.visuals, config]);
+    }
     setBuilderOpen(false);
+    setEditingViz(null);
   };
 
-  // Interactive Chart Click Handlers
   const handleSelectDomain = (domain: string) => {
     if (activeFilter?.type === "domain" && activeFilter.value === domain) {
       onFilterChange(null);
@@ -201,7 +265,6 @@ export function FolderVisualAnalytics({
     }
   };
 
-  // If there are no bookmarks, don't show empty analytics
   if (bookmarks.length === 0) return null;
 
   return (
@@ -219,18 +282,17 @@ export function FolderVisualAnalytics({
           <div className="truncate">
             <div className="text-xs font-semibold text-foreground flex items-center gap-2">
               <span>Visual Analytics & Intelligence</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/60">
-                {visuals.length} {visuals.length === 1 ? "chart" : "charts"}
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/60">
+                {activeTab?.visuals.length ?? 0} charts · {tabs.length} tab{tabs.length !== 1 ? "s" : ""}
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground truncate hidden sm:block">
-              Interactive charts for <strong className="text-foreground">{folderName}</strong>. Click any bar or slice to filter the list below.
+              Tabbed visual analytics for <strong className="text-foreground">{folderName}</strong>. Click any bar or slice to filter the list below.
             </p>
           </div>
         </button>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Active Filter Clear Pill */}
           {activeFilter && (
             <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/30 px-2 py-0.5 rounded-md text-xs animate-in fade-in">
               <Filter className="h-3 w-3" />
@@ -262,58 +324,58 @@ export function FolderVisualAnalytics({
             </Button>
 
             {presetMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
+              <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
                 <div className="font-semibold px-2 py-1 text-[11px] text-muted-foreground border-b border-border mb-1">
-                  Add Visual to {folderName}
+                  Add to &ldquo;{activeTab?.label ?? "Tab"}&rdquo;
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddPreset("bar", "domain", "Top Domains Bar")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <BarChart3 className="h-3.5 w-3.5 text-primary" />
-                  <span>Top Domains Bar</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddPreset("donut", "status", "Health Status Donut")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <PieChart className="h-3.5 w-3.5 text-emerald-500" />
-                  <span>Health Status Donut</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddPreset("donut", "tag", "Tag Distribution Donut")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Tag Distribution Donut</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAddPreset("area", "created_month", "Monthly Ingestion")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <Activity className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Monthly Ingestion Trend</span>
-                </button>
+                {[
+                  { type: "bar" as VizChartType, dim: "domain", title: "Top Domains Bar", icon: BarChart3, color: "text-primary" },
+                  { type: "donut" as VizChartType, dim: "status", title: "Health Status Donut", icon: PieChart, color: "text-emerald-500" },
+                  { type: "donut" as VizChartType, dim: "tag", title: "Tag Distribution", icon: Sparkles, color: "text-amber-500" },
+                  { type: "area" as VizChartType, dim: "created_month", title: "Monthly Ingestion", icon: Activity, color: "text-indigo-500" },
+                  { type: "horizontal_bar" as VizChartType, dim: "domain", title: "Most Visited Domains", icon: BarChart3, color: "text-teal-500" },
+                  { type: "donut" as VizChartType, dim: "folder_leaf", title: "Subfolder Breakdown", icon: PieChart, color: "text-violet-500" },
+                ].map((p) => {
+                  const Icon = p.icon;
+                  return (
+                    <button
+                      key={p.title}
+                      type="button"
+                      onClick={() => handleAddPreset(p.type, p.dim, p.title)}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
+                    >
+                      <Icon className={`h-3.5 w-3.5 ${p.color}`} />
+                      <span>{p.title}</span>
+                    </button>
+                  );
+                })}
                 <div className="border-t border-border pt-1 mt-1">
                   <button
                     type="button"
                     onClick={() => {
                       setPresetMenuOpen(false);
+                      setEditingViz(null);
                       setBuilderOpen(true);
                     }}
                     className="w-full text-left px-2 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 font-medium cursor-pointer flex items-center gap-2 text-xs"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>Custom Visual Builder...</span>
+                    <span>Custom Visual Builder…</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Add Tab Button */}
+          <button
+            type="button"
+            onClick={handleAddTab}
+            className="h-7 w-7 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors border border-border/60"
+            title="Add a new visual tab"
+          >
+            <PanelTop className="h-3.5 w-3.5" />
+          </button>
 
           {/* Toggle Expand / Collapse */}
           <button
@@ -327,44 +389,136 @@ export function FolderVisualAnalytics({
         </div>
       </div>
 
-      {/* Body: Charts Grid */}
-      {isExpanded && (
+      {/* Tabs Bar */}
+      {isExpanded && tabs.length > 0 && (
+        <div className="flex items-center gap-0.5 px-3 pt-2 border-b border-border/40 overflow-x-auto bg-card">
+          {tabs.map((tab) => (
+            <div key={tab.id} className="flex items-center group/tab shrink-0">
+              {renamingTabId === tab.id ? (
+                <input
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") setRenamingTabId(null);
+                  }}
+                  className="text-xs px-2 py-1 rounded border border-primary bg-background text-foreground w-24 outline-none mb-1"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setActiveTabId(tab.id)}
+                  onDoubleClick={() => startRename(tab)}
+                  className={`text-xs px-3 py-1.5 rounded-t-md font-medium cursor-pointer transition-colors border-b-2 whitespace-nowrap ${
+                    activeTabId === tab.id
+                      ? "border-primary text-foreground bg-secondary/60"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                  }`}
+                  title="Double-click to rename"
+                >
+                  {tab.label}
+                  <span className="ml-1 text-[10px] font-mono text-muted-foreground">
+                    ({tab.visuals.length})
+                  </span>
+                </button>
+              )}
+              {tabs.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTab(tab.id)}
+                  className="ml-0.5 opacity-0 group-hover/tab:opacity-100 h-4 w-4 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer transition-opacity mb-1"
+                  title="Delete this tab"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={handleAddTab}
+            className="ml-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded cursor-pointer hover:bg-secondary transition-colors shrink-0 mb-1"
+            title="Add tab"
+          >
+            + Tab
+          </button>
+        </div>
+      )}
+
+      {/* Body: Charts Grid for Active Tab */}
+      {isExpanded && activeTab && (
         <div className="p-3.5 bg-card">
-          {visuals.length === 0 ? (
-            <div className="py-6 text-center text-xs text-muted-foreground space-y-2">
-              <p>No visual analytics active for this folder.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => saveVisuals(defaultFolderVisuals)}
-                className="text-xs cursor-pointer"
-              >
-                Restore Default Charts
-              </Button>
+          {activeTab.visuals.length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground space-y-3">
+              <BarChart3 className="h-8 w-8 text-muted-foreground/20 mx-auto" />
+              <p>No visuals in &ldquo;{activeTab.label}&rdquo; yet.</p>
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTabVisuals(activeTab.id, makeDefaultVisuals(folderId))}
+                  className="text-xs cursor-pointer"
+                >
+                  Restore Default Charts
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setEditingViz(null);
+                    setBuilderOpen(true);
+                  }}
+                  className="text-xs cursor-pointer gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Visual
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className={`grid grid-cols-1 ${visuals.length === 1 ? "md:grid-cols-1" : visuals.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"} gap-3`}>
-              {visuals.map((viz) => (
+            <div
+              className={`grid grid-cols-1 gap-3 ${
+                activeTab.visuals.length === 1
+                  ? "md:grid-cols-1"
+                  : activeTab.visuals.length === 2
+                  ? "md:grid-cols-2"
+                  : "md:grid-cols-3"
+              }`}
+            >
+              {activeTab.visuals.map((viz) => (
                 <div
                   key={viz.id}
                   className="rounded-lg border border-border/70 bg-secondary/15 p-3 flex flex-col justify-between group hover:border-border transition-colors relative"
                 >
-                  {/* Top Bar of Card */}
                   <div className="flex items-center justify-between pb-2 mb-1 border-b border-border/40">
                     <span className="text-xs font-semibold text-foreground truncate pr-2">
                       {viz.title}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteVisual(viz.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer transition-opacity"
-                      title="Remove chart from folder"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingViz(viz);
+                          setBuilderOpen(true);
+                        }}
+                        className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                        title="Edit visual"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVisual(viz.id)}
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
+                        title="Remove chart"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Render Visual */}
                   <div className="flex-1 min-h-[160px]">
                     <VizChart
                       config={viz}
@@ -391,7 +545,11 @@ export function FolderVisualAnalytics({
       {/* Custom Visual Builder Dialog */}
       <VizBuilderDialog
         open={builderOpen}
-        onOpenChange={setBuilderOpen}
+        onOpenChange={(op) => {
+          setBuilderOpen(op);
+          if (!op) setEditingViz(null);
+        }}
+        initialConfig={editingViz}
         bookmarks={bookmarks}
         folders={folders}
         onSave={handleSaveCustomVisual}

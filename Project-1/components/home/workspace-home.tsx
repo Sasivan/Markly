@@ -451,7 +451,8 @@ export function WorkspaceHome({
         sort: { by: "measure", direction: "desc" },
         limit: 8,
         otherBucket: false,
-      };
+        intelConfig: config.intelConfig,
+      } as any;
     } else {
       // Sites Box
       vizConfig = {
@@ -477,6 +478,10 @@ export function WorkspaceHome({
       span: (config.colSpan === 12 ? "2" : "1") as any,
       colSpan: config.colSpan || 6,
       rowSpan: config.rowSpan || 1,
+      chartConfig: config.chartConfig,
+      intelConfig: config.intelConfig,
+      plotConfig: config.plotConfig,
+      siteConfig: config.siteConfig,
       vizConfig,
     };
 
@@ -1299,7 +1304,13 @@ export function WorkspaceHome({
           <div className="p-3">
             {vKind === "graph" ? (
               <div className="h-72 w-full rounded-lg overflow-hidden border border-border">
-                <KnowledgeGraph mode="global" depth={2} showControls={false} onSelectDomain={onSelectDomain} />
+                <KnowledgeGraph
+                  mode={widget.vizConfig?.intelConfig?.folderId ? "folder" : "global"}
+                  folderId={widget.vizConfig?.intelConfig?.folderId}
+                  depth={widget.vizConfig?.intelConfig?.graphDepth ?? 2}
+                  showControls={false}
+                  onSelectDomain={onSelectDomain}
+                />
               </div>
             ) : vKind === "plot" ? (
               <ObservablePlotView

@@ -54,6 +54,7 @@ export interface TabVisual {
   kind?: VisualKind;
   chartConfig?: VizConfig;
   plotConfig?: any;
+  intelConfig?: any;
   colSpan?: WidgetColSpan;
   siteFilter?: "all" | "favorites" | "recent";
   graphDepth?: number;
@@ -414,6 +415,7 @@ export function FolderVisualAnalytics({
       siteFilter: config.siteConfig?.source === "favorites" ? "favorites" : config.siteConfig?.source === "recent" ? "recent" : "all",
       plotConfig: config.plotConfig,
       chartConfig: config.chartConfig,
+      intelConfig: config.intelConfig,
     };
 
     if (config.siteConfig) {
@@ -990,7 +992,7 @@ export function FolderVisualAnalytics({
                           <KnowledgeGraph
                             mode={folderId.startsWith("page_") ? "global" : "folder"}
                             folderId={folderId.startsWith("page_") ? undefined : folderId}
-                            depth={2}
+                            depth={viz.intelConfig?.graphDepth ?? viz.graphDepth ?? 2}
                             showControls={false}
                             onSelectDomain={handleSelectDomain}
                           />

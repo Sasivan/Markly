@@ -47,7 +47,8 @@ import { ObservablePlotView, type ObservablePlotType, type ObservableCurveType }
 import { VizChart } from "./viz-chart";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { BookmarkItemsView } from "@/components/home/dashboard-widget-box";
-import type { VizConfig, VizChartType } from "@/lib/viz";
+import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import type { VizConfig, VizChartType, VizDimension, VizMeasure, VizSplitByDimension } from "@/lib/viz";
 import {
   computePlotData,
   type PlotDimension,
@@ -103,8 +104,153 @@ export interface UniversalVisualConfig {
   intelConfig?: {
     type: "tags" | "engagement" | "wall" | "graph" | "heatmap";
     graphDepth?: number;
+    tagLimit?: number;
+    minTagCount?: number;
+    tagSort?: "count" | "alpha";
+    wallLimit?: number;
+    wallDensity?: "compact" | "standard" | "cozy";
+    wallSort?: "visits" | "recent" | "alpha";
+    folderId?: string;
+    onlyFavorites?: boolean;
+    onlyAlive?: boolean;
+    excludeArchived?: boolean;
   };
 }
+
+export const CLASSIC_CHART_PRESETS = [
+  {
+    id: "top_domains_visits",
+    label: "Top Domains (Visits)",
+    desc: "Ranked horizontal bars of most visited domains",
+    chartType: "horizontal_bar" as VizChartType,
+    dimension: "domain" as VizDimension,
+    measure: "sum_visits" as VizMeasure,
+    limit: 10,
+    otherBucket: true,
+    sort: { by: "measure" as const, direction: "desc" as const },
+  },
+  {
+    id: "collection_share_donut",
+    label: "Collection Share",
+    desc: "Proportional donut chart of bookmarks by top folder",
+    chartType: "donut" as VizChartType,
+    dimension: "folder_top" as VizDimension,
+    measure: "count" as VizMeasure,
+    limit: 7,
+    otherBucket: true,
+    sort: { by: "measure" as const, direction: "desc" as const },
+  },
+  {
+    id: "monthly_velocity_area",
+    label: "Monthly Ingestion",
+    desc: "Cumulative bookmark ingestion momentum over months",
+    chartType: "area" as VizChartType,
+    dimension: "created_month" as VizDimension,
+    measure: "count" as VizMeasure,
+    limit: 12,
+    otherBucket: false,
+    sort: { by: "dimension" as const, direction: "asc" as const },
+  },
+  {
+    id: "link_health_status",
+    label: "Link Health Status",
+    desc: "Breakdown of alive, unreachable, and broken sites",
+    chartType: "donut" as VizChartType,
+    dimension: "status" as VizDimension,
+    measure: "count" as VizMeasure,
+    limit: 5,
+    otherBucket: false,
+    sort: { by: "measure" as const, direction: "desc" as const },
+  },
+  {
+    id: "visit_intensity_tiers",
+    label: "Visit Intensity Tiers",
+    desc: "Distribution across heavy, active, and light usage",
+    chartType: "bar" as VizChartType,
+    dimension: "visit_count_bucket" as VizDimension,
+    measure: "count" as VizMeasure,
+    limit: 5,
+    otherBucket: false,
+    sort: { by: "dimension" as const, direction: "asc" as const },
+  },
+  {
+    id: "tag_frequency_bars",
+    label: "Tag Frequency",
+    desc: "Most frequent bookmark tags in the workspace",
+    chartType: "bar" as VizChartType,
+    dimension: "tag" as VizDimension,
+    measure: "count" as VizMeasure,
+    limit: 8,
+    otherBucket: true,
+    sort: { by: "measure" as const, direction: "desc" as const },
+  },
+  {
+    id: "domain_diversity_stacked",
+    label: "Folder Domain Diversity",
+    desc: "Unique domains per folder split by favorite star",
+    chartType: "stacked_bar" as VizChartType,
+    dimension: "folder_top" as VizDimension,
+    measure: "distinct_domains" as VizMeasure,
+    splitBy: "favorite" as VizSplitByDimension,
+    limit: 8,
+    otherBucket: true,
+    sort: { by: "measure" as const, direction: "desc" as const },
+  },
+  {
+    id: "weekly_wave_line",
+    label: "Weekly Trend Wave",
+    desc: "Smooth activity line across weekly intervals",
+    chartType: "line" as VizChartType,
+    dimension: "created_week" as VizDimension,
+    measure: "count" as VizMeasure,
+    limit: 14,
+    otherBucket: false,
+    sort: { by: "dimension" as const, direction: "asc" as const },
+  },
+];
+
+export const INTEL_PRESETS = [
+  {
+    id: "topic_cloud",
+    label: "Active Topic Cloud",
+    desc: "Interactive weighted tag pills with direct click filtering",
+    type: "tags" as const,
+    tagLimit: 30,
+    minTagCount: 1,
+    tagSort: "count" as const,
+  },
+  {
+    id: "engagement_spectrum",
+    label: "Engagement Spectrum",
+    desc: "Frequent, active, occasional, and dormant visit tiers",
+    type: "engagement" as const,
+    excludeArchived: true,
+  },
+  {
+    id: "starred_wall",
+    label: "Starred Favicons Constellation",
+    desc: "Grid of your favorite websites and platforms",
+    type: "wall" as const,
+    onlyFavorites: true,
+    wallLimit: 48,
+    wallSort: "visits" as const,
+  },
+  {
+    id: "deep_graph",
+    label: "Architecture Knowledge Graph",
+    desc: "Interactive physics network of interconnected collections",
+    type: "graph" as const,
+    graphDepth: 2,
+  },
+  {
+    id: "density_wall",
+    label: "High-Density Favicon Wall",
+    desc: "Maximum density matrix of most visited web destinations",
+    type: "wall" as const,
+    wallLimit: 72,
+    wallSort: "visits" as const,
+  },
+];
 
 export interface UniversalVisualBuilderModalProps {
   open: boolean;
@@ -219,11 +365,130 @@ export function UniversalVisualBuilderModal({
   const [chartType, setChartType] = React.useState<VizChartType>(
     initialConfig?.chartConfig?.chartType || "bar"
   );
+  const [chartDimension, setChartDimension] = React.useState<VizDimension>(
+    initialConfig?.chartConfig?.dimension || "domain"
+  );
+  const [chartMeasure, setChartMeasure] = React.useState<VizMeasure>(
+    initialConfig?.chartConfig?.measure || "count"
+  );
+  const [chartSplitBy, setChartSplitBy] = React.useState<VizSplitByDimension | "none">(
+    initialConfig?.chartConfig?.splitBy || "none"
+  );
+  const [chartSortBy, setChartSortBy] = React.useState<"measure" | "dimension">(
+    initialConfig?.chartConfig?.sort?.by || "measure"
+  );
+  const [chartSortDir, setChartSortDir] = React.useState<"desc" | "asc">(
+    initialConfig?.chartConfig?.sort?.direction || "desc"
+  );
+  const [chartLimit, setChartLimit] = React.useState<number>(
+    initialConfig?.chartConfig?.limit ?? 10
+  );
+  const [chartOtherBucket, setChartOtherBucket] = React.useState<boolean>(
+    initialConfig?.chartConfig?.otherBucket ?? true
+  );
+  const [chartShowGrid, setChartShowGrid] = React.useState<boolean>(
+    initialConfig?.chartConfig?.displayOptions?.showGrid ?? true
+  );
+  const [chartShowLegend, setChartShowLegend] = React.useState<boolean>(
+    initialConfig?.chartConfig?.displayOptions?.showLegend ?? true
+  );
+  const [chartUnitLabel, setChartUnitLabel] = React.useState<string>(
+    initialConfig?.chartConfig?.displayOptions?.unitLabel || ""
+  );
+  const [chartValuePrefix, setChartValuePrefix] = React.useState<string>(
+    initialConfig?.chartConfig?.displayOptions?.valuePrefix || ""
+  );
+  const [chartValueSuffix, setChartValueSuffix] = React.useState<string>(
+    initialConfig?.chartConfig?.displayOptions?.valueSuffix || ""
+  );
+  // Classic Chart Filters
+  const [chartFilterFolderId, setChartFilterFolderId] = React.useState<string>(
+    initialConfig?.chartConfig?.filters?.folderId || "all"
+  );
+  const [chartFilterIncludeSubfolders, setChartFilterIncludeSubfolders] = React.useState<boolean>(
+    initialConfig?.chartConfig?.filters?.includeSubfolders ?? true
+  );
+  const [chartFilterFavorite, setChartFilterFavorite] = React.useState<"all" | "favorites_only">(
+    initialConfig?.chartConfig?.filters?.favorite ? "favorites_only" : "all"
+  );
+  const [chartFilterStatus, setChartFilterStatus] = React.useState<"all" | "alive" | "broken">(
+    initialConfig?.chartConfig?.filters?.status?.includes("alive")
+      ? "alive"
+      : initialConfig?.chartConfig?.filters?.status?.length
+      ? "broken"
+      : "all"
+  );
+  const [chartFilterDateRange, setChartFilterDateRange] = React.useState<"all" | "24h" | "7d" | "30d" | "90d" | "1y">("all");
+  const [chartFilterSearch, setChartFilterSearch] = React.useState<string>(
+    initialConfig?.chartConfig?.filters?.searchQuery || ""
+  );
+  const [chartFilterExcludeArchived, setChartFilterExcludeArchived] = React.useState<boolean>(
+    !(initialConfig?.chartConfig?.filters?.includeArchived ?? false)
+  );
 
   // 4. Intelligence Visual State
   const [intelType, setIntelType] = React.useState<"tags" | "engagement" | "wall" | "graph" | "heatmap">(
     initialConfig?.intelConfig?.type || "tags"
   );
+  const [intelScopeFolderId, setIntelScopeFolderId] = React.useState<string>(
+    initialConfig?.intelConfig?.folderId || "all"
+  );
+  const [intelGraphDepth, setIntelGraphDepth] = React.useState<number>(
+    initialConfig?.intelConfig?.graphDepth ?? 2
+  );
+  const [intelTagLimit, setIntelTagLimit] = React.useState<number>(
+    initialConfig?.intelConfig?.tagLimit ?? 30
+  );
+  const [intelMinTagCount, setIntelMinTagCount] = React.useState<number>(
+    initialConfig?.intelConfig?.minTagCount ?? 1
+  );
+  const [intelTagSort, setIntelTagSort] = React.useState<"count" | "alpha">(
+    initialConfig?.intelConfig?.tagSort || "count"
+  );
+  const [intelWallLimit, setIntelWallLimit] = React.useState<number>(
+    initialConfig?.intelConfig?.wallLimit ?? 48
+  );
+  const [intelWallSort, setIntelWallSort] = React.useState<"visits" | "recent" | "alpha">(
+    initialConfig?.intelConfig?.wallSort || "visits"
+  );
+  const [intelWallDensity, setIntelWallDensity] = React.useState<"compact" | "standard" | "cozy">(
+    initialConfig?.intelConfig?.wallDensity || "standard"
+  );
+  const [intelOnlyFavorites, setIntelOnlyFavorites] = React.useState<boolean>(
+    initialConfig?.intelConfig?.onlyFavorites || false
+  );
+  const [intelOnlyAlive, setIntelOnlyAlive] = React.useState<boolean>(
+    initialConfig?.intelConfig?.onlyAlive || false
+  );
+  const [intelExcludeArchived, setIntelExcludeArchived] = React.useState<boolean>(
+    initialConfig?.intelConfig?.excludeArchived ?? true
+  );
+
+  // Quick Preset Handlers
+  const handleApplyClassicPreset = (preset: (typeof CLASSIC_CHART_PRESETS)[number]) => {
+    setTitle(preset.label);
+    setChartType(preset.chartType);
+    setChartDimension(preset.dimension);
+    setChartMeasure(preset.measure);
+    setChartSplitBy(preset.splitBy || "none");
+    setChartLimit(preset.limit);
+    setChartOtherBucket(preset.otherBucket);
+    setChartSortBy(preset.sort.by);
+    setChartSortDir(preset.sort.direction);
+  };
+
+  const handleApplyIntelPreset = (preset: (typeof INTEL_PRESETS)[number]) => {
+    setTitle(preset.label);
+    setIntelType(preset.type);
+    if ("tagLimit" in preset && preset.tagLimit) setIntelTagLimit(preset.tagLimit);
+    if ("minTagCount" in preset && preset.minTagCount) setIntelMinTagCount(preset.minTagCount);
+    if ("tagSort" in preset && preset.tagSort) setIntelTagSort(preset.tagSort);
+    if ("wallLimit" in preset && preset.wallLimit) setIntelWallLimit(preset.wallLimit);
+    if ("wallSort" in preset && preset.wallSort) setIntelWallSort(preset.wallSort);
+    if ("graphDepth" in preset && preset.graphDepth) setIntelGraphDepth(preset.graphDepth);
+    if ("onlyFavorites" in preset && preset.onlyFavorites !== undefined) setIntelOnlyFavorites(preset.onlyFavorites);
+    if ("excludeArchived" in preset && preset.excludeArchived !== undefined) setIntelExcludeArchived(preset.excludeArchived);
+  };
 
   // Reset or Sync when initialConfig changes
   React.useEffect(() => {
@@ -266,9 +531,44 @@ export function UniversalVisualBuilderModal({
       }
       if (initialConfig.chartConfig) {
         setChartType(initialConfig.chartConfig.chartType || "bar");
+        setChartDimension(initialConfig.chartConfig.dimension || "domain");
+        setChartMeasure(initialConfig.chartConfig.measure || "count");
+        setChartSplitBy(initialConfig.chartConfig.splitBy || "none");
+        setChartSortBy(initialConfig.chartConfig.sort?.by || "measure");
+        setChartSortDir(initialConfig.chartConfig.sort?.direction || "desc");
+        setChartLimit(initialConfig.chartConfig.limit ?? 10);
+        setChartOtherBucket(initialConfig.chartConfig.otherBucket ?? true);
+        if (initialConfig.chartConfig.displayOptions) {
+          setChartShowGrid(initialConfig.chartConfig.displayOptions.showGrid ?? true);
+          setChartShowLegend(initialConfig.chartConfig.displayOptions.showLegend ?? true);
+          setChartUnitLabel(initialConfig.chartConfig.displayOptions.unitLabel || "");
+          setChartValuePrefix(initialConfig.chartConfig.displayOptions.valuePrefix || "");
+          setChartValueSuffix(initialConfig.chartConfig.displayOptions.valueSuffix || "");
+        }
+        if (initialConfig.chartConfig.filters) {
+          setChartFilterFolderId(initialConfig.chartConfig.filters.folderId || "all");
+          setChartFilterIncludeSubfolders(initialConfig.chartConfig.filters.includeSubfolders ?? true);
+          setChartFilterFavorite(initialConfig.chartConfig.filters.favorite ? "favorites_only" : "all");
+          if (initialConfig.chartConfig.filters.status?.includes("alive")) setChartFilterStatus("alive");
+          else if (initialConfig.chartConfig.filters.status?.length) setChartFilterStatus("broken");
+          else setChartFilterStatus("all");
+          setChartFilterSearch(initialConfig.chartConfig.filters.searchQuery || "");
+          setChartFilterExcludeArchived(!(initialConfig.chartConfig.filters.includeArchived ?? false));
+        }
       }
       if (initialConfig.intelConfig) {
         setIntelType(initialConfig.intelConfig.type || "tags");
+        if (initialConfig.intelConfig.folderId) setIntelScopeFolderId(initialConfig.intelConfig.folderId);
+        if (initialConfig.intelConfig.graphDepth) setIntelGraphDepth(initialConfig.intelConfig.graphDepth);
+        if (initialConfig.intelConfig.tagLimit) setIntelTagLimit(initialConfig.intelConfig.tagLimit);
+        if (initialConfig.intelConfig.minTagCount) setIntelMinTagCount(initialConfig.intelConfig.minTagCount);
+        if (initialConfig.intelConfig.tagSort) setIntelTagSort(initialConfig.intelConfig.tagSort);
+        if (initialConfig.intelConfig.wallLimit) setIntelWallLimit(initialConfig.intelConfig.wallLimit);
+        if (initialConfig.intelConfig.wallSort) setIntelWallSort(initialConfig.intelConfig.wallSort);
+        if (initialConfig.intelConfig.wallDensity) setIntelWallDensity(initialConfig.intelConfig.wallDensity);
+        if (initialConfig.intelConfig.onlyFavorites !== undefined) setIntelOnlyFavorites(initialConfig.intelConfig.onlyFavorites);
+        if (initialConfig.intelConfig.onlyAlive !== undefined) setIntelOnlyAlive(initialConfig.intelConfig.onlyAlive);
+        if (initialConfig.intelConfig.excludeArchived !== undefined) setIntelExcludeArchived(initialConfig.intelConfig.excludeArchived);
       }
     }
   }, [initialConfig, folders]);
@@ -362,6 +662,162 @@ export function UniversalVisualBuilderModal({
     return Array.from(s).sort();
   }, [bookmarks]);
 
+  // Compute live config for Classic Chart Preview
+  const previewChartConfig: VizConfig = React.useMemo(() => {
+    const filters: any = {};
+    if (chartFilterFolderId !== "all") {
+      filters.folderId = chartFilterFolderId;
+      filters.includeSubfolders = chartFilterIncludeSubfolders;
+    }
+    if (chartFilterFavorite === "favorites_only") {
+      filters.favorite = true;
+    }
+    if (chartFilterStatus === "alive") {
+      filters.status = ["alive"];
+    } else if (chartFilterStatus === "broken") {
+      filters.status = ["broken", "error", "unreachable"];
+    }
+    if (chartFilterDateRange !== "all") {
+      const now = Date.now();
+      const days =
+        chartFilterDateRange === "24h"
+          ? 1
+          : chartFilterDateRange === "7d"
+          ? 7
+          : chartFilterDateRange === "30d"
+          ? 30
+          : chartFilterDateRange === "90d"
+          ? 90
+          : 365;
+      filters.dateRangeField = "created";
+      filters.dateAfter = now - days * 24 * 60 * 60 * 1000;
+    }
+    if (chartFilterSearch.trim()) {
+      filters.searchQuery = chartFilterSearch.trim();
+    }
+    filters.includeArchived = !chartFilterExcludeArchived;
+
+    return {
+      version: 1,
+      id: "preview_chart",
+      title: title || "Classic Chart Preview",
+      chartType,
+      dimension: chartDimension,
+      splitBy: chartSplitBy === "none" ? undefined : chartSplitBy,
+      measure: chartMeasure,
+      filters,
+      sort: { by: chartSortBy, direction: chartSortDir },
+      limit: chartLimit,
+      otherBucket: chartOtherBucket,
+      displayOptions: {
+        showGrid: chartShowGrid,
+        showLegend: chartShowLegend,
+        unitLabel: chartUnitLabel || undefined,
+        valuePrefix: chartValuePrefix || undefined,
+        valueSuffix: chartValueSuffix || undefined,
+      },
+    };
+  }, [
+    title,
+    chartType,
+    chartDimension,
+    chartMeasure,
+    chartSplitBy,
+    chartSortBy,
+    chartSortDir,
+    chartLimit,
+    chartOtherBucket,
+    chartShowGrid,
+    chartShowLegend,
+    chartUnitLabel,
+    chartValuePrefix,
+    chartValueSuffix,
+    chartFilterFolderId,
+    chartFilterIncludeSubfolders,
+    chartFilterFavorite,
+    chartFilterStatus,
+    chartFilterDateRange,
+    chartFilterSearch,
+    chartFilterExcludeArchived,
+  ]);
+
+  // Compute filtered bookmarks for Intelligence Live Preview
+  const filteredIntelBookmarks = React.useMemo(() => {
+    let list = bookmarks;
+    if (intelScopeFolderId !== "all") {
+      list = list.filter((b) => b.folderId === intelScopeFolderId);
+    }
+    if (intelOnlyFavorites) {
+      list = list.filter((b) => b.isFavorite);
+    }
+    if (intelOnlyAlive) {
+      list = list.filter((b) => b.status === "alive");
+    }
+    if (intelExcludeArchived) {
+      list = list.filter((b) => !b.isArchived);
+    }
+    return list;
+  }, [bookmarks, intelScopeFolderId, intelOnlyFavorites, intelOnlyAlive, intelExcludeArchived]);
+
+  // Compute live tags for intel preview
+  const liveIntelTags = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const b of filteredIntelBookmarks) {
+      if (Array.isArray(b.tags)) {
+        for (const t of b.tags as any[]) {
+          const rawName = typeof t === "string" ? t : t?.name;
+          if (rawName && typeof rawName === "string") {
+            const clean = rawName.trim().toLowerCase();
+            if (clean) counts.set(clean, (counts.get(clean) || 0) + 1);
+          }
+        }
+      }
+    }
+    let list = Array.from(counts.entries()).map(([tag, count]) => ({ tag, count }));
+    list = list.filter((x) => x.count >= intelMinTagCount);
+    if (intelTagSort === "count") {
+      list.sort((a, b) => b.count - a.count);
+    } else {
+      list.sort((a, b) => a.tag.localeCompare(b.tag));
+    }
+    return list.slice(0, intelTagLimit);
+  }, [filteredIntelBookmarks, intelMinTagCount, intelTagSort, intelTagLimit]);
+
+  // Compute live engagement tiers for intel preview
+  const liveIntelEngagement = React.useMemo(() => {
+    let frequent = 0;
+    let active = 0;
+    let occasional = 0;
+    let dormant = 0;
+    for (const b of filteredIntelBookmarks) {
+      const v = b.visitCount || 0;
+      if (v >= 21) frequent++;
+      else if (v >= 6) active++;
+      else if (v >= 1) occasional++;
+      else dormant++;
+    }
+    const total = filteredIntelBookmarks.length || 1;
+    return [
+      { key: "frequent", label: "Frequent (21+ visits)", count: frequent, pct: Math.round((frequent / total) * 100), color: "#3b82f6" },
+      { key: "active", label: "Active (6-20 visits)", count: active, pct: Math.round((active / total) * 100), color: "#10b981" },
+      { key: "occasional", label: "Occasional (1-5 visits)", count: occasional, pct: Math.round((occasional / total) * 100), color: "#f59e0b" },
+      { key: "dormant", label: "Dormant (0 visits)", count: dormant, pct: Math.round((dormant / total) * 100), color: "#64748b" },
+    ];
+  }, [filteredIntelBookmarks]);
+
+  // Compute live wall bookmarks for intel preview
+  const liveIntelWall = React.useMemo(() => {
+    let list = [...filteredIntelBookmarks];
+    if (intelWallSort === "visits") {
+      list.sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0));
+    } else if (intelWallSort === "recent") {
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      list.sort((a, b) => (a.title || a.domain || "").localeCompare(b.title || b.domain || ""));
+    }
+    return list.slice(0, intelWallLimit);
+  }, [filteredIntelBookmarks, intelWallSort, intelWallLimit]);
+
   // Save handler
   const handleSave = () => {
     const finalId = initialConfig?.id || `viz_${Date.now()}`;
@@ -409,22 +865,73 @@ export function UniversalVisualBuilderModal({
         },
       };
     } else if (activeTab === "chart") {
+      const filters: any = {};
+      if (chartFilterFolderId !== "all") {
+        filters.folderId = chartFilterFolderId;
+        filters.includeSubfolders = chartFilterIncludeSubfolders;
+      }
+      if (chartFilterFavorite === "favorites_only") {
+        filters.favorite = true;
+      }
+      if (chartFilterStatus === "alive") {
+        filters.status = ["alive"];
+      } else if (chartFilterStatus === "broken") {
+        filters.status = ["broken", "error", "unreachable"];
+      }
+      if (chartFilterDateRange !== "all") {
+        const now = Date.now();
+        const days =
+          chartFilterDateRange === "24h"
+            ? 1
+            : chartFilterDateRange === "7d"
+            ? 7
+            : chartFilterDateRange === "30d"
+            ? 30
+            : chartFilterDateRange === "90d"
+            ? 90
+            : 365;
+        filters.dateRangeField = "created";
+        filters.dateAfter = now - days * 24 * 60 * 60 * 1000;
+      }
+      if (chartFilterSearch.trim()) {
+        filters.searchQuery = chartFilterSearch.trim();
+      }
+      filters.includeArchived = !chartFilterExcludeArchived;
+
       builtConfig.chartConfig = {
         version: 1,
         id: finalId,
-        title,
+        title: title.trim() || "Classic Chart",
         chartType,
-        dimension: "domain",
-        measure: "count",
-        filters: {},
-        sort: { by: "measure", direction: "desc" },
-        limit: 8,
-        otherBucket: true,
+        dimension: chartDimension,
+        splitBy: chartSplitBy === "none" ? undefined : chartSplitBy,
+        measure: chartMeasure,
+        filters,
+        sort: { by: chartSortBy, direction: chartSortDir },
+        limit: chartLimit,
+        otherBucket: chartOtherBucket,
+        displayOptions: {
+          showGrid: chartShowGrid,
+          showLegend: chartShowLegend,
+          unitLabel: chartUnitLabel || undefined,
+          valuePrefix: chartValuePrefix || undefined,
+          valueSuffix: chartValueSuffix || undefined,
+        },
       };
     } else if (activeTab === "intel") {
       builtConfig.intelConfig = {
         type: intelType,
-        graphDepth: 2,
+        folderId: intelScopeFolderId !== "all" ? intelScopeFolderId : undefined,
+        graphDepth: intelGraphDepth,
+        tagLimit: intelTagLimit,
+        minTagCount: intelMinTagCount,
+        tagSort: intelTagSort,
+        wallLimit: intelWallLimit,
+        wallSort: intelWallSort,
+        wallDensity: intelWallDensity,
+        onlyFavorites: intelOnlyFavorites,
+        onlyAlive: intelOnlyAlive,
+        excludeArchived: intelExcludeArchived,
       };
     }
 
@@ -1007,18 +1514,47 @@ export function UniversalVisualBuilderModal({
             {/* 3. CLASSIC CHART CONFIGURATION */}
             {activeTab === "chart" && (
               <div className="space-y-3.5 animate-in fade-in">
+                {/* Widely Used Presets & Recipes */}
+                <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Widely Used Presets & Quick Recipes</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {CLASSIC_CHART_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleApplyClassicPreset(p)}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:border-primary/50 hover:bg-secondary/60 text-left transition-colors cursor-pointer group"
+                        title={p.desc}
+                      >
+                        <div className="text-[11px] font-medium text-foreground group-hover:text-primary truncate">
+                          {p.label}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-mono truncate">
+                          {p.chartType} • {p.dimension}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 1. Chart Format */}
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Chart Format
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {[
-                      { id: "bar" as const, label: "Vertical Bar", icon: BarChart3 },
+                      { id: "bar" as const, label: "Column", icon: BarChart3 },
                       { id: "horizontal_bar" as const, label: "Ranked Bar", icon: BarChart3 },
-                      { id: "donut" as const, label: "Donut Share", icon: PieChart },
-                      { id: "area" as const, label: "Trend Area", icon: AreaChart },
-                      { id: "line" as const, label: "Smooth Line", icon: LineChart },
+                      { id: "donut" as const, label: "Donut", icon: PieChart },
+                      { id: "area" as const, label: "Area Trend", icon: AreaChart },
+                      { id: "line" as const, label: "Line", icon: LineChart },
+                      { id: "stacked_bar" as const, label: "Stacked", icon: BarChart3 },
                       { id: "number" as const, label: "Metric Stat", icon: Activity },
+                      { id: "table" as const, label: "Summary", icon: Layers },
                     ].map((c) => {
                       const IconC = c.icon;
                       const isSel = chartType === c.id;
@@ -1027,16 +1563,267 @@ export function UniversalVisualBuilderModal({
                           key={c.id}
                           type="button"
                           onClick={() => setChartType(c.id)}
-                          className={`p-2 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2 ${isSel
-                              ? "bg-primary/10 border-primary text-primary font-semibold"
+                          className={`p-2 rounded-xl border text-center cursor-pointer transition-colors flex flex-col items-center gap-1 ${
+                            isSel
+                              ? "bg-primary/10 border-primary text-primary font-semibold shadow-2xs"
                               : "bg-background border-border hover:bg-secondary text-muted-foreground"
-                            }`}
+                          }`}
                         >
                           <IconC className="h-4 w-4" />
-                          <span className="text-xs">{c.label}</span>
+                          <span className="text-[11px] truncate w-full">{c.label}</span>
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* 2. Primary Dimension (X) & Metric (Y) */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Primary Dimension (X)
+                    </label>
+                    <select
+                      value={chartDimension}
+                      onChange={(e) => setChartDimension(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-medium"
+                    >
+                      <optgroup label="Taxonomy & Collections">
+                        <option value="domain">Web Domain (root)</option>
+                        <option value="folder_top">Top Folder Collection</option>
+                        <option value="folder_leaf">Immediate Subfolder</option>
+                        <option value="tag">Primary Tag / Topic</option>
+                      </optgroup>
+                      <optgroup label="Temporal Intervals">
+                        <option value="created_month">Month Ingested (YYYY-MM)</option>
+                        <option value="created_week">Week Ingested</option>
+                        <option value="created_day">Day Created</option>
+                        <option value="created_year">Year Created</option>
+                        <option value="last_opened_date">Last Opened Date</option>
+                      </optgroup>
+                      <optgroup label="Metadata & Health">
+                        <option value="status">Link Health Status</option>
+                        <option value="favorite">Starred Favorite</option>
+                        <option value="has_notes">Notes Attachment</option>
+                        <option value="last_opened_bucket">Recency Tier</option>
+                        <option value="visit_count_bucket">Visit Intensity Bucket</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Measure Metric (Y)
+                    </label>
+                    <select
+                      value={chartMeasure}
+                      onChange={(e) => setChartMeasure(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-medium"
+                    >
+                      <option value="count">Bookmark Count</option>
+                      <option value="sum_visits">Total Visits (Sum)</option>
+                      <option value="avg_visits">Average Visits / Site</option>
+                      <option value="max_visits">Peak / Max Visits</option>
+                      <option value="distinct_domains">Unique Domain Count</option>
+                      <option value="percent_of_total">% Share of Total</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 3. Secondary Split / Stacking Dimension (splitBy) & Sort Order */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Multi-Series Group (Split By)
+                    </label>
+                    <select
+                      value={chartSplitBy}
+                      onChange={(e) => setChartSplitBy(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                    >
+                      <option value="none">None (Single Series)</option>
+                      <option value="folder_top">Folder Collection</option>
+                      <option value="folder_leaf">Immediate Subfolder</option>
+                      <option value="tag">Primary Tag</option>
+                      <option value="domain">Web Domain</option>
+                      <option value="status">Health Status</option>
+                      <option value="favorite">Starred Favorite</option>
+                      <option value="has_notes">Notes Presence</option>
+                      <option value="last_opened_bucket">Recency Tier</option>
+                      <option value="visit_count_bucket">Visit Intensity Tier</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Sort Direction & Ranking
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <select
+                        value={chartSortBy}
+                        onChange={(e) => setChartSortBy(e.target.value as any)}
+                        className="h-8 px-2 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="measure">By Value</option>
+                        <option value="dimension">By Name</option>
+                      </select>
+                      <select
+                        value={chartSortDir}
+                        onChange={(e) => setChartSortDir(e.target.value as any)}
+                        className="h-8 px-2 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="desc">Desc (High→Low)</option>
+                        <option value="asc">Asc (Low→High)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Limits & Tail Grouping */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Max Items Limit
+                    </label>
+                    <select
+                      value={chartLimit}
+                      onChange={(e) => setChartLimit(Number(e.target.value))}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                    >
+                      <option value="5">Top 5 Records</option>
+                      <option value="8">Top 8 Records</option>
+                      <option value="10">Top 10 Records</option>
+                      <option value="15">Top 15 Records</option>
+                      <option value="25">Top 25 Records</option>
+                      <option value="50">Top 50 Records</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center pt-5">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={chartOtherBucket}
+                        onChange={(e) => setChartOtherBucket(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Group rest into &quot;Other&quot;</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 5. Database Constraints & Query Filters */}
+                <div className="p-3 rounded-xl border border-border/80 bg-secondary/15 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Filter className="h-3.5 w-3.5 text-primary" />
+                      Database Query Constraints &amp; Filters
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">SQL Pre-aggregation</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Folder Collection Scope</label>
+                      <select
+                        value={chartFilterFolderId}
+                        onChange={(e) => setChartFilterFolderId(e.target.value)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="all">All Folders (Workspace-wide)</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            📁 {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Date Ingested Range</label>
+                      <select
+                        value={chartFilterDateRange}
+                        onChange={(e) => setChartFilterDateRange(e.target.value as any)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="all">All-Time Ingestion</option>
+                        <option value="24h">Past 24 Hours</option>
+                        <option value="7d">Past 7 Days</option>
+                        <option value="30d">Past 30 Days</option>
+                        <option value="90d">Past 90 Days</option>
+                        <option value="1y">Past 1 Year</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">HTTP Link Health</label>
+                      <select
+                        value={chartFilterStatus}
+                        onChange={(e) => setChartFilterStatus(e.target.value as any)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="all">All Links (Any Status)</option>
+                        <option value="alive">Verified Alive (200 OK)</option>
+                        <option value="broken">Broken / Error Sites</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Favorites Scope</label>
+                      <select
+                        value={chartFilterFavorite}
+                        onChange={(e) => setChartFilterFavorite(e.target.value as any)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="all">All Sites (Starred &amp; Standard)</option>
+                        <option value="favorites_only">⭐ Starred Favorites Only</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Filter Toggles */}
+                  <div className="flex flex-wrap items-center gap-4 pt-1 border-t border-border/40 text-[11px]">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={chartFilterIncludeSubfolders}
+                        onChange={(e) => setChartFilterIncludeSubfolders(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Include Subfolders</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={chartFilterExcludeArchived}
+                        onChange={(e) => setChartFilterExcludeArchived(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Exclude Archived</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={chartShowGrid}
+                        onChange={(e) => setChartShowGrid(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Gridlines</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={chartShowLegend}
+                        onChange={(e) => setChartShowLegend(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Color Legend</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1045,16 +1832,43 @@ export function UniversalVisualBuilderModal({
             {/* 4. WORKSPACE INTELLIGENCE CONFIGURATION */}
             {activeTab === "intel" && (
               <div className="space-y-3.5 animate-in fade-in">
+                {/* Widely Used Presets */}
+                <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Intelligence Presets &amp; Architecture Layouts</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {INTEL_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleApplyIntelPreset(p)}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:border-primary/50 hover:bg-secondary/60 text-left transition-colors cursor-pointer group"
+                        title={p.desc}
+                      >
+                        <div className="text-[11px] font-medium text-foreground group-hover:text-primary truncate">
+                          {p.label}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-mono truncate">
+                          {p.type.toUpperCase()} module
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 1. Intelligence Engine */}
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Intelligence Engine
                   </label>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {[
-                      { id: "tags" as const, label: "Tag Frequency & Cloud", desc: "Interactive weighted keyword cloud with click filtering", icon: Tag },
+                      { id: "tags" as const, label: "Tag Frequency & Cloud", desc: "Interactive weighted topic cloud with direct click filtering", icon: Tag },
                       { id: "engagement" as const, label: "Engagement Spectrum", desc: "Frequent, active, occasional, and dormant visit tiers", icon: TrendingUp },
-                      { id: "wall" as const, label: "Visual Favicon Wall", desc: "High-density grid of site favicons and quick links", icon: LayoutGrid },
-                      { id: "graph" as const, label: "Interactive Knowledge Graph", desc: "Force-directed physics graph connecting folders and domains", icon: Layers },
+                      { id: "wall" as const, label: "Visual Favicon Wall", desc: "High-density matrix of site favicons and quick links", icon: LayoutGrid },
+                      { id: "graph" as const, label: "Knowledge Graph", desc: "Physics network graph connecting folders and domains", icon: Layers },
                     ].map((item) => {
                       const IconI = item.icon;
                       const isSel = intelType === item.id;
@@ -1063,19 +1877,195 @@ export function UniversalVisualBuilderModal({
                           key={item.id}
                           type="button"
                           onClick={() => setIntelType(item.id)}
-                          className={`w-full p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-start gap-2.5 ${isSel
+                          className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-start gap-2.5 ${
+                            isSel
                               ? "bg-primary/10 border-primary text-foreground shadow-2xs"
                               : "bg-background border-border hover:bg-secondary text-muted-foreground"
-                            }`}
+                          }`}
                         >
                           <IconI className={`h-4 w-4 mt-0.5 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
-                          <div>
-                            <div className="text-xs font-semibold">{item.label}</div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold truncate">{item.label}</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{item.desc}</div>
                           </div>
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* 2. Engine-Specific Constraints & Deep Fields */}
+                {intelType === "tags" && (
+                  <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl border border-border/80 bg-secondary/15">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Max Tags Limit</label>
+                      <select
+                        value={intelTagLimit}
+                        onChange={(e) => setIntelTagLimit(Number(e.target.value))}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="15">Top 15 Tags</option>
+                        <option value="30">Top 30 Tags</option>
+                        <option value="50">Top 50 Tags</option>
+                        <option value="100">Top 100 Tags</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Min Tag Count</label>
+                      <select
+                        value={intelMinTagCount}
+                        onChange={(e) => setIntelMinTagCount(Number(e.target.value))}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="1">1+ Sites (All Tags)</option>
+                        <option value="2">2+ Sites (Recurring)</option>
+                        <option value="3">3+ Sites (Frequent)</option>
+                        <option value="5">5+ Sites (Clusters)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Sort Priority</label>
+                      <select
+                        value={intelTagSort}
+                        onChange={(e) => setIntelTagSort(e.target.value as any)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="count">Most Frequent First</option>
+                        <option value="alpha">Alphabetical A→Z</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {intelType === "wall" && (
+                  <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl border border-border/80 bg-secondary/15">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Max Favicons</label>
+                      <select
+                        value={intelWallLimit}
+                        onChange={(e) => setIntelWallLimit(Number(e.target.value))}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="24">24 Sites</option>
+                        <option value="48">48 Sites</option>
+                        <option value="72">72 Sites</option>
+                        <option value="120">120 Sites</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Sort Order</label>
+                      <select
+                        value={intelWallSort}
+                        onChange={(e) => setIntelWallSort(e.target.value as any)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="visits">Most Visited</option>
+                        <option value="recent">Recently Added</option>
+                        <option value="alpha">Alphabetical Name</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Grid Density</label>
+                      <select
+                        value={intelWallDensity}
+                        onChange={(e) => setIntelWallDensity(e.target.value as any)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="compact">Compact (High Density)</option>
+                        <option value="standard">Standard Grid</option>
+                        <option value="cozy">Cozy (Larger Icons)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {intelType === "graph" && (
+                  <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl border border-border/80 bg-secondary/15">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Constellation Depth</label>
+                      <select
+                        value={intelGraphDepth}
+                        onChange={(e) => setIntelGraphDepth(Number(e.target.value))}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                      >
+                        <option value="1">Depth 1 (Direct folder links)</option>
+                        <option value="2">Depth 2 (Full folder-domain mesh)</option>
+                        <option value="3">Depth 3 (Constellation constellation)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center pt-3 text-[11px] text-muted-foreground">
+                      <span>Physics force-directed spring simulation enabled</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Database Constraints & Query Filters */}
+                <div className="p-3 rounded-xl border border-border/80 bg-secondary/15 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Filter className="h-3.5 w-3.5 text-primary" />
+                      Workspace Scope &amp; Site Constraints
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {filteredIntelBookmarks.length} matching sites
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Scope Collection</label>
+                      <select
+                        value={intelScopeFolderId}
+                        onChange={(e) => setIntelScopeFolderId(e.target.value)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        <option value="all">Entire Workspace (All Collections)</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            📁 {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col justify-end">
+                      <div className="flex items-center gap-3 pt-1 text-[11px]">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={intelOnlyFavorites}
+                            onChange={(e) => setIntelOnlyFavorites(e.target.checked)}
+                            className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                          />
+                          <span>Only Starred</span>
+                        </label>
+
+                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={intelOnlyAlive}
+                            onChange={(e) => setIntelOnlyAlive(e.target.checked)}
+                            className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                          />
+                          <span>Only Alive</span>
+                        </label>
+
+                        <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={intelExcludeArchived}
+                            onChange={(e) => setIntelExcludeArchived(e.target.checked)}
+                            className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                          />
+                          <span>Exclude Archived</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1138,20 +2128,10 @@ export function UniversalVisualBuilderModal({
               {activeTab === "chart" && (
                 <div className="w-full">
                   <VizChart
-                    config={{
-                      version: 1,
-                      id: "preview",
-                      title,
-                      chartType,
-                      dimension: "domain",
-                      measure: "count",
-                      filters: {},
-                      sort: { by: "measure", direction: "desc" },
-                      limit: 6,
-                      otherBucket: true,
-                    }}
+                    config={previewChartConfig}
                     bookmarks={bookmarks}
                     folders={folders}
+                    height={240}
                   />
                 </div>
               )}
@@ -1160,31 +2140,109 @@ export function UniversalVisualBuilderModal({
               {activeTab === "intel" && (
                 <div className="w-full">
                   {intelType === "graph" ? (
-                    <div className="h-56 w-full rounded-xl overflow-hidden border border-border">
+                    <div className="h-60 w-full rounded-xl overflow-hidden border border-border">
                       <KnowledgeGraph
-                        mode="global"
-                        depth={2}
+                        mode={intelScopeFolderId !== "all" ? "folder" : "global"}
+                        folderId={intelScopeFolderId !== "all" ? intelScopeFolderId : undefined}
+                        depth={intelGraphDepth}
                         showControls={false}
                       />
                     </div>
                   ) : intelType === "tags" ? (
-                    <div className="flex flex-wrap gap-1.5 p-3">
-                      {allTags.slice(0, 20).map((t, idx) => (
-                        <span
-                          key={t}
-                          className="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-border"
-                          style={{
-                            backgroundColor: idx % 2 === 0 ? `${color}15` : undefined,
-                            color: idx % 2 === 0 ? color : undefined,
-                          }}
-                        >
-                          #{t}
-                        </span>
-                      ))}
+                    <div className="space-y-3 p-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                        <span>Tag Cloud ({liveIntelTags.length} tags shown)</span>
+                        <span>Min count: {intelMinTagCount}+</span>
+                      </div>
+                      {liveIntelTags.length === 0 ? (
+                        <div className="p-8 text-center text-xs text-muted-foreground">
+                          No tags match the selected criteria.
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 max-h-52 overflow-y-auto p-1">
+                          {liveIntelTags.map((t, idx) => (
+                            <span
+                              key={t.tag}
+                              className="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-border flex items-center gap-1.5 transition-colors"
+                              style={{
+                                backgroundColor: idx % 2 === 0 ? `${color}18` : undefined,
+                                borderColor: idx % 2 === 0 ? `${color}40` : undefined,
+                                color: idx % 2 === 0 ? color : undefined,
+                              }}
+                            >
+                              <span>#{t.tag}</span>
+                              <span className="text-[10px] opacity-75 font-bold font-mono">({t.count})</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : intelType === "engagement" ? (
+                    <div className="space-y-3 p-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                        <span>Engagement Spectrum ({filteredIntelBookmarks.length} sites)</span>
+                        <span>Visit Volume Tiers</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {liveIntelEngagement.map((tier) => (
+                          <div
+                            key={tier.key}
+                            className="p-2.5 rounded-xl border border-border bg-card flex flex-col justify-between"
+                          >
+                            <span className="text-[10px] text-muted-foreground font-medium truncate block">
+                              {tier.label}
+                            </span>
+                            <div className="flex items-baseline justify-between mt-1.5">
+                              <span className="text-base font-bold font-mono text-foreground">{tier.count}</span>
+                              <span className="text-[10px] font-mono text-muted-foreground">{tier.pct}%</span>
+                            </div>
+                            <div className="w-full h-1 rounded-full bg-secondary overflow-hidden mt-1.5">
+                              <div
+                                className="h-full rounded-full"
+                                style={{ width: `${tier.pct}%`, backgroundColor: tier.color }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-xs text-muted-foreground">
-                      <span>{intelType.toUpperCase()} module ready for placement in {destinationName}.</span>
+                    <div className="space-y-2 p-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                        <span>Favicon Wall Matrix ({liveIntelWall.length} sites)</span>
+                        <span className="capitalize">{intelWallDensity} • {intelWallSort}</span>
+                      </div>
+                      <div
+                        className={`grid gap-1.5 max-h-56 overflow-y-auto p-1 ${
+                          intelWallDensity === "compact"
+                            ? "grid-cols-6 sm:grid-cols-10"
+                            : intelWallDensity === "cozy"
+                            ? "grid-cols-4 sm:grid-cols-6"
+                            : "grid-cols-5 sm:grid-cols-8"
+                        }`}
+                      >
+                        {liveIntelWall.map((bm) => (
+                          <div
+                            key={bm.id}
+                            className="p-1.5 rounded-lg border border-border bg-card flex flex-col items-center justify-center gap-1 group hover:border-primary transition-colors"
+                            title={`${bm.title} (${bm.domain})`}
+                          >
+                            <BookmarkIcon
+                              src={bm.iconUrl}
+                              alt={bm.title}
+                              domain={bm.domain}
+                              className={
+                                intelWallDensity === "cozy"
+                                  ? "h-6 w-6 object-contain"
+                                  : "h-4 w-4 object-contain"
+                              }
+                            />
+                            <span className="text-[9px] font-mono text-muted-foreground truncate w-full text-center">
+                              {bm.domain?.split(".")[0] || "site"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -63,6 +63,13 @@ export interface HomeWidgetConfig {
   span?: "1" | "2"; // 1 = Half Width, 2 = Full Width (legacy)
   colSpan?: WidgetColSpan; // 2..12 column track span
   rowSpan?: 1 | 2; // 1 = standard height, 2 = tall (spans 2 rows)
+  icon?: string;
+  color?: string;
+  category?: string;
+  siteConfig?: any;
+  plotConfig?: any;
+  chartConfig?: any;
+  intelConfig?: any;
 }
 
 export const DEFAULT_HOME_WIDGETS: HomeWidgetConfig[] = [

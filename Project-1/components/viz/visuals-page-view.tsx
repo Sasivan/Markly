@@ -39,9 +39,11 @@ import { VIZ_GRADIENTS, type VizGradientPreset } from "@/lib/viz/palette";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "./viz-chart";
-import { VizBuilderDialog } from "./viz-builder-dialog";
 import { ObservablePlotView, type ObservablePlotConfig } from "./observable-plot-view";
-import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
+import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboard-widget-box";
+import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "./universal-visual-builder-modal";
+import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
+import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
 export interface VisualsPageViewProps {
@@ -190,7 +192,7 @@ export function VisualsPageView({
   onNavigateHome,
 }: VisualsPageViewProps) {
   const [builderOpen, setBuilderOpen] = React.useState(false);
-  const [editingConfig, setEditingConfig] = React.useState<VizConfig | null>(null);
+  const [editingConfig, setEditingConfig] = React.useState<UniversalVisualConfig | null>(null);
 
   // Observable Plot Studio state (22 Plot Variations)
   const [plotType, setPlotType] = React.useState<ObservablePlotConfig["type"]>("barX");
@@ -198,6 +200,8 @@ export function VisualsPageView({
   const [plotColorScheme, setPlotColorScheme] = React.useState<string>("tableau10");
   const [plotDimension, setPlotDimension] = React.useState<string>("domain");
   const [plotMeasure, setPlotMeasure] = React.useState<string>("count");
+  const [plotCustomColor, setPlotCustomColor] = React.useState<string>("#3b82f6");
+  const [plotCustomIcon, setPlotCustomIcon] = React.useState<string>("activity");
 
   // Knowledge Graph Studio state
   const [graphDepth, setGraphDepth] = React.useState<number>(2);
@@ -507,15 +511,58 @@ export function VisualsPageView({
     }
   };
 
-  const handleSaveVisual = async (newConfig: VizConfig) => {
-    await handlePinAnyVisual({
-      id: newConfig.id,
-      title: newConfig.title,
-      kind: "chart",
-      chartConfig: newConfig,
-    });
-    setBuilderOpen(false);
-    setEditingConfig(null);
+  const handleSaveUniversalVisual = async (uConfig: UniversalVisualConfig) => {
+    try {
+      const current = await widgetStore.loadWidgets();
+      const newId = uConfig.id.startsWith("custom:") ? uConfig.id : `custom:${uConfig.category}_${Date.now()}`;
+      const newWidget: HomeWidgetConfig = {
+        id: newId,
+        label: uConfig.title,
+        visible: true,
+        kind: "custom",
+        colSpan: uConfig.colSpan || 6,
+        span: uConfig.rowSpan === 2 ? "2" : "1",
+        rowSpan: uConfig.rowSpan || 1,
+        icon: uConfig.icon,
+        color: uConfig.color,
+        category: uConfig.category,
+        siteConfig: uConfig.siteConfig,
+        plotConfig: uConfig.plotConfig,
+        chartConfig: uConfig.chartConfig,
+        intelConfig: uConfig.intelConfig,
+        vizConfig: {
+          id: newId,
+          title: uConfig.title,
+          kind: uConfig.category as any,
+          category: uConfig.category,
+          chartType: (uConfig.chartConfig?.chartType || (uConfig.category === "plot" ? "plot" : "bar")) as any,
+          plotConfig: uConfig.plotConfig,
+          siteConfig: uConfig.siteConfig,
+          intelConfig: uConfig.intelConfig,
+        },
+      };
+
+      const existsIndex = current.findIndex((w: any) => w.id === uConfig.id);
+      let updated: HomeWidgetConfig[];
+      if (existsIndex >= 0) {
+        updated = [...current];
+        updated[existsIndex] = { ...updated[existsIndex], ...newWidget };
+      } else {
+        updated = [...current, newWidget];
+      }
+      await widgetStore.saveWidgets(updated);
+      setCustomWidgets(
+        updated.filter(
+          (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
+        )
+      );
+      setBuilderOpen(false);
+      setEditingConfig(null);
+      setExportSuccessMsg(`Saved visual "${uConfig.title}" to Dashboard Home!`);
+      setTimeout(() => setExportSuccessMsg(null), 3000);
+    } catch (e) {
+      console.error("Save universal visual error:", e);
+    }
   };
 
   const handleDeleteWidget = async (id: string) => {
@@ -740,7 +787,7 @@ export function VisualsPageView({
           </div>
 
           {/* Observable Plot Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
             {/* Dimension */}
             <div className="space-y-1">
               <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
@@ -791,6 +838,23 @@ export function VisualsPageView({
                 <option value="warm">Warm (Sequential)</option>
                 <option value="cool">Cool (Sequential)</option>
               </select>
+            </div>
+
+            {/* Universal Accent Color & Icon Pickers */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Accent & Icon
+              </label>
+              <div className="flex items-center gap-1.5 h-8">
+                <UniversalColorPicker
+                  value={plotCustomColor}
+                  onChange={(c) => setPlotCustomColor(c)}
+                />
+                <UniversalIconPicker
+                  value={plotCustomIcon}
+                  onChange={(ic) => setPlotCustomIcon(ic)}
+                />
+              </div>
             </div>
           </div>
 
@@ -847,8 +911,8 @@ export function VisualsPageView({
                 y1: "y1",
                 x2: "x2",
                 y2: "y2",
-                fill: plotType === "dot" || plotType === "bubble" || plotType === "stackedBarY" || plotType === "stackedBarX" ? "folder" : plotType === "cell" ? "count" : "#3b82f6",
-                stroke: "#3b82f6",
+                fill: plotType === "dot" || plotType === "bubble" || plotType === "stackedBarY" || plotType === "stackedBarX" ? "folder" : plotType === "cell" ? "count" : (plotCustomColor || "#3b82f6"),
+                stroke: plotCustomColor || "#3b82f6",
                 z: "folder",
                 r: 6,
                 colorScheme: plotColorScheme,
@@ -1191,52 +1255,122 @@ export function VisualsPageView({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
-            {customWidgets.map((widget) => (
-              <DashboardWidgetBox
-                key={widget.id}
-                id={widget.id}
-                title={widget.vizConfig?.title || widget.label}
-                icon={<BarChart3 className="h-4 w-4 text-primary" />}
-                initialColSpan={widget.colSpan || 6}
-                minHeight={280}
-                onDeleteWidget={() => handleDeleteWidget(widget.id)}
-                extraHeaderAction={
-                  widget.vizConfig ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setExportTargetVisual({
-                          id: widget.id,
-                          title: widget.vizConfig?.title || widget.label,
-                          kind: "chart",
-                          chartConfig: widget.vizConfig,
-                        })
-                      }
-                      className="text-xs h-6 px-1.5 cursor-pointer text-primary"
-                    >
-                      <FolderPlus className="h-3 w-3 mr-1" />
-                      <span>+ Folder</span>
-                    </Button>
-                  ) : undefined
-                }
-              >
-                <div className="p-3">
-                  {widget.vizConfig ? (
-                    <VizChart
-                      config={widget.vizConfig}
-                      bookmarks={bookmarks}
-                      folders={folders}
-                      height={200}
-                      onSelectDomain={onSelectDomain}
-                      onSelectTag={onSelectTag}
-                      onSelectFolder={onSelectFolder}
-                      bare={true}
-                    />
-                  ) : null}
-                </div>
-              </DashboardWidgetBox>
-            ))}
+            {customWidgets.map((widget) => {
+              const siteCfg = widget.siteConfig || widget.vizConfig?.siteConfig;
+              const plotCfg = widget.plotConfig || widget.vizConfig?.plotConfig;
+              const intelCfg = widget.intelConfig || widget.vizConfig?.intelConfig;
+
+              let siteItems = bookmarks;
+              if (siteCfg) {
+                if (siteCfg.source === "favorites") siteItems = siteItems.filter((b) => b.isFavorite);
+                else if (siteCfg.source === "recent")
+                  siteItems = [...siteItems].sort(
+                    (a, b) =>
+                      new Date(b.createdAt).getTime() -
+                      new Date(a.createdAt).getTime()
+                  );
+                else if (siteCfg.source === "unsorted") siteItems = siteItems.filter((b) => !b.folderId);
+                else if (siteCfg.source === "folder" && siteCfg.folderId)
+                  siteItems = siteItems.filter((b) => b.folderId === siteCfg.folderId);
+                else if (siteCfg.source === "tag" && siteCfg.tag)
+                  siteItems = siteItems.filter((b) =>
+                    b.tags?.some(
+                      (t) => (typeof t === "string" ? t : t.name).toLowerCase() === siteCfg.tag?.toLowerCase()
+                    )
+                  );
+
+                if (siteCfg.sortBy === "visits")
+                  siteItems = [...siteItems].sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0));
+                else if (siteCfg.sortBy === "title")
+                  siteItems = [...siteItems].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+
+                const limitNum =
+                  siteCfg.limit === "all"
+                    ? siteItems.length
+                    : typeof siteCfg.limit === "number"
+                    ? siteCfg.limit
+                    : 7;
+                siteItems = siteItems.slice(0, limitNum);
+              }
+
+              return (
+                <DashboardWidgetBox
+                  key={widget.id}
+                  id={widget.id}
+                  title={widget.vizConfig?.title || widget.label}
+                  icon={<BarChart3 className="h-4 w-4 text-primary" />}
+                  initialColSpan={widget.colSpan || 6}
+                  minHeight={280}
+                  onDeleteWidget={() => handleDeleteWidget(widget.id)}
+                  onEditWidget={() => {
+                    setEditingConfig({
+                      id: widget.id,
+                      title: widget.vizConfig?.title || widget.label,
+                      category: (widget.category ||
+                        (siteCfg ? "sites" : plotCfg ? "plot" : intelCfg ? "intel" : "chart")) as any,
+                      colSpan: widget.colSpan || 6,
+                      rowSpan: widget.rowSpan || (widget.span === "2" ? 2 : 1),
+                      icon: widget.icon,
+                      color: widget.color,
+                      siteConfig: siteCfg,
+                      plotConfig: plotCfg,
+                      chartConfig: widget.vizConfig,
+                      intelConfig: intelCfg,
+                    });
+                    setBuilderOpen(true);
+                  }}
+                  extraHeaderAction={
+                    widget.vizConfig ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setExportTargetVisual({
+                            id: widget.id,
+                            title: widget.vizConfig?.title || widget.label,
+                            kind: "chart",
+                            chartConfig: widget.vizConfig,
+                          })
+                        }
+                        className="text-xs h-6 px-1.5 cursor-pointer text-primary"
+                      >
+                        <FolderPlus className="h-3 w-3 mr-1" />
+                        <span>+ Folder</span>
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  <div className="p-3">
+                    {siteCfg ? (
+                      <BookmarkItemsView
+                        items={siteItems}
+                        mode={siteCfg.viewMode || "list"}
+                        onOpenPreview={() => {}}
+                      />
+                    ) : plotCfg ? (
+                      <ObservablePlotView
+                        data={plotData}
+                        config={{
+                          ...plotCfg,
+                          height: 220,
+                        }}
+                      />
+                    ) : widget.vizConfig ? (
+                      <VizChart
+                        config={widget.vizConfig}
+                        bookmarks={bookmarks}
+                        folders={folders}
+                        height={200}
+                        onSelectDomain={onSelectDomain}
+                        onSelectTag={onSelectTag}
+                        onSelectFolder={onSelectFolder}
+                        bare={true}
+                      />
+                    ) : null}
+                  </div>
+                </DashboardWidgetBox>
+              );
+            })}
           </div>
         </section>
       )}
@@ -1472,8 +1606,8 @@ export function VisualsPageView({
         </div>
       )}
 
-      {/* Visual Builder Dialog */}
-      <VizBuilderDialog
+      {/* Universal Visual Builder Modal */}
+      <UniversalVisualBuilderModal
         open={builderOpen}
         onOpenChange={(op) => {
           setBuilderOpen(op);
@@ -1482,7 +1616,8 @@ export function VisualsPageView({
         initialConfig={editingConfig}
         bookmarks={bookmarks}
         folders={folders}
-        onSave={handleSaveVisual}
+        onSave={handleSaveUniversalVisual}
+        destinationName="Dashboard Home"
       />
     </div>
   );

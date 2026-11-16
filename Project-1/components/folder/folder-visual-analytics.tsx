@@ -34,6 +34,7 @@ import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "@/components/viz/viz-chart";
 import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
+import { UniversalVisualBuilderModal, type UniversalVisualConfig, type VisualCategory } from "@/components/viz/universal-visual-builder-modal";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
@@ -391,6 +392,75 @@ export function FolderVisualAnalytics({
     setEditingViz(null);
   };
 
+  // Universal Visual Builder & Editor State
+  const [universalModalOpen, setUniversalModalOpen] = React.useState(false);
+  const [editingUniversalConfig, setEditingUniversalConfig] = React.useState<UniversalVisualConfig | null>(null);
+
+  const handleOpenUniversalBuilder = (visual?: TabVisual) => {
+    if (visual) {
+      let cat: VisualCategory = "chart";
+      if (visual.kind === "sites") cat = "sites";
+      else if (visual.kind === "plot") cat = "plot";
+      else if (visual.kind === "tags" || visual.kind === "engagement" || visual.kind === "wall" || visual.kind === "graph") cat = "intel";
+
+      setEditingUniversalConfig({
+        id: visual.id,
+        title: visual.title,
+        category: cat,
+        colSpan: visual.colSpan || 6,
+        siteConfig: visual.kind === "sites" ? {
+          source: visual.siteFilter || "all",
+          limit: visualLimits[visual.id] ?? 8,
+          viewMode: visualViewModes[visual.id] ?? "grid",
+          sortBy: "recent",
+        } : undefined,
+        plotConfig: visual.plotConfig,
+        chartConfig: visual.chartConfig,
+        intelConfig: cat === "intel" ? { type: (visual.kind as any) || "tags" } : undefined,
+      });
+    } else {
+      setEditingUniversalConfig(null);
+    }
+    setUniversalModalOpen(true);
+    setPresetMenuOpen(false);
+  };
+
+  const handleSaveUniversalVisual = (config: UniversalVisualConfig) => {
+    if (!activeTab) return;
+    const exists = activeTab.visuals.find((v) => v.id === config.id);
+
+    let kind: VisualKind = "chart";
+    if (config.category === "sites") kind = "sites";
+    else if (config.category === "plot") kind = "plot";
+    else if (config.category === "intel") {
+      kind = (config.intelConfig?.type as any) || "tags";
+    }
+
+    const updatedTabVisual: TabVisual = {
+      id: config.id,
+      title: config.title,
+      kind,
+      colSpan: config.colSpan || 6,
+      siteFilter: config.siteConfig?.source === "favorites" ? "favorites" : config.siteConfig?.source === "recent" ? "recent" : "all",
+      plotConfig: config.plotConfig,
+      chartConfig: config.chartConfig,
+    };
+
+    if (config.siteConfig) {
+      if (config.siteConfig.limit) handleSetVisualLimit(config.id, config.siteConfig.limit);
+      if (config.siteConfig.viewMode) handleSetVisualViewMode(config.id, config.siteConfig.viewMode);
+    }
+
+    if (exists) {
+      setTabVisuals(
+        activeTab.id,
+        activeTab.visuals.map((v) => (v.id === config.id ? updatedTabVisual : v))
+      );
+    } else {
+      setTabVisuals(activeTab.id, [...activeTab.visuals, updatedTabVisual]);
+    }
+  };
+
   // Click Filtering
   const handleSelectDomain = (domain: string) => {
     if (activeFilter?.type === "domain" && activeFilter.value.toLowerCase() === domain.toLowerCase()) {
@@ -577,6 +647,16 @@ export function FolderVisualAnalytics({
                 <div className="font-semibold px-2 py-1 text-[11px] text-muted-foreground border-b border-border mb-1">
                   Add Preset to &ldquo;{activeTab?.label ?? "Tab"}&rdquo;
                 </div>
+
+                {/* 0. Custom Visual Studio Builder Modal */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenUniversalBuilder()}
+                  className="w-full text-left px-2 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer flex items-center gap-2 text-xs font-semibold mb-1"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Custom Visual Studio Builder...</span>
+                </button>
                 
                 {/* 1. Quick Access Sites Preset */}
                 <button
@@ -834,14 +914,7 @@ export function FolderVisualAnalytics({
                     onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
                     minHeight={viz.kind === "graph" ? 340 : 250}
                     badgeText={String(viz.kind || "chart").toUpperCase()}
-                    onEditWidget={
-                      viz.kind === "chart" && viz.chartConfig
-                        ? () => {
-                            setEditingViz(viz.chartConfig!);
-                            setBuilderOpen(true);
-                          }
-                        : undefined
-                    }
+                    onEditWidget={() => handleOpenUniversalBuilder(viz)}
                     onDeleteWidget={() => handleDeleteVisual(viz.id)}
                     showItemLimitPicker={viz.kind === "sites" || viz.kind === "wall"}
                     itemLimit={activeLimit}
@@ -1095,7 +1168,18 @@ export function FolderVisualAnalytics({
         </div>
       )}
 
-      {/* Custom Visual Builder Dialog */}
+      {/* Universal Visual Studio Builder & Editor Modal */}
+      <UniversalVisualBuilderModal
+        open={universalModalOpen}
+        onOpenChange={setUniversalModalOpen}
+        initialConfig={editingUniversalConfig}
+        bookmarks={bookmarks}
+        folders={folders}
+        onSave={handleSaveUniversalVisual}
+        destinationName={folderName}
+      />
+
+      {/* Legacy Visual Builder Dialog */}
       <VizBuilderDialog
         open={builderOpen}
         onOpenChange={(op) => {

@@ -275,6 +275,19 @@ export function DashboardWidgetBox({
           const deltaY = moveEvent.clientY - startY;
           const newHeightPx = Math.min(1600, Math.max(140, Math.round(initialHeightPx + deltaY)));
           setBoxHeight(newHeightPx);
+          if (newHeightPx >= 350) {
+            setRowSpanState(2);
+            onRowSpanChange?.(2);
+            try {
+              localStorage.setItem("markly_box_rowspan_" + id, "2");
+            } catch {}
+          } else {
+            setRowSpanState(1);
+            onRowSpanChange?.(1);
+            try {
+              localStorage.setItem("markly_box_rowspan_" + id, "1");
+            } catch {}
+          }
         }
       };
 
@@ -365,12 +378,12 @@ export function DashboardWidgetBox({
       onDrop={onDrop}
       style={{
         gridColumn: typeof window !== "undefined" && window.innerWidth >= 768 ? `span ${colSpanState} / span ${colSpanState}` : undefined,
-        gridRow: typeof window !== "undefined" && window.innerWidth >= 768 && rowSpanState === 2 ? "span 2 / span 2" : undefined,
+        gridRow: typeof window !== "undefined" && window.innerWidth >= 768 && rowSpanState === 2 ? "span 2" : undefined,
         height: isCollapsed ? "auto" : undefined,
-        minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : rowSpanState === 2 ? "400px" : "auto",
+        minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : rowSpanState === 2 ? "440px" : "auto",
       }}
       className={`rounded-xl border border-border bg-card shadow-2xs flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
-        rowSpanState === 2 ? "md:row-span-2" : ""
+        rowSpanState === 2 ? "md:row-span-2" : "md:row-span-1"
       } ${
         isResizing ? "ring-2 ring-primary/40 select-none" : ""
       }`}
@@ -527,6 +540,18 @@ export function DashboardWidgetBox({
 
               {actionMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      toggleRowSpan();
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                  >
+                    <Columns3 className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>{rowSpanState === 2 ? "Standard 1x Height" : "Bento 2x Tall (1:2)"}</span>
+                  </button>
+
                   {onEditWidget && (
                     <button
                       type="button"
@@ -612,8 +637,9 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div
           onMouseDown={(e) => startResize("height", e)}
+          onDoubleClick={toggleRowSpan}
           className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag up/down to resize box height"
+          title="Drag up/down to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
         >
           <div
             className={`h-[2.5px] w-12 rounded-full transition-colors ${
@@ -639,34 +665,45 @@ export function DashboardWidgetBox({
   );
 }
 
-interface BookmarkItemsViewProps {
+export interface BookmarkItemsViewProps {
   items: BookmarkWithDetails[];
   mode: WidgetViewMode;
-  emptyMessage: string;
+  emptyMessage?: string;
   limit?: number | "all";
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
   onToggleFavorite?: (bm: BookmarkWithDetails) => void;
   onToggleArchive?: (bm: BookmarkWithDetails) => void;
   onDeleteBookmark?: ((id: string, title?: string) => void) | ((bm: BookmarkWithDetails) => void);
-  handleSiteVisit: (bm: BookmarkWithDetails) => void;
-  formatTimeAgo: (timestamp: any) => string;
-  getParentName: (bm: BookmarkWithDetails) => string;
+  handleSiteVisit?: (bm: BookmarkWithDetails) => void;
+  formatTimeAgo?: (timestamp: any) => string;
+  getParentName?: (bm: BookmarkWithDetails) => string;
 }
 
 export function BookmarkItemsView({
   items,
   mode,
-  emptyMessage,
+  emptyMessage = "No bookmarks in this view yet",
   limit,
   onOpenPreview,
   onEditBookmark,
   onToggleFavorite,
   onToggleArchive,
   onDeleteBookmark,
-  handleSiteVisit,
-  formatTimeAgo,
-  getParentName,
+  handleSiteVisit = (bm) => {
+    try {
+      window.open(bm.url, "_blank");
+    } catch {}
+  },
+  formatTimeAgo = (ts) => {
+    if (!ts) return "";
+    try {
+      return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    } catch {
+      return "";
+    }
+  },
+  getParentName = (bm) => bm.domain || "Workspace",
 }: BookmarkItemsViewProps) {
   const displayItems = limit && limit !== "all" ? items.slice(0, limit) : items;
 

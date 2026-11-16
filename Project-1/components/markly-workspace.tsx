@@ -20,7 +20,6 @@ import { ImportExportModal } from "@/components/import-export-modal";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { BookmarkTable } from "@/components/table/bookmark-table";
-import { VisualDashboard } from "@/components/dashboard/visual-dashboard";
 import { WorkspaceHome } from "@/components/home/workspace-home";
 import { FolderCollectionsView } from "@/components/collections/folder-collections-view";
 import { ChildSubfoldersBar } from "@/components/collections/child-subfolders-bar";
@@ -1829,30 +1828,6 @@ export function MarklyWorkspace({
                   </div>
                 </div>
               )}
-
-              {/* Visual Intelligence Dashboard (Top Zone with Contextual Folder Analytics) */}
-              <VisualDashboard
-                folderTree={folderTree}
-                folders={folders}
-                bookmarks={bookmarks}
-                stats={stats}
-                activeFolderId={activeFolderId}
-                includeSubfolders={includeSubfolders}
-                onToggleIncludeSubfolders={setIncludeSubfolders}
-                onSelectFolder={(fId) => {
-                  setActiveFolderId(fId);
-                  setActiveView("all");
-                }}
-                activeDomainFilter={activeDomainFilter}
-                onSelectDomain={setActiveDomainFilter}
-                activeTagFilter={activeTagFilter}
-                onSelectTag={setActiveTagFilter}
-                onOpenDomainInsights={(dom) => setActiveDomain(dom)}
-                onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
-                onFilterByStatus={setActiveStatusFilter}
-                activeStatusFilter={activeStatusFilter}
-                onOpenCleanupWizard={() => setCleanupWizardOpen(true)}
-              />
 
               {/* Recently Visited Standardized Dashboard Box (Item 5) */}
               {activeView === "recent" && !activeFolderId && (

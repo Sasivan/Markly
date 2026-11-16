@@ -53,6 +53,7 @@ import {
 } from "./home-layout-modal";
 import { VizChart } from "@/components/viz/viz-chart";
 import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
+import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "@/components/viz/universal-visual-builder-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { type VizConfig, safeParseStoredWidgets, RemoteWidgetStore } from "@/lib/viz";
@@ -108,6 +109,8 @@ export function WorkspaceHome({
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
   const [visualBuilderOpen, setVisualBuilderOpen] = React.useState(false);
   const [editingWidget, setEditingWidget] = React.useState<HomeWidgetConfig | null>(null);
+  const [universalModalOpen, setUniversalModalOpen] = React.useState(false);
+  const [editingUniversalConfig, setEditingUniversalConfig] = React.useState<UniversalVisualConfig | null>(null);
 
   // Instant global search on homepage
   const [homeSearch, setHomeSearch] = React.useState("");
@@ -180,108 +183,151 @@ export function WorkspaceHome({
   };
 
   const handleEditBuiltinWidget = (widgetId: string) => {
-    let presetConfig: VizConfig;
-    if (widgetId === "folders") {
-      presetConfig = {
-        version: 1,
-        id: `custom:quick_access_${Date.now()}`,
-        title: "Quick Access Ecosystem",
-        chartType: "bar",
-        dimension: "domain",
-        measure: "count",
-        filters: {},
-        sort: { by: "measure", direction: "desc" },
-        limit: 8,
-        otherBucket: true,
-      };
-    } else if (widgetId === "favorites") {
-      presetConfig = {
-        version: 1,
-        id: `custom:favorites_${Date.now()}`,
-        title: "Starred Favorites Breakdown",
-        chartType: "donut",
-        dimension: "folder_top",
-        measure: "count",
-        filters: { favorite: true },
-        sort: { by: "measure", direction: "desc" },
-        limit: 6,
-        otherBucket: true,
-      };
+    const w = homeWidgets.find((x) => x.id === widgetId);
+    let title = "Quick Access";
+    let src: "all" | "favorites" | "recent" | "unsorted" = "all";
+    let icon = "compass";
+    let color = "#3b82f6";
+
+    if (widgetId === "favorites") {
+      title = "Starred Favorites";
+      src = "favorites";
+      icon = "star";
+      color = "#f59e0b";
     } else if (widgetId === "recent") {
-      presetConfig = {
-        version: 1,
-        id: `custom:recent_${Date.now()}`,
-        title: "Recent Visits Velocity",
-        chartType: "horizontal_bar",
-        dimension: "domain",
-        measure: "sum_visits",
-        filters: {},
-        sort: { by: "measure", direction: "desc" },
-        limit: 8,
-        otherBucket: true,
-      };
+      title = "Recently Visited";
+      src = "recent";
+      icon = "history";
+      color = "#3b82f6";
     } else if (widgetId === "unsorted") {
-      presetConfig = {
+      title = "Inbox / Unsorted";
+      src = "unsorted";
+      icon = "inbox";
+      color = "#a855f7";
+    }
+
+    setEditingUniversalConfig({
+      id: widgetId,
+      title,
+      category: "sites",
+      colSpan: w?.colSpan || 4,
+      rowSpan: w?.rowSpan || 1,
+      icon,
+      color,
+      siteConfig: {
+        source: src,
+        limit: widgetItemLimits[widgetId] || 8,
+        viewMode: (widgetViews[widgetId] || "grid") as any,
+        sortBy: widgetId === "recent" ? "recent" : widgetId === "favorites" ? "recent" : "visits",
+      },
+    });
+    setUniversalModalOpen(true);
+  };
+
+  const handleEditCustomWidget = (widget: HomeWidgetConfig) => {
+    const vc = widget.vizConfig;
+    let cat: any = "chart";
+    if (vc?.chartType === ("sites" as any) || (vc as any)?.siteConfig) cat = "sites";
+    else if (vc?.chartType === ("plot" as any) || (vc as any)?.plotConfig) cat = "plot";
+    else if (vc?.chartType === "tags" || vc?.chartType === "wall" || vc?.chartType === "graph") cat = "intel";
+
+    setEditingUniversalConfig({
+      id: widget.id,
+      title: widget.label,
+      category: cat,
+      colSpan: widget.colSpan || 6,
+      rowSpan: widget.rowSpan || 1,
+      siteConfig: (vc as any)?.siteConfig,
+      plotConfig: (vc as any)?.plotConfig,
+      chartConfig: vc,
+      intelConfig: cat === "intel" ? { type: vc?.chartType as any } : undefined,
+    });
+    setUniversalModalOpen(true);
+  };
+
+  const handleSaveUniversalVisual = (config: UniversalVisualConfig) => {
+    // 1. If it's a built-in widget being updated
+    if (["folders", "favorites", "recent", "unsorted"].includes(config.id)) {
+      if (config.siteConfig?.limit) {
+        handleSetWidgetLimit(config.id, config.siteConfig.limit);
+      }
+      if (config.siteConfig?.viewMode) {
+        handleSetWidgetView(config.id, config.siteConfig.viewMode as any);
+      }
+      if (config.colSpan) {
+        handleWidgetColSpanChange(config.id, config.colSpan);
+      }
+      if (config.rowSpan) {
+        handleWidgetRowSpanChange(config.id, config.rowSpan);
+      }
+      return;
+    }
+
+    // 2. Otherwise create or update custom widget
+    let vizConfig: VizConfig;
+    if (config.category === "chart" && config.chartConfig) {
+      vizConfig = config.chartConfig;
+    } else if (config.category === "plot") {
+      vizConfig = {
         version: 1,
-        id: `custom:inbox_${Date.now()}`,
-        title: "Inbox Unfiled Sites Distribution",
-        chartType: "bar",
-        dimension: "domain",
-        measure: "count",
-        filters: { folderId: "__UNSORTED__" as any },
+        id: config.id,
+        title: config.title,
+        chartType: "plot" as any,
+        dimension: config.plotConfig?.dimension || "domain",
+        measure: config.plotConfig?.measure || "count",
+        filters: {},
         sort: { by: "measure", direction: "desc" },
         limit: 8,
         otherBucket: true,
-      };
-    } else if (widgetId === "heatmap") {
-      presetConfig = {
+        plotConfig: config.plotConfig,
+      } as any;
+    } else if (config.category === "intel") {
+      vizConfig = {
         version: 1,
-        id: `custom:heatmap_${Date.now()}`,
-        title: "365-Day Activity Trend",
-        chartType: "area",
-        dimension: "created_month",
-        measure: "count",
-        filters: {},
-        sort: { by: "dimension", direction: "asc" },
-        limit: 12,
-        otherBucket: false,
-      };
-    } else if (widgetId === "spectrum") {
-      presetConfig = {
-        version: 1,
-        id: `custom:spectrum_${Date.now()}`,
-        title: "Engagement Spectrum",
-        chartType: "horizontal_bar",
-        dimension: "status",
+        id: config.id,
+        title: config.title,
+        chartType: (config.intelConfig?.type as any) || "tags",
+        dimension: "domain",
         measure: "count",
         filters: {},
         sort: { by: "measure", direction: "desc" },
-        limit: 6,
+        limit: 8,
         otherBucket: false,
       };
     } else {
-      presetConfig = {
+      // Sites Box
+      vizConfig = {
         version: 1,
-        id: `custom:${widgetId}_${Date.now()}`,
-        title: "Workspace Visual Analytics",
-        chartType: "bar",
+        id: config.id,
+        title: config.title,
+        chartType: "sites" as any,
         dimension: "domain",
         measure: "count",
         filters: {},
         sort: { by: "measure", direction: "desc" },
-        limit: 8,
-        otherBucket: true,
-      };
+        limit: config.siteConfig?.limit === "all" ? 50 : (config.siteConfig?.limit || 8),
+        otherBucket: false,
+        siteConfig: config.siteConfig,
+      } as any;
     }
 
-    setEditingWidget({
-      id: presetConfig.id,
-      label: presetConfig.title,
+    const newWidget: HomeWidgetConfig = {
+      id: config.id.startsWith("custom:") ? config.id : `custom:${config.id}`,
+      label: config.title,
       visible: true,
       kind: "custom",
-      vizConfig: presetConfig,
-    });
-    setVisualBuilderOpen(true);
+      span: (config.colSpan === 12 ? "2" : "1") as any,
+      colSpan: config.colSpan || 6,
+      rowSpan: config.rowSpan || 1,
+      vizConfig,
+    };
+
+    const exists = homeWidgets.some((w) => w.id === newWidget.id);
+    const updated = exists
+      ? homeWidgets.map((w) => (w.id === newWidget.id ? newWidget : w))
+      : [newWidget, ...homeWidgets];
+
+    handleSaveWidgets(updated);
   };
 
   // Reorder widget up / down
@@ -407,11 +453,6 @@ export function WorkspaceHome({
     });
     setVisualBuilderOpen(false);
     setEditingWidget(null);
-  };
-
-  const handleEditCustomWidget = (widget: HomeWidgetConfig) => {
-    setEditingWidget(widget);
-    setVisualBuilderOpen(true);
   };
 
   const handleDuplicateCustomWidget = (widget: HomeWidgetConfig) => {
@@ -1982,6 +2023,17 @@ export function WorkspaceHome({
         widgets={homeWidgets}
         onSaveWidgets={handleSaveWidgets}
         onResetDefaults={handleResetWidgets}
+      />
+
+      {/* Universal Visual Studio Builder & Editor Modal */}
+      <UniversalVisualBuilderModal
+        open={universalModalOpen}
+        onOpenChange={setUniversalModalOpen}
+        initialConfig={editingUniversalConfig}
+        bookmarks={bookmarks}
+        folders={folders}
+        onSave={handleSaveUniversalVisual}
+        destinationName="Dashboard Home"
       />
 
       {/* Custom Visual Builder Dialog */}

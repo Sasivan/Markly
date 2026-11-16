@@ -137,8 +137,10 @@ export function SitePreviewModal({
     if (bookmark?.id && typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem(`markly_cover_pref_${bookmark.id}`);
-        if (stored === "screenshot" || stored === "gradient" || stored === "icon" || stored === "snapshot") {
-          setCoverStyle(stored === "snapshot" ? "gradient" : (stored as any));
+        if (stored === "screenshot" || stored === "snapshot") {
+          setCoverStyle("screenshot");
+        } else if (stored === "gradient" || stored === "icon") {
+          setCoverStyle(stored);
         } else {
           setCoverStyle("screenshot");
         }
@@ -148,6 +150,9 @@ export function SitePreviewModal({
 
   const handleSetCoverStyle = (style: "screenshot" | "gradient" | "icon") => {
     setCoverStyle(style);
+    if (style === "screenshot") {
+      setSnapshotError(false);
+    }
     if (bookmark?.id) {
       try {
         localStorage.setItem(`markly_cover_pref_${bookmark.id}`, style);
@@ -294,11 +299,11 @@ export function SitePreviewModal({
 
   const currentFolder = folders.find((f) => f.id === bookmark.folderId);
 
-  // Verified visual image URL (strictly self-hosted or page's own og:image, never leaking to third parties)
+  // Verified visual image URL with automatic live screenshot fallback
   const snapshotUrl =
-    bookmark.imageUrl && !bookmark.imageUrl.includes("avatar-") && !bookmark.imageUrl.includes("thum.io") && !snapshotError
+    bookmark.imageUrl && !bookmark.imageUrl.includes("avatar-") && !snapshotError
       ? bookmark.imageUrl
-      : null;
+      : `https://api.microlink.io/?url=${encodeURIComponent(bookmark.url)}&screenshot=true&meta=false&embed=screenshot.url`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(bookmark.url);
@@ -775,7 +780,7 @@ export function SitePreviewModal({
                   allowFullScreen
                 />
               </div>
-            ) : (coverStyle === "screenshot" && snapshotUrl) ? (
+            ) : coverStyle === "screenshot" ? (
               <div className="relative rounded-md overflow-hidden border border-border bg-card aspect-21/9 max-h-52 group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -838,17 +843,15 @@ export function SitePreviewModal({
               <div className="relative rounded-md overflow-hidden border border-border aspect-21/9 max-h-48 flex flex-col items-center justify-center p-4 bg-muted/40 select-none group">
                 {/* Top overlay cover switcher */}
                 <div className="absolute top-2.5 right-2.5 flex items-center bg-black/75 backdrop-blur-md rounded-lg p-0.5 border border-white/15 shadow-md z-10">
-                  {snapshotUrl && (
-                    <button
-                      type="button"
-                      onClick={() => handleSetCoverStyle("screenshot")}
-                      className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
-                      title="Live website snapshot cover"
-                    >
-                      <ImageIcon className="h-2.5 w-2.5" />
-                      <span>Snapshot</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("screenshot")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                    title="Live website snapshot cover"
+                  >
+                    <ImageIcon className="h-2.5 w-2.5" />
+                    <span>Snapshot</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleSetCoverStyle("gradient")}
@@ -891,17 +894,15 @@ export function SitePreviewModal({
               >
                 {/* Top overlay cover switcher */}
                 <div className="absolute top-2.5 right-2.5 flex items-center bg-black/75 backdrop-blur-md rounded-lg p-0.5 border border-white/15 shadow-md z-10">
-                  {snapshotUrl && (
-                    <button
-                      type="button"
-                      onClick={() => handleSetCoverStyle("screenshot")}
-                      className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
-                      title="Live website snapshot cover"
-                    >
-                      <ImageIcon className="h-2.5 w-2.5" />
-                      <span>Snapshot</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverStyle("screenshot")}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono transition-colors flex items-center gap-1 cursor-pointer text-white/80 hover:text-white"
+                    title="Live website snapshot cover"
+                  >
+                    <ImageIcon className="h-2.5 w-2.5" />
+                    <span>Snapshot</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleSetCoverStyle("gradient")}

@@ -425,68 +425,6 @@ export function DashboardWidgetBox({
             </div>
           )}
 
-          {/* Height Toggle: 1x vs 2x Tall */}
-          <button
-            type="button"
-            onClick={toggleRowSpan}
-            className={`h-6 px-1.5 rounded-md border text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors ${
-              rowSpanState === 2
-                ? "bg-primary/10 border-primary/40 text-primary font-semibold"
-                : "bg-secondary/80 hover:bg-secondary text-foreground border-border/50"
-            }`}
-            title={rowSpanState === 2 ? "2x Tall (Spans 2 stacked rows). Click for 1x standard height" : "1x Standard height. Click to make 2x tall"}
-          >
-            <Rows3 className="h-3 w-3 text-muted-foreground" />
-            <span>{rowSpanState === 2 ? "2x Tall" : "1x"}</span>
-          </button>
-
-          {/* Adaptive N-Col Width Track Popover (Replaces rigid 2-col button) */}
-          <div className="relative" ref={colMenuRef}>
-            <button
-              type="button"
-              onClick={() => setColMenuOpen(!colMenuOpen)}
-              className="h-6 px-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-foreground border border-border/50 text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
-              title={`Column width: ${spanLabel}. Click to pick column size or resize with mouse handle.`}
-            >
-              <Columns3 className="h-3 w-3 text-muted-foreground" />
-              <span>{colSpanState === 12 ? "Full" : colSpanState === 6 ? "1/2" : colSpanState === 4 ? "1/3" : colSpanState === 3 ? "1/4" : `${colSpanState}/12`}</span>
-              <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
-            </button>
-
-            {colMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-40 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
-                {[
-                  { span: 12 as WidgetColSpan, label: "Full Width (1 col)" },
-                  { span: 9 as WidgetColSpan, label: "3/4 Width (75%)" },
-                  { span: 8 as WidgetColSpan, label: "2/3 Width (67%)" },
-                  { span: 6 as WidgetColSpan, label: "Half Width (2 cols)" },
-                  { span: 4 as WidgetColSpan, label: "1/3 Width (3 cols)" },
-                  { span: 3 as WidgetColSpan, label: "1/4 Width (4 cols)" },
-                  { span: 2 as WidgetColSpan, label: "1/6 Width (6 cols)" },
-                ].map((item) => (
-                  <button
-                    key={item.span}
-                    type="button"
-                    onClick={() => {
-                      setColSpanState(item.span);
-                      setColMenuOpen(false);
-                      try {
-                        localStorage.setItem("markly_box_colspan_" + id, String(item.span));
-                      } catch {}
-                      onColSpanChange?.(item.span);
-                    }}
-                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer text-[11px] ${
-                      colSpanState === item.span ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    <span>{item.label}</span>
-                    {colSpanState === item.span && <Check className="h-3 w-3 text-primary" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Custom Widget Menu: Edit, Duplicate, Delete */}
           {(onEditWidget || onDuplicateWidget || onDeleteWidget) && (
             <div className="relative" ref={actionMenuRef}>

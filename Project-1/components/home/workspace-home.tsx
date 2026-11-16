@@ -964,6 +964,7 @@ export function WorkspaceHome({
       onDragStart: (e: React.DragEvent) => handleWidgetDragStart(e, widget.id),
       onDragOver: handleWidgetDragOver,
       onDrop: (e: React.DragEvent) => handleWidgetDrop(e, widget.id),
+      onDeleteWidget: () => handleDeleteCustomWidget(widget.id),
     };
 
     // Custom Visual Widget
@@ -1637,16 +1638,29 @@ export function WorkspaceHome({
         const visibleWidgets = homeWidgets.filter((w) => w.visible);
         if (visibleWidgets.length === 0) {
           return (
-            <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground space-y-2">
-              <p>All dashboard widgets are currently hidden.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLayoutModalOpen(true)}
-                className="text-xs"
-              >
-                Customize Layout to Show Widgets
-              </Button>
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground space-y-3">
+              <p className="text-sm font-medium text-foreground">All dashboard widgets are currently hidden or removed.</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                You can restore default widgets, customize your layout, or import rich visual charts from the Visuals Studio.
+              </p>
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLayoutModalOpen(true)}
+                  className="text-xs cursor-pointer"
+                >
+                  Customize Layout
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => onSelectView("visuals" as any)}
+                  className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer flex items-center gap-1.5"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span>Import from Visuals Studio</span>
+                </Button>
+              </div>
             </div>
           );
         }

@@ -16,12 +16,18 @@ import {
   Table as TableIcon,
   PieChart as PieChartIcon,
   Activity,
+  Trash2,
+  FolderPlus,
+  Check,
+  Palette,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { HomeWidgetConfig } from "@/components/home/home-layout-modal";
 import type { VizConfig, VizChartType, VizDimension, VizMeasure } from "@/lib/viz";
 import { RemoteWidgetStore } from "@/lib/viz";
+import { VIZ_GRADIENTS, type VizGradientPreset } from "@/lib/viz/palette";
 import { VizChart } from "./viz-chart";
 import { VizBuilderDialog } from "./viz-builder-dialog";
 
@@ -33,6 +39,81 @@ export interface VisualsPageViewProps {
   onSelectFolder?: (folderId: string | null) => void;
   onNavigateHome?: () => void;
 }
+
+const INITIAL_CORE_VISUALS: VizConfig[] = [
+  {
+    version: 1,
+    id: "core_bookmarks_monthly",
+    title: "Monthly Ingestion Velocity",
+    chartType: "area",
+    dimension: "created_month",
+    measure: "count",
+    filters: {},
+    sort: { by: "dimension", direction: "asc" },
+    limit: 12,
+    otherBucket: false,
+  },
+  {
+    version: 1,
+    id: "core_top_domains",
+    title: "Ecosystem Domain Share",
+    chartType: "bar",
+    dimension: "domain",
+    measure: "count",
+    filters: {},
+    sort: { by: "measure", direction: "desc" },
+    limit: 8,
+    otherBucket: true,
+  },
+  {
+    version: 1,
+    id: "core_folder_breakdown",
+    title: "Top-Level Collection Distribution",
+    chartType: "donut",
+    dimension: "folder_top",
+    measure: "count",
+    filters: {},
+    sort: { by: "measure", direction: "desc" },
+    limit: 7,
+    otherBucket: true,
+  },
+  {
+    version: 1,
+    id: "core_link_status",
+    title: "Link Health Overview",
+    chartType: "donut",
+    dimension: "status",
+    measure: "count",
+    filters: {},
+    sort: { by: "measure", direction: "desc" },
+    limit: 4,
+    otherBucket: false,
+  },
+  {
+    version: 1,
+    id: "core_tag_distribution",
+    title: "Tag & Topic Spread",
+    chartType: "donut",
+    dimension: "tag",
+    measure: "count",
+    filters: {},
+    sort: { by: "measure", direction: "desc" },
+    limit: 8,
+    otherBucket: true,
+  },
+  {
+    version: 1,
+    id: "core_most_visited_domains",
+    title: "Most Visited Ecosystems",
+    chartType: "horizontal_bar",
+    dimension: "domain",
+    measure: "sum_visits",
+    filters: {},
+    sort: { by: "measure", direction: "desc" },
+    limit: 7,
+    otherBucket: true,
+  },
+];
 
 export function VisualsPageView({
   bookmarks,
@@ -50,7 +131,12 @@ export function VisualsPageView({
   const [studioChartType, setStudioChartType] = React.useState<VizChartType>("bar");
   const [studioDimension, setStudioDimension] = React.useState<VizDimension>("domain");
   const [studioMeasure, setStudioMeasure] = React.useState<VizMeasure>("count");
+  const [selectedGradient, setSelectedGradient] = React.useState<string>("indigo_cyan");
   const [studioPinnedSuccess, setStudioPinnedSuccess] = React.useState(false);
+
+  // Export to Folder State (Folder Picker popover)
+  const [exportTargetConfig, setExportTargetConfig] = React.useState<VizConfig | null>(null);
+  const [exportSuccessMsg, setExportSuccessMsg] = React.useState<string | null>(null);
 
   const activeStudioConfig: VizConfig = React.useMemo(() => {
     return {
@@ -86,6 +172,36 @@ export function VisualsPageView({
       cancelled = true;
     };
   }, [widgetStore]);
+
+  // Core Visuals (Persisted and completely deletable by user)
+  const [coreVisualsList, setCoreVisualsList] = React.useState<VizConfig[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_core_visuals_list");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch {}
+    }
+    return INITIAL_CORE_VISUALS;
+  });
+
+  const saveCoreVisuals = (updated: VizConfig[]) => {
+    setCoreVisualsList(updated);
+    try {
+      localStorage.setItem("markly_core_visuals_list", JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleDeleteCoreVisual = (id: string) => {
+    const updated = coreVisualsList.filter((v) => v.id !== id);
+    saveCoreVisuals(updated);
+  };
+
+  const handleRestoreCoreVisuals = () => {
+    saveCoreVisuals(INITIAL_CORE_VISUALS);
+  };
 
   const handleSaveVisual = async (newConfig: VizConfig) => {
     try {
@@ -145,71 +261,58 @@ export function VisualsPageView({
     } catch {}
   };
 
-  const handlePinStudioToDashboard = async () => {
+  // Pin any visual directly to Dashboard Home
+  const handlePinToDashboard = async (config: VizConfig) => {
     const configToPin: VizConfig = {
-      ...activeStudioConfig,
+      ...config,
       id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `viz_${Date.now()}`,
-      title: activeStudioConfig.title,
     };
     await handleSaveVisual(configToPin);
+    setExportSuccessMsg(`Pinned "${config.title}" to Dashboard Home!`);
+    setTimeout(() => setExportSuccessMsg(null), 3000);
+  };
+
+  const handlePinStudioToDashboard = async () => {
+    await handlePinToDashboard(activeStudioConfig);
     setStudioPinnedSuccess(true);
     setTimeout(() => setStudioPinnedSuccess(false), 3000);
   };
 
-  // Builtin foundational charts for the Visuals page
-  const coreVisuals: VizConfig[] = [
-    {
-      version: 1,
-      id: "core_bookmarks_monthly",
-      title: "Monthly Ingestion Velocity",
-      chartType: "area",
-      dimension: "created_month",
-      measure: "count",
-      filters: {},
-      sort: { by: "dimension", direction: "asc" },
-      limit: 12,
-      otherBucket: false,
-    },
-    {
-      version: 1,
-      id: "core_top_domains",
-      title: "Ecosystem Domain Share",
-      chartType: "bar",
-      dimension: "domain",
-      measure: "count",
-      filters: {},
-      sort: { by: "measure", direction: "desc" },
-      limit: 8,
-      otherBucket: true,
-    },
-    {
-      version: 1,
-      id: "core_folder_breakdown",
-      title: "Top-Level Collection Distribution",
-      chartType: "donut",
-      dimension: "folder_top",
-      measure: "count",
-      filters: {},
-      sort: { by: "measure", direction: "desc" },
-      limit: 7,
-      otherBucket: true,
-    },
-    {
-      version: 1,
-      id: "core_link_status",
-      title: "Link Health Overview",
-      chartType: "donut",
-      dimension: "status",
-      measure: "count",
-      filters: {},
-      sort: { by: "measure", direction: "desc" },
-      limit: 4,
-      otherBucket: false,
-    },
-  ];
+  // Export any visual to a specific Folder's Visual Analytics
+  const handleExportToFolder = (config: VizConfig, targetFolderId: string, targetFolderName: string) => {
+    try {
+      const storageKey = `markly_folder_visuals_${targetFolderId}`;
+      const stored = localStorage.getItem(storageKey);
+      let list: VizConfig[] = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(list)) list = [];
+
+      const newFolderVisual: VizConfig = {
+        ...config,
+        id: `fld_${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`,
+      };
+
+      list.push(newFolderVisual);
+      localStorage.setItem(storageKey, JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+
+      setExportTargetConfig(null);
+      setExportSuccessMsg(`Exported "${config.title}" to ${targetFolderName}!`);
+      setTimeout(() => setExportSuccessMsg(null), 3500);
+    } catch (e) {
+      console.error("Export visual error:", e);
+    }
+  };
 
   return (
     <div className="space-y-5 pb-12 animate-in fade-in duration-200">
+      {/* Toast Notification for Export */}
+      {exportSuccessMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-in slide-in-from-bottom-3">
+          <CheckCircle2 className="h-4 w-4" />
+          <span>{exportSuccessMsg}</span>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -217,17 +320,17 @@ export function VisualsPageView({
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-secondary text-secondary-foreground border border-border inline-flex items-center gap-1.5">
                 <BarChart3 className="h-3 w-3 text-primary" />
-                Workspace Intelligence
+                Visual Studio Hub
               </span>
               <span className="text-xs text-muted-foreground font-mono">
-                {bookmarks.length} links tracked
+                {bookmarks.length} links • All charts modular & exportable
               </span>
             </div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Visuals & Analytics
+              Visual Analytics & Chart Studio
             </h1>
             <p className="text-xs text-muted-foreground max-w-xl">
-              Inspect bookmark collection trends, domain ecosystems, health status, and build custom visual widgets.
+              Parent studio for all workspace visuals. Build, customize with color gradients, pin to Homepage, or export into folder intelligence.
             </p>
           </div>
 
@@ -275,7 +378,7 @@ export function VisualsPageView({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
               variant="outline"
@@ -290,9 +393,19 @@ export function VisualsPageView({
               ) : (
                 <>
                   <Pin className="h-3.5 w-3.5" />
-                  <span>Pin to Dashboard</span>
+                  <span>Pin to Home</span>
                 </>
               )}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setExportTargetConfig(activeStudioConfig)}
+              className="text-xs h-8 cursor-pointer gap-1.5"
+            >
+              <FolderPlus className="h-3.5 w-3.5 text-primary" />
+              <span>Export to Folder...</span>
             </Button>
 
             <Button
@@ -481,7 +594,17 @@ export function VisualsPageView({
                       {widget.vizConfig?.title || widget.label}
                     </h3>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {widget.vizConfig && (
+                      <button
+                        type="button"
+                        onClick={() => setExportTargetConfig(widget.vizConfig)}
+                        className="text-[11px] font-mono text-primary hover:bg-primary/10 px-2 py-0.5 rounded cursor-pointer"
+                        title="Export this visual to any folder"
+                      >
+                        + Folder
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -524,49 +647,151 @@ export function VisualsPageView({
         </section>
       )}
 
-      {/* Workspace Foundation Visuals Section */}
+      {/* Workspace Foundation Visuals Section (All Modular, Deletable & Exportable) */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">
-            Core Workspace Analytics
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {coreVisuals.map((viz) => (
-            <div
-              key={viz.id}
-              className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3"
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">
+              Core Workspace Visuals Library ({coreVisualsList.length})
+            </h2>
+          </div>
+          {coreVisualsList.length < INITIAL_CORE_VISUALS.length && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRestoreCoreVisuals}
+              className="text-xs h-7 cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
             >
-              <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <BarChart3 className="h-4 w-4 text-primary shrink-0" />
-                  <h3 className="text-xs font-semibold text-foreground truncate">
-                    {viz.title}
-                  </h3>
-                </div>
-                <span className="text-[10px] font-mono text-muted-foreground uppercase">
-                  {viz.chartType}
-                </span>
-              </div>
-
-              <div className="pt-1">
-                <VizChart
-                  config={viz}
-                  bookmarks={bookmarks}
-                  folders={folders}
-                  height={220}
-                  onSelectDomain={onSelectDomain}
-                  onSelectTag={onSelectTag}
-                  onSelectFolder={onSelectFolder}
-                  bare={false}
-                />
-              </div>
-            </div>
-          ))}
+              <RotateCcw className="h-3 w-3" />
+              <span>Restore Core Visuals</span>
+            </Button>
+          )}
         </div>
+
+        {coreVisualsList.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-xs text-muted-foreground space-y-2">
+            <p>All core visuals have been removed.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRestoreCoreVisuals}
+              className="text-xs cursor-pointer"
+            >
+              Restore Core Visuals Library
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {coreVisualsList.map((viz) => (
+              <div
+                key={viz.id}
+                className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3 group"
+              >
+                <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BarChart3 className="h-4 w-4 text-primary shrink-0" />
+                    <h3 className="text-xs font-semibold text-foreground truncate">
+                      {viz.title}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handlePinToDashboard(viz)}
+                      className="text-[11px] font-mono text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-secondary cursor-pointer"
+                      title="Pin visual to Homepage"
+                    >
+                      Pin Home
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExportTargetConfig(viz)}
+                      className="text-[11px] font-mono text-primary hover:bg-primary/10 px-2 py-0.5 rounded cursor-pointer"
+                      title="Export to any folder"
+                    >
+                      + Folder
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCoreVisual(viz.id)}
+                      className="text-[11px] font-mono text-destructive hover:text-destructive/80 px-2 py-0.5 rounded hover:bg-destructive/10 cursor-pointer"
+                      title="Remove visual"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <VizChart
+                    config={viz}
+                    bookmarks={bookmarks}
+                    folders={folders}
+                    height={220}
+                    onSelectDomain={onSelectDomain}
+                    onSelectTag={onSelectTag}
+                    onSelectFolder={onSelectFolder}
+                    bare={false}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
+
+      {/* Export to Folder Modal Dialog */}
+      {exportTargetConfig && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-5 max-w-sm w-full space-y-3 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">
+                  Export to Folder
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExportTargetConfig(null)}
+                className="text-muted-foreground hover:text-foreground cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Select which folder to attach <strong className="text-foreground">{exportTargetConfig.title}</strong> into:
+            </p>
+
+            <div className="max-h-56 overflow-y-auto space-y-1 py-1">
+              {folders.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-4">
+                  No folders created yet.
+                </div>
+              ) : (
+                folders.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => handleExportToFolder(exportTargetConfig, f.id, f.name)}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-secondary cursor-pointer flex items-center justify-between text-xs text-foreground transition-colors group"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <Folder className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">{f.name}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-muted-foreground group-hover:text-primary">
+                      Add →
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Visual Builder Dialog */}
       <VizBuilderDialog

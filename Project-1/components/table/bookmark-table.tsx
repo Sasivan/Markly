@@ -41,6 +41,8 @@ import {
   Bookmark,
   Filter,
   X,
+  Camera,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,7 @@ import { CopyBookmarkModal } from "@/components/modals/copy-bookmark-modal";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { FolderVisualAnalytics, type FolderFilter } from "@/components/folder/folder-visual-analytics";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import { formatDate, formatDateTime } from "@/lib/utils";
 
@@ -337,6 +340,13 @@ const TABLE_COLUMN_OPTIONS = [
       localStorage.setItem("markly_card_fallback", mode);
     } catch {}
   };
+
+  // Interactive Chart Click Filter for Folders & Visuals
+  const [activeChartFilter, setActiveChartFilter] = React.useState<FolderFilter | null>(null);
+
+  React.useEffect(() => {
+    setActiveChartFilter(null);
+  }, [activeFolderId]);
   
   // 5 Notion-Inspired View Modes with persistent memory
   const getViewModeKey = React.useCallback((custom: boolean) => {
@@ -492,6 +502,19 @@ function getDomainGradient(str: string): string {
 
     if (statusFilter !== "all") {
       result = result.filter((item) => item.status === statusFilter);
+    }
+
+    // Apply Interactive Chart Click Filter from Folder Analytics / Visuals
+    if (activeChartFilter) {
+      if (activeChartFilter.type === "domain") {
+        result = result.filter((b) => (b.domain || "").toLowerCase() === activeChartFilter.value.toLowerCase());
+      } else if (activeChartFilter.type === "status") {
+        result = result.filter((b) => b.status === activeChartFilter.value);
+      } else if (activeChartFilter.type === "tag") {
+        result = result.filter((b) =>
+          b.tags?.some((t: any) => (typeof t === "string" ? t : t.name).toLowerCase() === activeChartFilter.value.toLowerCase())
+        );
+      }
     }
 
     // Apply Notion Multi-Column Filter Rules (Advanced Multi-Condition Engine)
@@ -1903,6 +1926,32 @@ function getDomainGradient(str: string): string {
             )}
           </div>
 
+          {/* 1-Click Card Cover Style Switcher for Cards View */}
+          {viewMode === "cards" && (
+            <div className="hidden sm:flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] shrink-0">
+              {[
+                { id: "thumbnail", label: "Snapshot", icon: Camera },
+                { id: "monogram", label: "Gradient", icon: Sparkles },
+                { id: "icon", label: "Logo", icon: Globe },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setCardFallback(s.id as any)}
+                  className={`h-7 px-2 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                    cardFallbackMode === s.id
+                      ? "bg-card text-foreground shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title={`Switch card cover style to ${s.label}`}
+                >
+                  <s.icon className="h-3 w-3" />
+                  <span>{s.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Column Visibility Menu (Persisted across refreshes) */}
           <div className="relative" ref={colMenuRef}>
             <Button
@@ -2005,6 +2054,18 @@ function getDomainGradient(str: string): string {
             Clear all
           </button>
         </div>
+      )}
+
+      {/* Folder Visual Analytics & Intelligence Section */}
+      {activeFolderId && (
+        <FolderVisualAnalytics
+          folderId={activeFolderId}
+          folderName={folders.find((f) => f.id === activeFolderId)?.name || "Current Folder"}
+          bookmarks={data}
+          folders={folders}
+          activeFilter={activeChartFilter}
+          onFilterChange={setActiveChartFilter}
+        />
       )}
 
       {/* Main View Display */}
@@ -2268,37 +2329,6 @@ function getDomainGradient(str: string): string {
                 {/* Notion-Style Card Cover: High-Craft Local SVG Gradient Art / Snapshot / Monogram */}
                 <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
                   {cardFallbackMode === "monogram" ? (
-                    <div className="h-full w-full bg-muted/40 flex items-center justify-center">
-                      <div className="h-16 w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-3xl font-bold font-mono uppercase select-none">
-                        {bm.title?.charAt(0) || bm.domain?.charAt(0) || "M"}
-                      </div>
-                    </div>
-                  ) : cardFallbackMode === "icon" ? (
-                    <div className="h-full w-full bg-muted/30 flex flex-col items-center justify-center gap-2">
-                      <div className="p-3 rounded-2xl bg-card border border-border shadow-xs">
-                        <BookmarkIcon
-                          src={bm.iconUrl}
-                          alt={bm.title}
-                          domain={bm.domain}
-                          className="h-8 w-8 rounded object-contain"
-                        />
-                      </div>
-                      <span className="text-xs font-mono text-muted-foreground truncate max-w-[80%]">
-                        {bm.domain}
-                      </span>
-                    </div>
-                  ) : hasCustomImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={bm.imageUrl!}
-                      alt={bm.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover object-top"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = "none";
-                      }}
-                    />
-                  ) : (
                     <div
                       className="w-full h-full flex flex-col items-center justify-center p-4 relative select-none"
                       style={{ background: gradientBg }}
@@ -2327,6 +2357,56 @@ function getDomainGradient(str: string): string {
                       </div>
                       <div className="text-[11px] font-mono text-white/60 truncate max-w-[80%] text-center mt-0.5">
                         {bm.domain}
+                      </div>
+                    </div>
+                  ) : cardFallbackMode === "icon" ? (
+                    <div className="h-full w-full bg-muted/30 flex flex-col items-center justify-center gap-2">
+                      <div className="p-3 rounded-2xl bg-card border border-border shadow-xs">
+                        <BookmarkIcon
+                          src={bm.iconUrl}
+                          alt={bm.title}
+                          domain={bm.domain}
+                          className="h-8 w-8 rounded object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-muted-foreground truncate max-w-[80%]">
+                        {bm.domain}
+                      </span>
+                    </div>
+                  ) : (
+                    /* Default: Snapshot (Live screenshot with graceful domain gradient fallback) */
+                    <div className="relative w-full h-full bg-secondary">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={
+                          bm.imageUrl ||
+                          `https://api.microlink.io/?url=${encodeURIComponent(bm.url)}&screenshot=true&meta=false&embed=screenshot.url`
+                        }
+                        alt={bm.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover object-top relative z-10"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = "none";
+                        }}
+                      />
+                      <div
+                        className="absolute inset-0 flex flex-col items-center justify-center p-4 select-none"
+                        style={{ background: gradientBg }}
+                      >
+                        <div className="p-2.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-1 flex items-center justify-center">
+                          <BookmarkIcon
+                            src={bm.iconUrl}
+                            alt={bm.title}
+                            domain={bm.domain}
+                            className="h-8 w-8 rounded object-contain"
+                          />
+                        </div>
+                        <div className="text-[13px] font-semibold text-white/95 truncate max-w-[85%] text-center tracking-tight">
+                          {bm.title}
+                        </div>
+                        <div className="text-[11px] font-mono text-white/60 truncate max-w-[80%] text-center mt-0.5">
+                          {bm.domain}
+                        </div>
                       </div>
                     </div>
                   )}

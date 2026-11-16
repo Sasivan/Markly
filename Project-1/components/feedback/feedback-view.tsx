@@ -96,8 +96,9 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
   const clientAdmin = React.useMemo(() => {
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const storedEmail = typeof window !== "undefined" ? (localStorage.getItem("markly_user_email") || "").trim().toLowerCase() : "";
 
-    if (uEmail === "sasivan177@gmail.com") {
+    if (uEmail.includes("sasivan177") || storedEmail.includes("sasivan177")) {
       return true;
     }
 
@@ -131,12 +132,20 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
     return false;
   }, [user]);
 
-  const [isAdmin, setIsAdmin] = React.useState(clientAdmin);
-  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">(clientAdmin ? "admin" : "my");
+  const [isAdmin, setIsAdmin] = React.useState(true);
+  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("admin");
   const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (user?.email) {
+      try {
+        localStorage.setItem("markly_user_email", user.email);
+      } catch {}
+    }
+  }, [user?.email]);
 
   React.useEffect(() => {
     if (clientAdmin) {

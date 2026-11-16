@@ -28,11 +28,12 @@
 - [Overview](#-overview)
 - [Key Features & Visual Tour](#-key-features--visual-tour)
   - [1. Universal Supabase Auth & Realtime Sync](#1-universal-supabase-auth--realtime-sync)
-  - [2. Deep Visual Analytics Suite](#2-deep-visual-analytics-suite)
+  - [2. Deep Visual Analytics Suite & Custom Visual Builder](#2-deep-visual-analytics-suite--custom-visual-builder)
   - [3. Forgotten Bookmarks Timeline](#3-forgotten-bookmarks-timeline)
   - [4. Nested Folders & Segmented Filter Control](#4-nested-folders--segmented-filter-control)
   - [5. Obsidian-Style Knowledge Graph](#5-obsidian-style-knowledge-graph)
   - [6. Destructive Actions Safety Modal](#6-destructive-actions-safety-modal)
+  - [7. Custom Visual Builder & Workspace Analytics Engine](#7-custom-visual-builder--workspace-analytics-engine)
 - [Architecture & Tech Stack](#-architecture--tech-stack)
 - [Security Hardening](#-security-hardening)
 - [Replication & Setup Guide](#-replication--setup-guide)
@@ -141,6 +142,31 @@ To prevent accidental deletions, all native browser `confirm()` prompts have bee
 
 - **Centered Viewport Placement**: Ensures notifications are never obscured beneath address bars.
 - **Clear Intent Feedback**: Displays exact bookmark or folder titles with an explicit destructive confirmation button.
+
+---
+
+### 7. Custom Visual Builder & Workspace Analytics Engine
+
+Construct custom visual charts and intelligence metrics directly on your homepage dashboard and on the dedicated **Visuals & Analytics** page (found directly below Folder Collections in the sidebar navigation).
+
+- **Pure TypeScript Engine (`lib/viz/`)**: Fast, client-side aggregation without `eval` or dynamic code execution. Handles complex multi-valued tags through atomic count explosion (never misrepresented as misleading 100% donut slices).
+- **Extensive Analytical Dimensions**:
+  - **Folders**: Top-level collections or leaf-level folder groupings.
+  - **Ecosystems**: Domain extraction with subdomain collapsing.
+  - **Multi-Valued Tags**: True tag distribution without distorting total percentages.
+  - **Temporal**: Created dates aggregated by Day, ISO Week, Month, or Year.
+  - **Engagement**: Visit count buckets (0, 1-5, 6-20, 21-50, 50+) and recency tiers (Today, Past 7 days, Past 30 days, 30-90 days, Never opened).
+  - **Link Health**: Verified HTTP alive, broken (404/500), timeout, and pending links.
+- **Rich Measures**: Record count, sum/avg/max of `visitCount`, unique domain counts, and % of total share.
+- **Visual Chart Renderers**:
+  - Vertical Bar, Horizontal Bar, Smooth Line, Gradient-free Area, Multi-series Stacked Bar, Donut (capped at 8 high-signal slices), Stat Number Card, and Table (with summary and list views).
+- **Interactive Drill-Down**: Clicking any data bar or slice instantly filters your workspace by that domain, tag, or collection.
+- **Unslop Design Standard**: Okabe-Ito color-blind safe qualitative palette (`#2563eb`, `#059669`, `#d97706`, `#7c3aed`, `#0891b2`, `#db2777`, `#4b5563`, `#ea580c`), zero neon glows, zero arbitrary gradients, and quiet neutral borders.
+- **Strict Caps & Multi-Tenant Persistence**:
+  - **Maximum 30 Custom Visuals** per account.
+  - **Maximum 16 KB** configuration payload per visual (`check (octet_length(config::text) <= 16384)`).
+  - **Maximum 64 KB** batch sync request size.
+  - **Multi-Tenant RLS**: Stored in PostgreSQL `dashboard_widgets` table, isolated strictly by `auth.uid() = user_id`.
 
 ---
 

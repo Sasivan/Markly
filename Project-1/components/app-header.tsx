@@ -64,8 +64,6 @@ export function AppHeader({
   const isUserAdmin = React.useMemo(() => {
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
-    const storedEmail = typeof window !== "undefined" ? (localStorage.getItem("markly_user_email") || "").trim().toLowerCase() : "";
-    if (uEmail === "sasivan177@gmail.com" || uEmail.includes("sasivan177") || storedEmail.includes("sasivan177")) return true;
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) return true;
     if (
       user?.app_metadata?.role === "admin" ||

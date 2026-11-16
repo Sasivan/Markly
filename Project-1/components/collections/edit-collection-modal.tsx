@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { IconSearchPicker } from "@/components/icons/icon-search-picker";
+import { UniversalIdentityPicker } from "@/components/ui/universal-identity-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 import {
@@ -186,42 +186,15 @@ export function EditCollectionModal({
             />
           </div>
 
-          {/* Icon Search & Picker */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Collection Icon
-            </label>
-            <IconSearchPicker
-              selectedIcon={selectedIcon}
-              onSelectIcon={setSelectedIcon}
-            />
-          </div>
-
-          {/* Color Palette Selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">
-              Theme Color
-            </label>
-            <div className="grid grid-cols-8 gap-1.5 p-2 bg-secondary/50 rounded-xl border border-border">
-              {COLOR_PALETTE.map((c) => {
-                const isSelected = selectedColor === c.value;
-                return (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setSelectedColor(c.value)}
-                    className="h-7 w-7 rounded-lg flex items-center justify-center transition-transform duration-150 cursor-pointer relative"
-                    style={{ backgroundColor: c.value }}
-                    title={c.name}
-                  >
-                    {isSelected && (
-                      <Check className="h-4 w-4 text-white drop-shadow-md stroke-[3]" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* Universal Icon & Accent Color Picker */}
+          <UniversalIdentityPicker
+            icon={selectedIcon}
+            color={selectedColor}
+            onIconChange={setSelectedIcon}
+            onColorChange={setSelectedColor}
+            label="Collection Identity & Accent"
+            previewName={name || "Collection Preview"}
+          />
 
           {/* Location / Move Parent Folder Selection */}
           <div className="space-y-1.5">

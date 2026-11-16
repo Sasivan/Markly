@@ -103,7 +103,7 @@ export function WorkspaceHome({
   const { user } = useAuth();
   const widgetStore = React.useMemo(() => new RemoteWidgetStore(), []);
 
-  // 1.2: Homepage Widgets Ordering & Visibility state (persisted synchronously in localStorage to prevent layout repositioning on refresh)
+  // 1.2: Homepage Widgets Ordering & Visibility state (persisted synchronously in localStorage with exact colSpan and rowSpan to prevent layout repositioning on refresh)
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -111,7 +111,23 @@ export function WorkspaceHome({
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return parsed.map((p: any) => {
+              let colSpan = p.colSpan;
+              let rowSpan = p.rowSpan;
+              try {
+                const savedCol = localStorage.getItem("markly_box_colspan_" + p.id);
+                if (savedCol) {
+                  const val = Number(savedCol);
+                  if ([2, 3, 4, 6, 8, 9, 12].includes(val)) colSpan = val as WidgetColSpan;
+                }
+                const savedRow = localStorage.getItem("markly_box_rowspan_" + p.id);
+                if (savedRow) {
+                  const rVal = Number(savedRow);
+                  if (rVal === 1 || rVal === 2) rowSpan = rVal as 1 | 2;
+                }
+              } catch {}
+              return { ...p, colSpan: colSpan ?? p.colSpan, rowSpan: rowSpan ?? p.rowSpan };
+            });
           }
         }
       } catch {}

@@ -11,10 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { IconSearchPicker } from "@/components/icons/icon-search-picker";
+import { UniversalIdentityPicker } from "@/components/ui/universal-identity-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
-import { ColorPaletteGenerator } from "@/components/ui/color-palette-generator";
 
 interface CreateSmartCollectionModalProps {
   isOpen: boolean;
@@ -388,38 +387,15 @@ export function CreateSmartCollectionModal({
 
                 {/* Right Column: Live Badge Preview, Icon Picker, Color Palette */}
                 <div className="space-y-3.5">
-                  {/* Live Badge Preview Card */}
-                  <div className="p-2.5 rounded-xl border border-border bg-secondary/30 flex items-center gap-3">
-                    <div
-                      className="h-9 w-9 rounded-lg flex items-center justify-center border border-border shrink-0 shadow-2xs"
-                      style={{ backgroundColor: `${color}20` }}
-                    >
-                      <FolderIconRenderer icon={icon} className="h-4.5 w-4.5" color={color} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-foreground truncate">
-                        {name || "Collection Preview"}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        Rule: {ruleField} = {ruleValue || "(any)"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Icon Picker */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground">Collection Icon</label>
-                    <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
-                  </div>
-
-                  {/* Universal Color Palette & Harmonic Generator */}
-                  <div className="space-y-1.5">
-                    <ColorPaletteGenerator
-                      value={color}
-                      onChange={setColor}
-                      defaultValue="#8b5cf6"
-                    />
-                  </div>
+                  {/* Universal Identity & Accent Picker */}
+                  <UniversalIdentityPicker
+                    icon={icon}
+                    color={color}
+                    onIconChange={setIcon}
+                    onColorChange={setColor}
+                    label="Smart Collection Identity"
+                    previewName={name || "Collection Preview"}
+                  />
                 </div>
               </div>
             ) : (
@@ -587,20 +563,15 @@ export function CreateSmartCollectionModal({
                   </div>
                 </div>
 
-                {/* Icon Picker */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">Collection Icon</label>
-                  <IconSearchPicker selectedIcon={icon} onSelectIcon={setIcon} />
-                </div>
-
-                {/* Universal Color Palette & Harmonic Generator */}
-                <div className="space-y-1.5">
-                  <ColorPaletteGenerator
-                    value={color}
-                    onChange={setColor}
-                    defaultValue="#8b5cf6"
-                  />
-                </div>
+                {/* Universal Identity & Accent Picker */}
+                <UniversalIdentityPicker
+                  icon={icon}
+                  color={color}
+                  onIconChange={setIcon}
+                  onColorChange={setColor}
+                  label="Smart Collection Identity"
+                  previewName={name || "Collection Preview"}
+                />
               </div>
             )}
           </div>

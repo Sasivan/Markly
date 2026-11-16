@@ -23,6 +23,7 @@ import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import type { VizConfig, VizRow, VizResult } from "@/lib/viz";
 import { runViz, VIZ_PALETTE } from "@/lib/viz";
 import { ObservablePlotView } from "./observable-plot-view";
+import { WidgetBoxContext } from "@/components/home/dashboard-widget-box";
 
 export { VIZ_PALETTE };
 
@@ -62,32 +63,13 @@ export function VizChart({
     config.chartType === "table" ? "table" : "recharts"
   );
   const chartWrapperRef = React.useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = React.useState<number>(0);
 
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  React.useEffect(() => {
-    if (!chartWrapperRef.current) return;
-    const parentBox = chartWrapperRef.current.closest(".group\\/box") as HTMLElement | null;
-    const targetEl = parentBox || chartWrapperRef.current.parentElement || chartWrapperRef.current;
-
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentRect.height > 60) {
-          const availH = parentBox
-            ? Math.max(180, Math.floor(entry.contentRect.height - (bare ? 24 : 64)))
-            : Math.floor(entry.contentRect.height);
-          setContainerHeight(availH);
-        }
-      }
-    });
-    ro.observe(targetEl);
-    return () => ro.disconnect();
-  }, [bare]);
-
-  const effectiveHeight = containerHeight > 100 ? containerHeight : height;
+  const boxCtx = React.useContext(WidgetBoxContext);
+  const effectiveHeight = height || (boxCtx.boxHeight ? Math.max(160, boxCtx.boxHeight - 65) : 260);
 
   React.useEffect(() => {
     if (config.chartType === "table") {

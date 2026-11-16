@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import * as Plot from "@observablehq/plot";
+import { WidgetBoxContext } from "@/components/home/dashboard-widget-box";
 
 export type ObservablePlotType =
   // Bars & Columns
@@ -112,28 +113,19 @@ export function ObservablePlotView({
 }: ObservablePlotViewProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState<number>(500);
-  const [containerHeight, setContainerHeight] = React.useState<number>(0);
+  const boxCtx = React.useContext(WidgetBoxContext);
 
-  // ResizeObserver for responsive width and adaptive height
+  // ResizeObserver for responsive width
   React.useEffect(() => {
     if (!containerRef.current) return;
-    const parentBox = containerRef.current.closest(".group\\/box") as HTMLElement | null;
-    const targetEl = parentBox || containerRef.current.parentElement || containerRef.current;
-
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 50) {
           setContainerWidth(Math.floor(entry.contentRect.width));
         }
-        if (entry.contentRect.height > 60) {
-          const availH = parentBox
-            ? Math.max(180, Math.floor(entry.contentRect.height - 48))
-            : Math.floor(entry.contentRect.height);
-          setContainerHeight(availH);
-        }
       }
     });
-    ro.observe(targetEl);
+    ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
 
@@ -146,7 +138,7 @@ export function ObservablePlotView({
     try {
       const marks: Plot.Markish[] = [];
       const hasGrid = config.grid !== false;
-      const height = config.height || (containerHeight > 100 ? containerHeight : 280);
+      const height = config.height || (boxCtx.boxHeight ? Math.max(160, boxCtx.boxHeight - 65) : 260);
       const width = config.width || containerWidth;
       const tipEnabled = config.tip !== false;
       const curve = config.curve || "natural";
@@ -800,13 +792,13 @@ export function ObservablePlotView({
     } catch (err) {
       console.error("Observable Plot render error:", err);
     }
-  }, [data, config, containerWidth, containerHeight, onItemClick]);
+  }, [data, config, containerWidth, onItemClick, boxCtx.boxHeight]);
 
   return (
     <div
       ref={containerRef}
       className={`w-full overflow-x-auto flex items-center justify-center select-none ${className}`}
-      style={{ minHeight: `${config.height || (containerHeight > 100 ? containerHeight : 260)}px` }}
+      style={{ minHeight: `${config.height || 260}px` }}
     />
   );
 }

@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
-import { ColorPaletteGenerator } from "@/components/ui/color-palette-generator";
+import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 
 interface StashTabsModalProps {
   isOpen: boolean;
@@ -258,12 +258,17 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
                 </div>
               </div>
 
-              {/* Right Column: Universal Color Palette & Harmonic Generator */}
-              <div className="space-y-2">
-                <ColorPaletteGenerator
-                  value={folderColor}
+              {/* Universal Color Palette & Accent Picker */}
+              <div className="space-y-2 p-3 rounded-xl border border-border bg-secondary/30 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-foreground block">Session Accent Color</span>
+                  <span className="text-[10px] text-muted-foreground block">Pick a color for the created stash folder</span>
+                </div>
+                <UniversalColorPicker
+                  color={folderColor}
                   onChange={setFolderColor}
-                  defaultValue="#3b82f6"
+                  label="Session Accent Color"
+                  compact={false}
                 />
               </div>
             </div>

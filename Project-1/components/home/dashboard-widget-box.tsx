@@ -28,6 +28,18 @@ import type { WidgetColSpan } from "./home-layout-modal";
 
 export type WidgetViewMode = "grid" | "list" | "compact";
 
+export interface WidgetBoxContextType {
+  colSpan: WidgetColSpan;
+  rowSpan: number;
+  boxHeight: number | null;
+}
+
+export const WidgetBoxContext = React.createContext<WidgetBoxContextType>({
+  colSpan: 6,
+  rowSpan: 1,
+  boxHeight: null,
+});
+
 interface DashboardWidgetBoxProps {
   id: string;
   title: string;
@@ -251,6 +263,13 @@ export function DashboardWidgetBox({
       const initialHeightPx = initialBoxRect.height;
       let lastSpan: WidgetColSpan = colSpanState;
 
+      const prevCursor = document.body.style.cursor;
+      const prevSelect = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+      if (direction === "width") document.body.style.cursor = "ew-resize";
+      else if (direction === "height") document.body.style.cursor = "ns-resize";
+      else document.body.style.cursor = "nwse-resize";
+
       const onMouseMove = (moveEvent: MouseEvent) => {
         if (direction === "width" || direction === "both") {
           const deltaX = moveEvent.clientX - startX;
@@ -293,6 +312,8 @@ export function DashboardWidgetBox({
 
       const onMouseUp = () => {
         setIsResizing(null);
+        document.body.style.cursor = prevCursor;
+        document.body.style.userSelect = prevSelect;
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
 
@@ -379,7 +400,7 @@ export function DashboardWidgetBox({
       style={{
         gridColumn: typeof window !== "undefined" && window.innerWidth >= 768 ? `span ${colSpanState} / span ${colSpanState}` : undefined,
         gridRow: typeof window !== "undefined" && window.innerWidth >= 768 && rowSpanState === 2 ? "span 2" : undefined,
-        height: isCollapsed ? "auto" : undefined,
+        height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
         minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : rowSpanState === 2 ? "440px" : "auto",
       }}
       className={`rounded-xl border border-border bg-card shadow-2xs flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
@@ -612,8 +633,26 @@ export function DashboardWidgetBox({
 
       {/* Box Body (Collapsible Notion style) */}
       {!isCollapsed && (
-        <div className="flex-1 animate-in fade-in duration-150">
-          {children}
+        <WidgetBoxContext.Provider
+          value={{
+            colSpan: colSpanState,
+            rowSpan: rowSpanState,
+            boxHeight,
+          }}
+        >
+          <div className="flex-1 animate-in fade-in duration-150">
+            {children}
+          </div>
+        </WidgetBoxContext.Provider>
+      )}
+
+      {/* Active Resizing Floating Dimensions Pill */}
+      {isResizing && (
+        <div className="absolute bottom-3 right-8 px-2.5 py-1 rounded-md bg-foreground text-background text-[11px] font-mono font-medium shadow-xl pointer-events-none z-50 flex items-center gap-1.5 animate-in fade-in zoom-in-95">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span>{spanLabel} ({colSpanState}/12)</span>
+          <span className="opacity-60">×</span>
+          <span>{boxHeight ? `${boxHeight}px` : rowSpanState === 2 ? "440px" : "Auto"}</span>
         </div>
       )}
 
@@ -621,14 +660,14 @@ export function DashboardWidgetBox({
       <div
         onMouseDown={(e) => startResize("width", e)}
         onDoubleClick={handleCycleColSpan}
-        className="absolute top-0 right-0 bottom-0 w-2.5 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-        title="Drag left-to-right to resize box column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
+        className="absolute top-0 -right-2 bottom-0 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-40 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+        title="Drag right edge to resize column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
       >
         <div
-          className={`w-[2.5px] h-10 rounded-full transition-colors ${
+          className={`w-1 h-14 rounded-full transition-all ${
             isResizing === "width" || isResizing === "both"
-              ? "bg-primary"
-              : "bg-border/80 hover:bg-primary/80"
+              ? "bg-primary w-1.5 shadow-sm"
+              : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
           }`}
         />
       </div>
@@ -638,14 +677,14 @@ export function DashboardWidgetBox({
         <div
           onMouseDown={(e) => startResize("height", e)}
           onDoubleClick={toggleRowSpan}
-          className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag up/down to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
+          className="absolute -bottom-2 left-0 right-0 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-40 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag bottom edge to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
         >
           <div
-            className={`h-[2.5px] w-12 rounded-full transition-colors ${
+            className={`h-1 w-20 rounded-full transition-all ${
               isResizing === "height" || isResizing === "both"
-                ? "bg-primary"
-                : "bg-border/80 hover:bg-primary/80"
+                ? "bg-primary h-1.5 shadow-sm"
+                : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
             }`}
           />
         </div>
@@ -655,10 +694,17 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div
           onMouseDown={(e) => startResize("both", e)}
-          className="absolute bottom-0.5 right-0.5 w-4 h-4 cursor-nwse-resize z-30 flex items-end justify-end p-0.5 opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag corner to resize both width and height"
+          className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-30 flex items-end justify-end p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          title="Drag corner to freely resize both width and height"
         >
-          <div className="w-2.5 h-2.5 border-r-2 border-b-2 border-muted-foreground/60 hover:border-primary transition-colors" />
+          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="14" cy="14" r="1.5" />
+            <circle cx="9" cy="14" r="1.5" />
+            <circle cx="4" cy="14" r="1.5" />
+            <circle cx="14" cy="9" r="1.5" />
+            <circle cx="9" cy="9" r="1.5" />
+            <circle cx="14" cy="4" r="1.5" />
+          </svg>
         </div>
       )}
     </div>
@@ -706,49 +752,46 @@ export function BookmarkItemsView({
   getParentName = (bm) => bm.domain || "Workspace",
 }: BookmarkItemsViewProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = React.useState<number>(0);
   const [containerWidth, setContainerWidth] = React.useState<number>(0);
+  const boxCtx = React.useContext(WidgetBoxContext);
 
   React.useEffect(() => {
     if (!containerRef.current) return;
-    const parentBox = containerRef.current.closest(".group\\/box") as HTMLElement | null;
-    const targetEl = parentBox || containerRef.current.parentElement || containerRef.current;
-
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.contentRect.height > 20) {
-          const availH = parentBox
-            ? Math.max(120, Math.floor(entry.contentRect.height - 48))
-            : Math.floor(entry.contentRect.height);
-          setContainerHeight(availH);
-        }
         if (entry.contentRect.width > 20) {
           setContainerWidth(Math.floor(entry.contentRect.width));
         }
       }
     });
-    ro.observe(targetEl);
+    ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
 
-  // Compute auto-adaptive item count dynamically based on current box height & width
+  // Compute adaptive item count dynamically based on width and height
   const adaptiveCount = React.useMemo(() => {
-    if (limit && limit !== "all") return limit;
-    const h = containerHeight || 360;
-    const w = containerWidth || 400;
+    if (typeof limit === "number") return limit;
+    if (limit === "all") return items.length;
+
+    const effectiveHeight = boxCtx.boxHeight || (boxCtx.rowSpan === 2 ? 440 : 320);
+    const availableBodyHeight = Math.max(140, effectiveHeight - 50);
+
     if (mode === "grid") {
-      const cols = w >= 700 ? 3 : w >= 380 ? 2 : 1;
-      const rows = Math.max(2, Math.floor((h - 24) / 58));
-      return Math.max(6, cols * rows);
+      const cols = containerWidth >= 1000 ? 4 : containerWidth >= 680 ? 3 : containerWidth >= 440 ? 2 : 1;
+      const rows = Math.max(2, Math.floor(availableBodyHeight / 58));
+      return Math.max(cols * 2, cols * rows);
     }
+
     if (mode === "compact") {
-      const rows = Math.max(6, Math.floor((h - 16) / 32));
-      return rows;
+      const cols = containerWidth >= 750 ? 3 : containerWidth >= 480 ? 2 : 1;
+      const rows = Math.max(3, Math.floor(availableBodyHeight / 34));
+      return Math.max(cols * 3, cols * rows);
     }
-    // list mode
-    const rows = Math.max(5, Math.floor((h - 20) / 44));
-    return rows;
-  }, [limit, containerHeight, containerWidth, mode]);
+
+    // Default list mode (~44px per row)
+    const listRows = Math.max(4, Math.floor(availableBodyHeight / 44));
+    return listRows;
+  }, [limit, items.length, mode, containerWidth, boxCtx.boxHeight, boxCtx.rowSpan]);
 
   const displayItems = limit && limit !== "all" ? items.slice(0, limit) : items.slice(0, adaptiveCount);
 

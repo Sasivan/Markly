@@ -33,7 +33,6 @@ import { Button } from "@/components/ui/button";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "@/components/viz/viz-chart";
-import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig, type VisualCategory } from "@/components/viz/universal-visual-builder-modal";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboard-widget-box";
@@ -90,7 +89,7 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
       id: `fld_domain_${folderId}`,
       title: "Domain Breakdown",
       kind: "chart",
-      colSpan: 6,
+      colSpan: 4,
       chartConfig: {
         version: 1,
         id: `fld_domain_${folderId}`,
@@ -108,7 +107,7 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
       id: `fld_tags_${folderId}`,
       title: "Tag Frequency & Cloud",
       kind: "tags",
-      colSpan: 6,
+      colSpan: 4,
     },
     {
       id: `fld_status_${folderId}`,
@@ -126,36 +125,6 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
         sort: { by: "measure", direction: "desc" },
         limit: 4,
         otherBucket: false,
-      },
-    },
-    {
-      id: `fld_activity_${folderId}`,
-      title: "Most Visited Activity",
-      kind: "chart",
-      colSpan: 4,
-      chartConfig: {
-        version: 1,
-        id: `fld_activity_${folderId}`,
-        title: "Most Visited Activity",
-        chartType: "bar",
-        dimension: "domain",
-        measure: "sum_visits",
-        filters: {},
-        sort: { by: "measure", direction: "desc" },
-        limit: 6,
-        otherBucket: false,
-      },
-    },
-    {
-      id: `fld_plot_${folderId}`,
-      title: "Observable Ranked Marks",
-      kind: "plot",
-      colSpan: 4,
-      plotConfig: {
-        type: "barX",
-        dimension: "domain",
-        measure: "count",
-        colorScheme: "tableau10",
       },
     },
   ];
@@ -190,12 +159,13 @@ function normalizeVisual(v: any): TabVisual {
   };
 }
 
-function loadTabs(folderId: string, defaultVisuals: TabVisual[]): Tab[] {
+function loadTabs(folderId: string, defaultVisuals: TabVisual[], isCustomScope = false): Tab[] {
   if (typeof window === "undefined") {
     return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: defaultVisuals }];
   }
+  const storageKey = isCustomScope ? `markly_folder_tabs_${folderId}` : "markly_universal_folder_tabs";
   try {
-    const stored = localStorage.getItem(`markly_folder_tabs_${folderId}`);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -217,12 +187,11 @@ function loadTabs(folderId: string, defaultVisuals: TabVisual[]): Tab[] {
   return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: defaultVisuals }];
 }
 
-function persistTabs(folderId: string, tabs: Tab[]) {
+function persistTabs(folderId: string, tabs: Tab[], isCustomScope = false) {
+  if (typeof window === "undefined") return;
+  const storageKey = isCustomScope ? `markly_folder_tabs_${folderId}` : "markly_universal_folder_tabs";
   try {
-    localStorage.setItem(`markly_folder_tabs_${folderId}`, JSON.stringify(tabs));
-    if (tabs.length > 0) {
-      localStorage.setItem(`markly_folder_visuals_${folderId}`, JSON.stringify(tabs[0].visuals));
-    }
+    localStorage.setItem(storageKey, JSON.stringify(tabs));
   } catch {}
 }
 
@@ -278,23 +247,49 @@ export function FolderVisualAnalytics({
     } catch {}
   };
 
+  // Scope: Universal (Synced across folders) vs Folder Custom
+  const [isCustomScope, setIsCustomScope] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`markly_folder_viz_is_custom_${folderId}`);
+        return stored === "true";
+      } catch {}
+    }
+    return false;
+  });
+
+  const toggleVisualScope = () => {
+    setIsCustomScope((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(`markly_folder_viz_is_custom_${folderId}`, String(next));
+      } catch {}
+      const loaded = loadTabs(folderId, makeDefaultVisuals(folderId), next);
+      setTabs(loaded);
+      setActiveTabId(loaded[0]?.id ?? "tab_default");
+      return next;
+    });
+  };
+
   // Multi-Tab Visual System
-  const [tabs, setTabs] = React.useState<Tab[]>(() => loadTabs(folderId, makeDefaultVisuals(folderId)));
+  const [tabs, setTabs] = React.useState<Tab[]>(() =>
+    loadTabs(folderId, makeDefaultVisuals(folderId), typeof window !== "undefined" && localStorage.getItem(`markly_folder_viz_is_custom_${folderId}`) === "true")
+  );
   const [activeTabId, setActiveTabId] = React.useState<string>(() => tabs[0]?.id ?? "tab_default");
   const [renamingTabId, setRenamingTabId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
 
   React.useEffect(() => {
-    const loaded = loadTabs(folderId, makeDefaultVisuals(folderId));
+    const loaded = loadTabs(folderId, makeDefaultVisuals(folderId), isCustomScope);
     setTabs(loaded);
     setActiveTabId(loaded[0]?.id ?? "tab_default");
-  }, [folderId]);
+  }, [folderId, isCustomScope]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
 
   const updateTabs = (next: Tab[]) => {
     setTabs(next);
-    persistTabs(folderId, next);
+    persistTabs(folderId, next, isCustomScope);
   };
 
   const handleAddTab = () => {
@@ -344,84 +339,6 @@ export function FolderVisualAnalytics({
     );
   };
 
-  const [builderOpen, setBuilderOpen] = React.useState(false);
-  const [editingViz, setEditingViz] = React.useState<VizConfig | null>(null);
-  const [presetMenuOpen, setPresetMenuOpen] = React.useState(false);
-  const presetMenuRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (presetMenuRef.current && !presetMenuRef.current.contains(event.target as Node)) {
-        setPresetMenuOpen(false);
-      }
-    }
-    if (presetMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [presetMenuOpen]);
-
-  // Add Chart Preset
-  const handleAddChartPreset = (type: VizChartType, dim: any, title: string) => {
-    if (!activeTab) return;
-    const newConfig: VizConfig = {
-      version: 1,
-      id: `fld_${Date.now()}`,
-      title,
-      chartType: type,
-      dimension: dim,
-      measure: "count",
-      filters: {},
-      sort: { by: "measure", direction: "desc" },
-      limit: type === "donut" ? 6 : 8,
-      otherBucket: true,
-    };
-    const newVisual: TabVisual = {
-      id: newConfig.id,
-      title: newConfig.title,
-      kind: "chart",
-      chartConfig: newConfig,
-      colSpan: 6,
-    };
-    setTabVisuals(activeTab.id, [...activeTab.visuals, newVisual]);
-    setPresetMenuOpen(false);
-  };
-
-  // Add Special Visual Preset (Tags, Engagement, Wall, Graph, Sites, Plot)
-  const handleAddSpecialVisual = (kind: VisualKind, title: string, siteFilter?: "all" | "favorites" | "recent") => {
-    if (!activeTab) return;
-    const newVisual: TabVisual = {
-      id: `${kind}_${Date.now()}`,
-      title,
-      kind,
-      colSpan: kind === "graph" || kind === "wall" ? 12 : 6,
-      siteFilter,
-      plotConfig: kind === "plot" ? { type: "barX" } : undefined,
-    };
-    setTabVisuals(activeTab.id, [...activeTab.visuals, newVisual]);
-    setPresetMenuOpen(false);
-  };
-
-  const handleSaveCustomVisual = (config: VizConfig) => {
-    if (!activeTab) return;
-    const exists = activeTab.visuals.find((v) => v.id === config.id);
-    if (exists) {
-      setTabVisuals(
-        activeTab.id,
-        activeTab.visuals.map((v) =>
-          v.id === config.id ? { ...v, title: config.title, chartConfig: config } : v
-        )
-      );
-    } else {
-      setTabVisuals(activeTab.id, [
-        ...activeTab.visuals,
-        { id: config.id, title: config.title, kind: "chart", chartConfig: config, colSpan: 6 },
-      ]);
-    }
-    setBuilderOpen(false);
-    setEditingViz(null);
-  };
-
   // Universal Visual Builder & Editor State
   const [universalModalOpen, setUniversalModalOpen] = React.useState(false);
   const [editingUniversalConfig, setEditingUniversalConfig] = React.useState<UniversalVisualConfig | null>(null);
@@ -452,7 +369,6 @@ export function FolderVisualAnalytics({
       setEditingUniversalConfig(null);
     }
     setUniversalModalOpen(true);
-    setPresetMenuOpen(false);
   };
 
   const handleSaveUniversalVisual = (config: UniversalVisualConfig) => {
@@ -640,6 +556,25 @@ export function FolderVisualAnalytics({
           <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-secondary border border-border/60 hidden sm:inline">
             {bookmarks.length} sites
           </span>
+
+          {/* Universal vs Folder Custom Scope Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleVisualScope}
+            className={`h-6 px-2 rounded-md border flex items-center gap-1.5 cursor-pointer text-[10px] font-mono transition-colors ${
+              isCustomScope
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                : "bg-secondary text-muted-foreground border-border/60 hover:text-foreground hover:bg-secondary/80"
+            }`}
+            title={
+              isCustomScope
+                ? "Custom Visuals (Isolated to this page). Click to switch to Universal Synced Visuals."
+                : "Universal Visuals (Synced across all folders). Click to make visual layout custom for this page."
+            }
+          >
+            <Globe className="h-3 w-3" />
+            <span className="hidden md:inline">{isCustomScope ? "Page Custom" : "Universal"}</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -659,166 +594,17 @@ export function FolderVisualAnalytics({
             </div>
           )}
 
-          {/* Add Visual Dropdown (At least 8 presets + Custom Builder) */}
-          <div className="relative" ref={presetMenuRef}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setPresetMenuOpen(!presetMenuOpen)}
-              className="h-7 px-2 text-xs gap-1 cursor-pointer"
-            >
-              <Plus className="h-3 w-3" />
-              <span className="hidden sm:inline">Add Visual</span>
-            </Button>
-
-            {presetMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
-                <div className="font-semibold px-2 py-1 text-[11px] text-muted-foreground border-b border-border mb-1">
-                  Add Preset to &ldquo;{activeTab?.label ?? "Tab"}&rdquo;
-                </div>
-
-                {/* 0. Custom Visual Studio Builder Modal */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenUniversalBuilder()}
-                  className="w-full text-left px-2 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer flex items-center gap-2 text-xs font-semibold mb-1"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Custom Visual Studio Builder...</span>
-                </button>
-                
-                {/* 1. Quick Access Sites Preset */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("sites", "Quick Access (Sites)", "all")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <Compass className="h-3.5 w-3.5 text-primary" />
-                  <span>Quick Access (Sites)</span>
-                </button>
-
-                {/* 2. Starred Favorites Preset */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("sites", "Starred Favorites", "favorites")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                  <span>Starred Favorites (Sites)</span>
-                </button>
-
-                {/* 3. Recently Visited Preset */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("sites", "Recently Visited", "recent")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <History className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Recently Visited (Sites)</span>
-                </button>
-
-                {/* 4. Tag Frequency & Cloud */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("tags", "Tag Frequency & Cloud")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <TagIcon className="h-3.5 w-3.5 text-pink-500" />
-                  <span>Tag Frequency & Cloud</span>
-                </button>
-
-                {/* 5. Engagement Spectrum */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("engagement", "Engagement Spectrum")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                  <span>Engagement Spectrum</span>
-                </button>
-
-                {/* 6. Visual Favicon Wall */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("wall", "Visual Favicon Wall")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <LayoutGrid className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Visual Favicon Wall</span>
-                </button>
-
-                {/* 7. Knowledge Graph */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("graph", "Knowledge Graph")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <Layers className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Knowledge Graph</span>
-                </button>
-
-                {/* 8. Observable Plot (Ranked BarX / Bubble) */}
-                <button
-                  type="button"
-                  onClick={() => handleAddSpecialVisual("plot", "Observable Ranked BarX")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs font-medium"
-                >
-                  <Activity className="h-3.5 w-3.5 text-cyan-500" />
-                  <span>Observable Plot (BarX / Bubble)</span>
-                </button>
-
-                <div className="border-t border-border/60 my-1 pt-1 font-semibold px-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Chart Presets
-                </div>
-
-                {/* 9. Top Domains Bar */}
-                <button
-                  type="button"
-                  onClick={() => handleAddChartPreset("bar", "domain", "Top Domains Bar")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <BarChart3 className="h-3.5 w-3.5 text-primary" />
-                  <span>Top Domains Bar</span>
-                </button>
-
-                {/* 10. Health Status Donut */}
-                <button
-                  type="button"
-                  onClick={() => handleAddChartPreset("donut", "status", "Health Status Donut")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <PieChart className="h-3.5 w-3.5 text-emerald-500" />
-                  <span>Health Status Donut</span>
-                </button>
-
-                {/* 11. Monthly Ingestion */}
-                <button
-                  type="button"
-                  onClick={() => handleAddChartPreset("area", "created_month", "Monthly Ingestion")}
-                  className="w-full text-left px-2 py-1.5 rounded hover:bg-secondary cursor-pointer flex items-center gap-2 text-xs"
-                >
-                  <Activity className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Monthly Ingestion Trend</span>
-                </button>
-
-                <div className="border-t border-border pt-1 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPresetMenuOpen(false);
-                      setEditingViz(null);
-                      setBuilderOpen(true);
-                    }}
-                    className="w-full text-left px-2 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 font-medium cursor-pointer flex items-center gap-2 text-xs"
-                  >
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                    <span>Custom Visual Builder…</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Universal Add Visual Button (Opens Universal Visual Builder Modal without clipping off-screen) */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenUniversalBuilder()}
+            className="h-7 px-2.5 text-xs gap-1 cursor-pointer bg-primary/10 hover:bg-primary/20 text-primary border-primary/30"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="font-medium">Add Visual</span>
+          </Button>
 
           {/* Add Tab Button */}
           <button
@@ -919,7 +705,7 @@ export function FolderVisualAnalytics({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => setPresetMenuOpen(true)}
+                  onClick={() => handleOpenUniversalBuilder()}
                   className="text-xs cursor-pointer gap-1"
                 >
                   <Plus className="h-3 w-3" />
@@ -1207,19 +993,6 @@ export function FolderVisualAnalytics({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName={folderName}
-      />
-
-      {/* Legacy Visual Builder Dialog */}
-      <VizBuilderDialog
-        open={builderOpen}
-        onOpenChange={(op) => {
-          setBuilderOpen(op);
-          if (!op) setEditingViz(null);
-        }}
-        initialConfig={editingViz}
-        bookmarks={bookmarks}
-        folders={folders}
-        onSave={handleSaveCustomVisual}
       />
     </div>
   );

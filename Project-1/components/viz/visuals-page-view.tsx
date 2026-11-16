@@ -460,6 +460,34 @@ export function VisualsPageView({
     saveCoreVisuals(INITIAL_CORE_VISUALS);
   };
 
+  // Hidden studio units (allows deleting any studio or intelligence unit)
+  const [hiddenStudioUnits, setHiddenStudioUnits] = React.useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+
+  const handleHideStudioUnit = (unitId: string) => {
+    setHiddenStudioUnits((prev) => {
+      const next = [...prev, unitId];
+      try {
+        localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleRestoreStudioUnits = () => {
+    setHiddenStudioUnits([]);
+    try {
+      localStorage.removeItem("markly_hidden_visual_studio_units");
+    } catch {}
+  };
+
   // Pin ANY visual to Homepage Dashboard
   const handlePinAnyVisual = async (visual: {
     id: string;
@@ -671,6 +699,17 @@ export function VisualsPageView({
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            {hiddenStudioUnits.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRestoreStudioUnits}
+                className="text-xs h-8 cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>Restore Default Units ({hiddenStudioUnits.length})</span>
+              </Button>
+            )}
             {onNavigateHome && (
               <Button
                 variant="outline"
@@ -691,20 +730,22 @@ export function VisualsPageView({
               className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 cursor-pointer gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span>New Visual</span>
+              <span>+ Add Visual</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* 1. OBSERVABLE PLOT GRAMMAR OF GRAPHICS STUDIO (Wrapped in Resizable Box) */}
-      <DashboardWidgetBox
-        id="studio_observable_plot"
-        title="Observable Plot Layered Graphics Studio (22 Variations)"
-        icon={<Activity className="h-4 w-4 text-cyan-500" />}
-        initialColSpan={12}
-        minHeight={420}
-        badgeText={`${PLOT_VARIATIONS.length} MARKS`}
+      {!hiddenStudioUnits.includes("studio_observable_plot") && (
+        <DashboardWidgetBox
+          id="studio_observable_plot"
+          title="Observable Plot Layered Graphics Studio (22 Variations)"
+          icon={<Activity className="h-4 w-4 text-cyan-500" />}
+          initialColSpan={12}
+          minHeight={420}
+          badgeText={`${PLOT_VARIATIONS.length} MARKS`}
+          onDeleteWidget={() => handleHideStudioUnit("studio_observable_plot")}
         extraHeaderAction={
           <div className="flex items-center gap-1.5">
             <Button
@@ -924,8 +965,10 @@ export function VisualsPageView({
           </div>
         </div>
       </DashboardWidgetBox>
+      )}
 
       {/* 2. KNOWLEDGE GRAPH MASTER STUDIO (Wrapped in Resizable Box) */}
+      {!hiddenStudioUnits.includes("studio_knowledge_graph") && (
       <DashboardWidgetBox
         id="studio_knowledge_graph"
         title="Knowledge Graph Master Allocation Studio"
@@ -933,6 +976,7 @@ export function VisualsPageView({
         initialColSpan={12}
         minHeight={420}
         badgeText="FORCE-DIRECTED"
+        onDeleteWidget={() => handleHideStudioUnit("studio_knowledge_graph")}
         extraHeaderAction={
           <div className="flex items-center gap-1.5">
             <Button
@@ -1046,8 +1090,10 @@ export function VisualsPageView({
           </div>
         </div>
       </DashboardWidgetBox>
+      )}
 
       {/* 3. CORE SPECIALIZED VISUALS IN RESIZABLE BOXES */}
+      {(!hiddenStudioUnits.includes("unit_tags_cloud") || !hiddenStudioUnits.includes("unit_engagement_spectrum") || !hiddenStudioUnits.includes("unit_favicon_wall")) && (
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1063,6 +1109,7 @@ export function VisualsPageView({
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
           {/* TAGS UNIT */}
+          {!hiddenStudioUnits.includes("unit_tags_cloud") && (
           <DashboardWidgetBox
             id="unit_tags_cloud"
             title="Tag Frequency & Topic Cloud"
@@ -1070,6 +1117,7 @@ export function VisualsPageView({
             initialColSpan={4}
             minHeight={260}
             badgeText={`${tagData.length} TAGS`}
+            onDeleteWidget={() => handleHideStudioUnit("unit_tags_cloud")}
             extraHeaderAction={
               <div className="flex items-center gap-1">
                 <Button
@@ -1120,8 +1168,10 @@ export function VisualsPageView({
               </div>
             </div>
           </DashboardWidgetBox>
+          )}
 
           {/* ENGAGEMENT UNIT */}
+          {!hiddenStudioUnits.includes("unit_engagement_spectrum") && (
           <DashboardWidgetBox
             id="unit_engagement_spectrum"
             title="Engagement Spectrum Tiers"
@@ -1129,6 +1179,7 @@ export function VisualsPageView({
             initialColSpan={4}
             minHeight={260}
             badgeText={`${engagementData.totalVisits} VISITS`}
+            onDeleteWidget={() => handleHideStudioUnit("unit_engagement_spectrum")}
             extraHeaderAction={
               <div className="flex items-center gap-1">
                 <Button
@@ -1176,8 +1227,10 @@ export function VisualsPageView({
               </div>
             </div>
           </DashboardWidgetBox>
+          )}
 
           {/* FAVICON WALL UNIT */}
+          {!hiddenStudioUnits.includes("unit_favicon_wall") && (
           <DashboardWidgetBox
             id="unit_favicon_wall"
             title="Visual Favicon Wall"
@@ -1185,6 +1238,7 @@ export function VisualsPageView({
             initialColSpan={4}
             minHeight={260}
             badgeText={`${bookmarks.length} SITES`}
+            onDeleteWidget={() => handleHideStudioUnit("unit_favicon_wall")}
             extraHeaderAction={
               <div className="flex items-center gap-1">
                 <Button
@@ -1236,8 +1290,10 @@ export function VisualsPageView({
               </div>
             </div>
           </DashboardWidgetBox>
+          )}
         </div>
       </section>
+      )}
 
       {/* 4. CUSTOM VISUALS LIBRARY IN RESIZABLE BOXES */}
       {customWidgets.length > 0 && (

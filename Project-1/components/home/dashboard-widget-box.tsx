@@ -324,10 +324,10 @@ export function DashboardWidgetBox({
       style={{
         gridColumn: typeof window !== "undefined" && window.innerWidth >= 768 ? `span ${colSpanState} / span ${colSpanState}` : undefined,
         gridRow: typeof window !== "undefined" && window.innerWidth >= 768 && rowSpanState === 2 ? "span 2 / span 2" : undefined,
-        height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
-        minHeight: isCollapsed ? undefined : rowSpanState === 2 ? "440px" : "140px",
+        height: isCollapsed ? "auto" : undefined,
+        minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : rowSpanState === 2 ? "400px" : "auto",
       }}
-      className={`rounded-xl border border-border bg-card shadow-2xs overflow-hidden flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
+      className={`rounded-xl border border-border bg-card shadow-2xs flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
         rowSpanState === 2 ? "md:row-span-2" : ""
       } ${
         isResizing ? "ring-2 ring-primary/40 select-none" : ""

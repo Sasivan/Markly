@@ -18,10 +18,11 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Table, BarChart2, Info, ArrowUpRight, ExternalLink } from "lucide-react";
+import { Table, BarChart2, Info, ArrowUpRight, ExternalLink, Sparkles } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import type { VizConfig, VizRow, VizResult } from "@/lib/viz";
 import { runViz, VIZ_PALETTE } from "@/lib/viz";
+import { ObservablePlotView } from "./observable-plot-view";
 
 export { VIZ_PALETTE };
 
@@ -57,7 +58,9 @@ export function VizChart({
   bare = false,
 }: VizChartProps) {
   const [isMounted, setIsMounted] = React.useState(false);
-  const [viewAsTable, setViewAsTable] = React.useState(config.chartType === "table");
+  const [viewEngine, setViewEngine] = React.useState<"recharts" | "plot" | "table">(
+    config.chartType === "table" ? "table" : "recharts"
+  );
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -65,7 +68,7 @@ export function VizChart({
 
   React.useEffect(() => {
     if (config.chartType === "table") {
-      setViewAsTable(true);
+      setViewEngine("table");
     }
   }, [config.chartType]);
 
@@ -192,20 +195,73 @@ export function VizChart({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setViewAsTable(!viewAsTable)}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-border/60 hover:bg-secondary hover:text-foreground cursor-pointer transition-colors text-[10px] font-mono ml-auto"
-            title={viewAsTable ? "View as chart" : "View as raw table"}
-          >
-            {viewAsTable ? <BarChart2 className="h-3 w-3" /> : <Table className="h-3 w-3" />}
-            <span>{viewAsTable ? "Chart" : "Table"}</span>
-          </button>
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              type="button"
+              onClick={() => setViewEngine("recharts")}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-mono cursor-pointer transition-colors ${
+                viewEngine === "recharts"
+                  ? "bg-primary text-primary-foreground border-primary font-semibold"
+                  : "border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+              title="Standard Recharts"
+            >
+              <BarChart2 className="h-3 w-3" />
+              <span>Standard</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewEngine("plot")}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-mono cursor-pointer transition-colors ${
+                viewEngine === "plot"
+                  ? "bg-primary text-primary-foreground border-primary font-semibold"
+                  : "border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+              title="Observable Plot (Grammar of Graphics)"
+            >
+              <Sparkles className="h-3 w-3 text-amber-400" />
+              <span>Plot</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewEngine("table")}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-mono cursor-pointer transition-colors ${
+                viewEngine === "table"
+                  ? "bg-primary text-primary-foreground border-primary font-semibold"
+                  : "border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+              title="Raw data table"
+            >
+              <Table className="h-3 w-3" />
+              <span>Table</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* Main View Area */}
-      {viewAsTable ? (
+      {viewEngine === "plot" ? (
+        <div style={{ minHeight: `${height}px` }} className="w-full flex items-center justify-center p-2 rounded-lg border border-border/50 bg-secondary/10">
+          <ObservablePlotView
+            data={queryResult.rows}
+            config={{
+              type:
+                config.chartType === "horizontal_bar"
+                  ? "barX"
+                  : config.chartType === "area"
+                  ? "area"
+                  : config.chartType === "line"
+                  ? "line"
+                  : "barY",
+              x: config.chartType === "horizontal_bar" ? "value" : "dimension",
+              y: config.chartType === "horizontal_bar" ? "dimension" : "value",
+              fill: singleAccent,
+              stroke: singleAccent,
+              height,
+            }}
+          />
+        </div>
+      ) : viewEngine === "table" ? (
         <div
           style={{ height: `${height}px` }}
           className="w-full overflow-auto rounded-lg border border-border bg-card/60 text-xs text-foreground font-mono"

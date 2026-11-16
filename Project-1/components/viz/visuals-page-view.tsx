@@ -21,6 +21,13 @@ import {
   Check,
   Palette,
   RotateCcw,
+  LayoutGrid,
+  Tag as TagIcon,
+  Globe,
+  Share2,
+  Eye,
+  PanelTop,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
@@ -28,8 +35,11 @@ import type { HomeWidgetConfig } from "@/components/home/home-layout-modal";
 import type { VizConfig, VizChartType, VizDimension, VizMeasure } from "@/lib/viz";
 import { RemoteWidgetStore } from "@/lib/viz";
 import { VIZ_GRADIENTS, type VizGradientPreset } from "@/lib/viz/palette";
+import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "./viz-chart";
 import { VizBuilderDialog } from "./viz-builder-dialog";
+import { ObservablePlotView, type ObservablePlotConfig } from "./observable-plot-view";
 
 export interface VisualsPageViewProps {
   bookmarks: BookmarkWithDetails[];
@@ -126,34 +136,139 @@ export function VisualsPageView({
   const [builderOpen, setBuilderOpen] = React.useState(false);
   const [editingConfig, setEditingConfig] = React.useState<VizConfig | null>(null);
 
-  // Studio Interactive Lab state
-  const [studioPreset, setStudioPreset] = React.useState<string>("top_domains");
-  const [studioChartType, setStudioChartType] = React.useState<VizChartType>("bar");
-  const [studioDimension, setStudioDimension] = React.useState<VizDimension>("domain");
-  const [studioMeasure, setStudioMeasure] = React.useState<VizMeasure>("count");
-  const [selectedGradient, setSelectedGradient] = React.useState<string>("indigo_cyan");
-  const [studioPinnedSuccess, setStudioPinnedSuccess] = React.useState(false);
+  // Observable Plot Studio state
+  const [plotType, setPlotType] = React.useState<"barY" | "barX" | "dot" | "line" | "area" | "cell">("barX");
+  const [plotColorScheme, setPlotColorScheme] = React.useState<string>("tableau10");
+  const [plotDimension, setPlotDimension] = React.useState<string>("domain");
+  const [plotMeasure, setPlotMeasure] = React.useState<string>("count");
 
-  // Export to Folder State (Folder Picker popover)
-  const [exportTargetConfig, setExportTargetConfig] = React.useState<VizConfig | null>(null);
+  // Knowledge Graph Studio state
+  const [graphDepth, setGraphDepth] = React.useState<number>(2);
+  const [graphMode, setGraphMode] = React.useState<"global" | "folder">("global");
+  const [selectedGraphFolder, setSelectedGraphFolder] = React.useState<string>("");
+
+  // Export Target Modal state
+  const [exportTargetVisual, setExportTargetVisual] = React.useState<{
+    id: string;
+    title: string;
+    kind: "chart" | "tags" | "engagement" | "wall" | "graph" | "plot";
+    chartConfig?: VizConfig;
+    plotConfig?: ObservablePlotConfig;
+  } | null>(null);
+
+  const [exportDestination, setExportDestination] = React.useState<string>("folder"); // "folder" or "page"
+  const [exportFolderId, setExportFolderId] = React.useState<string>(folders[0]?.id || "");
+  const [exportPageKey, setExportPageKey] = React.useState<string>("page_all");
+  const [exportTabName, setExportTabName] = React.useState<string>("Overview");
+  const [isNewTab, setIsNewTab] = React.useState<boolean>(false);
+  const [newTabInput, setNewTabInput] = React.useState<string>("");
   const [exportSuccessMsg, setExportSuccessMsg] = React.useState<string | null>(null);
 
-  const activeStudioConfig: VizConfig = React.useMemo(() => {
-    return {
-      version: 1,
-      id: "studio_live_chart",
-      title: `${studioDimension.replace("_", " ").toUpperCase()} by ${studioMeasure.replace("_", " ").toUpperCase()}`,
-      chartType: studioChartType,
-      dimension: studioDimension,
-      measure: studioMeasure,
-      filters: {},
-      sort: { by: "measure", direction: "desc" },
-      limit: studioChartType === "donut" ? 7 : 10,
-      otherBucket: true,
-    };
-  }, [studioChartType, studioDimension, studioMeasure]);
-
   const widgetStore = React.useMemo(() => new RemoteWidgetStore(), []);
+
+  // Compute aggregated data for Observable Plot Studio
+  const plotData = React.useMemo(() => {
+    if (plotType === "dot") {
+      // Scatter plot of bookmarks: X = createdAt (month), Y = visitCount, fill = folder
+      return bookmarks.slice(0, 80).map((b) => ({
+        x: new Date(b.createdAt).toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+        y: b.visitCount || 0,
+        domain: b.domain,
+        title: b.title,
+        folder: folders.find((f) => f.id === b.folderId)?.name || "Unsorted",
+      }));
+    }
+
+    if (plotType === "cell") {
+      // Heatmap matrix: domain vs status or month
+      const map = new Map<string, number>();
+      for (const b of bookmarks) {
+        const d = b.domain || "Unknown";
+        const m = new Date(b.createdAt).toLocaleDateString(undefined, { month: "short" });
+        const key = `${d}__${m}`;
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+      return Array.from(map.entries()).slice(0, 30).map(([k, count]) => {
+        const [domain, month] = k.split("__");
+        return { x: month, y: domain, count };
+      });
+    }
+
+    // Default: Group by chosen dimension and measure
+    const map = new Map<string, { count: number; sum_visits: number }>();
+    for (const b of bookmarks) {
+      let key = "Unknown";
+      if (plotDimension === "domain") key = b.domain || "Unknown";
+      else if (plotDimension === "folder") key = folders.find((f) => f.id === b.folderId)?.name || "Unsorted";
+      else if (plotDimension === "status") key = b.status || "alive";
+      else if (plotDimension === "month") key = new Date(b.createdAt).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+
+      const curr = map.get(key) || { count: 0, sum_visits: 0 };
+      map.set(key, { count: curr.count + 1, sum_visits: curr.sum_visits + (b.visitCount || 0) });
+    }
+
+    return Array.from(map.entries())
+      .map(([k, v]) => ({
+        dimension: k,
+        value: plotMeasure === "sum_visits" ? v.sum_visits : v.count,
+        count: v.count,
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [bookmarks, folders, plotType, plotDimension, plotMeasure]);
+
+  // Compute Tags Data
+  const tagData = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const bm of bookmarks) {
+      for (const t of bm.tags || []) {
+        const name = typeof t === "string" ? t : t.name;
+        map.set(name, (map.get(name) || 0) + 1);
+      }
+    }
+    const total = bookmarks.length || 1;
+    return Array.from(map.entries())
+      .map(([name, count]) => ({
+        tag: `#${name}`,
+        rawName: name,
+        count,
+        percentage: Math.round((count / total) * 100),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [bookmarks]);
+
+  // Compute Engagement Data
+  const engagementData = React.useMemo(() => {
+    let frequent = 0;
+    let active = 0;
+    let occasional = 0;
+    let dormant = 0;
+    let totalVisits = 0;
+
+    for (const bm of bookmarks) {
+      const v = bm.visitCount || 0;
+      totalVisits += v;
+      if (v >= 5) frequent++;
+      else if (v >= 2) active++;
+      else if (v === 1) occasional++;
+      else dormant++;
+    }
+
+    const total = bookmarks.length || 1;
+    const avgVisits = Math.round((totalVisits / total) * 10) / 10;
+
+    return {
+      totalVisits,
+      avgVisits,
+      dormantCount: dormant,
+      tiers: [
+        { key: "frequent", tier: "Frequent (≥5)", count: frequent, percentage: Math.round((frequent / total) * 100), color: "#2563eb" },
+        { key: "active", tier: "Active (2-4)", count: active, percentage: Math.round((active / total) * 100), color: "#0d9488" },
+        { key: "occasional", tier: "Occasional (1)", count: occasional, percentage: Math.round((occasional / total) * 100), color: "#d97706" },
+        { key: "dormant", tier: "Dormant (0)", count: dormant, percentage: Math.round((dormant / total) * 100), color: "#64748b" },
+      ],
+    };
+  }, [bookmarks]);
 
   // Load custom visual widgets from store
   const [customWidgets, setCustomWidgets] = React.useState<HomeWidgetConfig[]>([]);
@@ -173,7 +288,7 @@ export function VisualsPageView({
     };
   }, [widgetStore]);
 
-  // Core Visuals (Persisted and completely deletable by user)
+  // Core Visuals Library
   const [coreVisualsList, setCoreVisualsList] = React.useState<VizConfig[]>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -195,55 +310,69 @@ export function VisualsPageView({
   };
 
   const handleDeleteCoreVisual = (id: string) => {
-    const updated = coreVisualsList.filter((v) => v.id !== id);
-    saveCoreVisuals(updated);
+    saveCoreVisuals(coreVisualsList.filter((v) => v.id !== id));
   };
 
   const handleRestoreCoreVisuals = () => {
     saveCoreVisuals(INITIAL_CORE_VISUALS);
   };
 
-  const handleSaveVisual = async (newConfig: VizConfig) => {
+  // Pin ANY visual to Homepage Dashboard
+  const handlePinAnyVisual = async (visual: {
+    id: string;
+    title: string;
+    kind: "chart" | "tags" | "engagement" | "wall" | "graph" | "plot";
+    chartConfig?: VizConfig;
+  }) => {
     try {
       const current = await widgetStore.loadWidgets();
-      let updated: HomeWidgetConfig[];
+      const customCount = current.filter(
+        (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
+      ).length;
 
-      const existingIdx = current.findIndex(
-        (w: any) => w.vizConfig?.id === newConfig.id || w.id === `custom:${newConfig.id}`
-      );
-      if (existingIdx !== -1) {
-        updated = current.map((w: any, idx: number) =>
-          idx === existingIdx
-            ? { ...w, label: newConfig.title, vizConfig: newConfig }
-            : w
-        );
-      } else {
-        const customCount = current.filter(
-          (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
-        ).length;
-        if (customCount >= 30) {
-          alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
-          return;
-        }
-        const newWidget: HomeWidgetConfig = {
-          id: `custom:${newConfig.id}`,
-          label: newConfig.title,
-          visible: true,
-          kind: "custom",
-          vizConfig: newConfig,
-          colSpan: 6,
-          span: "1",
-        };
-        updated = [...current, newWidget];
+      if (customCount >= 30) {
+        alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+        return;
       }
 
+      const newId = `custom:${visual.kind}_${Date.now()}`;
+      const newWidget: HomeWidgetConfig = {
+        id: newId,
+        label: visual.title,
+        visible: true,
+        kind: "custom",
+        vizConfig: visual.chartConfig || {
+          id: newId,
+          title: visual.title,
+          chartType: visual.kind as any,
+          kind: visual.kind,
+        },
+        colSpan: visual.kind === "graph" || visual.kind === "wall" ? 12 : 6,
+        span: visual.kind === "graph" || visual.kind === "wall" ? "2" : "1",
+      };
+
+      const updated = [...current, newWidget];
       await widgetStore.saveWidgets(updated);
       setCustomWidgets(
         updated.filter(
           (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
         )
       );
-    } catch {}
+
+      setExportSuccessMsg(`Pinned "${visual.title}" to Dashboard Home!`);
+      setTimeout(() => setExportSuccessMsg(null), 3000);
+    } catch (e) {
+      console.error("Pin to dashboard error:", e);
+    }
+  };
+
+  const handleSaveVisual = async (newConfig: VizConfig) => {
+    await handlePinAnyVisual({
+      id: newConfig.id,
+      title: newConfig.title,
+      kind: "chart",
+      chartConfig: newConfig,
+    });
     setBuilderOpen(false);
     setEditingConfig(null);
   };
@@ -261,42 +390,56 @@ export function VisualsPageView({
     } catch {}
   };
 
-  // Pin any visual directly to Dashboard Home
-  const handlePinToDashboard = async (config: VizConfig) => {
-    const configToPin: VizConfig = {
-      ...config,
-      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `viz_${Date.now()}`,
-    };
-    await handleSaveVisual(configToPin);
-    setExportSuccessMsg(`Pinned "${config.title}" to Dashboard Home!`);
-    setTimeout(() => setExportSuccessMsg(null), 3000);
-  };
+  // Export any visual to Folder or Page Section with Tab Selection (Multi-Visual Per Tab)
+  const handleExecuteExport = () => {
+    if (!exportTargetVisual) return;
 
-  const handlePinStudioToDashboard = async () => {
-    await handlePinToDashboard(activeStudioConfig);
-    setStudioPinnedSuccess(true);
-    setTimeout(() => setStudioPinnedSuccess(false), 3000);
-  };
-
-  // Export any visual to a specific Folder's Visual Analytics
-  const handleExportToFolder = (config: VizConfig, targetFolderId: string, targetFolderName: string) => {
     try {
-      const storageKey = `markly_folder_visuals_${targetFolderId}`;
+      const destId = exportDestination === "folder" ? exportFolderId : exportPageKey;
+      const destName =
+        exportDestination === "folder"
+          ? folders.find((f) => f.id === exportFolderId)?.name || "Folder"
+          : exportPageKey === "page_all"
+          ? "All Sites"
+          : exportPageKey === "page_favorites"
+          ? "Favorites"
+          : "Recent";
+
+      const finalTabName = isNewTab ? newTabInput.trim() || "New Tab" : exportTabName || "Overview";
+      const storageKey = `markly_folder_tabs_${destId}`;
       const stored = localStorage.getItem(storageKey);
-      let list: VizConfig[] = stored ? JSON.parse(stored) : [];
-      if (!Array.isArray(list)) list = [];
+      let tabs: Array<{ id: string; label: string; visuals: any[] }> = stored ? JSON.parse(stored) : [];
 
-      const newFolderVisual: VizConfig = {
-        ...config,
-        id: `fld_${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`,
-      };
+      if (!Array.isArray(tabs) || tabs.length === 0) {
+        tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+      }
 
-      list.push(newFolderVisual);
-      localStorage.setItem(storageKey, JSON.stringify(list));
+      let targetTab = tabs.find((t) => t.label.toLowerCase() === finalTabName.toLowerCase());
+      if (!targetTab) {
+        targetTab = {
+          id: `tab_${Date.now()}`,
+          label: finalTabName,
+          visuals: [],
+        };
+        tabs.push(targetTab);
+      }
+
+      // Add the visual into the chosen tab
+      targetTab.visuals.push({
+        id: `${exportTargetVisual.kind}_${Date.now()}`,
+        title: exportTargetVisual.title,
+        kind: exportTargetVisual.kind,
+        chartConfig: exportTargetVisual.chartConfig,
+        plotConfig: exportTargetVisual.plotConfig,
+      });
+
+      localStorage.setItem(storageKey, JSON.stringify(tabs));
+      // Keep legacy sync
+      localStorage.setItem(`markly_folder_visuals_${destId}`, JSON.stringify(tabs[0].visuals));
       window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
 
-      setExportTargetConfig(null);
-      setExportSuccessMsg(`Exported "${config.title}" to ${targetFolderName}!`);
+      setExportTargetVisual(null);
+      setExportSuccessMsg(`Exported "${exportTargetVisual.title}" to ${destName} › Tab: ${finalTabName}!`);
       setTimeout(() => setExportSuccessMsg(null), 3500);
     } catch (e) {
       console.error("Export visual error:", e);
@@ -304,8 +447,8 @@ export function VisualsPageView({
   };
 
   return (
-    <div className="space-y-5 pb-12 animate-in fade-in duration-200">
-      {/* Toast Notification for Export */}
+    <div className="space-y-6 pb-16 animate-in fade-in duration-200">
+      {/* Toast Notification */}
       {exportSuccessMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-in slide-in-from-bottom-3">
           <CheckCircle2 className="h-4 w-4" />
@@ -313,24 +456,24 @@ export function VisualsPageView({
         </div>
       )}
 
-      {/* Header Banner */}
+      {/* Master Brain Studio Banner */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-secondary text-secondary-foreground border border-border inline-flex items-center gap-1.5">
-                <BarChart3 className="h-3 w-3 text-primary" />
-                Visual Studio Hub
+              <span className="px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-primary/10 text-primary border border-primary/20 inline-flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3" />
+                Visual Master Brain
               </span>
               <span className="text-xs text-muted-foreground font-mono">
-                {bookmarks.length} links • All charts modular & exportable
+                Observable Plot Grammar + Recharts + Knowledge Graph + Multi-Tab Allocation
               </span>
             </div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Visual Analytics & Chart Studio
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Master Visual Studio & Plot Intelligence
             </h1>
-            <p className="text-xs text-muted-foreground max-w-xl">
-              Parent studio for all workspace visuals. Build, customize with color gradients, pin to Homepage, or export into folder intelligence.
+            <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+              Central control plane for all workspace visualizations. Create layered Observable Plots, Knowledge Graphs, Tag Clouds, Engagement Spectrums, and allocate them across Home and any folder page tabs.
             </p>
           </div>
 
@@ -361,20 +504,20 @@ export function VisualsPageView({
         </div>
       </div>
 
-      {/* Visual Studio Interactive Playground */}
-      <div className="rounded-xl border border-primary/30 bg-card p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3.5">
+      {/* 1. OBSERVABLE PLOT GRAMMAR OF GRAPHICS STUDIO */}
+      <div className="rounded-xl border border-primary/40 bg-card p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-primary text-primary-foreground uppercase tracking-wider">
-                Interactive Studio
+                ObservableHQ Plot
               </span>
               <h2 className="text-base font-semibold text-foreground">
-                Live Visual Builder & Variations Studio
+                Observable Plot Layered Graphics Studio
               </h2>
             </div>
             <p className="text-xs text-muted-foreground">
-              Tweak data dimensions, measures, and chart variations in real-time with your live bookmarks database.
+              A concise layered grammar of graphics with marks, auto-sorting, scales, and pointer tooltips.
             </p>
           </div>
 
@@ -382,386 +525,464 @@ export function VisualsPageView({
             <Button
               size="sm"
               variant="outline"
-              onClick={handlePinStudioToDashboard}
+              onClick={() =>
+                handlePinAnyVisual({
+                  id: `plot_${plotType}_${Date.now()}`,
+                  title: `Observable ${plotType.toUpperCase()} Plot`,
+                  kind: "plot",
+                })
+              }
               className="text-xs h-8 cursor-pointer gap-1.5"
             >
-              {studioPinnedSuccess ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Pinned to Dashboard!</span>
-                </>
-              ) : (
-                <>
-                  <Pin className="h-3.5 w-3.5" />
-                  <span>Pin to Home</span>
-                </>
-              )}
+              <Pin className="h-3.5 w-3.5" />
+              <span>Pin to Home</span>
             </Button>
 
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setExportTargetConfig(activeStudioConfig)}
+              onClick={() =>
+                setExportTargetVisual({
+                  id: `plot_${plotType}_${Date.now()}`,
+                  title: `Observable ${plotType.toUpperCase()} Plot`,
+                  kind: "plot",
+                  plotConfig: {
+                    type: plotType,
+                    colorScheme: plotColorScheme,
+                  },
+                })
+              }
               className="text-xs h-8 cursor-pointer gap-1.5"
             >
               <FolderPlus className="h-3.5 w-3.5 text-primary" />
-              <span>Export to Folder...</span>
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingConfig(activeStudioConfig);
-                setBuilderOpen(true);
-              }}
-              className="text-xs h-8 cursor-pointer gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>Advanced Studio</span>
+              <span>Export to Folder/Page…</span>
             </Button>
           </div>
         </div>
 
-        {/* Studio Presets Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          <span className="text-[11px] font-mono text-muted-foreground mr-1">Presets:</span>
-          {[
-            { id: "top_domains", label: "Top Domains", type: "bar" as VizChartType, dim: "domain" as VizDimension, measure: "count" as VizMeasure },
-            { id: "bookmarks_per_month", label: "Velocity Trend", type: "area" as VizChartType, dim: "created_month" as VizDimension, measure: "count" as VizMeasure },
-            { id: "by_folder", label: "By Folder", type: "donut" as VizChartType, dim: "folder_top" as VizDimension, measure: "count" as VizMeasure },
-            { id: "link_status", label: "Link Health", type: "donut" as VizChartType, dim: "status" as VizDimension, measure: "count" as VizMeasure },
-            { id: "most_visited", label: "Most Visited", type: "horizontal_bar" as VizChartType, dim: "domain" as VizDimension, measure: "sum_visits" as VizMeasure },
-            { id: "by_tag", label: "Tag Distribution", type: "donut" as VizChartType, dim: "tag" as VizDimension, measure: "count" as VizMeasure },
-            { id: "table_view", label: "Data Table", type: "table" as VizChartType, dim: "domain" as VizDimension, measure: "count" as VizMeasure },
-          ].map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => {
-                setStudioPreset(preset.id);
-                setStudioChartType(preset.type);
-                setStudioDimension(preset.dim);
-                setStudioMeasure(preset.measure);
-              }}
-              className={`px-2.5 py-1 rounded-lg border font-medium cursor-pointer transition-colors whitespace-nowrap text-xs ${
-                studioPreset === preset.id
-                  ? "bg-primary text-primary-foreground border-primary font-semibold shadow-2xs"
-                  : "bg-secondary/60 hover:bg-secondary text-foreground border-border"
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Studio Interactive Control Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
-          {/* 1. Chart Type Variation Switcher */}
+        {/* Observable Plot Controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
+          {/* Plot Mark Type */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              1. Chart Variation
+              1. Plot Mark
             </label>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               {[
-                { type: "bar" as VizChartType, label: "Bar" },
-                { type: "horizontal_bar" as VizChartType, label: "H-Bar" },
-                { type: "area" as VizChartType, label: "Area" },
-                { type: "line" as VizChartType, label: "Line" },
-                { type: "donut" as VizChartType, label: "Donut" },
-                { type: "number" as VizChartType, label: "Number" },
-                { type: "table" as VizChartType, label: "Table" },
-                { type: "stacked_bar" as VizChartType, label: "Stacked" },
-              ].map((c) => (
+                { type: "barX" as const, label: "H-Bar" },
+                { type: "barY" as const, label: "V-Bar" },
+                { type: "dot" as const, label: "Scatter" },
+                { type: "area" as const, label: "Area" },
+                { type: "line" as const, label: "Line" },
+                { type: "cell" as const, label: "Matrix" },
+              ].map((m) => (
                 <button
-                  key={c.type}
+                  key={m.type}
                   type="button"
-                  onClick={() => {
-                    setStudioChartType(c.type);
-                    setStudioPreset("");
-                  }}
+                  onClick={() => setPlotType(m.type)}
                   className={`px-2 py-1 rounded-md text-[11px] font-medium border text-center cursor-pointer transition-colors ${
-                    studioChartType === c.type
+                    plotType === m.type
                       ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
                       : "bg-card hover:bg-secondary text-foreground border-border"
                   }`}
                 >
-                  {c.label}
+                  {m.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 2. Group By Dimension */}
+          {/* Group By Dimension */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              2. Data Group By
+              2. Dimension
             </label>
             <select
-              value={studioDimension}
-              onChange={(e) => {
-                setStudioDimension(e.target.value as VizDimension);
-                setStudioPreset("");
-              }}
+              value={plotDimension}
+              onChange={(e) => setPlotDimension(e.target.value)}
               className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
             >
-              <option value="domain">Web Domain (Ecosystem)</option>
-              <option value="folder_top">Top-Level Folder</option>
-              <option value="folder_leaf">Subfolder</option>
-              <option value="created_month">Creation Month</option>
-              <option value="created_day">Creation Day</option>
-              <option value="status">Link Status (Active / Broken)</option>
-              <option value="tag">Tags & Topics</option>
-              <option value="visit_count_bucket">Visit Frequency Bucket</option>
-              <option value="last_opened_bucket">Last Opened Recency</option>
-              <option value="favorite">Starred Favorite</option>
+              <option value="domain">Web Domain</option>
+              <option value="folder">Folder Collection</option>
+              <option value="status">Link Health Status</option>
+              <option value="month">Creation Month</option>
             </select>
           </div>
 
-          {/* 3. Measure Value */}
+          {/* Measure Value */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
               3. Measure Metric
             </label>
             <select
-              value={studioMeasure}
-              onChange={(e) => {
-                setStudioMeasure(e.target.value as VizMeasure);
-                setStudioPreset("");
-              }}
+              value={plotMeasure}
+              onChange={(e) => setPlotMeasure(e.target.value)}
               className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
             >
-              <option value="count">Count (Total Bookmarks)</option>
+              <option value="count">Bookmark Count</option>
               <option value="sum_visits">Sum of Total Visits</option>
-              <option value="avg_visits">Average Visits per Link</option>
-              <option value="distinct_domains">Distinct Domains</option>
-              <option value="percent_of_total">% of Total Collection</option>
+            </select>
+          </div>
+
+          {/* Observable Color Scheme */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              4. Color Palette Scale
+            </label>
+            <select
+              value={plotColorScheme}
+              onChange={(e) => setPlotColorScheme(e.target.value)}
+              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-mono"
+            >
+              <option value="tableau10">Tableau 10 (Qualitative)</option>
+              <option value="blues">Blues (Sequential)</option>
+              <option value="viridis">Viridis (Sequential)</option>
+              <option value="turbo">Turbo (Rainbow)</option>
+              <option value="spectral">Spectral (Diverging)</option>
+              <option value="warm">Warm (Sequential)</option>
+              <option value="cool">Cool (Sequential)</option>
             </select>
           </div>
         </div>
 
-        {/* Live Studio Canvas */}
+        {/* Observable Plot Canvas */}
         <div className="rounded-xl border border-border bg-background p-4 shadow-inner">
-          <div className="flex items-center justify-between border-b border-border/50 pb-2.5 mb-3">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold text-foreground">
-                {activeStudioConfig.title}
-              </span>
-            </div>
-            <span className="text-[10px] font-mono text-muted-foreground uppercase px-2 py-0.5 rounded bg-secondary border border-border">
-              Live Interactive Preview
+          <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
+            <span className="text-xs font-semibold text-foreground">
+              Observable Plot Preview: {plotType.toUpperCase()} Mark
+            </span>
+            <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border">
+              Layered Grammar of Graphics
             </span>
           </div>
 
-          <VizChart
-            config={activeStudioConfig}
-            bookmarks={bookmarks}
-            folders={folders}
-            height={260}
-            onSelectDomain={onSelectDomain}
-            onSelectTag={onSelectTag}
-            onSelectFolder={onSelectFolder}
-            bare={false}
+          <ObservablePlotView
+            data={plotData}
+            config={{
+              type: plotType,
+              x: plotType === "barX" ? "value" : plotType === "dot" || plotType === "cell" ? "x" : "dimension",
+              y: plotType === "barX" ? "dimension" : plotType === "dot" || plotType === "cell" ? "y" : "value",
+              fill: plotType === "dot" ? "folder" : plotType === "cell" ? "count" : "#3b82f6",
+              stroke: "#3b82f6",
+              colorScheme: plotColorScheme,
+              height: 280,
+            }}
           />
         </div>
       </div>
 
-      {/* Home Widget Presets Gallery — Pin any of these to the homepage */}
+      {/* 2. KNOWLEDGE GRAPH MASTER STUDIO */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-indigo-500/10 text-indigo-500 uppercase tracking-wider border border-indigo-500/20">
+                Knowledge Graph
+              </span>
+              <h2 className="text-base font-semibold text-foreground">
+                Knowledge Graph Master Allocation Studio
+              </h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Deep relationship graph mapping bookmarks, domains, folders, and tags with force-directed physics.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                handlePinAnyVisual({
+                  id: `graph_${Date.now()}`,
+                  title: "Interactive Knowledge Graph",
+                  kind: "graph",
+                })
+              }
+              className="text-xs h-8 cursor-pointer gap-1.5"
+            >
+              <Pin className="h-3.5 w-3.5" />
+              <span>Pin to Home</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setExportTargetVisual({
+                  id: `graph_${Date.now()}`,
+                  title: "Interactive Knowledge Graph",
+                  kind: "graph",
+                })
+              }
+              className="text-xs h-8 cursor-pointer gap-1.5"
+            >
+              <FolderPlus className="h-3.5 w-3.5 text-primary" />
+              <span>Export to Folder/Page…</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Graph Master Controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border text-xs">
+          <div className="space-y-1">
+            <label className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
+              1. Depth Traversal Level ({graphDepth})
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={4}
+              value={graphDepth}
+              onChange={(e) => setGraphDepth(Number(e.target.value))}
+              className="w-full cursor-pointer accent-primary"
+            />
+            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+              <span>Direct (1)</span>
+              <span>Deep (4)</span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
+              2. Graph Mode Scope
+            </label>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                onClick={() => setGraphMode("global")}
+                className={`py-1 px-2 rounded-md border text-center font-medium cursor-pointer transition-colors ${
+                  graphMode === "global" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground"
+                }`}
+              >
+                Global Workspace
+              </button>
+              <button
+                type="button"
+                onClick={() => setGraphMode("folder")}
+                className={`py-1 px-2 rounded-md border text-center font-medium cursor-pointer transition-colors ${
+                  graphMode === "folder" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground"
+                }`}
+              >
+                Folder Centric
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wider block">
+              3. Filter by Folder
+            </label>
+            <select
+              value={selectedGraphFolder}
+              onChange={(e) => setSelectedGraphFolder(e.target.value)}
+              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+            >
+              <option value="">All Folders Included</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Live Knowledge Graph Preview */}
+        <div className="h-80 w-full rounded-xl overflow-hidden border border-border bg-card shadow-inner">
+          <KnowledgeGraph
+            mode={graphMode}
+            folderId={selectedGraphFolder || undefined}
+            depth={graphDepth}
+            showControls={true}
+          />
+        </div>
+      </div>
+
+      {/* 3. CORE SPECIALIZED VISUALS (TAGS, ENGAGEMENT, FAVICON WALL) */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">
-              Home Widget Presets Gallery
+              Workspace Intelligence Units (Pin to Home or Export to Folder Tabs)
             </h2>
           </div>
           <span className="text-xs text-muted-foreground font-mono">
-            Pin any chart directly to Homepage widgets
+            Modular intelligence modules
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {([
-            {
-              id: "preset_quick_access",
-              title: "Quick Access — Most Visited",
-              chartType: "horizontal_bar" as VizChartType,
-              dimension: "domain" as VizDimension,
-              measure: "sum_visits" as VizMeasure,
-              description: "Top domains by total visit count — your daily drivers",
-              color: "text-primary",
-              icon: TrendingUp,
-            },
-            {
-              id: "preset_favorites",
-              title: "Starred Favorites",
-              chartType: "donut" as VizChartType,
-              dimension: "folder_top" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "Favorite bookmarks grouped by top-level folder",
-              color: "text-amber-500",
-              icon: Sparkles,
-            },
-            {
-              id: "preset_tag_engagement",
-              title: "Tag Engagement Map",
-              chartType: "bar" as VizChartType,
-              dimension: "tag" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "Which tags have the most bookmarks across your workspace",
-              color: "text-pink-500",
-              icon: Activity,
-            },
-            {
-              id: "preset_link_health",
-              title: "Link Health Status",
-              chartType: "donut" as VizChartType,
-              dimension: "status" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "Active vs broken link distribution for your collection",
-              color: "text-emerald-500",
-              icon: PieChartIcon,
-            },
-            {
-              id: "preset_folder_distribution",
-              title: "Folder Collection Distribution",
-              chartType: "donut" as VizChartType,
-              dimension: "folder_top" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "How bookmarks are spread across your top-level folders",
-              color: "text-indigo-500",
-              icon: Folder,
-            },
-            {
-              id: "preset_visit_frequency",
-              title: "Visit Frequency Buckets",
-              chartType: "bar" as VizChartType,
-              dimension: "visit_count_bucket" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "Bucket bookmarks by how often they are visited",
-              color: "text-teal-500",
-              icon: BarChart3,
-            },
-            {
-              id: "preset_recency",
-              title: "Last Opened Recency",
-              chartType: "bar" as VizChartType,
-              dimension: "last_opened_bucket" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "Forgotten bookmarks grouped by how long ago they were opened",
-              color: "text-orange-500",
-              icon: TableIcon,
-            },
-            {
-              id: "preset_creation_velocity",
-              title: "Bookmarking Velocity",
-              chartType: "area" as VizChartType,
-              dimension: "created_month" as VizDimension,
-              measure: "count" as VizMeasure,
-              description: "Month-over-month bookmarking activity trend",
-              color: "text-blue-500",
-              icon: Activity,
-            },
-            {
-              id: "preset_distinct_domains",
-              title: "Unique Domain Diversity",
-              chartType: "number" as VizChartType,
-              dimension: "domain" as VizDimension,
-              measure: "distinct_domains" as VizMeasure,
-              description: "Total number of unique web domains in your collection",
-              color: "text-cyan-500",
-              icon: Layers,
-            },
-          ] as Array<{
-            id: string;
-            title: string;
-            chartType: VizChartType;
-            dimension: VizDimension;
-            measure: VizMeasure;
-            description: string;
-            color: string;
-            icon: React.ComponentType<{ className?: string }>;
-          }>).map((preset) => {
-            const Icon = preset.icon;
-            const presetConfig: VizConfig = {
-              version: 1,
-              id: preset.id,
-              title: preset.title,
-              chartType: preset.chartType,
-              dimension: preset.dimension,
-              measure: preset.measure,
-              filters: {},
-              sort: { by: "measure", direction: "desc" },
-              limit: preset.chartType === "donut" ? 7 : preset.chartType === "number" ? 1 : 10,
-              otherBucket: preset.chartType !== "number" && preset.chartType !== "area",
-            };
-            return (
-              <div
-                key={preset.id}
-                className="rounded-xl border border-border bg-card p-3.5 shadow-2xs group hover:border-primary/40 transition-colors space-y-2.5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`h-7 w-7 rounded-lg bg-secondary border border-border flex items-center justify-center ${preset.color} shrink-0`}>
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-semibold text-foreground truncate block">{preset.title}</span>
-                      <span className="text-[10px] text-muted-foreground font-mono uppercase">{preset.chartType.replace("_", " ")} · {preset.dimension.replace(/_/g, " ")}</span>
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* TAGS UNIT */}
+          <div className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <TagIcon className="h-4 w-4 text-pink-500" />
+                  <h3 className="text-xs font-semibold text-foreground">Tag Frequency & Topic Cloud</h3>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">{preset.description}</p>
-                <div className="pt-1 min-h-[120px]">
-                  <VizChart
-                    config={presetConfig}
-                    bookmarks={bookmarks}
-                    folders={folders}
-                    height={120}
-                    onSelectDomain={onSelectDomain}
-                    onSelectTag={onSelectTag}
-                    onSelectFolder={onSelectFolder}
-                    bare={true}
-                  />
-                </div>
-                <div className="flex items-center gap-1.5 pt-1 border-t border-border/40">
-                  <button
-                    type="button"
-                    onClick={() => handlePinToDashboard(presetConfig)}
-                    className="flex-1 text-[11px] font-medium px-2 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer transition-colors flex items-center justify-center gap-1"
-                    title="Pin this preset to Homepage Dashboard"
-                  >
-                    <Pin className="h-3 w-3" />
-                    <span>Pin to Home</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setExportTargetConfig(presetConfig)}
-                    className="flex-1 text-[11px] font-medium px-2 py-1 rounded-md bg-secondary text-foreground hover:bg-secondary/80 cursor-pointer transition-colors flex items-center justify-center gap-1"
-                    title="Export to a folder"
-                  >
-                    <FolderPlus className="h-3 w-3" />
-                    <span>Export Folder</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingConfig(presetConfig);
-                      setBuilderOpen(true);
-                    }}
-                    className="text-[11px] font-medium px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
-                    title="Open in Advanced Builder"
-                  >
-                    <SlidersHorizontal className="h-3 w-3" />
-                  </button>
-                </div>
+                <span className="text-[10px] font-mono text-muted-foreground">{tagData.length} tags</span>
               </div>
-            );
-          })}
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Frequency distribution curve with clickable topic tags for interactive filtering.
+              </p>
+              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1 bg-secondary/20 rounded-lg border border-border/40">
+                {tagData.slice(0, 16).map((t) => (
+                  <span key={t.rawName} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground border border-border/60">
+                    #{t.rawName} ({t.count})
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handlePinAnyVisual({
+                    id: `tags_${Date.now()}`,
+                    title: "Tag Frequency & Cloud",
+                    kind: "tags",
+                  })
+                }
+                className="flex-1 text-xs h-7 cursor-pointer"
+              >
+                <Pin className="h-3 w-3 mr-1" />
+                Pin Home
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setExportTargetVisual({
+                    id: `tags_${Date.now()}`,
+                    title: "Tag Frequency & Cloud",
+                    kind: "tags",
+                  })
+                }
+                className="flex-1 text-xs h-7 cursor-pointer text-primary"
+              >
+                <FolderPlus className="h-3 w-3 mr-1" />
+                + Folder
+              </Button>
+            </div>
+          </div>
+
+          {/* ENGAGEMENT UNIT */}
+          <div className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  <h3 className="text-xs font-semibold text-foreground">Engagement Spectrum Tiers</h3>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground">{engagementData.totalVisits} visits</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Frequent, Active, Occasional, and Dormant tier segmentation with visit drilldowns.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {engagementData.tiers.map((tier) => (
+                  <div key={tier.key} className="p-1.5 rounded border border-border bg-secondary/30 text-xs">
+                    <span className="text-[10px] text-muted-foreground block truncate">{tier.tier}</span>
+                    <span className="font-bold text-foreground font-mono">{tier.count} sites</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handlePinAnyVisual({
+                    id: `eng_${Date.now()}`,
+                    title: "Engagement Spectrum",
+                    kind: "engagement",
+                  })
+                }
+                className="flex-1 text-xs h-7 cursor-pointer"
+              >
+                <Pin className="h-3 w-3 mr-1" />
+                Pin Home
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setExportTargetVisual({
+                    id: `eng_${Date.now()}`,
+                    title: "Engagement Spectrum",
+                    kind: "engagement",
+                  })
+                }
+                className="flex-1 text-xs h-7 cursor-pointer text-primary"
+              >
+                <FolderPlus className="h-3 w-3 mr-1" />
+                + Folder
+              </Button>
+            </div>
+          </div>
+
+          {/* FAVICON WALL UNIT */}
+          <div className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4 text-amber-500" />
+                  <h3 className="text-xs font-semibold text-foreground">Visual Favicon Wall</h3>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground">{bookmarks.length} sites</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                High-density visual favicon grid for rapid optical recognition and launching.
+              </p>
+              <div className="grid grid-cols-6 gap-1 max-h-24 overflow-y-auto p-1 bg-secondary/20 rounded-lg border border-border/40">
+                {bookmarks.slice(0, 18).map((bm) => (
+                  <div key={bm.id} className="p-1 rounded bg-card border border-border flex items-center justify-center">
+                    <BookmarkIcon src={bm.iconUrl} alt={bm.title} domain={bm.domain} className="h-4 w-4 object-contain" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handlePinAnyVisual({
+                    id: `wall_${Date.now()}`,
+                    title: "Visual Favicon Wall",
+                    kind: "wall",
+                  })
+                }
+                className="flex-1 text-xs h-7 cursor-pointer"
+              >
+                <Pin className="h-3 w-3 mr-1" />
+                Pin Home
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setExportTargetVisual({
+                    id: `wall_${Date.now()}`,
+                    title: "Visual Favicon Wall",
+                    kind: "wall",
+                  })
+                }
+                className="flex-1 text-xs h-7 cursor-pointer text-primary"
+              >
+                <FolderPlus className="h-3 w-3 mr-1" />
+                + Folder
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Custom User Visuals Section */}
+      {/* 4. CUSTOM VISUALS LIBRARY */}
       {customWidgets.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -793,25 +1014,20 @@ export function VisualsPageView({
                     {widget.vizConfig && (
                       <button
                         type="button"
-                        onClick={() => setExportTargetConfig(widget.vizConfig)}
+                        onClick={() =>
+                          setExportTargetVisual({
+                            id: widget.id,
+                            title: widget.vizConfig?.title || widget.label,
+                            kind: "chart",
+                            chartConfig: widget.vizConfig,
+                          })
+                        }
                         className="text-[11px] font-mono text-primary hover:bg-primary/10 px-2 py-0.5 rounded cursor-pointer"
-                        title="Export this visual to any folder"
+                        title="Export to any folder"
                       >
                         + Folder
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (widget.vizConfig) {
-                          setEditingConfig(widget.vizConfig);
-                          setBuilderOpen(true);
-                        }
-                      }}
-                      className="text-[11px] font-mono text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-secondary cursor-pointer"
-                    >
-                      Edit
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteWidget(widget.id)}
@@ -842,7 +1058,7 @@ export function VisualsPageView({
         </section>
       )}
 
-      {/* Workspace Foundation Visuals Section (All Modular, Deletable & Exportable) */}
+      {/* 5. CORE WORKSPACE VISUALS LIBRARY */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -864,125 +1080,231 @@ export function VisualsPageView({
           )}
         </div>
 
-        {coreVisualsList.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-xs text-muted-foreground space-y-2">
-            <p>All core visuals have been removed.</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRestoreCoreVisuals}
-              className="text-xs cursor-pointer"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {coreVisualsList.map((viz) => (
+            <div
+              key={viz.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3 group"
             >
-              Restore Core Visuals Library
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {coreVisualsList.map((viz) => (
-              <div
-                key={viz.id}
-                className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3 group"
-              >
-                <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <BarChart3 className="h-4 w-4 text-primary shrink-0" />
-                    <h3 className="text-xs font-semibold text-foreground truncate">
-                      {viz.title}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handlePinToDashboard(viz)}
-                      className="text-[11px] font-mono text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-secondary cursor-pointer"
-                      title="Pin visual to Homepage"
-                    >
-                      Pin Home
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExportTargetConfig(viz)}
-                      className="text-[11px] font-mono text-primary hover:bg-primary/10 px-2 py-0.5 rounded cursor-pointer"
-                      title="Export to any folder"
-                    >
-                      + Folder
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteCoreVisual(viz.id)}
-                      className="text-[11px] font-mono text-destructive hover:text-destructive/80 px-2 py-0.5 rounded hover:bg-destructive/10 cursor-pointer"
-                      title="Remove visual"
-                    >
-                      Remove
-                    </button>
-                  </div>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <BarChart3 className="h-4 w-4 text-primary shrink-0" />
+                  <h3 className="text-xs font-semibold text-foreground truncate">
+                    {viz.title}
+                  </h3>
                 </div>
-
-                <div className="pt-1">
-                  <VizChart
-                    config={viz}
-                    bookmarks={bookmarks}
-                    folders={folders}
-                    height={220}
-                    onSelectDomain={onSelectDomain}
-                    onSelectTag={onSelectTag}
-                    onSelectFolder={onSelectFolder}
-                    bare={false}
-                  />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handlePinAnyVisual({
+                        id: viz.id,
+                        title: viz.title,
+                        kind: "chart",
+                        chartConfig: viz,
+                      })
+                    }
+                    className="text-[11px] font-mono text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-secondary cursor-pointer"
+                    title="Pin visual to Homepage"
+                  >
+                    Pin Home
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExportTargetVisual({
+                        id: viz.id,
+                        title: viz.title,
+                        kind: "chart",
+                        chartConfig: viz,
+                      })
+                    }
+                    className="text-[11px] font-mono text-primary hover:bg-primary/10 px-2 py-0.5 rounded cursor-pointer"
+                    title="Export to any folder"
+                  >
+                    + Folder
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCoreVisual(viz.id)}
+                    className="text-[11px] font-mono text-destructive hover:text-destructive/80 px-2 py-0.5 rounded hover:bg-destructive/10 cursor-pointer"
+                    title="Remove visual"
+                  >
+                    Remove
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+
+              <div className="pt-1">
+                <VizChart
+                  config={viz}
+                  bookmarks={bookmarks}
+                  folders={folders}
+                  height={220}
+                  onSelectDomain={onSelectDomain}
+                  onSelectTag={onSelectTag}
+                  onSelectFolder={onSelectFolder}
+                  bare={false}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
-      {/* Export to Folder Modal Dialog */}
-      {exportTargetConfig && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl shadow-2xl p-5 max-w-sm w-full space-y-3 animate-in zoom-in-95">
+      {/* 6. ADVANCED EXPORT MODAL WITH DESTINATION & TAB SELECTION */}
+      {exportTargetVisual && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-5 max-w-md w-full space-y-4 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
               <div className="flex items-center gap-2">
                 <FolderPlus className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-foreground">
-                  Export to Folder
+                  Export Visual to Destination
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setExportTargetConfig(null)}
+                onClick={() => setExportTargetVisual(null)}
                 className="text-muted-foreground hover:text-foreground cursor-pointer text-xs"
               >
                 Cancel
               </button>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Select which folder to attach <strong className="text-foreground">{exportTargetConfig.title}</strong> into:
-            </p>
+            <div className="text-xs text-muted-foreground">
+              Allocating <strong className="text-foreground">{exportTargetVisual.title}</strong>
+            </div>
 
-            <div className="max-h-56 overflow-y-auto space-y-1 py-1">
-              {folders.length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-4">
-                  No folders created yet.
-                </div>
+            {/* Destination Mode Selector */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                1. Destination Type
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExportDestination("folder")}
+                  className={`py-1.5 px-3 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                    exportDestination === "folder"
+                      ? "bg-primary text-primary-foreground border-primary font-semibold"
+                      : "bg-secondary/40 border-border text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  Specific Folder
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportDestination("page")}
+                  className={`py-1.5 px-3 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                    exportDestination === "page"
+                      ? "bg-primary text-primary-foreground border-primary font-semibold"
+                      : "bg-secondary/40 border-border text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  General Page Section
+                </button>
+              </div>
+            </div>
+
+            {/* Destination Target */}
+            {exportDestination === "folder" ? (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  2. Select Target Folder
+                </label>
+                <select
+                  value={exportFolderId}
+                  onChange={(e) => setExportFolderId(e.target.value)}
+                  className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+                >
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  2. Select Target Page View
+                </label>
+                <select
+                  value={exportPageKey}
+                  onChange={(e) => setExportPageKey(e.target.value)}
+                  className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+                >
+                  <option value="page_all">All Sites View</option>
+                  <option value="page_favorites">Starred Favorites View</option>
+                  <option value="page_recent">Recently Visited View</option>
+                </select>
+              </div>
+            )}
+
+            {/* Tab Selection (Multiple Visuals Per Tab) */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                3. Choose Target Tab (Multi-Visual Support)
+              </label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsNewTab(false)}
+                  className={`text-xs px-2.5 py-1 rounded border cursor-pointer ${
+                    !isNewTab ? "bg-primary/10 border-primary text-primary font-semibold" : "border-border text-muted-foreground"
+                  }`}
+                >
+                  Existing Tab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsNewTab(true)}
+                  className={`text-xs px-2.5 py-1 rounded border cursor-pointer ${
+                    isNewTab ? "bg-primary/10 border-primary text-primary font-semibold" : "border-border text-muted-foreground"
+                  }`}
+                >
+                  + Create New Tab
+                </button>
+              </div>
+
+              {!isNewTab ? (
+                <input
+                  type="text"
+                  value={exportTabName}
+                  onChange={(e) => setExportTabName(e.target.value)}
+                  placeholder="e.g. Overview, Analytics, Deep Dive"
+                  className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
               ) : (
-                folders.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => handleExportToFolder(exportTargetConfig, f.id, f.name)}
-                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-secondary cursor-pointer flex items-center justify-between text-xs text-foreground transition-colors group"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Folder className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="truncate">{f.name}</span>
-                    </div>
-                    <span className="text-[10px] font-mono text-muted-foreground group-hover:text-primary">
-                      Add →
-                    </span>
-                  </button>
-                ))
+                <input
+                  type="text"
+                  value={newTabInput}
+                  onChange={(e) => setNewTabInput(e.target.value)}
+                  placeholder="Enter name for new tab"
+                  className="w-full h-9 px-2.5 rounded-lg border border-primary bg-card text-foreground text-xs"
+                />
               )}
+            </div>
+
+            {/* Submit */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExportTargetVisual(null)}
+                className="text-xs h-8 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleExecuteExport}
+                className="text-xs h-8 cursor-pointer bg-primary text-primary-foreground font-semibold"
+              >
+                <Check className="h-3.5 w-3.5 mr-1" />
+                Allocate to Tab
+              </Button>
             </div>
           </div>
         </div>

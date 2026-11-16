@@ -2056,17 +2056,28 @@ function getDomainGradient(str: string): string {
         </div>
       )}
 
-      {/* Folder Visual Analytics & Intelligence Section */}
-      {activeFolderId && (
-        <FolderVisualAnalytics
-          folderId={activeFolderId}
-          folderName={folders.find((f) => f.id === activeFolderId)?.name || "Current Folder"}
-          bookmarks={data}
-          folders={folders}
-          activeFilter={activeChartFilter}
-          onFilterChange={setActiveChartFilter}
-        />
-      )}
+      {/* Visual Analytics & Intelligence Section (Folders & All Pages) */}
+      <FolderVisualAnalytics
+        folderId={activeFolderId || `page_${activeView || "all"}`}
+        folderName={
+          activeFolderId
+            ? folders.find((f) => f.id === activeFolderId)?.name || "Current Folder"
+            : activeView === "favorites"
+            ? "Starred Favorites"
+            : activeView === "recent"
+            ? "Recently Visited"
+            : activeView === "unsorted"
+            ? "Inbox / Unsorted"
+            : activeView === "archive"
+            ? "Archive"
+            : "All Sites"
+        }
+        bookmarks={data}
+        folders={folders}
+        activeFilter={activeChartFilter}
+        onFilterChange={setActiveChartFilter}
+        onOpenPreview={onOpenPreview}
+      />
 
       {/* Main View Display */}
       {viewMode === "table" ? (

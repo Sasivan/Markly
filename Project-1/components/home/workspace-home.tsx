@@ -53,6 +53,8 @@ import {
 } from "./home-layout-modal";
 import { VizChart } from "@/components/viz/viz-chart";
 import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
+import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
+import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { type VizConfig, safeParseStoredWidgets, RemoteWidgetStore } from "@/lib/viz";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
@@ -964,21 +966,82 @@ export function WorkspaceHome({
       onDeleteWidget: () => handleDeleteCustomWidget(widget.id),
     };
 
-    // Custom Visual Widget
+    // Custom Visual Widget (Charts, Observable Plot, Knowledge Graph, Tags, Wall, Engagement)
     if (widget.kind === "custom" || widget.id.startsWith("custom:")) {
+      const vKind = widget.vizConfig?.kind || widget.vizConfig?.chartType;
+
       return (
         <DashboardWidgetBox
           key={widget.id}
           {...commonProps}
           title={widget.vizConfig?.title || widget.label}
-          icon={<BarChart3 className="h-4 w-4 text-primary" />}
-          badgeText={widget.vizConfig?.chartType?.replace("_", " ").toUpperCase()}
+          icon={
+            vKind === "graph" ? (
+              <Layers className="h-4 w-4 text-indigo-500" />
+            ) : vKind === "tags" ? (
+              <Tag className="h-4 w-4 text-pink-500" />
+            ) : vKind === "wall" ? (
+              <Bookmark className="h-4 w-4 text-amber-500" />
+            ) : (
+              <BarChart3 className="h-4 w-4 text-primary" />
+            )
+          }
+          badgeText={String(vKind || "visual").toUpperCase()}
           onEditWidget={() => handleEditCustomWidget(widget)}
           onDuplicateWidget={() => handleDuplicateCustomWidget(widget)}
           onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
         >
           <div className="p-3">
-            {widget.vizConfig ? (
+            {vKind === "graph" ? (
+              <div className="h-72 w-full rounded-lg overflow-hidden border border-border">
+                <KnowledgeGraph mode="global" depth={2} showControls={false} onSelectDomain={onSelectDomain} />
+              </div>
+            ) : vKind === "plot" ? (
+              <ObservablePlotView
+                data={bookmarks.slice(0, 50).map((b) => ({
+                  dimension: b.domain || "Unknown",
+                  value: b.visitCount || 1,
+                }))}
+                config={{
+                  type: "barX",
+                  x: "value",
+                  y: "dimension",
+                  fill: "#3b82f6",
+                  height: 220,
+                }}
+              />
+            ) : vKind === "wall" ? (
+              <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 max-h-48 overflow-y-auto p-1 bg-secondary/15 rounded-lg border border-border/40">
+                {bookmarks.map((bm) => (
+                  <div
+                    key={bm.id}
+                    onClick={() => onOpenPreview?.(bm)}
+                    className="p-1 rounded bg-card border border-border flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                    title={bm.title}
+                  >
+                    <BookmarkIcon src={bm.iconUrl} alt={bm.title} domain={bm.domain} className="h-4 w-4 object-contain" />
+                  </div>
+                ))}
+              </div>
+            ) : vKind === "tags" ? (
+              <div className="flex flex-wrap gap-1.5 p-2 bg-secondary/15 rounded-lg border border-border/40">
+                {topTags.map((tag) => (
+                  <button
+                    key={tag.name}
+                    type="button"
+                    onClick={() => {
+                      onSelectTag?.(tag.name);
+                      onSelectFolder(null);
+                      onSelectView("all");
+                    }}
+                    className="px-2 py-0.5 rounded-md text-xs font-mono bg-secondary hover:bg-secondary/80 text-foreground border border-border/60 flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>#{tag.name}</span>
+                    <span className="text-[10px] text-muted-foreground">({tag.count})</span>
+                  </button>
+                ))}
+              </div>
+            ) : widget.vizConfig ? (
               <VizChart
                 config={widget.vizConfig}
                 bookmarks={bookmarks}

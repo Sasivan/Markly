@@ -217,7 +217,7 @@ export function VisualsPageView({
     plotConfig?: ObservablePlotConfig;
   } | null>(null);
 
-  const [exportDestination, setExportDestination] = React.useState<string>("folder");
+  const [exportDestination, setExportDestination] = React.useState<"universal" | "folder" | "page">("universal");
   const [exportFolderId, setExportFolderId] = React.useState<string>(folders[0]?.id || "");
   const [exportPageKey, setExportPageKey] = React.useState<string>("page_all");
   const [exportTabName, setExportTabName] = React.useState<string>("Overview");
@@ -611,18 +611,20 @@ export function VisualsPageView({
     if (!exportTargetVisual) return;
 
     try {
-      const destId = exportDestination === "folder" ? exportFolderId : exportPageKey;
-      const destName =
-        exportDestination === "folder"
-          ? folders.find((f) => f.id === exportFolderId)?.name || "Folder"
-          : exportPageKey === "page_all"
-          ? "All Sites"
-          : exportPageKey === "page_favorites"
-          ? "Favorites"
-          : "Recent";
+      const isUniversal = exportDestination === "universal";
+      const destId = isUniversal ? "universal" : exportDestination === "folder" ? exportFolderId : exportPageKey;
+      const destName = isUniversal
+        ? "Universal (All Pages & Folders)"
+        : exportDestination === "folder"
+        ? folders.find((f) => f.id === exportFolderId)?.name || "Folder"
+        : exportPageKey === "page_all"
+        ? "All Sites"
+        : exportPageKey === "page_favorites"
+        ? "Favorites"
+        : "Recent";
 
       const finalTabName = isNewTab ? newTabInput.trim() || "New Tab" : exportTabName || "Overview";
-      const storageKey = `markly_folder_tabs_${destId}`;
+      const storageKey = isUniversal ? "markly_universal_folder_tabs" : `markly_folder_tabs_${destId}`;
       const stored = localStorage.getItem(storageKey);
       let tabs: Array<{ id: string; label: string; visuals: any[] }> = stored ? JSON.parse(stored) : [];
 
@@ -651,7 +653,11 @@ export function VisualsPageView({
       });
 
       localStorage.setItem(storageKey, JSON.stringify(tabs));
-      localStorage.setItem(`markly_folder_visuals_${destId}`, JSON.stringify(tabs[0].visuals));
+      if (isUniversal) {
+        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+      } else {
+        localStorage.setItem(`markly_folder_visuals_${destId}`, JSON.stringify(tabs[0].visuals));
+      }
       window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
 
       setExportTargetVisual(null);
@@ -1542,36 +1548,51 @@ export function VisualsPageView({
             {/* Destination Mode */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Destination Page or Folder
+                Destination Page or Scope
               </label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setExportDestination("universal")}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
+                    exportDestination === "universal"
+                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                      : "bg-secondary text-foreground border-border hover:bg-secondary/80"
+                  }`}
+                >
+                  Universal (All)
+                </button>
                 <button
                   type="button"
                   onClick={() => setExportDestination("folder")}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
+                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
                     exportDestination === "folder"
                       ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
                       : "bg-secondary text-foreground border-border hover:bg-secondary/80"
                   }`}
                 >
-                  Folder Collection
+                  Folder Only
                 </button>
                 <button
                   type="button"
                   onClick={() => setExportDestination("page")}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
+                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
                     exportDestination === "page"
                       ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
                       : "bg-secondary text-foreground border-border hover:bg-secondary/80"
                   }`}
                 >
-                  Main Page Section
+                  Main Section
                 </button>
               </div>
             </div>
 
-            {/* Folder Dropdown */}
-            {exportDestination === "folder" ? (
+            {/* Scope Selection: Universal vs Folder vs Page */}
+            {exportDestination === "universal" ? (
+              <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Universal Reflection:</span> Placed in universal tabs, immediately synchronized and visible across every page and folder using Universal Visual Intelligence.
+              </div>
+            ) : exportDestination === "folder" ? (
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                   Select Folder

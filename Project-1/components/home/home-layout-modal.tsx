@@ -159,6 +159,83 @@ export function HomeLayoutModal({
     );
   };
 
+  const [resizingBoxId, setResizingBoxId] = React.useState<string | null>(null);
+
+  const startBoxResize = (
+    widgetId: string,
+    direction: "width" | "height" | "both",
+    startEvent: React.MouseEvent
+  ) => {
+    startEvent.preventDefault();
+    startEvent.stopPropagation();
+    setResizingBoxId(widgetId);
+
+    const startX = startEvent.clientX;
+    const startY = startEvent.clientY;
+    const targetCard = startEvent.currentTarget.closest(".layout-widget-card") as HTMLElement | null;
+    const gridContainer = targetCard?.parentElement;
+    const gridWidth = gridContainer ? gridContainer.getBoundingClientRect().width : 800;
+    const initialWidth = targetCard ? targetCard.getBoundingClientRect().width : 200;
+
+    const currentWidget = localWidgets.find((w) => w.id === widgetId);
+    let lastSpan: WidgetColSpan = currentWidget?.colSpan ?? (currentWidget?.span === "2" ? 12 : 6);
+
+    const prevCursor = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+    if (direction === "width") document.body.style.cursor = "ew-resize";
+    else if (direction === "height") document.body.style.cursor = "ns-resize";
+    else document.body.style.cursor = "nwse-resize";
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (direction === "width" || direction === "both") {
+        const deltaX = moveEvent.clientX - startX;
+        const newWidth = Math.max(60, initialWidth + deltaX);
+        const fraction = newWidth / gridWidth;
+        const rawCols = Math.round(fraction * 12);
+        const validSpans: WidgetColSpan[] = [2, 3, 4, 6, 8, 9, 12];
+        let closest = validSpans[0];
+        let minDiff = Math.abs(closest - rawCols);
+        for (const s of validSpans) {
+          const diff = Math.abs(s - rawCols);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = s;
+          }
+        }
+        lastSpan = closest;
+        setLocalWidgets((prev) =>
+          prev.map((w) =>
+            w.id === widgetId
+              ? { ...w, colSpan: closest, span: closest === 12 ? "2" : "1" }
+              : w
+          )
+        );
+      }
+
+      if (direction === "height" || direction === "both") {
+        const deltaY = moveEvent.clientY - startY;
+        const newRowSpan: 1 | 2 = deltaY > 40 ? 2 : 1;
+        setLocalWidgets((prev) =>
+          prev.map((w) =>
+            w.id === widgetId ? { ...w, rowSpan: newRowSpan } : w
+          )
+        );
+      }
+    };
+
+    const onMouseUp = () => {
+      setResizingBoxId(null);
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevSelect;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
@@ -309,17 +386,21 @@ export function HomeLayoutModal({
               return (
                 <div
                   key={widget.id}
-                  draggable={true}
+                  draggable={!resizingBoxId}
                   onDragStart={(e) => handleDragStart(e, index)}
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`group relative p-3 rounded-xl border text-xs transition-all select-none cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 min-h-[96px] ${colSpanClass} ${
+                  className={`layout-widget-card group/card relative p-3 rounded-xl border text-xs transition-all select-none cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 ${
+                    widget.rowSpan === 2 ? "min-h-[140px]" : "min-h-[96px]"
+                  } ${colSpanClass} ${
                     isDragging
                       ? "opacity-30 border-dashed border-primary scale-95"
                       : isOver
                       ? "ring-2 ring-primary border-primary bg-primary/10 scale-[1.01] shadow-md"
+                      : resizingBoxId === widget.id
+                      ? "ring-2 ring-primary border-primary bg-primary/10 shadow-md"
                       : widget.visible
                       ? "bg-secondary/40 border-border hover:border-border-hover hover:bg-secondary/70 shadow-2xs"
                       : "bg-muted/20 border-border/40 opacity-55"
@@ -342,12 +423,12 @@ export function HomeLayoutModal({
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <GripVertical className="h-4 w-4 text-muted-foreground/60 group-hover:text-foreground cursor-grab" />
+                      <GripVertical className="h-4 w-4 text-muted-foreground/60 group-hover/card:text-foreground cursor-grab" />
                     </div>
                   </div>
 
-                  {/* Bottom Controls Bar: Visibility and Column Track Width */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] gap-1.5">
+                  {/* Bottom Controls Bar: Visibility and Direct Dimension Badge */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] gap-1.5 relative z-10">
                     {/* Visibility Switch */}
                     <button
                       type="button"
@@ -366,56 +447,76 @@ export function HomeLayoutModal({
                       <span>{widget.visible ? "Active" : "Hidden"}</span>
                     </button>
 
-                    <div className="flex items-center gap-1">
-                      {/* Height: 1x vs 2x Tall */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleRowSpan(widget.id);
-                        }}
-                        className={`px-1.5 py-0.5 rounded-md border flex items-center gap-1 cursor-pointer transition-colors font-mono text-[10px] ${
-                          widget.rowSpan === 2
-                            ? "bg-primary/10 border-primary/40 text-primary font-semibold"
-                            : "bg-background border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-                        }`}
-                        title={widget.rowSpan === 2 ? "2x Tall (Spans 2 stacked rows)" : "1x Standard height. Click to make 2x tall"}
-                      >
-                        <Rows3 className="h-3 w-3" />
-                        <span>{widget.rowSpan === 2 ? "2x" : "1x"}</span>
-                      </button>
+                    {/* Resizable Dimension Status Badge (Click to cycle width) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cycleColSpan(widget.id);
+                      }}
+                      className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground bg-background/80 hover:bg-background px-2 py-0.5 rounded-md border border-border/60 cursor-pointer transition-colors shadow-2xs"
+                      title="Click to cycle width, or drag right/bottom edges to resize directly"
+                    >
+                      <span className="font-semibold text-foreground">{spanLabel}</span>
+                      <span className="opacity-40">•</span>
+                      <span className={widget.rowSpan === 2 ? "text-primary font-bold" : ""}>
+                        {widget.rowSpan === 2 ? "2x Tall" : "1x"}
+                      </span>
+                    </button>
+                  </div>
 
-                      {/* Direct Column Width Selector Pills */}
-                      <div className="flex items-center gap-0.5 bg-background rounded-md border border-border p-0.5 font-mono text-[9px]">
-                        {([
-                          { span: 3, label: "1/4" },
-                          { span: 4, label: "1/3" },
-                          { span: 6, label: "1/2" },
-                          { span: 8, label: "2/3" },
-                          { span: 12, label: "Full" },
-                        ] as const).map(({ span, label }) => {
-                          const isCurrent = currentSpan === span;
-                          return (
-                            <button
-                              key={span}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setWidgetColSpan(widget.id, span);
-                              }}
-                              className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                                isCurrent
-                                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                              }`}
-                              title={`Set width to ${label}`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  {/* Right Edge: Width Drag Resize Handle */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "width", e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      cycleColSpan(widget.id);
+                    }}
+                    className="absolute top-0 -right-1.5 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center opacity-40 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag right edge to resize column width (Double-click to cycle)"
+                  >
+                    <div
+                      className={`w-1 h-8 rounded-full transition-all ${
+                        resizingBoxId === widget.id
+                          ? "bg-primary w-1.5 shadow-sm"
+                          : "bg-muted-foreground/50 hover:bg-primary hover:w-1.5"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Bottom Edge: Height Drag Resize Handle */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "height", e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      toggleRowSpan(widget.id);
+                    }}
+                    className="absolute -bottom-1.5 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-center justify-center opacity-40 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag bottom edge to toggle 1x standard / 2x Bento tall"
+                  >
+                    <div
+                      className={`h-1 w-12 rounded-full transition-all ${
+                        resizingBoxId === widget.id
+                          ? "bg-primary h-1.5 shadow-sm"
+                          : "bg-muted-foreground/50 hover:bg-primary hover:h-1.5"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Bottom-Right Corner: Bi-Directional Resize Grip */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "both", e)}
+                    className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize z-30 flex items-end justify-end p-0.5 opacity-60 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag corner to freely resize width and height"
+                  >
+                    <svg className="w-3 h-3 text-muted-foreground/70 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="14" cy="14" r="1.5" />
+                      <circle cx="9" cy="14" r="1.5" />
+                      <circle cx="14" cy="9" r="1.5" />
+                      <circle cx="4" cy="14" r="1.5" />
+                      <circle cx="9" cy="9" r="1.5" />
+                      <circle cx="14" cy="4" r="1.5" />
+                    </svg>
                   </div>
                 </div>
               );

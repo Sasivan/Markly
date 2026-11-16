@@ -83,16 +83,18 @@ interface FolderVisualAnalyticsProps {
 
 const DEFAULT_TAB_LABEL = "Overview";
 
-function makeDefaultVisuals(folderId: string): TabVisual[] {
+function makeDefaultVisuals(folderId: string, isCustom = false): TabVisual[] {
+  const isUniv = !isCustom || folderId === "universal";
+  const idPrefix = isUniv ? "univ" : `fld_${folderId}`;
   return [
     {
-      id: `fld_domain_${folderId}`,
+      id: `${idPrefix}_domain`,
       title: "Domain Breakdown",
       kind: "chart",
       colSpan: 4,
       chartConfig: {
         version: 1,
-        id: `fld_domain_${folderId}`,
+        id: `${idPrefix}_domain`,
         title: "Domain Breakdown",
         chartType: "bar",
         dimension: "domain",
@@ -104,19 +106,19 @@ function makeDefaultVisuals(folderId: string): TabVisual[] {
       },
     },
     {
-      id: `fld_tags_${folderId}`,
+      id: `${idPrefix}_tags`,
       title: "Tag Frequency & Cloud",
       kind: "tags",
       colSpan: 4,
     },
     {
-      id: `fld_status_${folderId}`,
+      id: `${idPrefix}_status`,
       title: "Link Health Status",
       kind: "chart",
       colSpan: 4,
       chartConfig: {
         version: 1,
-        id: `fld_status_${folderId}`,
+        id: `${idPrefix}_status`,
         title: "Link Health Status",
         chartType: "donut",
         dimension: "status",
@@ -192,6 +194,10 @@ function persistTabs(folderId: string, tabs: Tab[], isCustomScope = false) {
   const storageKey = isCustomScope ? `markly_folder_tabs_${folderId}` : "markly_universal_folder_tabs";
   try {
     localStorage.setItem(storageKey, JSON.stringify(tabs));
+    if (!isCustomScope) {
+      window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+    }
+    window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
   } catch {}
 }
 
@@ -264,7 +270,7 @@ export function FolderVisualAnalytics({
       try {
         localStorage.setItem(`markly_folder_viz_is_custom_${folderId}`, String(next));
       } catch {}
-      const loaded = loadTabs(folderId, makeDefaultVisuals(folderId), next);
+      const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, next), next);
       setTabs(loaded);
       setActiveTabId(loaded[0]?.id ?? "tab_default");
       return next;
@@ -272,17 +278,34 @@ export function FolderVisualAnalytics({
   };
 
   // Multi-Tab Visual System
-  const [tabs, setTabs] = React.useState<Tab[]>(() =>
-    loadTabs(folderId, makeDefaultVisuals(folderId), typeof window !== "undefined" && localStorage.getItem(`markly_folder_viz_is_custom_${folderId}`) === "true")
-  );
+  const [tabs, setTabs] = React.useState<Tab[]>(() => {
+    const custom = typeof window !== "undefined" && localStorage.getItem(`markly_folder_viz_is_custom_${folderId}`) === "true";
+    return loadTabs(folderId, makeDefaultVisuals(folderId, custom), custom);
+  });
   const [activeTabId, setActiveTabId] = React.useState<string>(() => tabs[0]?.id ?? "tab_default");
   const [renamingTabId, setRenamingTabId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
 
   React.useEffect(() => {
-    const loaded = loadTabs(folderId, makeDefaultVisuals(folderId), isCustomScope);
+    const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, isCustomScope), isCustomScope);
     setTabs(loaded);
     setActiveTabId(loaded[0]?.id ?? "tab_default");
+  }, [folderId, isCustomScope]);
+
+  // Synchronize Universal tabs in real-time across all views, folders, and windows
+  React.useEffect(() => {
+    const handleUniversalUpdate = (e?: Event) => {
+      if (!isCustomScope) {
+        const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, false), false);
+        setTabs(loaded);
+      }
+    };
+    window.addEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
+    window.addEventListener("storage", handleUniversalUpdate);
+    return () => {
+      window.removeEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
+      window.removeEventListener("storage", handleUniversalUpdate);
+    };
   }, [folderId, isCustomScope]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];

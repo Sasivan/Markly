@@ -40,6 +40,7 @@ import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "./viz-chart";
 import { ObservablePlotView, type ObservablePlotConfig } from "./observable-plot-view";
+import { computePlotData } from "@/lib/viz/plot-engine";
 import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboard-widget-box";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "./universal-visual-builder-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
@@ -1411,10 +1412,33 @@ export function VisualsPageView({
                       />
                     ) : plotCfg ? (
                       <ObservablePlotView
-                        data={plotData}
+                        data={computePlotData(bookmarks, folders, {
+                          type: (plotCfg?.type as any) || "barX",
+                          dimension: (plotCfg?.dimension as any) || "domain",
+                          measure: (plotCfg?.measure as any) || "count",
+                          group: (plotCfg?.group as any) || "none",
+                          transform: (plotCfg?.transform as any) || "raw",
+                          sortOrder: (plotCfg?.sortOrder as any) || "desc",
+                          limit: plotCfg?.limit ?? 10,
+                          colorScheme: plotCfg?.colorScheme || "tableau10",
+                          curve: (plotCfg?.curve as any) || "natural",
+                          showGrid: plotCfg?.showGrid ?? true,
+                          showTip: plotCfg?.showTip ?? true,
+                          showLegend: plotCfg?.showLegend ?? false,
+                          filters: plotCfg?.filters,
+                        })}
                         config={{
                           ...plotCfg,
+                          type: (plotCfg?.type as any) || "barX",
+                          x: (plotCfg?.type === "barX" || plotCfg?.type === "stackedBarX") ? "value" : "dimension",
+                          y: (plotCfg?.type === "barX" || plotCfg?.type === "stackedBarX") ? "dimension" : "value",
+                          z: plotCfg?.group && plotCfg?.group !== "none" ? "group" : undefined,
                           height: 220,
+                          colorScheme: plotCfg?.colorScheme || "tableau10",
+                          curve: (plotCfg?.curve as any) || "natural",
+                          grid: plotCfg?.showGrid ?? true,
+                          tip: plotCfg?.showTip ?? true,
+                          legend: plotCfg?.showLegend ?? false,
                         }}
                       />
                     ) : widget.vizConfig ? (

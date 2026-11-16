@@ -35,6 +35,7 @@ import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "@/components/viz/viz-chart";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig, type VisualCategory } from "@/components/viz/universal-visual-builder-modal";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
+import { computePlotData } from "@/lib/viz/plot-engine";
 import { DashboardWidgetBox, BookmarkItemsView, type WidgetItemLimit } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
@@ -789,15 +790,34 @@ export function FolderVisualAnalytics({
                       {viz.kind === "plot" && (
                         <div className="h-56 w-full flex-1">
                           <ObservablePlotView
-                            data={bookmarks.slice(0, 30).map((b) => ({
-                              dimension: b.domain || "Unknown",
-                              value: b.visitCount || 1,
-                            }))}
+                            data={computePlotData(bookmarks, folders, {
+                              type: (viz.plotConfig?.type as any) || "barX",
+                              dimension: (viz.plotConfig?.dimension as any) || "domain",
+                              measure: (viz.plotConfig?.measure as any) || "count",
+                              group: (viz.plotConfig?.group as any) || "none",
+                              transform: (viz.plotConfig?.transform as any) || "raw",
+                              sortOrder: (viz.plotConfig?.sortOrder as any) || "desc",
+                              limit: viz.plotConfig?.limit ?? 10,
+                              colorScheme: viz.plotConfig?.colorScheme || "tableau10",
+                              curve: (viz.plotConfig?.curve as any) || "natural",
+                              showGrid: viz.plotConfig?.showGrid ?? true,
+                              showTip: viz.plotConfig?.showTip ?? true,
+                              showLegend: viz.plotConfig?.showLegend ?? false,
+                              filters: viz.plotConfig?.filters,
+                            })}
                             config={{
-                              type: viz.plotConfig?.type || "barX",
-                              x: "value",
-                              y: "dimension",
+                              type: (viz.plotConfig?.type as any) || "barX",
+                              x: (viz.plotConfig?.type === "barX" || viz.plotConfig?.type === "stackedBarX") ? "value" : "dimension",
+                              y: (viz.plotConfig?.type === "barX" || viz.plotConfig?.type === "stackedBarX") ? "dimension" : "value",
+                              z: viz.plotConfig?.group && viz.plotConfig?.group !== "none" ? "group" : undefined,
                               fill: "#3b82f6",
+                              stroke: "#3b82f6",
+                              colorScheme: viz.plotConfig?.colorScheme || "tableau10",
+                              curve: (viz.plotConfig?.curve as any) || "natural",
+                              grid: viz.plotConfig?.showGrid ?? true,
+                              tip: viz.plotConfig?.showTip ?? true,
+                              legend: viz.plotConfig?.showLegend ?? false,
+                              crosshair: true,
                               height: 220,
                             }}
                           />

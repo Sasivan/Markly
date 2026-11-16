@@ -56,6 +56,7 @@ import { VizChart } from "@/components/viz/viz-chart";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "@/components/viz/universal-visual-builder-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
+import { computePlotData } from "@/lib/viz/plot-engine";
 import { type VizConfig, safeParseStoredWidgets, RemoteWidgetStore } from "@/lib/viz";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
@@ -1302,16 +1303,32 @@ export function WorkspaceHome({
               </div>
             ) : vKind === "plot" ? (
               <ObservablePlotView
-                data={bookmarks.slice(0, 50).map((b) => ({
-                  dimension: b.domain || "Unknown",
-                  value: b.visitCount || 1,
-                }))}
+                data={computePlotData(bookmarks, folders, {
+                  type: (widget.vizConfig?.plotConfig?.type as any) || "barX",
+                  dimension: (widget.vizConfig?.plotConfig?.dimension as any) || "domain",
+                  measure: (widget.vizConfig?.plotConfig?.measure as any) || "count",
+                  group: (widget.vizConfig?.plotConfig?.group as any) || "none",
+                  transform: (widget.vizConfig?.plotConfig?.transform as any) || "raw",
+                  sortOrder: (widget.vizConfig?.plotConfig?.sortOrder as any) || "desc",
+                  limit: widget.vizConfig?.plotConfig?.limit ?? 10,
+                  colorScheme: widget.vizConfig?.plotConfig?.colorScheme || "tableau10",
+                  curve: (widget.vizConfig?.plotConfig?.curve as any) || "natural",
+                  showGrid: widget.vizConfig?.plotConfig?.showGrid ?? true,
+                  showTip: widget.vizConfig?.plotConfig?.showTip ?? true,
+                  showLegend: widget.vizConfig?.plotConfig?.showLegend ?? false,
+                  filters: widget.vizConfig?.plotConfig?.filters,
+                })}
                 config={{
-                  type: "barX",
-                  x: "value",
-                  y: "dimension",
-                  fill: "#3b82f6",
+                  type: (widget.vizConfig?.plotConfig?.type as any) || "barX",
+                  x: (widget.vizConfig?.plotConfig?.type === "barX" || widget.vizConfig?.plotConfig?.type === "stackedBarX") ? "value" : "dimension",
+                  y: (widget.vizConfig?.plotConfig?.type === "barX" || widget.vizConfig?.plotConfig?.type === "stackedBarX") ? "dimension" : "value",
+                  z: widget.vizConfig?.plotConfig?.group && widget.vizConfig?.plotConfig?.group !== "none" ? "group" : undefined,
                   height: 220,
+                  colorScheme: widget.vizConfig?.plotConfig?.colorScheme || "tableau10",
+                  curve: (widget.vizConfig?.plotConfig?.curve as any) || "natural",
+                  grid: widget.vizConfig?.plotConfig?.showGrid ?? true,
+                  tip: widget.vizConfig?.plotConfig?.showTip ?? true,
+                  legend: widget.vizConfig?.plotConfig?.showLegend ?? false,
                 }}
               />
             ) : vKind === "wall" ? (

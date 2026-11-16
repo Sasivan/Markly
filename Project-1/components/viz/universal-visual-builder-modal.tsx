@@ -32,16 +32,30 @@ import {
   Palette,
   Pin,
   FolderPlus,
+  Filter,
+  ArrowUpDown,
+  SlidersHorizontal,
+  Hash,
+  Globe,
+  ShieldCheck,
 } from "lucide-react";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
-import { ObservablePlotView, type ObservablePlotType } from "./observable-plot-view";
+import { ObservablePlotView, type ObservablePlotType, type ObservableCurveType } from "./observable-plot-view";
 import { VizChart } from "./viz-chart";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { BookmarkItemsView } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
+import {
+  computePlotData,
+  type PlotDimension,
+  type PlotMeasure,
+  type PlotTransform,
+  type PlotSortOrder,
+  type PlotFilterConstraints,
+} from "@/lib/viz/plot-engine";
 
 export type VisualCategory = "sites" | "plot" | "chart" | "intel";
 
@@ -67,12 +81,19 @@ export interface UniversalVisualConfig {
   // 2. Observable Plot Config
   plotConfig?: {
     type: ObservablePlotType;
-    dimension: "domain" | "folder" | "status" | "month" | "protocol";
-    measure: "count" | "sum_visits" | "avg_visits";
+    dimension: PlotDimension;
+    measure: PlotMeasure;
+    group?: PlotDimension | "none";
+    transform?: PlotTransform;
+    sortOrder?: PlotSortOrder;
+    limit?: number | "all";
     colorScheme: string;
-    curve?: "natural" | "linear" | "step" | "bump-x";
+    curve?: ObservableCurveType;
+    showGrid?: boolean;
+    showTip?: boolean;
+    showLegend?: boolean;
     crosshair?: boolean;
-    grid?: boolean;
+    filters?: PlotFilterConstraints;
   };
 
   // 3. Classic Chart Config
@@ -140,14 +161,58 @@ export function UniversalVisualBuilderModal({
   const [plotType, setPlotType] = React.useState<ObservablePlotType>(
     initialConfig?.plotConfig?.type || "barX"
   );
-  const [plotDimension, setPlotDimension] = React.useState<"domain" | "folder" | "status" | "month" | "protocol">(
+  const [plotDimension, setPlotDimension] = React.useState<PlotDimension>(
     initialConfig?.plotConfig?.dimension || "domain"
   );
-  const [plotMeasure, setPlotMeasure] = React.useState<"count" | "sum_visits" | "avg_visits">(
+  const [plotMeasure, setPlotMeasure] = React.useState<PlotMeasure>(
     initialConfig?.plotConfig?.measure || "count"
+  );
+  const [plotGroup, setPlotGroup] = React.useState<PlotDimension | "none">(
+    initialConfig?.plotConfig?.group || "none"
+  );
+  const [plotTransform, setPlotTransform] = React.useState<PlotTransform>(
+    initialConfig?.plotConfig?.transform || "raw"
+  );
+  const [plotSortOrder, setPlotSortOrder] = React.useState<PlotSortOrder>(
+    initialConfig?.plotConfig?.sortOrder || "desc"
+  );
+  const [plotLimit, setPlotLimit] = React.useState<number | "all">(
+    initialConfig?.plotConfig?.limit ?? 10
   );
   const [plotColorScheme, setPlotColorScheme] = React.useState<string>(
     initialConfig?.plotConfig?.colorScheme || "tableau10"
+  );
+  const [plotCurve, setPlotCurve] = React.useState<ObservableCurveType>(
+    initialConfig?.plotConfig?.curve || "natural"
+  );
+  const [plotShowGrid, setPlotShowGrid] = React.useState<boolean>(
+    initialConfig?.plotConfig?.showGrid ?? true
+  );
+  const [plotShowTip, setPlotShowTip] = React.useState<boolean>(
+    initialConfig?.plotConfig?.showTip ?? true
+  );
+  const [plotShowLegend, setPlotShowLegend] = React.useState<boolean>(
+    initialConfig?.plotConfig?.showLegend ?? false
+  );
+
+  // Database Filter Constraints
+  const [filterFolderId, setFilterFolderId] = React.useState<string>(
+    initialConfig?.plotConfig?.filters?.folderId || "all"
+  );
+  const [filterMinVisits, setFilterMinVisits] = React.useState<number>(
+    initialConfig?.plotConfig?.filters?.minVisits || 0
+  );
+  const [filterOnlyFavorites, setFilterOnlyFavorites] = React.useState<boolean>(
+    initialConfig?.plotConfig?.filters?.onlyFavorites || false
+  );
+  const [filterOnlyAlive, setFilterOnlyAlive] = React.useState<boolean>(
+    initialConfig?.plotConfig?.filters?.onlyAlive || false
+  );
+  const [filterExcludeArchived, setFilterExcludeArchived] = React.useState<boolean>(
+    initialConfig?.plotConfig?.filters?.excludeArchived ?? true
+  );
+  const [filterProtocol, setFilterProtocol] = React.useState<"all" | "https" | "http">(
+    initialConfig?.plotConfig?.filters?.protocol || "all"
   );
 
   // 3. Classic Chart State
@@ -181,7 +246,23 @@ export function UniversalVisualBuilderModal({
         setPlotType(initialConfig.plotConfig.type || "barX");
         setPlotDimension(initialConfig.plotConfig.dimension || "domain");
         setPlotMeasure(initialConfig.plotConfig.measure || "count");
+        setPlotGroup(initialConfig.plotConfig.group || "none");
+        setPlotTransform(initialConfig.plotConfig.transform || "raw");
+        setPlotSortOrder(initialConfig.plotConfig.sortOrder || "desc");
+        setPlotLimit(initialConfig.plotConfig.limit ?? 10);
         setPlotColorScheme(initialConfig.plotConfig.colorScheme || "tableau10");
+        setPlotCurve(initialConfig.plotConfig.curve || "natural");
+        setPlotShowGrid(initialConfig.plotConfig.showGrid ?? true);
+        setPlotShowTip(initialConfig.plotConfig.showTip ?? true);
+        setPlotShowLegend(initialConfig.plotConfig.showLegend ?? false);
+        if (initialConfig.plotConfig.filters) {
+          setFilterFolderId(initialConfig.plotConfig.filters.folderId || "all");
+          setFilterMinVisits(initialConfig.plotConfig.filters.minVisits || 0);
+          setFilterOnlyFavorites(initialConfig.plotConfig.filters.onlyFavorites || false);
+          setFilterOnlyAlive(initialConfig.plotConfig.filters.onlyAlive || false);
+          setFilterExcludeArchived(initialConfig.plotConfig.filters.excludeArchived ?? true);
+          setFilterProtocol(initialConfig.plotConfig.filters.protocol || "all");
+        }
       }
       if (initialConfig.chartConfig) {
         setChartType(initialConfig.chartConfig.chartType || "bar");
@@ -225,32 +306,52 @@ export function UniversalVisualBuilderModal({
     return result;
   }, [bookmarks, siteSource, selectedFolderId, selectedTag, siteSortBy]);
 
-  // Compute Aggregated Data for Observable Plot Preview
+  // Compute Aggregated Data for Observable Plot Preview using Comprehensive Plot Engine
   const previewPlotData = React.useMemo(() => {
-    const map = new Map<string, { count: number; sum_visits: number }>();
-    for (const b of bookmarks) {
-      let key = "Unknown";
-      if (plotDimension === "domain") key = b.domain || "Unknown";
-      else if (plotDimension === "folder") key = folders.find((f) => f.id === b.folderId)?.name || "Unsorted";
-      else if (plotDimension === "status") key = b.status || "alive";
-      else if (plotDimension === "month") key = new Date(b.createdAt).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-      else if (plotDimension === "protocol") key = b.url?.startsWith("https") ? "HTTPS (Secure)" : "HTTP (Insecure)";
-
-      const curr = map.get(key) || { count: 0, sum_visits: 0 };
-      map.set(key, { count: curr.count + 1, sum_visits: curr.sum_visits + (b.visitCount || 0) });
-    }
-
-    return Array.from(map.entries())
-      .map(([k, v]) => ({
-        dimension: k,
-        value: plotMeasure === "sum_visits" ? v.sum_visits : plotMeasure === "avg_visits" ? Math.round((v.sum_visits / Math.max(v.count, 1)) * 10) / 10 : v.count,
-        count: v.count,
-        x: k,
-        y: plotMeasure === "sum_visits" ? v.sum_visits : v.count,
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
-  }, [bookmarks, folders, plotDimension, plotMeasure]);
+    return computePlotData(bookmarks, folders, {
+      type: plotType,
+      dimension: plotDimension,
+      measure: plotMeasure,
+      group: plotGroup,
+      transform: plotTransform,
+      sortOrder: plotSortOrder,
+      limit: plotLimit,
+      colorScheme: plotColorScheme,
+      curve: plotCurve,
+      showGrid: plotShowGrid,
+      showTip: plotShowTip,
+      showLegend: plotShowLegend,
+      filters: {
+        folderId: filterFolderId,
+        minVisits: filterMinVisits,
+        onlyFavorites: filterOnlyFavorites,
+        onlyAlive: filterOnlyAlive,
+        excludeArchived: filterExcludeArchived,
+        protocol: filterProtocol,
+      },
+    });
+  }, [
+    bookmarks,
+    folders,
+    plotType,
+    plotDimension,
+    plotMeasure,
+    plotGroup,
+    plotTransform,
+    plotSortOrder,
+    plotLimit,
+    plotColorScheme,
+    plotCurve,
+    plotShowGrid,
+    plotShowTip,
+    plotShowLegend,
+    filterFolderId,
+    filterMinVisits,
+    filterOnlyFavorites,
+    filterOnlyAlive,
+    filterExcludeArchived,
+    filterProtocol,
+  ]);
 
   // Distinct tags list for tag filter
   const allTags = React.useMemo(() => {
@@ -288,9 +389,24 @@ export function UniversalVisualBuilderModal({
         type: plotType,
         dimension: plotDimension,
         measure: plotMeasure,
+        group: plotGroup,
+        transform: plotTransform,
+        sortOrder: plotSortOrder,
+        limit: plotLimit,
         colorScheme: plotColorScheme,
+        curve: plotCurve,
+        showGrid: plotShowGrid,
+        showTip: plotShowTip,
+        showLegend: plotShowLegend,
         crosshair: true,
-        grid: true,
+        filters: {
+          folderId: filterFolderId,
+          minVisits: filterMinVisits,
+          onlyFavorites: filterOnlyFavorites,
+          onlyAlive: filterOnlyAlive,
+          excludeArchived: filterExcludeArchived,
+          protocol: filterProtocol,
+        },
       };
     } else if (activeTab === "chart") {
       builtConfig.chartConfig = {
@@ -364,11 +480,10 @@ export function UniversalVisualBuilderModal({
                     key={s.val}
                     type="button"
                     onClick={() => setColSpan(s.val)}
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
-                      colSpan === s.val
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${colSpan === s.val
                         ? "bg-card text-foreground font-semibold shadow-2xs"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {s.label}
                   </button>
@@ -379,11 +494,10 @@ export function UniversalVisualBuilderModal({
               <button
                 type="button"
                 onClick={() => setRowSpan(rowSpan === 1 ? 2 : 1)}
-                className={`h-7 px-2.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 ${
-                  rowSpan === 2
+                className={`h-7 px-2.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 ${rowSpan === 2
                     ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
                     : "bg-secondary text-muted-foreground border-border hover:text-foreground"
-                }`}
+                  }`}
                 title="Toggle standard height vs 2x tall Bento box"
               >
                 <span>{rowSpan === 2 ? "2x Tall (Bento)" : "1x Standard"}</span>
@@ -411,11 +525,10 @@ export function UniversalVisualBuilderModal({
                       setTitle(cat.id === "sites" ? "Quick Access Sites" : cat.id === "plot" ? "Observable Ranked Bar" : cat.id === "chart" ? "Domain Breakdown" : "Topic Cloud");
                     }
                   }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left cursor-pointer transition-all shrink-0 ${
-                    isSelected
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left cursor-pointer transition-all shrink-0 ${isSelected
                       ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
                       : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   <IconComp className="h-3.5 w-3.5" />
                   <span>{cat.label}</span>
@@ -544,65 +657,109 @@ export function UniversalVisualBuilderModal({
               </div>
             )}
 
-            {/* 2. OBSERVABLE PLOT CONFIGURATION */}
+            {/* 2. OBSERVABLE PLOT CONFIGURATION (Advanced Information Graphics Studio) */}
             {activeTab === "plot" && (
-              <div className="space-y-3.5 animate-in fade-in">
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                    Observable Plot Mark Type
-                  </label>
+              <div className="space-y-4 animate-in fade-in">
+                {/* 1. Mark Type & Curve */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                      Graphic Mark & Plot Type
+                    </label>
+                    <span className="text-[10px] font-mono text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded">
+                      34 Variations
+                    </span>
+                  </div>
                   <select
                     value={plotType}
                     onChange={(e) => setPlotType(e.target.value as any)}
-                    className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
+                    className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-medium"
                   >
-                    <optgroup label="Bars & Distributions">
+                    <optgroup label="Bars & Discrete Distributions (8)">
                       <option value="barX">Ranked BarX (Horizontal Sorted)</option>
                       <option value="barY">Column BarY (Vertical Rounded)</option>
-                      <option value="stackedBarY">Stacked BarY (By Collection)</option>
-                      <option value="box">Box & Whisker (Quartile Spread)</option>
-                      <option value="waffle">Waffle Matrix (Unit Proportions)</option>
+                      <option value="stackedBarY">Stacked BarY (Multi-Collection)</option>
+                      <option value="stackedBarX">Stacked BarX (Horizontal Stack)</option>
+                      <option value="groupedBar">Grouped Bar (Side-by-Side)</option>
+                      <option value="lollipop">Lollipop Stem (Pin & Dot)</option>
+                      <option value="box">Box & Whisker (Quartiles & Median)</option>
+                      <option value="waffle">Waffle Matrix (Unit Squares)</option>
                     </optgroup>
-                    <optgroup label="Points & Scatter">
+                    <optgroup label="Points, Scatter & 3D (4)">
                       <option value="dot">Scatter Dot (2D Point Cloud)</option>
                       <option value="bubble">Bubble Chart (Radius Sized)</option>
                       <option value="tick">1D Distribution Ticks</option>
+                      <option value="rule">Stem Rules (Baseline Spikes)</option>
                     </optgroup>
-                    <optgroup label="Trends & Regression">
+                    <optgroup label="Trends, Regression & Volatility (6)">
                       <option value="line">Smooth Trend Line (Spline)</option>
+                      <option value="stepLine">Stepped Discrete Line</option>
+                      <option value="multiLine">Multi-Series Line Curves</option>
+                      <option value="difference">Envelope Difference Bands</option>
                       <option value="linearRegression">Linear Regression Trendline</option>
                       <option value="bollinger">Bollinger Volatility Bands</option>
                     </optgroup>
-                    <optgroup label="Areas & Densities">
+                    <optgroup label="Areas, Contours & Densities (5)">
                       <option value="area">Gradient Area Fill</option>
+                      <option value="stackedArea">Stacked Multi-Stream Area</option>
+                      <option value="histogram">Auto-Binned Histogram</option>
                       <option value="density">2D Kernel Density Contours</option>
+                      <option value="contour">Topographic Contour Isolines</option>
+                    </optgroup>
+                    <optgroup label="Matrix, Meshes & Geometry (5)">
                       <option value="cell">Heatmap Matrix Cells</option>
-                      <option value="tree">Hierarchy Dendritic Tree</option>
+                      <option value="matrix">Cross-Tabulation Matrix</option>
+                      <option value="hexbin">Hexagonal Bin Density Mesh</option>
+                      <option value="delaunay">Delaunay Spatial Triangulation</option>
+                      <option value="voronoi">Voronoi Planar Polygons</option>
+                    </optgroup>
+                    <optgroup label="Specialized Visuals (4)">
+                      <option value="tree">Dendrogram Hierarchy Tree</option>
+                      <option value="vector">Vector Magnitude & Angle</option>
+                      <option value="arrow">Directed Vector Arrows</option>
+                      <option value="text">Direct Annotation Text Grid</option>
                     </optgroup>
                   </select>
                 </div>
 
+                {/* 2. Primary Dimension & Metric */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                      Dimension
+                      Primary Dimension (X)
                     </label>
                     <select
                       value={plotDimension}
                       onChange={(e) => setPlotDimension(e.target.value as any)}
                       className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
                     >
-                      <option value="domain">Web Domain</option>
-                      <option value="folder">Folder Collection</option>
-                      <option value="status">Health Status</option>
-                      <option value="month">Creation Month</option>
-                      <option value="protocol">HTTPS Protocol</option>
+                      <optgroup label="Taxonomy & Folders">
+                        <option value="domain">Web Domain (root site)</option>
+                        <option value="folder">Folder Collection</option>
+                        <option value="tag">Primary Topic / Tag</option>
+                        <option value="tld">Top-Level Domain (.com, .io...)</option>
+                      </optgroup>
+                      <optgroup label="Time & Evolution">
+                        <option value="month">Month Added (YYYY-MM)</option>
+                        <option value="week">Week of Year (W1 - W52)</option>
+                        <option value="dayOfWeek">Day of Week (Mon - Sun)</option>
+                        <option value="year">Year Created</option>
+                        <option value="recency">Activity Recency (Past 7d / 30d)</option>
+                      </optgroup>
+                      <optgroup label="Health, Security & Metadata">
+                        <option value="status">Health Status (200 / Dead)</option>
+                        <option value="favorite">Starred vs Standard</option>
+                        <option value="protocol">HTTPS vs HTTP Protocol</option>
+                        <option value="hasNotes">Notes Presence</option>
+                        <option value="urlDepth">URL Path Depth (Root vs Subpage)</option>
+                        <option value="visitBucket">Visit Volume Tier</option>
+                      </optgroup>
                     </select>
                   </div>
 
                   <div>
                     <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                      Metric / Measure
+                      Metric / Measure (Y)
                     </label>
                     <select
                       value={plotMeasure}
@@ -610,29 +767,239 @@ export function UniversalVisualBuilderModal({
                       className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
                     >
                       <option value="count">Bookmark Count</option>
-                      <option value="sum_visits">Total Visits</option>
-                      <option value="avg_visits">Average Visits</option>
+                      <option value="sum_visits">Total Visits (Sum)</option>
+                      <option value="avg_visits">Average Visits / Site</option>
+                      <option value="max_visits">Peak / Max Visits</option>
+                      <option value="median_visits">Median Visit Count</option>
+                      <option value="stale_days">Stale Days Since Visit</option>
+                      <option value="tag_count">Average Tags per Item</option>
+                      <option value="title_length">Average Title Character Length</option>
                     </select>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                    Color Palette Scale
+                {/* 3. Secondary Grouping (Z-Axis / Color Facet) & Math Transform */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Multi-Series Group (Z)
+                    </label>
+                    <select
+                      value={plotGroup}
+                      onChange={(e) => setPlotGroup(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
+                    >
+                      <option value="none">None (Single Series)</option>
+                      <option value="folder">Split by Folder Collection</option>
+                      <option value="status">Split by Health Status</option>
+                      <option value="favorite">Split by Starred Status</option>
+                      <option value="protocol">Split by Protocol (HTTPS/HTTP)</option>
+                      <option value="tld">Split by Top-Level Domain (TLD)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Math Transform
+                    </label>
+                    <select
+                      value={plotTransform}
+                      onChange={(e) => setPlotTransform(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
+                    >
+                      <option value="raw">Absolute Raw Values</option>
+                      <option value="percentage">Percentage Share (0 – 100%)</option>
+                      <option value="cumulative">Cumulative Running Total</option>
+                      <option value="log">Logarithmic Scale (log10)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 4. Sorting & Top-N Limit */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Sort Sequence
+                    </label>
+                    <select
+                      value={plotSortOrder}
+                      onChange={(e) => setPlotSortOrder(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
+                    >
+                      <option value="desc">Highest Value First (Desc)</option>
+                      <option value="asc">Lowest Value First (Asc)</option>
+                      <option value="alpha">Alphabetical (A – Z)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Top-N Sizing Limit
+                    </label>
+                    <select
+                      value={String(plotLimit)}
+                      onChange={(e) => setPlotLimit(e.target.value === "all" ? "all" : Number(e.target.value))}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                    >
+                      <option value="5">Top 5 Items</option>
+                      <option value="8">Top 8 Items</option>
+                      <option value="10">Top 10 Items</option>
+                      <option value="15">Top 15 Items</option>
+                      <option value="25">Top 25 Items</option>
+                      <option value="all">All Visible Records</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 5. Database Constraints & Query Filters */}
+                <div className="p-3 rounded-xl border border-border/70 bg-secondary/30 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Filter className="h-3.5 w-3.5 text-primary" />
+                    <span>Database Constraints & Filters</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Filter by Folder</label>
+                      <select
+                        value={filterFolderId}
+                        onChange={(e) => setFilterFolderId(e.target.value)}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-[11px] cursor-pointer"
+                      >
+                        <option value="all">All Folders & Inbox</option>
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-0.5">Minimum Visits</label>
+                      <select
+                        value={String(filterMinVisits)}
+                        onChange={(e) => setFilterMinVisits(Number(e.target.value))}
+                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-[11px] cursor-pointer font-mono"
+                      >
+                        <option value="0">0+ (All Sites)</option>
+                        <option value="1">1+ visits (Visited)</option>
+                        <option value="5">5+ visits (Frequent)</option>
+                        <option value="10">10+ visits (Top Tier)</option>
+                        <option value="25">25+ visits (Power Sites)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Filter Toggles */}
+                  <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-border/40 text-[11px]">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={filterOnlyFavorites}
+                        onChange={(e) => setFilterOnlyFavorites(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Only Starred</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={filterOnlyAlive}
+                        onChange={(e) => setFilterOnlyAlive(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Only Alive (200 OK)</span>
+                    </label>
+
+                    <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={filterExcludeArchived}
+                        onChange={(e) => setFilterExcludeArchived(e.target.checked)}
+                        className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Exclude Archived</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 6. Visual Style, Palette & Interpolation */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Color Palette Scale
+                    </label>
+                    <select
+                      value={plotColorScheme}
+                      onChange={(e) => setPlotColorScheme(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                    >
+                      <option value="tableau10">Tableau 10 (Qualitative)</option>
+                      <option value="observable10">Observable 10 (High Contrast)</option>
+                      <option value="viridis">Viridis (Sequential Perception)</option>
+                      <option value="turbo">Turbo (Full Spectrum)</option>
+                      <option value="spectral">Spectral (Multi-Tone Diverging)</option>
+                      <option value="warm">Warm (Amber to Crimson)</option>
+                      <option value="cool">Cool (Cyan to Violet)</option>
+                      <option value="blues">Blues (Monochrome Gradient)</option>
+                      <option value="purples">Purples (Deep Indigo)</option>
+                      <option value="greens">Emerald Greens</option>
+                      <option value="rdylbu">Red-Yellow-Blue Diverging</option>
+                      <option value="magma">Magma (Dark to Solar)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Curve Interpolation
+                    </label>
+                    <select
+                      value={plotCurve}
+                      onChange={(e) => setPlotCurve(e.target.value as any)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
+                    >
+                      <option value="natural">Natural Cubic Spline</option>
+                      <option value="step">Discrete Step Line</option>
+                      <option value="linear">Linear Segmented</option>
+                      <option value="catmull-rom">Catmull-Rom Smooth</option>
+                      <option value="basis">Basis Uniform Curve</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 7. Display Options */}
+                <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={plotShowGrid}
+                      onChange={(e) => setPlotShowGrid(e.target.checked)}
+                      className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                    />
+                    <span>Gridlines</span>
                   </label>
-                  <select
-                    value={plotColorScheme}
-                    onChange={(e) => setPlotColorScheme(e.target.value)}
-                    className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
-                  >
-                    <option value="tableau10">Tableau 10 (Qualitative)</option>
-                    <option value="blues">Blues (Sequential)</option>
-                    <option value="viridis">Viridis (Sequential)</option>
-                    <option value="turbo">Turbo (Rainbow)</option>
-                    <option value="spectral">Spectral (Diverging)</option>
-                    <option value="warm">Warm (Sequential)</option>
-                    <option value="cool">Cool (Sequential)</option>
-                  </select>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={plotShowTip}
+                      onChange={(e) => setPlotShowTip(e.target.checked)}
+                      className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                    />
+                    <span>Value Tips</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={plotShowLegend}
+                      onChange={(e) => setPlotShowLegend(e.target.checked)}
+                      className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+                    />
+                    <span>Color Legend</span>
+                  </label>
                 </div>
               </div>
             )}
@@ -660,11 +1027,10 @@ export function UniversalVisualBuilderModal({
                           key={c.id}
                           type="button"
                           onClick={() => setChartType(c.id)}
-                          className={`p-2 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2 ${
-                            isSel
+                          className={`p-2 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2 ${isSel
                               ? "bg-primary/10 border-primary text-primary font-semibold"
                               : "bg-background border-border hover:bg-secondary text-muted-foreground"
-                          }`}
+                            }`}
                         >
                           <IconC className="h-4 w-4" />
                           <span className="text-xs">{c.label}</span>
@@ -697,11 +1063,10 @@ export function UniversalVisualBuilderModal({
                           key={item.id}
                           type="button"
                           onClick={() => setIntelType(item.id)}
-                          className={`w-full p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-start gap-2.5 ${
-                            isSel
+                          className={`w-full p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-start gap-2.5 ${isSel
                               ? "bg-primary/10 border-primary text-foreground shadow-2xs"
                               : "bg-background border-border hover:bg-secondary text-muted-foreground"
-                          }`}
+                            }`}
                         >
                           <IconI className={`h-4 w-4 mt-0.5 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
                           <div>
@@ -738,7 +1103,7 @@ export function UniversalVisualBuilderModal({
                     mode={siteViewMode}
                     limit={siteLimit}
                     emptyMessage="No bookmarks match this source."
-                    handleSiteVisit={() => {}}
+                    handleSiteVisit={() => { }}
                     formatTimeAgo={() => "just now"}
                     getParentName={(bm) => folders.find((f) => f.id === bm.folderId)?.name || "Folder"}
                   />
@@ -752,13 +1117,17 @@ export function UniversalVisualBuilderModal({
                     data={previewPlotData}
                     config={{
                       type: plotType,
-                      x: plotType === "barX" ? "value" : "dimension",
-                      y: plotType === "barX" ? "dimension" : "value",
+                      x: plotType === "barX" || plotType === "stackedBarX" ? "value" : "dimension",
+                      y: plotType === "barX" || plotType === "stackedBarX" ? "dimension" : "value",
+                      z: plotGroup !== "none" ? "group" : undefined,
                       fill: color || "#3b82f6",
                       stroke: color || "#3b82f6",
                       colorScheme: plotColorScheme,
+                      curve: plotCurve,
+                      grid: plotShowGrid,
+                      tip: plotShowTip,
+                      legend: plotShowLegend,
                       crosshair: true,
-                      grid: true,
                       height: 240,
                     }}
                   />

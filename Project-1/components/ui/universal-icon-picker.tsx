@@ -53,6 +53,7 @@ export interface UniversalIconPickerProps {
   color?: string;
   onChange: (iconName: string) => void;
   label?: string;
+  compact?: boolean;
 }
 
 interface IconMeta {
@@ -112,6 +113,7 @@ export function UniversalIconPicker({
   color,
   onChange,
   label = "Pick icon",
+  compact = true,
 }: UniversalIconPickerProps) {
   const activeIcon = icon || value || "folder";
   const [isOpen, setIsOpen] = React.useState(false);
@@ -176,7 +178,7 @@ export function UniversalIconPicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-8 px-2 rounded-lg border border-border bg-card hover:bg-secondary flex items-center gap-1.5 cursor-pointer transition-colors group shadow-2xs"
+        className={`${compact ? "h-8 w-8 justify-center" : "h-8 px-2 justify-between gap-1.5"} rounded-lg border border-border bg-card hover:bg-secondary flex items-center cursor-pointer transition-colors group shadow-2xs`}
         title={label}
       >
         <FolderIconRenderer
@@ -188,7 +190,7 @@ export function UniversalIconPicker({
 
       {/* Standardized Open-Source Icon Selection Dialog */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-76 rounded-2xl border border-border bg-card shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none">
+        <div className="absolute right-0 top-full mt-1.5 w-76 rounded-2xl border border-border bg-card shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2">
             <span className="text-xs font-semibold text-foreground">Select Icon or Glyph</span>

@@ -61,10 +61,33 @@ export function VizChart({
   const [viewEngine, setViewEngine] = React.useState<"recharts" | "plot" | "table">(
     config.chartType === "table" ? "table" : "recharts"
   );
+  const chartWrapperRef = React.useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = React.useState<number>(0);
 
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  React.useEffect(() => {
+    if (!chartWrapperRef.current) return;
+    const parentBox = chartWrapperRef.current.closest(".group\\/box") as HTMLElement | null;
+    const targetEl = parentBox || chartWrapperRef.current.parentElement || chartWrapperRef.current;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.height > 60) {
+          const availH = parentBox
+            ? Math.max(180, Math.floor(entry.contentRect.height - (bare ? 24 : 64)))
+            : Math.floor(entry.contentRect.height);
+          setContainerHeight(availH);
+        }
+      }
+    });
+    ro.observe(targetEl);
+    return () => ro.disconnect();
+  }, [bare]);
+
+  const effectiveHeight = containerHeight > 100 ? containerHeight : height;
 
   React.useEffect(() => {
     if (config.chartType === "table") {
@@ -116,7 +139,8 @@ export function VizChart({
   if (!isMounted) {
     return (
       <div
-        style={{ height: `${height}px` }}
+        ref={chartWrapperRef}
+        style={{ height: `${effectiveHeight}px` }}
         className="w-full flex items-center justify-center bg-card/40 rounded-lg border border-border/50 text-xs text-muted-foreground animate-pulse"
       >
         <span>Loading visual data...</span>
@@ -128,7 +152,8 @@ export function VizChart({
   if (queryResult.rows.length === 0) {
     return (
       <div
-        style={{ height: `${height}px` }}
+        ref={chartWrapperRef}
+        style={{ height: `${effectiveHeight}px` }}
         className="w-full flex flex-col items-center justify-center p-6 text-center rounded-lg border border-dashed border-border bg-muted/10 space-y-2 select-none"
       >
         <div className="h-8 w-8 rounded-lg bg-secondary text-muted-foreground flex items-center justify-center border border-border">
@@ -178,7 +203,7 @@ export function VizChart({
   };
 
   return (
-    <div className={`w-full flex flex-col space-y-2 select-none ${className}`} aria-label={ariaSummary}>
+    <div ref={chartWrapperRef} className={`w-full flex flex-col space-y-2 select-none ${className}`} aria-label={ariaSummary}>
       {/* Sub-toolbar: Table toggle & hint */}
       {!bare && (
         <div className="flex items-center justify-between text-[11px] text-muted-foreground pb-1">
@@ -241,7 +266,7 @@ export function VizChart({
 
       {/* Main View Area */}
       {viewEngine === "plot" ? (
-        <div style={{ minHeight: `${height}px` }} className="w-full flex items-center justify-center p-2 rounded-lg border border-border/50 bg-secondary/10">
+        <div style={{ minHeight: `${effectiveHeight}px` }} className="w-full flex items-center justify-center p-2 rounded-lg border border-border/50 bg-secondary/10">
           <ObservablePlotView
             data={queryResult.rows}
             config={{
@@ -257,13 +282,13 @@ export function VizChart({
               y: config.chartType === "horizontal_bar" ? "dimension" : "value",
               fill: singleAccent,
               stroke: singleAccent,
-              height,
+              height: effectiveHeight,
             }}
           />
         </div>
       ) : viewEngine === "table" ? (
         <div
-          style={{ height: `${height}px` }}
+          style={{ height: `${effectiveHeight}px` }}
           className="w-full overflow-auto rounded-lg border border-border bg-card/60 text-xs text-foreground font-mono"
         >
           <table className="w-full border-collapse text-left">
@@ -308,7 +333,7 @@ export function VizChart({
       ) : config.chartType === "number" ? (
         // Number KPI Card
         <div
-          style={{ height: `${height}px` }}
+          style={{ height: `${effectiveHeight}px` }}
           className="w-full flex flex-col items-center justify-center p-6 text-center rounded-lg border border-border bg-card/60 space-y-1.5"
         >
           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
@@ -324,7 +349,7 @@ export function VizChart({
         </div>
       ) : config.chartType === "donut" ? (
         // Donut Chart (Max 8 slices)
-        <div style={{ height: `${height}px` }} className="w-full">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -333,8 +358,8 @@ export function VizChart({
                 nameKey="dimension"
                 cx="50%"
                 cy="50%"
-                innerRadius={height * 0.22}
-                outerRadius={height * 0.38}
+                innerRadius={effectiveHeight * 0.22}
+                outerRadius={effectiveHeight * 0.38}
                 paddingAngle={2}
                 onClick={(entry: any) => handleItemClick(entry.dimension)}
                 cursor="pointer"
@@ -359,7 +384,7 @@ export function VizChart({
         </div>
       ) : config.chartType === "horizontal_bar" ? (
         // Horizontal Bar Chart
-        <div style={{ height: `${height}px` }} className="w-full">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={queryResult.rows}
@@ -399,7 +424,7 @@ export function VizChart({
         </div>
       ) : config.chartType === "stacked_bar" && queryResult.series.length > 0 ? (
         // Stacked Bar Chart with SplitBy Series
-        <div style={{ height: `${height}px` }} className="w-full">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={queryResult.rows.map((r) => ({
@@ -460,7 +485,7 @@ export function VizChart({
         </div>
       ) : config.chartType === "line" ? (
         // Line Chart
-        <div style={{ height: `${height}px` }} className="w-full">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={queryResult.rows} margin={{ top: 8, right: 12, left: -16, bottom: 8 }}>
               {config.displayOptions?.showGrid !== false && (
@@ -493,7 +518,7 @@ export function VizChart({
         </div>
       ) : config.chartType === "area" ? (
         // Area Chart
-        <div style={{ height: `${height}px` }} className="w-full">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={queryResult.rows} margin={{ top: 8, right: 12, left: -16, bottom: 8 }}>
               {config.displayOptions?.showGrid !== false && (
@@ -526,7 +551,7 @@ export function VizChart({
         </div>
       ) : (
         // Default: Vertical Bar Chart
-        <div style={{ height: `${height}px` }} className="w-full">
+        <div style={{ height: `${effectiveHeight}px` }} className="w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={queryResult.rows} margin={{ top: 8, right: 12, left: -16, bottom: 8 }}>
               {config.displayOptions?.showGrid !== false && (

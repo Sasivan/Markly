@@ -10,6 +10,7 @@ export interface UniversalColorPickerProps {
   onChange: (color: string) => void;
   label?: string;
   showFormatSwitcher?: boolean;
+  compact?: boolean;
 }
 
 // 1. Standardized Curated Palettes from Open Source Systems (Tailwind, Observable/D3, Material)
@@ -116,6 +117,7 @@ export function UniversalColorPicker({
   onChange,
   label = "Pick color",
   showFormatSwitcher = true,
+  compact = true,
 }: UniversalColorPickerProps) {
   const activeColor = color || value || "#3b82f6";
   const [isOpen, setIsOpen] = React.useState(false);
@@ -201,19 +203,19 @@ export function UniversalColorPicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-8 px-2 rounded-lg border border-border bg-card hover:bg-secondary flex items-center gap-1.5 cursor-pointer transition-colors group shadow-2xs"
+        className={`${compact ? "h-8 w-8 justify-center" : "h-8 px-2 justify-between gap-1.5"} rounded-lg border border-border bg-card hover:bg-secondary flex items-center cursor-pointer transition-colors group shadow-2xs`}
         title={label}
       >
         <span
           className="h-4 w-4 rounded-full border border-black/20 dark:border-white/20 shadow-xs shrink-0 transition-transform group-hover:scale-110"
           style={{ backgroundColor: activeColor }}
         />
-        <Palette className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+        {!compact && <Palette className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />}
       </button>
 
       {/* Standardized Open-Source Color Selection Dialog */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-72 rounded-2xl border border-border bg-card shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none">
+        <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl border border-border bg-card shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none">
           {/* Header & Tabs */}
           <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2.5">
             <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-lg border border-border/50 text-[10px] font-medium">

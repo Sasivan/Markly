@@ -705,7 +705,52 @@ export function BookmarkItemsView({
   },
   getParentName = (bm) => bm.domain || "Workspace",
 }: BookmarkItemsViewProps) {
-  const displayItems = limit && limit !== "all" ? items.slice(0, limit) : items;
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = React.useState<number>(0);
+  const [containerWidth, setContainerWidth] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const parentBox = containerRef.current.closest(".group\\/box") as HTMLElement | null;
+    const targetEl = parentBox || containerRef.current.parentElement || containerRef.current;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.height > 20) {
+          const availH = parentBox
+            ? Math.max(120, Math.floor(entry.contentRect.height - 48))
+            : Math.floor(entry.contentRect.height);
+          setContainerHeight(availH);
+        }
+        if (entry.contentRect.width > 20) {
+          setContainerWidth(Math.floor(entry.contentRect.width));
+        }
+      }
+    });
+    ro.observe(targetEl);
+    return () => ro.disconnect();
+  }, []);
+
+  // Compute auto-adaptive item count dynamically based on current box height & width
+  const adaptiveCount = React.useMemo(() => {
+    if (limit && limit !== "all") return limit;
+    const h = containerHeight || 360;
+    const w = containerWidth || 400;
+    if (mode === "grid") {
+      const cols = w >= 700 ? 3 : w >= 380 ? 2 : 1;
+      const rows = Math.max(2, Math.floor((h - 24) / 58));
+      return Math.max(6, cols * rows);
+    }
+    if (mode === "compact") {
+      const rows = Math.max(6, Math.floor((h - 16) / 32));
+      return rows;
+    }
+    // list mode
+    const rows = Math.max(5, Math.floor((h - 20) / 44));
+    return rows;
+  }, [limit, containerHeight, containerWidth, mode]);
+
+  const displayItems = limit && limit !== "all" ? items.slice(0, limit) : items.slice(0, adaptiveCount);
 
   if (displayItems.length === 0) {
     return (
@@ -719,7 +764,7 @@ export function BookmarkItemsView({
   // 1. Grid View (Responsive Adaptive Bookmark Tile Cards)
   if (mode === "grid") {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5 p-3">
+      <div ref={containerRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5 p-3">
         {displayItems.map((bm) => (
           <div
             key={bm.id}
@@ -790,7 +835,7 @@ export function BookmarkItemsView({
   // 2. List View (Detailed Document Rows)
   if (mode === "list") {
     return (
-      <div className="divide-y divide-border">
+      <div ref={containerRef} className="divide-y divide-border">
         {displayItems.map((bm) => {
           const timeAgo = formatTimeAgo(bm.lastClickedAt || bm.lastVisitedAt || bm.createdAt);
           return (
@@ -863,7 +908,7 @@ export function BookmarkItemsView({
 
   // 3. Compact View (Dense 1-Line Rows)
   return (
-    <div className="divide-y divide-border/60">
+    <div ref={containerRef} className="divide-y divide-border/60">
       {displayItems.map((bm) => (
         <div
           key={bm.id}

@@ -1423,6 +1423,33 @@ function getDomainGradient(str: string): string {
         isArchiveView={filteredData.length > 0 && filteredData.every((b) => b.isArchived)}
       />
 
+      {/* Visual Analytics & Intelligence Section (Placed on top of Search and Filter bar across all views) */}
+      <FolderVisualAnalytics
+        folderId={activeFolderId || `page_${activeView || "all"}`}
+        folderName={
+          activeFolderId
+            ? folders.find((f) => f.id === activeFolderId)?.name || "Current Folder"
+            : activeView === "favorites"
+            ? "Starred Favorites"
+            : activeView === "recent"
+            ? "Recently Visited"
+            : activeView === "unsorted"
+            ? "Inbox / Unsorted"
+            : activeView === "archive"
+            ? "Archive"
+            : "All Sites"
+        }
+        bookmarks={data}
+        folders={folders}
+        activeFilter={activeChartFilter}
+        onFilterChange={setActiveChartFilter}
+        onOpenPreview={onOpenPreview}
+        onEditBookmark={setEditingBookmark}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleArchive={handleToggleArchive}
+        onDeleteBookmark={onDeleteBookmark}
+      />
+
       {/* Table Controls Header: Search, Notion Filter, Sort, View Toggles & Columns */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         {/* Left: Search Bar, Notion Filter & Sort */}
@@ -2055,33 +2082,6 @@ function getDomainGradient(str: string): string {
           </button>
         </div>
       )}
-
-      {/* Visual Analytics & Intelligence Section (Folders & All Pages with Resizable Tabs) */}
-      <FolderVisualAnalytics
-        folderId={activeFolderId || `page_${activeView || "all"}`}
-        folderName={
-          activeFolderId
-            ? folders.find((f) => f.id === activeFolderId)?.name || "Current Folder"
-            : activeView === "favorites"
-            ? "Starred Favorites"
-            : activeView === "recent"
-            ? "Recently Visited"
-            : activeView === "unsorted"
-            ? "Inbox / Unsorted"
-            : activeView === "archive"
-            ? "Archive"
-            : "All Sites"
-        }
-        bookmarks={data}
-        folders={folders}
-        activeFilter={activeChartFilter}
-        onFilterChange={setActiveChartFilter}
-        onOpenPreview={onOpenPreview}
-        onEditBookmark={setEditingBookmark}
-        onToggleFavorite={handleToggleFavorite}
-        onToggleArchive={handleToggleArchive}
-        onDeleteBookmark={onDeleteBookmark}
-      />
 
       {/* Main View Display */}
       {viewMode === "table" ? (

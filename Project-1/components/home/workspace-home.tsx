@@ -52,7 +52,6 @@ import {
   type WidgetColSpan,
 } from "./home-layout-modal";
 import { VizChart } from "@/components/viz/viz-chart";
-import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "@/components/viz/universal-visual-builder-modal";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
@@ -104,11 +103,22 @@ export function WorkspaceHome({
   const { user } = useAuth();
   const widgetStore = React.useMemo(() => new RemoteWidgetStore(), []);
 
-  // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
-  const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
+  // 1.2: Homepage Widgets Ordering & Visibility state (persisted synchronously in localStorage to prevent layout repositioning on refresh)
+  const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_home_widgets");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return DEFAULT_HOME_WIDGETS;
+  });
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
-  const [visualBuilderOpen, setVisualBuilderOpen] = React.useState(false);
-  const [editingWidget, setEditingWidget] = React.useState<HomeWidgetConfig | null>(null);
   const [universalModalOpen, setUniversalModalOpen] = React.useState(false);
   const [editingUniversalConfig, setEditingUniversalConfig] = React.useState<UniversalVisualConfig | null>(null);
 
@@ -184,6 +194,136 @@ export function WorkspaceHome({
 
   const handleEditBuiltinWidget = (widgetId: string) => {
     const w = homeWidgets.find((x) => x.id === widgetId);
+
+    if (widgetId === "analytics_velocity") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "Activity Velocity Momentum",
+        category: "chart",
+        colSpan: w?.colSpan || 12,
+        rowSpan: w?.rowSpan || 1,
+        chartConfig: {
+          version: 1,
+          id: "builtin_velocity",
+          title: "Activity Velocity Momentum",
+          chartType: "area",
+          dimension: "created_month",
+          measure: "count",
+          filters: {},
+          sort: { by: "dimension", direction: "asc" },
+          limit: 12,
+          otherBucket: false,
+        },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+    if (widgetId === "analytics_domains") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "Top Web Ecosystems",
+        category: "chart",
+        colSpan: w?.colSpan || 4,
+        rowSpan: w?.rowSpan || 1,
+        chartConfig: {
+          version: 1,
+          id: "builtin_domains",
+          title: "Top Web Ecosystems",
+          chartType: "bar",
+          dimension: "domain",
+          measure: "count",
+          filters: {},
+          sort: { by: "measure", direction: "desc" },
+          limit: 8,
+          otherBucket: true,
+        },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+    if (widgetId === "analytics_radar") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "Collection Distribution",
+        category: "chart",
+        colSpan: w?.colSpan || 4,
+        rowSpan: w?.rowSpan || 1,
+        chartConfig: {
+          version: 1,
+          id: "builtin_radar",
+          title: "Collection Distribution",
+          chartType: "donut",
+          dimension: "folder_top",
+          measure: "count",
+          filters: {},
+          sort: { by: "measure", direction: "desc" },
+          limit: 7,
+          otherBucket: true,
+        },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+    if (widgetId === "analytics_tags") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "Tag Distribution Donut",
+        category: "chart",
+        colSpan: w?.colSpan || 4,
+        rowSpan: w?.rowSpan || 1,
+        chartConfig: {
+          version: 1,
+          id: "builtin_tags",
+          title: "Tag Distribution Donut",
+          chartType: "donut",
+          dimension: "tag",
+          measure: "count",
+          filters: {},
+          sort: { by: "measure", direction: "desc" },
+          limit: 8,
+          otherBucket: true,
+        },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+    if (widgetId === "tags") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "Workspace Topics & Tags",
+        category: "intel",
+        colSpan: w?.colSpan || 6,
+        rowSpan: w?.rowSpan || 1,
+        intelConfig: { type: "tags" },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+    if (widgetId === "spectrum") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "Inactivity Dot Spectrum",
+        category: "intel",
+        colSpan: w?.colSpan || 12,
+        rowSpan: w?.rowSpan || 1,
+        intelConfig: { type: "engagement" },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+    if (widgetId === "heatmap") {
+      setEditingUniversalConfig({
+        id: widgetId,
+        title: "365-Day Activity Heatmap",
+        category: "intel",
+        colSpan: w?.colSpan || 12,
+        rowSpan: w?.rowSpan || 1,
+        intelConfig: { type: "heatmap" },
+      });
+      setUniversalModalOpen(true);
+      return;
+    }
+
     let title = "Quick Access";
     let src: "all" | "favorites" | "recent" | "unsorted" = "all";
     let icon = "compass";
@@ -421,40 +561,6 @@ export function WorkspaceHome({
     });
   };
 
-  // Visual Builder Actions
-  const handleSaveVisual = (newVizConfig: VizConfig) => {
-    setHomeWidgets((prev) => {
-      let updated: HomeWidgetConfig[];
-      if (editingWidget) {
-        updated = prev.map((w) =>
-          w.id === editingWidget.id
-            ? { ...w, label: newVizConfig.title, vizConfig: newVizConfig }
-            : w
-        );
-      } else {
-        const customCount = prev.filter((w) => w.kind === "custom" || w.id.startsWith("custom:")).length;
-        if (customCount >= 30) {
-          alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
-          return prev;
-        }
-        const newWidget: HomeWidgetConfig = {
-          id: `custom:${newVizConfig.id}`,
-          label: newVizConfig.title,
-          visible: true,
-          kind: "custom",
-          vizConfig: newVizConfig,
-          colSpan: 6,
-          span: "1",
-        };
-        updated = [...prev, newWidget];
-      }
-      widgetStore.saveWidgets(updated);
-      return updated;
-    });
-    setVisualBuilderOpen(false);
-    setEditingWidget(null);
-  };
-
   const handleDuplicateCustomWidget = (widget: HomeWidgetConfig) => {
     if (!widget.vizConfig) return;
     const customCount = homeWidgets.filter((w) => w.kind === "custom" || w.id.startsWith("custom:")).length;
@@ -544,7 +650,15 @@ export function WorkspaceHome({
           for (const def of DEFAULT_HOME_WIDGETS) {
             if (!merged.some((m) => m.id === def.id)) merged.push(def);
           }
-          setHomeWidgets(merged);
+          setHomeWidgets((prev) => {
+            const currentStr = JSON.stringify(prev);
+            const nextStr = JSON.stringify(merged);
+            if (currentStr === nextStr) return prev;
+            try {
+              localStorage.setItem("markly_home_widgets", nextStr);
+            } catch {}
+            return merged;
+          });
         }
       } catch {
         // ignore
@@ -558,11 +672,17 @@ export function WorkspaceHome({
 
   const handleSaveWidgets = (newWidgets: HomeWidgetConfig[]) => {
     setHomeWidgets(newWidgets);
+    try {
+      localStorage.setItem("markly_home_widgets", JSON.stringify(newWidgets));
+    } catch {}
     widgetStore.saveWidgets(newWidgets);
   };
 
   const handleResetWidgets = () => {
     setHomeWidgets(DEFAULT_HOME_WIDGETS);
+    try {
+      localStorage.setItem("markly_home_widgets", JSON.stringify(DEFAULT_HOME_WIDGETS));
+    } catch {}
     widgetStore.saveWidgets(DEFAULT_HOME_WIDGETS);
   };
 
@@ -1440,10 +1560,7 @@ export function WorkspaceHome({
             title="Workspace Analytics"
             icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
             badgeText={`${totalCount} bookmarks`}
-            onEditWidget={() => {
-              setEditingWidget(widget);
-              setVisualBuilderOpen(true);
-            }}
+            onEditWidget={() => handleEditBuiltinWidget("analytics_overview")}
           >
             <div className="p-3">
               <VizChart
@@ -1478,10 +1595,7 @@ export function WorkspaceHome({
             title="Activity Velocity Momentum"
             icon={<TrendingUp className="h-4 w-4 text-primary" />}
             badgeText="Bookmarks over time"
-            onEditWidget={() => {
-              setEditingWidget(widget);
-              setVisualBuilderOpen(true);
-            }}
+            onEditWidget={() => handleEditBuiltinWidget("analytics_velocity")}
           >
             <div className="p-3">
               <VizChart
@@ -1516,10 +1630,7 @@ export function WorkspaceHome({
             title="Top Web Ecosystems"
             icon={<Globe className="h-4 w-4 text-teal-600" />}
             badgeText="Domain breakdown"
-            onEditWidget={() => {
-              setEditingWidget(widget);
-              setVisualBuilderOpen(true);
-            }}
+            onEditWidget={() => handleEditBuiltinWidget("analytics_domains")}
           >
             <div className="p-3">
               <VizChart
@@ -1554,10 +1665,7 @@ export function WorkspaceHome({
             title="Collection Distribution"
             icon={<Folders className="h-4 w-4 text-indigo-500" />}
             badgeText="Top-level folders"
-            onEditWidget={() => {
-              setEditingWidget(widget);
-              setVisualBuilderOpen(true);
-            }}
+            onEditWidget={() => handleEditBuiltinWidget("analytics_radar")}
           >
             <div className="p-3">
               <VizChart
@@ -1592,10 +1700,7 @@ export function WorkspaceHome({
             title="Tag Distribution Donut"
             icon={<Tag className="h-4 w-4 text-amber-500" />}
             badgeText={`${topTags.length} tags`}
-            onEditWidget={() => {
-              setEditingWidget(widget);
-              setVisualBuilderOpen(true);
-            }}
+            onEditWidget={() => handleEditBuiltinWidget("analytics_tags")}
           >
             <div className="p-3">
               <VizChart
@@ -1719,11 +1824,11 @@ export function WorkspaceHome({
             <Button
               variant="outline"
               onClick={() => {
-                setEditingWidget(null);
-                setVisualBuilderOpen(true);
+                setEditingUniversalConfig(null);
+                setUniversalModalOpen(true);
               }}
               className="text-xs h-8 px-2.5 rounded-lg border-border cursor-pointer flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-              title="Add a custom visual chart or metric to your homepage"
+              title="Add a custom visual chart, Observable plot, or site collection to your homepage"
             >
               <BarChart3 className="h-3.5 w-3.5 text-primary" />
               <span>Add Visual</span>
@@ -2034,19 +2139,6 @@ export function WorkspaceHome({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName="Dashboard Home"
-      />
-
-      {/* Custom Visual Builder Dialog */}
-      <VizBuilderDialog
-        open={visualBuilderOpen}
-        onOpenChange={(op) => {
-          setVisualBuilderOpen(op);
-          if (!op) setEditingWidget(null);
-        }}
-        initialConfig={editingWidget?.vizConfig || null}
-        bookmarks={bookmarks}
-        folders={folders}
-        onSave={handleSaveVisual}
       />
     </div>
   );

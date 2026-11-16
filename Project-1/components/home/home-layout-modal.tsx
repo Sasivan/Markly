@@ -139,6 +139,15 @@ export function HomeLayoutModal({
     );
   };
 
+  const setWidgetColSpan = (id: string, colSpan: WidgetColSpan) => {
+    setLocalWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        return { ...w, colSpan, span: colSpan === 12 ? "2" : "1" };
+      })
+    );
+  };
+
   const toggleRowSpan = (id: string) => {
     setLocalWidgets((prev) =>
       prev.map((w) => {
@@ -373,22 +382,39 @@ export function HomeLayoutModal({
                         title={widget.rowSpan === 2 ? "2x Tall (Spans 2 stacked rows)" : "1x Standard height. Click to make 2x tall"}
                       >
                         <Rows3 className="h-3 w-3" />
-                        <span>{widget.rowSpan === 2 ? "2x Tall" : "1x"}</span>
+                        <span>{widget.rowSpan === 2 ? "2x" : "1x"}</span>
                       </button>
 
-                      {/* Column Width Selector */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          cycleColSpan(widget.id);
-                        }}
-                        className="px-2 py-0.5 rounded-md border border-border bg-background hover:bg-accent text-foreground flex items-center gap-1 cursor-pointer transition-colors font-mono"
-                        title={`Width: ${spanLabel}. Click to cycle: Full -> Half -> 1/3 -> 1/4 -> Full`}
-                      >
-                        <Columns3 className="h-3 w-3 text-muted-foreground" />
-                        <span>{spanLabel}</span>
-                      </button>
+                      {/* Direct Column Width Selector Pills */}
+                      <div className="flex items-center gap-0.5 bg-background rounded-md border border-border p-0.5 font-mono text-[9px]">
+                        {([
+                          { span: 3, label: "1/4" },
+                          { span: 4, label: "1/3" },
+                          { span: 6, label: "1/2" },
+                          { span: 8, label: "2/3" },
+                          { span: 12, label: "Full" },
+                        ] as const).map(({ span, label }) => {
+                          const isCurrent = currentSpan === span;
+                          return (
+                            <button
+                              key={span}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWidgetColSpan(widget.id, span);
+                              }}
+                              className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                                isCurrent
+                                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                              }`}
+                              title={`Set width to ${label}`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>

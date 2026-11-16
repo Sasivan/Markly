@@ -9,6 +9,8 @@ import {
   formatRecencyBucket,
   formatVisitCountBucket,
   MAX_VIZ_CONFIG_BYTES,
+  safeParseStoredWidgets,
+  MAX_CUSTOM_WIDGETS,
   type VizConfig,
 } from "../lib/viz";
 import type { BookmarkWithDetails, Folder } from "../server/db/schema";
@@ -385,5 +387,54 @@ describe("STAGE 1: Query Engine runViz", () => {
     const ghRow = res.rows.find((r) => r.dimension === "github.com");
     expect(ghRow?.seriesValues?.Healthy).toBe(1);
     expect(ghRow?.seriesValues?.Broken).toBe(1);
+  });
+
+  describe("STAGE 4: safeParseStoredWidgets", () => {
+    it("parses valid stored widgets array", () => {
+      const raw = [
+        { id: "heatmap", label: "Heatmap", visible: true, span: "2", colSpan: 12 },
+        {
+          id: "custom:viz_123",
+          label: "My Visual",
+          visible: true,
+          kind: "custom",
+          colSpan: 6,
+          vizConfig: DEFAULT_VIZ_CONFIG,
+        },
+      ];
+      const parsed = safeParseStoredWidgets(raw);
+      expect(parsed.length).toBe(2);
+      expect(parsed[1].id).toBe("custom:viz_123");
+      expect(parsed[1].kind).toBe("custom");
+    });
+
+    it("filters out invalid/corrupted entries without throwing", () => {
+      const raw = [
+        null,
+        "corrupted string",
+        { id: 123 }, // invalid id type
+        { id: "custom:bad", kind: "custom", vizConfig: { invalid: "yes" } }, // invalid vizConfig
+        { id: "folders", label: "Folders", visible: true },
+      ];
+      const parsed = safeParseStoredWidgets(raw);
+      expect(parsed.length).toBe(1);
+      expect(parsed[0].id).toBe("folders");
+    });
+
+    it("caps custom widgets at MAX_CUSTOM_WIDGETS (30)", () => {
+      const raw = [];
+      for (let i = 0; i < 35; i++) {
+        raw.push({
+          id: `custom:viz_${i}`,
+          label: `Viz ${i}`,
+          visible: true,
+          kind: "custom",
+          vizConfig: { ...DEFAULT_VIZ_CONFIG, id: `viz_${i}`, title: `Viz ${i}` },
+        });
+      }
+      const parsed = safeParseStoredWidgets(raw);
+      const customCount = parsed.filter((w) => w.kind === "custom").length;
+      expect(customCount).toBe(MAX_CUSTOM_WIDGETS);
+    });
   });
 });

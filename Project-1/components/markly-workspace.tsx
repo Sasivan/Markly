@@ -47,6 +47,7 @@ import { StashTabsModal } from "@/components/modals/stash-tabs-modal";
 import { SharedLinksView } from "@/components/shared/shared-links-view";
 import { SmartCollectionsView } from "@/components/collections/smart-collections-view";
 import { SessionsView } from "@/components/sessions/sessions-view";
+import { VisualsPageView } from "@/components/viz/visuals-page-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -139,7 +140,7 @@ export function MarklyWorkspace({
 
   // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions">(
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions">(
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
@@ -1624,6 +1625,30 @@ export function MarklyWorkspace({
                 setActiveFolderId(null);
               }}
               onOpenAddBookmarkToFolder={(fId) => openAddModal(fId)}
+            />
+          ) : activeView === "visuals" && !activeFolderId ? (
+            /* Dedicated Visuals & Analytics Page View */
+            <VisualsPageView
+              bookmarks={bookmarks}
+              folders={folders}
+              onSelectDomain={(domain) => {
+                setActiveDomainFilter(domain);
+                setActiveView("all");
+                setActiveFolderId(null);
+              }}
+              onSelectTag={(tag) => {
+                setActiveTagFilter(tag);
+                setActiveView("all");
+                setActiveFolderId(null);
+              }}
+              onSelectFolder={(fId) => {
+                setActiveFolderId(fId);
+                setActiveView("all");
+              }}
+              onNavigateHome={() => {
+                setActiveView("home");
+                setActiveFolderId(null);
+              }}
             />
           ) : activeView === "trash" && !activeFolderId ? (
             /* Dedicated PC-Style Recycle Bin View */

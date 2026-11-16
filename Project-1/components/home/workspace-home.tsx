@@ -31,6 +31,7 @@ import {
   StickyNote,
   Calendar,
   Folders,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,9 @@ import {
   type HomeWidgetKey,
   type WidgetColSpan,
 } from "./home-layout-modal";
+import { VizChart } from "@/components/viz/viz-chart";
+import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
+import { type VizConfig, safeParseStoredWidgets } from "@/lib/viz";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
 
@@ -100,6 +104,8 @@ export function WorkspaceHome({
   // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
+  const [visualBuilderOpen, setVisualBuilderOpen] = React.useState(false);
+  const [editingWidget, setEditingWidget] = React.useState<HomeWidgetConfig | null>(null);
 
   // Instant global search on homepage
   const [homeSearch, setHomeSearch] = React.useState("");
@@ -228,14 +234,116 @@ export function WorkspaceHome({
     });
   };
 
+  // Visual Builder Actions
+  const handleSaveVisual = (newVizConfig: VizConfig) => {
+    setHomeWidgets((prev) => {
+      let updated: HomeWidgetConfig[];
+      if (editingWidget) {
+        updated = prev.map((w) =>
+          w.id === editingWidget.id
+            ? { ...w, label: newVizConfig.title, vizConfig: newVizConfig }
+            : w
+        );
+      } else {
+        const customCount = prev.filter((w) => w.kind === "custom" || w.id.startsWith("custom:")).length;
+        if (customCount >= 30) {
+          alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+          return prev;
+        }
+        const newWidget: HomeWidgetConfig = {
+          id: `custom:${newVizConfig.id}`,
+          label: newVizConfig.title,
+          visible: true,
+          kind: "custom",
+          vizConfig: newVizConfig,
+          colSpan: 6,
+          span: "1",
+        };
+        updated = [...prev, newWidget];
+      }
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    setVisualBuilderOpen(false);
+    setEditingWidget(null);
+  };
+
+  const handleEditCustomWidget = (widget: HomeWidgetConfig) => {
+    setEditingWidget(widget);
+    setVisualBuilderOpen(true);
+  };
+
+  const handleDuplicateCustomWidget = (widget: HomeWidgetConfig) => {
+    if (!widget.vizConfig) return;
+    const customCount = homeWidgets.filter((w) => w.kind === "custom" || w.id.startsWith("custom:")).length;
+    if (customCount >= 30) {
+      alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+      return;
+    }
+    const duplicatedConfig: VizConfig = {
+      ...widget.vizConfig,
+      id: `viz_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      title: `${widget.vizConfig.title} (Copy)`,
+    };
+    const newWidget: HomeWidgetConfig = {
+      id: `custom:${duplicatedConfig.id}`,
+      label: duplicatedConfig.title,
+      visible: true,
+      kind: "custom",
+      vizConfig: duplicatedConfig,
+      colSpan: widget.colSpan || 6,
+      span: widget.span || "1",
+    };
+    setHomeWidgets((prev) => {
+      const idx = prev.findIndex((w) => w.id === widget.id);
+      const copy = [...prev];
+      if (idx !== -1) {
+        copy.splice(idx + 1, 0, newWidget);
+      } else {
+        copy.push(newWidget);
+      }
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(copy));
+      } catch {}
+      return copy;
+    });
+  };
+
+  const handleDeleteCustomWidget = (widgetId: string) => {
+    setHomeWidgets((prev) => {
+      const filtered = prev.filter((w) => w.id !== widgetId);
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(filtered));
+        localStorage.removeItem("markly_box_colspan_" + widgetId);
+        localStorage.removeItem("markly_box_h_" + widgetId);
+        localStorage.removeItem("markly_box_collapsed_" + widgetId);
+      } catch {}
+      return filtered;
+    });
+  };
+
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem("markly_home_widgets");
       if (saved) {
-        const parsed = JSON.parse(saved) as HomeWidgetConfig[];
+        const parsed = safeParseStoredWidgets(JSON.parse(saved));
         if (Array.isArray(parsed) && parsed.length > 0) {
           const merged: HomeWidgetConfig[] = [];
           for (const p of parsed) {
+            if (p.kind === "custom" || p.id.startsWith("custom:")) {
+              merged.push({
+                id: p.id,
+                label: p.label,
+                visible: p.visible ?? true,
+                kind: "custom",
+                vizConfig: p.vizConfig,
+                span: (p.span as any) ?? "1",
+                colSpan: (p.colSpan as WidgetColSpan) ?? 6,
+              });
+              continue;
+            }
             const def = DEFAULT_HOME_WIDGETS.find((d) => d.id === p.id);
             if (def) {
               let colSpan = p.colSpan;
@@ -249,8 +357,8 @@ export function WorkspaceHome({
               merged.push({
                 ...def,
                 visible: p.visible ?? true,
-                span: p.span ?? def.span ?? "1",
-                colSpan: colSpan ?? def.colSpan ?? (p.span === "2" ? 12 : 6),
+                span: (p.span as any) ?? def.span ?? "1",
+                colSpan: (colSpan as WidgetColSpan) ?? def.colSpan ?? (p.span === "2" ? 12 : 6),
               });
             }
           }
@@ -849,6 +957,40 @@ export function WorkspaceHome({
       onDrop: (e: React.DragEvent) => handleWidgetDrop(e, widget.id),
     };
 
+    // Custom Visual Widget
+    if (widget.kind === "custom" || widget.id.startsWith("custom:")) {
+      return (
+        <DashboardWidgetBox
+          key={widget.id}
+          {...commonProps}
+          title={widget.vizConfig?.title || widget.label}
+          icon={<BarChart3 className="h-4 w-4 text-primary" />}
+          badgeText={widget.vizConfig?.chartType?.replace("_", " ").toUpperCase()}
+          onEditWidget={() => handleEditCustomWidget(widget)}
+          onDuplicateWidget={() => handleDuplicateCustomWidget(widget)}
+          onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+        >
+          <div className="p-3">
+            {widget.vizConfig ? (
+              <VizChart
+                config={widget.vizConfig}
+                bookmarks={bookmarks}
+                folders={folders}
+                onSelectDomain={onSelectDomain}
+                onSelectTag={onSelectTag}
+                onSelectFolder={onSelectFolder}
+                bare={false}
+              />
+            ) : (
+              <div className="p-6 text-xs text-muted-foreground text-center">
+                Visual configuration is missing
+              </div>
+            )}
+          </div>
+        </DashboardWidgetBox>
+      );
+    }
+
     switch (widget.id) {
       case "folders":
         return (
@@ -1260,6 +1402,18 @@ export function WorkspaceHome({
             </Button>
             <Button
               variant="outline"
+              onClick={() => {
+                setEditingWidget(null);
+                setVisualBuilderOpen(true);
+              }}
+              className="text-xs h-8 px-2.5 rounded-lg border-border cursor-pointer flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+              title="Add a custom visual chart or metric to your homepage"
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-primary" />
+              <span>Add Visual</span>
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setLayoutModalOpen(true)}
               className="text-xs h-8 px-2.5 rounded-lg border-border cursor-pointer flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
               title="Customize widget order, visibility and column layout"
@@ -1540,6 +1694,19 @@ export function WorkspaceHome({
         widgets={homeWidgets}
         onSaveWidgets={handleSaveWidgets}
         onResetDefaults={handleResetWidgets}
+      />
+
+      {/* Custom Visual Builder Dialog */}
+      <VizBuilderDialog
+        open={visualBuilderOpen}
+        onOpenChange={(op) => {
+          setVisualBuilderOpen(op);
+          if (!op) setEditingWidget(null);
+        }}
+        initialConfig={editingWidget?.vizConfig || null}
+        bookmarks={bookmarks}
+        folders={folders}
+        onSave={handleSaveVisual}
       />
     </div>
   );

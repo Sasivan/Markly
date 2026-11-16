@@ -162,3 +162,48 @@ export const DEFAULT_VIZ_CONFIG: VizConfig = {
     showGrid: true,
   },
 };
+
+export const storedWidgetConfigSchema = z
+  .object({
+    id: z.string().min(1).max(128),
+    label: z.string().min(1).max(128),
+    visible: z.boolean().default(true),
+    kind: z.enum(["builtin", "custom"]).default("builtin").optional(),
+    vizConfig: vizConfigSchema.optional(),
+    span: z.enum(["1", "2"]).optional(),
+    colSpan: z
+      .union([
+        z.literal(2),
+        z.literal(3),
+        z.literal(4),
+        z.literal(6),
+        z.literal(8),
+        z.literal(9),
+        z.literal(12),
+      ])
+      .optional(),
+  })
+  .passthrough();
+
+export type StoredWidgetConfig = z.infer<typeof storedWidgetConfigSchema>;
+
+export const MAX_CUSTOM_WIDGETS = 30;
+
+export function safeParseStoredWidgets(raw: unknown): StoredWidgetConfig[] {
+  if (!Array.isArray(raw)) return [];
+  const valid: StoredWidgetConfig[] = [];
+  let customCount = 0;
+
+  for (const item of raw) {
+    const result = storedWidgetConfigSchema.safeParse(item);
+    if (result.success) {
+      if (result.data.kind === "custom") {
+        if (customCount >= MAX_CUSTOM_WIDGETS) continue; // Cap at 30 custom widgets
+        customCount++;
+      }
+      valid.push(result.data);
+    }
+  }
+  return valid;
+}
+

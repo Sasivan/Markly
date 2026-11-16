@@ -17,15 +17,19 @@ import {
   ChevronRight,
   Columns3,
   Check,
+  MoreHorizontal,
+  Pencil,
+  Copy,
+  Trash2,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
-import type { HomeWidgetKey, WidgetColSpan } from "./home-layout-modal";
+import type { WidgetColSpan } from "./home-layout-modal";
 
 export type WidgetViewMode = "grid" | "list" | "compact";
 
 interface DashboardWidgetBoxProps {
-  id: HomeWidgetKey;
+  id: string;
   title: string;
   icon: React.ReactNode;
   badgeText?: string | number;
@@ -43,6 +47,9 @@ interface DashboardWidgetBoxProps {
   onViewAll?: () => void;
   viewAllLabel?: string;
   extraHeaderAction?: React.ReactNode;
+  onEditWidget?: () => void;
+  onDuplicateWidget?: () => void;
+  onDeleteWidget?: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
@@ -68,6 +75,9 @@ export function DashboardWidgetBox({
   onViewAll,
   viewAllLabel = "View all",
   extraHeaderAction,
+  onEditWidget,
+  onDuplicateWidget,
+  onDeleteWidget,
   onDragStart,
   onDragOver,
   onDrop,
@@ -133,17 +143,23 @@ export function DashboardWidgetBox({
   const [colMenuOpen, setColMenuOpen] = React.useState(false);
   const colMenuRef = React.useRef<HTMLDivElement>(null);
 
+  const [actionMenuOpen, setActionMenuOpen] = React.useState(false);
+  const actionMenuRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
         setColMenuOpen(false);
       }
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setActionMenuOpen(false);
+      }
     }
-    if (colMenuOpen) {
+    if (colMenuOpen || actionMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [colMenuOpen]);
+  }, [colMenuOpen, actionMenuOpen]);
 
   const startResize = React.useCallback(
     (direction: "width" | "height" | "both", startEvent: React.MouseEvent) => {
@@ -422,6 +438,64 @@ export function DashboardWidgetBox({
               </div>
             )}
           </div>
+
+          {/* Custom Widget Menu: Edit, Duplicate, Delete */}
+          {(onEditWidget || onDuplicateWidget || onDeleteWidget) && (
+            <div className="relative" ref={actionMenuRef}>
+              <button
+                type="button"
+                onClick={() => setActionMenuOpen(!actionMenuOpen)}
+                className="h-6 w-6 rounded border border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
+                title="Visual widget options"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+
+              {actionMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                  {onEditWidget && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        onEditWidget();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    >
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Edit visual</span>
+                    </button>
+                  )}
+                  {onDuplicateWidget && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        onDuplicateWidget();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Duplicate visual</span>
+                    </button>
+                  )}
+                  {onDeleteWidget && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        onDeleteWidget();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-destructive hover:bg-destructive/10 transition-colors cursor-pointer text-[11px]"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete visual</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}
           {onViewAll && (

@@ -31,6 +31,7 @@ import {
   Share2,
   Sparkles,
   ShieldCheck,
+  BarChart3,
 } from "lucide-react";
 import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
 import { Badge } from "@/components/ui/badge";
@@ -49,11 +50,11 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions";
+  activeView: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions";
   totalBookmarksCount: number;
   unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;
@@ -652,6 +653,23 @@ export function Sidebar({
             <Folder className="h-4 w-4" />
           </button>
 
+          {/* Visuals Option */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("visuals");
+            }}
+            title="Visuals & Analytics"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              activeView === "visuals" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+          </button>
+
           {/* Knowledge Graph Option */}
           <button
             type="button"
@@ -1142,6 +1160,25 @@ export function Sidebar({
             <span className="ml-auto text-xs font-mono text-muted-foreground tabular-nums">
               {folders.filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_")).length}
             </span>
+          </button>
+
+          {/* Visuals */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("visuals");
+            }}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer font-medium text-left transition-colors ${
+              activeView === "visuals" && !activeFolderId
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            }`}
+          >
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <span className="truncate">Visuals</span>
           </button>
 
           {/* Knowledge Graph */}

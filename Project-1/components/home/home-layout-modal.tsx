@@ -46,14 +46,18 @@ export type HomeWidgetKey =
   | "analytics_radar"
   | "analytics_tags"
   | "analytics_domains"
-  | "tags";
+  | "tags"
+  | (string & {});
 
+export type HomeWidgetKind = "builtin" | "custom";
 export type WidgetColSpan = 2 | 3 | 4 | 6 | 8 | 9 | 12;
 
 export interface HomeWidgetConfig {
-  id: HomeWidgetKey;
+  id: string; // HomeWidgetKey or "custom:<uuid>"
   label: string;
   visible: boolean;
+  kind?: HomeWidgetKind;
+  vizConfig?: any; // VizConfig
   span?: "1" | "2"; // 1 = Half Width, 2 = Full Width (legacy)
   colSpan?: WidgetColSpan; // 2..12 column track span
 }
@@ -167,7 +171,10 @@ export function HomeLayoutModal({
     onOpenChange(false);
   };
 
-  const getWidgetIcon = (id: HomeWidgetKey) => {
+  const getWidgetIcon = (id: string) => {
+    if (id.startsWith("custom:")) {
+      return <BarChart3 className="h-4 w-4 text-primary shrink-0" />;
+    }
     switch (id) {
       case "heatmap":
         return <Activity className="h-4 w-4 text-emerald-500 shrink-0" />;

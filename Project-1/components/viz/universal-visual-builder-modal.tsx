@@ -59,7 +59,7 @@ export interface UniversalVisualConfig {
     source: "all" | "favorites" | "recent" | "unsorted" | "folder" | "tag";
     folderId?: string;
     tag?: string;
-    limit: number | "all";
+    limit: number | "all" | "auto";
     viewMode: "grid" | "list" | "compact";
     sortBy: "recent" | "created" | "visits" | "title";
   };
@@ -126,8 +126,8 @@ export function UniversalVisualBuilderModal({
   const [selectedTag, setSelectedTag] = React.useState<string>(
     initialConfig?.siteConfig?.tag || ""
   );
-  const [siteLimit, setSiteLimit] = React.useState<number | "all">(
-    initialConfig?.siteConfig?.limit || 8
+  const [siteLimit, setSiteLimit] = React.useState<number | "all" | "auto">(
+    initialConfig?.siteConfig?.limit || "auto"
   );
   const [siteViewMode, setSiteViewMode] = React.useState<"grid" | "list" | "compact">(
     initialConfig?.siteConfig?.viewMode || "grid"
@@ -496,10 +496,12 @@ export function UniversalVisualBuilderModal({
                     </label>
                     <select
                       value={String(siteLimit)}
-                      onChange={(e) => setSiteLimit(e.target.value === "all" ? "all" : Number(e.target.value))}
+                      onChange={(e) => setSiteLimit(e.target.value === "all" ? "all" : e.target.value === "auto" ? "auto" : Number(e.target.value))}
                       className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer font-mono"
                     >
-                      <option value="all">Adaptive (All)</option>
+                      <option value="auto">✨ Auto-Fit (Adaptive to box)</option>
+                      <option value="all">Show All Sites</option>
+                      <option value="4">4 sites</option>
                       <option value="6">6 sites</option>
                       <option value="8">8 sites</option>
                       <option value="12">12 sites</option>

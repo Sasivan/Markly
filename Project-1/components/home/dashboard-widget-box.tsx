@@ -21,12 +21,16 @@ import {
   Pencil,
   Copy,
   Trash2,
+  Sparkles,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
 import type { WidgetColSpan } from "./home-layout-modal";
 
 export type WidgetViewMode = "grid" | "list" | "compact";
+export type WidgetItemLimit = number | "all" | "auto";
 
 export interface WidgetBoxContextType {
   colSpan: WidgetColSpan;
@@ -70,8 +74,8 @@ interface DashboardWidgetBoxProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   showItemLimitPicker?: boolean;
-  itemLimit?: number | "all";
-  onItemLimitChange?: (limit: number | "all") => void;
+  itemLimit?: WidgetItemLimit;
+  onItemLimitChange?: (limit: WidgetItemLimit) => void;
   children: React.ReactNode;
 }
 
@@ -202,29 +206,32 @@ export function DashboardWidgetBox({
   const [limitMenuOpen, setLimitMenuOpen] = React.useState(false);
   const limitMenuRef = React.useRef<HTMLDivElement>(null);
 
-  const [internalLimit, setInternalLimit] = React.useState<number | "all">(() => {
+  const [internalLimit, setInternalLimit] = React.useState<WidgetItemLimit>(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("markly_box_item_limit_" + id);
         if (stored) {
           if (stored === "all") return "all";
+          if (stored === "auto") return "auto";
           const num = Number(stored);
           if (!isNaN(num) && num > 0) return num;
         }
       } catch {}
     }
-    return itemLimit ?? "all";
+    return itemLimit ?? "auto";
   });
 
   const activeLimit = itemLimit ?? internalLimit;
 
-  const handleSelectLimit = (lim: number | "all") => {
+  const handleSelectLimit = (lim: WidgetItemLimit, shouldClose = false) => {
     setInternalLimit(lim);
     try {
       localStorage.setItem("markly_box_item_limit_" + id, String(lim));
     } catch {}
     onItemLimitChange?.(lim);
-    setLimitMenuOpen(false);
+    if (shouldClose) {
+      setLimitMenuOpen(false);
+    }
   };
 
   React.useEffect(() => {
@@ -453,47 +460,151 @@ export function DashboardWidgetBox({
         <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
 
-          {/* Site Limit Selector (Adaptive / 6 / 8 / 12 / 16 / 24 / 36 / All) */}
+          {/* Site Limit Selector (Auto-Fit, Stepper, Slider, Presets, All) */}
           {(showItemLimitPicker || availableViews) && (
             <div className="relative" ref={limitMenuRef}>
               <button
                 type="button"
                 onClick={() => setLimitMenuOpen(!limitMenuOpen)}
-                className="h-6 px-1.5 rounded-md bg-secondary/80 hover:bg-secondary text-foreground border border-border/50 text-[10px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
-                title="Change number of sites displayed"
+                className="h-6 px-2 rounded-md bg-secondary/80 hover:bg-secondary text-foreground border border-border/50 text-[10px] font-mono flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                title="Change number of sites displayed or enable auto-fitting"
               >
-                <span>{activeLimit === "all" ? "All" : `${activeLimit} sites`}</span>
+                {activeLimit === "auto" ? (
+                  <span className="flex items-center gap-1 text-primary font-semibold">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    <span>Auto</span>
+                  </span>
+                ) : activeLimit === "all" ? (
+                  <span className="font-semibold">All sites</span>
+                ) : (
+                  <span>{activeLimit} sites</span>
+                )}
                 <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
               </button>
 
               {limitMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-32 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
-                  <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase border-b border-border/50">
-                    Sites to Show
+                <div className="absolute right-0 top-full mt-1.5 w-60 rounded-xl border border-border bg-card p-3 shadow-2xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-2.5">
+                  {/* Header with Title and Current Mode */}
+                  <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Sites Displayed
+                    </span>
+                    <span className="text-[10px] font-mono font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                      {activeLimit === "auto" ? "Adaptive" : activeLimit === "all" ? "All" : `${activeLimit} Max`}
+                    </span>
                   </div>
-                  {[
-                    { label: "Adaptive (All)", val: "all" as const },
-                    { label: "6 sites", val: 6 },
-                    { label: "8 sites", val: 8 },
-                    { label: "12 sites", val: 12 },
-                    { label: "16 sites", val: 16 },
-                    { label: "24 sites", val: 24 },
-                    { label: "36 sites", val: 36 },
-                  ].map((opt) => (
+
+                  {/* Quick Modes: Auto (Fit Box) vs All (Scroll) */}
+                  <div className="grid grid-cols-2 gap-1.5">
                     <button
-                      key={String(opt.val)}
                       type="button"
-                      onClick={() => handleSelectLimit(opt.val)}
-                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer text-[11px] ${
-                        activeLimit === opt.val
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-foreground hover:bg-secondary"
+                      onClick={() => handleSelectLimit("auto", true)}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                        activeLimit === "auto"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                          : "bg-secondary text-foreground border-border hover:bg-secondary/80"
                       }`}
                     >
-                      <span>{opt.label}</span>
-                      {activeLimit === opt.val && <Check className="h-3 w-3 text-primary" />}
+                      <Sparkles className="h-3 w-3" />
+                      <span>Auto-Fit</span>
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectLimit("all", true)}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
+                        activeLimit === "all"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                          : "bg-secondary text-foreground border-border hover:bg-secondary/80"
+                      }`}
+                    >
+                      Show All
+                    </button>
+                  </div>
+
+                  {/* Direct Stepper & Numeric Input */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>Exact Count:</span>
+                      <span className="font-mono text-foreground font-semibold">
+                        {typeof activeLimit === "number" ? `${activeLimit} sites` : "Adaptive"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = typeof activeLimit === "number" ? activeLimit : 4;
+                          handleSelectLimit(Math.max(1, current - 1));
+                        }}
+                        className="h-7 w-7 rounded-md bg-secondary hover:bg-secondary/80 text-foreground flex items-center justify-center font-bold text-sm cursor-pointer transition-colors border border-border/60"
+                        title="Decrease sites"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={typeof activeLimit === "number" ? activeLimit : ""}
+                        placeholder="Auto"
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val) && val >= 1) {
+                            handleSelectLimit(val);
+                          }
+                        }}
+                        className="flex-1 h-7 text-center font-mono text-xs bg-background rounded-md border border-border text-foreground focus:outline-none focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = typeof activeLimit === "number" ? activeLimit : 4;
+                          handleSelectLimit(Math.min(60, current + 1));
+                        }}
+                        className="h-7 w-7 rounded-md bg-secondary hover:bg-secondary/80 text-foreground flex items-center justify-center font-bold text-sm cursor-pointer transition-colors border border-border/60"
+                        title="Increase sites"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Slider Control for Fast Tuning */}
+                  <div className="space-y-1 pt-1 border-t border-border/50">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Tune Slider</span>
+                      <span className="font-mono text-[10px]">1 – 24 sites</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={24}
+                      value={typeof activeLimit === "number" ? activeLimit : 4}
+                      onChange={(e) => handleSelectLimit(Number(e.target.value))}
+                      className="w-full accent-primary h-1.5 bg-secondary rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Quick Presets Grid */}
+                  <div className="space-y-1 pt-1 border-t border-border/50">
+                    <div className="text-[10px] text-muted-foreground font-medium">Quick Presets:</div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[2, 4, 6, 8, 10, 12, 16, 20].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => handleSelectLimit(num, true)}
+                          className={`py-1 rounded text-[11px] font-mono text-center cursor-pointer transition-colors border ${
+                            activeLimit === num
+                              ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                              : "bg-secondary/60 hover:bg-secondary text-foreground border-border/50"
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -640,7 +751,7 @@ export function DashboardWidgetBox({
             boxHeight,
           }}
         >
-          <div className="flex-1 animate-in fade-in duration-150">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin rounded-b-xl animate-in fade-in duration-150 relative">
             {children}
           </div>
         </WidgetBoxContext.Provider>
@@ -715,7 +826,7 @@ export interface BookmarkItemsViewProps {
   items: BookmarkWithDetails[];
   mode: WidgetViewMode;
   emptyMessage?: string;
-  limit?: number | "all";
+  limit?: WidgetItemLimit;
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
   onEditBookmark?: (bm: BookmarkWithDetails) => void;
   onToggleFavorite?: (bm: BookmarkWithDetails) => void;
@@ -730,7 +841,7 @@ export function BookmarkItemsView({
   items,
   mode,
   emptyMessage = "No bookmarks in this view yet",
-  limit,
+  limit = "auto",
   onOpenPreview,
   onEditBookmark,
   onToggleFavorite,
@@ -753,18 +864,30 @@ export function BookmarkItemsView({
 }: BookmarkItemsViewProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState<number>(0);
+  const [containerHeight, setContainerHeight] = React.useState<number>(0);
   const boxCtx = React.useContext(WidgetBoxContext);
 
   React.useEffect(() => {
     if (!containerRef.current) return;
+    const parent = containerRef.current.parentElement;
+    const target = parent || containerRef.current;
+    const updateSize = () => {
+      const rect = target.getBoundingClientRect();
+      if (rect.width > 20) setContainerWidth(Math.floor(rect.width));
+      if (rect.height > 20) setContainerHeight(Math.floor(rect.height));
+    };
+    updateSize();
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 20) {
           setContainerWidth(Math.floor(entry.contentRect.width));
         }
+        if (entry.contentRect.height > 20) {
+          setContainerHeight(Math.floor(entry.contentRect.height));
+        }
       }
     });
-    ro.observe(containerRef.current);
+    ro.observe(target);
     return () => ro.disconnect();
   }, []);
 
@@ -773,27 +896,35 @@ export function BookmarkItemsView({
     if (typeof limit === "number") return limit;
     if (limit === "all") return items.length;
 
-    const effectiveHeight = boxCtx.boxHeight || (boxCtx.rowSpan === 2 ? 440 : 320);
-    const availableBodyHeight = Math.max(140, effectiveHeight - 50);
+    // In auto/adaptive mode, calculate based on actual measured parent height:
+    const availableHeight = containerHeight > 40
+      ? containerHeight
+      : (boxCtx.boxHeight ? boxCtx.boxHeight - 44 : (boxCtx.rowSpan === 2 ? 380 : 180));
 
     if (mode === "grid") {
-      const cols = containerWidth >= 1000 ? 4 : containerWidth >= 680 ? 3 : containerWidth >= 440 ? 2 : 1;
-      const rows = Math.max(2, Math.floor(availableBodyHeight / 58));
-      return Math.max(cols * 2, cols * rows);
+      const cols = containerWidth >= 1000 ? 4 : containerWidth >= 680 ? 3 : containerWidth >= 400 ? 2 : 1;
+      // In grid mode: 52px card + 8px gap = 60px per row. Minus 16px padding.
+      const rows = Math.max(1, Math.floor((availableHeight - 16) / 60));
+      return Math.max(cols, cols * rows);
     }
 
     if (mode === "compact") {
       const cols = containerWidth >= 750 ? 3 : containerWidth >= 480 ? 2 : 1;
-      const rows = Math.max(3, Math.floor(availableBodyHeight / 34));
-      return Math.max(cols * 3, cols * rows);
+      // 34px row
+      const rows = Math.max(1, Math.floor((availableHeight - 16) / 36));
+      return Math.max(cols, cols * rows);
     }
 
-    // Default list mode (~44px per row)
-    const listRows = Math.max(4, Math.floor(availableBodyHeight / 44));
+    // Default list mode: 42px row
+    const listRows = Math.max(1, Math.floor((availableHeight - 12) / 44));
     return listRows;
-  }, [limit, items.length, mode, containerWidth, boxCtx.boxHeight, boxCtx.rowSpan]);
+  }, [limit, items.length, mode, containerWidth, containerHeight, boxCtx.boxHeight, boxCtx.rowSpan]);
 
-  const displayItems = limit && limit !== "all" ? items.slice(0, limit) : items.slice(0, adaptiveCount);
+  const displayItems = limit === "all"
+    ? items
+    : typeof limit === "number"
+    ? items.slice(0, limit)
+    : items.slice(0, adaptiveCount);
 
   if (displayItems.length === 0) {
     return (
@@ -807,25 +938,25 @@ export function BookmarkItemsView({
   // 1. Grid View (Responsive Adaptive Bookmark Tile Cards)
   if (mode === "grid") {
     return (
-      <div ref={containerRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5 p-3">
+      <div ref={containerRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2 p-2.5 min-h-0 w-full">
         {displayItems.map((bm) => (
           <div
             key={bm.id}
             onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-            className="rounded-xl border border-border bg-card hover:bg-secondary/30 p-2.5 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-2.5 group cursor-pointer"
+            className="h-[52px] min-h-[52px] max-h-[52px] rounded-xl border border-border bg-card hover:bg-secondary/30 px-2.5 py-1.5 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-2 group cursor-pointer overflow-hidden"
           >
-            <div className="flex items-center gap-2.5 truncate min-w-0">
+            <div className="flex items-center gap-2 truncate min-w-0">
               <BookmarkIcon
                 src={bm.iconUrl}
                 alt={bm.title}
                 domain={bm.domain}
                 className="h-6 w-6 rounded object-contain bg-background flex-shrink-0 border border-border/40"
               />
-              <div className="truncate">
+              <div className="truncate min-w-0 flex-1">
                 <span className="text-xs font-medium hover:underline text-foreground truncate block cursor-pointer">
                   {bm.title}
                 </span>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono">
                   <span className="truncate max-w-28">{bm.domain}</span>
                   <span>•</span>
                   <span className="tabular-nums">
@@ -878,27 +1009,27 @@ export function BookmarkItemsView({
   // 2. List View (Detailed Document Rows)
   if (mode === "list") {
     return (
-      <div ref={containerRef} className="divide-y divide-border">
+      <div ref={containerRef} className="divide-y divide-border min-h-0 w-full">
         {displayItems.map((bm) => {
           const timeAgo = formatTimeAgo(bm.lastClickedAt || bm.lastVisitedAt || bm.createdAt);
           return (
             <div
               key={bm.id}
               onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-              className="px-3.5 py-2 flex items-center justify-between gap-2.5 hover:bg-muted/40 transition-colors cursor-pointer group text-xs"
+              className="h-[42px] min-h-[42px] px-3.5 py-1.5 flex items-center justify-between gap-2.5 hover:bg-muted/40 transition-colors cursor-pointer group text-xs overflow-hidden"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 truncate">
                 <BookmarkIcon
                   src={bm.iconUrl}
                   alt={bm.title}
                   domain={bm.domain}
                   className="h-5 w-5 rounded object-contain flex-shrink-0 border border-border/40"
                 />
-                <div className="truncate">
-                  <div className="font-medium hover:underline text-foreground truncate cursor-pointer">
+                <div className="truncate min-w-0">
+                  <div className="font-medium hover:underline text-foreground truncate cursor-pointer leading-tight">
                     {bm.title}
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
                     <span className="truncate max-w-32">{bm.domain}</span>
                     <span>•</span>
                     <span className="truncate max-w-28 text-muted-foreground/80">{getParentName(bm)}</span>
@@ -951,12 +1082,12 @@ export function BookmarkItemsView({
 
   // 3. Compact View (Dense 1-Line Rows)
   return (
-    <div ref={containerRef} className="divide-y divide-border/60">
+    <div ref={containerRef} className="divide-y divide-border/60 min-h-0 w-full">
       {displayItems.map((bm) => (
         <div
           key={bm.id}
           onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
-          className="px-3.5 py-1.5 flex items-center justify-between gap-2.5 hover:bg-muted/30 transition-colors cursor-pointer group text-xs"
+          className="h-[34px] min-h-[34px] px-3.5 py-1 flex items-center justify-between gap-2.5 hover:bg-muted/30 transition-colors cursor-pointer group text-xs overflow-hidden"
         >
           <div className="flex items-center gap-2 truncate min-w-0">
             <BookmarkIcon

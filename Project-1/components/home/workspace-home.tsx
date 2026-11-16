@@ -43,6 +43,7 @@ import {
   DashboardWidgetBox,
   BookmarkItemsView,
   type WidgetViewMode,
+  type WidgetItemLimit,
 } from "./dashboard-widget-box";
 import {
   HomeLayoutModal,
@@ -187,8 +188,8 @@ export function WorkspaceHome({
     });
   };
 
-  // Per-widget site limit state persisted (Adaptive / 6 / 8 / 12 / 16 / 24 / 36 / All)
-  const [widgetItemLimits, setWidgetItemLimits] = React.useState<Record<string, number | "all">>(() => {
+  // Per-widget site limit state persisted (Adaptive Auto / Stepper / Slider / All)
+  const [widgetItemLimits, setWidgetItemLimits] = React.useState<Record<string, WidgetItemLimit>>(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("markly_widget_item_limits");
@@ -198,7 +199,7 @@ export function WorkspaceHome({
     return {};
   });
 
-  const handleSetWidgetLimit = (widgetId: string, limit: number | "all") => {
+  const handleSetWidgetLimit = (widgetId: string, limit: WidgetItemLimit) => {
     setWidgetItemLimits((prev) => {
       const next = { ...prev, [widgetId]: limit };
       try {
@@ -1382,14 +1383,14 @@ export function WorkspaceHome({
             }}
             viewAllLabel="View all"
             showItemLimitPicker={true}
-            itemLimit={widgetItemLimits["folders"] ?? "all"}
+            itemLimit={widgetItemLimits["folders"] ?? "auto"}
             onItemLimitChange={(lim) => handleSetWidgetLimit("folders", lim)}
             onEditWidget={() => handleEditBuiltinWidget("folders")}
           >
             <BookmarkItemsView
               items={quickAccessList}
               mode={widgetViews["folders"] ?? "grid"}
-              limit={widgetItemLimits["folders"] ?? "all"}
+              limit={widgetItemLimits["folders"] ?? "auto"}
               emptyMessage="No bookmarks available yet in Quick Access"
               onOpenPreview={onOpenPreview}
               onEditBookmark={onEditBookmark}
@@ -1419,14 +1420,14 @@ export function WorkspaceHome({
             }}
             viewAllLabel="View history"
             showItemLimitPicker={true}
-            itemLimit={widgetItemLimits["recent"] ?? "all"}
+            itemLimit={widgetItemLimits["recent"] ?? "auto"}
             onItemLimitChange={(lim) => handleSetWidgetLimit("recent", lim)}
             onEditWidget={() => handleEditBuiltinWidget("recent")}
           >
             <BookmarkItemsView
               items={recentlyVisited}
               mode={widgetViews["recent"] ?? "list"}
-              limit={widgetItemLimits["recent"] ?? "all"}
+              limit={widgetItemLimits["recent"] ?? "auto"}
               emptyMessage="No recently visited links recorded. Click any bookmark to start building history."
               onOpenPreview={onOpenPreview}
               onEditBookmark={onEditBookmark}
@@ -1457,14 +1458,14 @@ export function WorkspaceHome({
             }}
             viewAllLabel="View favorites"
             showItemLimitPicker={true}
-            itemLimit={widgetItemLimits["favorites"] ?? "all"}
+            itemLimit={widgetItemLimits["favorites"] ?? "auto"}
             onItemLimitChange={(lim) => handleSetWidgetLimit("favorites", lim)}
             onEditWidget={() => handleEditBuiltinWidget("favorites")}
           >
             <BookmarkItemsView
               items={favorites}
               mode={widgetViews["favorites"] ?? "grid"}
-              limit={widgetItemLimits["favorites"] ?? "all"}
+              limit={widgetItemLimits["favorites"] ?? "auto"}
               emptyMessage="No favorites starred yet. Click the star on any bookmark to pin it here."
               onOpenPreview={onOpenPreview}
               onEditBookmark={onEditBookmark}
@@ -1494,7 +1495,7 @@ export function WorkspaceHome({
             }}
             viewAllLabel={`Open inbox (${totalUnsortedCount})`}
             showItemLimitPicker={true}
-            itemLimit={widgetItemLimits["unsorted"] ?? "all"}
+            itemLimit={widgetItemLimits["unsorted"] ?? "auto"}
             onItemLimitChange={(lim) => handleSetWidgetLimit("unsorted", lim)}
             onEditWidget={() => handleEditBuiltinWidget("unsorted")}
           >
@@ -1510,7 +1511,7 @@ export function WorkspaceHome({
               <BookmarkItemsView
                 items={unorganized}
                 mode={widgetViews["unsorted"] ?? "compact"}
-                limit={widgetItemLimits["unsorted"] ?? "all"}
+                limit={widgetItemLimits["unsorted"] ?? "auto"}
                 emptyMessage="All bookmarks organized"
                 onOpenPreview={onOpenPreview}
                 onEditBookmark={onEditBookmark}

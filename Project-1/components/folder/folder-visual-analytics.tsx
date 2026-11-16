@@ -35,7 +35,7 @@ import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { VizChart } from "@/components/viz/viz-chart";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig, type VisualCategory } from "@/components/viz/universal-visual-builder-modal";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
-import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboard-widget-box";
+import { DashboardWidgetBox, BookmarkItemsView, type WidgetItemLimit } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
@@ -236,10 +236,10 @@ export function FolderVisualAnalytics({
   };
 
   // Visual limits and view modes persisted
-  const [visualLimits, setVisualLimits] = React.useState<Record<string, number | "all">>({});
+  const [visualLimits, setVisualLimits] = React.useState<Record<string, WidgetItemLimit>>({});
   const [visualViewModes, setVisualViewModes] = React.useState<Record<string, "grid" | "list" | "compact">>({});
 
-  const handleSetVisualLimit = (vizId: string, limit: number | "all") => {
+  const handleSetVisualLimit = (vizId: string, limit: WidgetItemLimit) => {
     setVisualLimits((prev) => ({ ...prev, [vizId]: limit }));
     try {
       localStorage.setItem(`markly_box_item_limit_${vizId}`, String(limit));
@@ -741,7 +741,7 @@ export function FolderVisualAnalytics({
               {activeTab.visuals.map((viz) => {
                 const currentSpan = viz.colSpan || (viz.kind === "graph" || viz.kind === "wall" ? 12 : 6);
                 const sitesList = viz.kind === "sites" ? getSitesListForVisual(viz.siteFilter) : [];
-                const activeLimit = visualLimits[viz.id] ?? "all";
+                const activeLimit = visualLimits[viz.id] ?? "auto";
 
                 return (
                   <DashboardWidgetBox
@@ -762,10 +762,10 @@ export function FolderVisualAnalytics({
                     availableViews={viz.kind === "sites" ? ["grid", "list", "compact"] : undefined}
                     onViewModeChange={viz.kind === "sites" ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
                   >
-                    <div className="p-3 flex-1 flex flex-col justify-between">
+                    <div className="p-2 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
                       {/* 1. SITES PRESET (Quick Access / Favorites / Recent) */}
                       {viz.kind === "sites" && (
-                        <div className="flex-1">
+                        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                           <BookmarkItemsView
                             items={sitesList}
                             mode={visualViewModes[viz.id] ?? "grid"}

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { HomeWidgetConfig } from "@/components/home/home-layout-modal";
 import type { VizConfig } from "@/lib/viz";
+import { RemoteWidgetStore } from "@/lib/viz";
 import { VizChart } from "./viz-chart";
 import { VizBuilderDialog } from "./viz-builder-dialog";
 
@@ -38,29 +39,34 @@ export function VisualsPageView({
   const [builderOpen, setBuilderOpen] = React.useState(false);
   const [editingConfig, setEditingConfig] = React.useState<VizConfig | null>(null);
 
-  // Load custom visual widgets from localStorage
-  const [customWidgets, setCustomWidgets] = React.useState<HomeWidgetConfig[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("markly_home_widgets");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            return parsed.filter((w) => w.kind === "custom" || w.id.startsWith("custom:"));
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
+  const widgetStore = React.useMemo(() => new RemoteWidgetStore(), []);
 
-  const handleSaveVisual = (newConfig: VizConfig) => {
+  // Load custom visual widgets from store
+  const [customWidgets, setCustomWidgets] = React.useState<HomeWidgetConfig[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    widgetStore.loadWidgets().then((widgets) => {
+      if (cancelled) return;
+      setCustomWidgets(
+        widgets.filter(
+          (w) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
+        )
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [widgetStore]);
+
+  const handleSaveVisual = async (newConfig: VizConfig) => {
     try {
-      const stored = localStorage.getItem("markly_home_widgets");
-      const current = stored ? JSON.parse(stored) : [];
-      let updated: any[];
+      const current = await widgetStore.loadWidgets();
+      let updated: HomeWidgetConfig[];
 
-      const existingIdx = current.findIndex((w: any) => w.vizConfig?.id === newConfig.id || w.id === `custom:${newConfig.id}`);
+      const existingIdx = current.findIndex(
+        (w: any) => w.vizConfig?.id === newConfig.id || w.id === `custom:${newConfig.id}`
+      );
       if (existingIdx !== -1) {
         updated = current.map((w: any, idx: number) =>
           idx === existingIdx
@@ -68,7 +74,9 @@ export function VisualsPageView({
             : w
         );
       } else {
-        const customCount = current.filter((w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))).length;
+        const customCount = current.filter(
+          (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
+        ).length;
         if (customCount >= 30) {
           alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
           return;
@@ -85,22 +93,27 @@ export function VisualsPageView({
         updated = [...current, newWidget];
       }
 
-      localStorage.setItem("markly_home_widgets", JSON.stringify(updated));
-      setCustomWidgets(updated.filter((w: any) => w.kind === "custom" || w.id.startsWith("custom:")));
+      await widgetStore.saveWidgets(updated);
+      setCustomWidgets(
+        updated.filter(
+          (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
+        )
+      );
     } catch {}
     setBuilderOpen(false);
     setEditingConfig(null);
   };
 
-  const handleDeleteWidget = (id: string) => {
+  const handleDeleteWidget = async (id: string) => {
     try {
-      const stored = localStorage.getItem("markly_home_widgets");
-      if (stored) {
-        const current = JSON.parse(stored);
-        const filtered = current.filter((w: any) => w.id !== id);
-        localStorage.setItem("markly_home_widgets", JSON.stringify(filtered));
-        setCustomWidgets(filtered.filter((w: any) => w.kind === "custom" || w.id.startsWith("custom:")));
-      }
+      const current = await widgetStore.loadWidgets();
+      const filtered = current.filter((w: any) => w.id !== id);
+      await widgetStore.saveWidgets(filtered);
+      setCustomWidgets(
+        filtered.filter(
+          (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
+        )
+      );
     } catch {}
   };
 

@@ -54,7 +54,7 @@ import {
 } from "./home-layout-modal";
 import { VizChart } from "@/components/viz/viz-chart";
 import { VizBuilderDialog } from "@/components/viz/viz-builder-dialog";
-import { type VizConfig, safeParseStoredWidgets } from "@/lib/viz";
+import { type VizConfig, safeParseStoredWidgets, RemoteWidgetStore } from "@/lib/viz";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
 
@@ -100,6 +100,7 @@ export function WorkspaceHome({
   onOpenShortcuts,
 }: WorkspaceHomeProps) {
   const { user } = useAuth();
+  const widgetStore = React.useMemo(() => new RemoteWidgetStore(), []);
 
   // 1.2: Homepage Widgets Ordering & Visibility state (persisted in localStorage)
   const [homeWidgets, setHomeWidgets] = React.useState<HomeWidgetConfig[]>(DEFAULT_HOME_WIDGETS);
@@ -261,9 +262,7 @@ export function WorkspaceHome({
         };
         updated = [...prev, newWidget];
       }
-      try {
-        localStorage.setItem("markly_home_widgets", JSON.stringify(updated));
-      } catch {}
+      widgetStore.saveWidgets(updated);
       return updated;
     });
     setVisualBuilderOpen(false);
@@ -304,9 +303,7 @@ export function WorkspaceHome({
       } else {
         copy.push(newWidget);
       }
-      try {
-        localStorage.setItem("markly_home_widgets", JSON.stringify(copy));
-      } catch {}
+      widgetStore.saveWidgets(copy);
       return copy;
     });
   };
@@ -314,8 +311,8 @@ export function WorkspaceHome({
   const handleDeleteCustomWidget = (widgetId: string) => {
     setHomeWidgets((prev) => {
       const filtered = prev.filter((w) => w.id !== widgetId);
+      widgetStore.saveWidgets(filtered);
       try {
-        localStorage.setItem("markly_home_widgets", JSON.stringify(filtered));
         localStorage.removeItem("markly_box_colspan_" + widgetId);
         localStorage.removeItem("markly_box_h_" + widgetId);
         localStorage.removeItem("markly_box_collapsed_" + widgetId);
@@ -325,10 +322,11 @@ export function WorkspaceHome({
   };
 
   React.useEffect(() => {
-    try {
-      const saved = localStorage.getItem("markly_home_widgets");
-      if (saved) {
-        const parsed = safeParseStoredWidgets(JSON.parse(saved));
+    let cancelled = false;
+    const loadWidgetsAsync = async () => {
+      try {
+        const parsed = await widgetStore.loadWidgets();
+        if (cancelled) return;
         if (Array.isArray(parsed) && parsed.length > 0) {
           const merged: HomeWidgetConfig[] = [];
           for (const p of parsed) {
@@ -367,28 +365,24 @@ export function WorkspaceHome({
           }
           setHomeWidgets(merged);
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-  }, []);
+    };
+    loadWidgetsAsync();
+    return () => {
+      cancelled = true;
+    };
+  }, [widgetStore]);
 
   const handleSaveWidgets = (newWidgets: HomeWidgetConfig[]) => {
     setHomeWidgets(newWidgets);
-    try {
-      localStorage.setItem("markly_home_widgets", JSON.stringify(newWidgets));
-    } catch {
-      // ignore
-    }
+    widgetStore.saveWidgets(newWidgets);
   };
 
   const handleResetWidgets = () => {
     setHomeWidgets(DEFAULT_HOME_WIDGETS);
-    try {
-      localStorage.removeItem("markly_home_widgets");
-    } catch {
-      // ignore
-    }
+    widgetStore.saveWidgets(DEFAULT_HOME_WIDGETS);
   };
 
   // Realtime visit handler

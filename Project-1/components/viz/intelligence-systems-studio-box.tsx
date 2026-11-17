@@ -67,6 +67,14 @@ export function IntelligenceSystemsStudioBox({
   const [activeCategory, setActiveCategory] = React.useState<"All" | "Graphs" | "Tags" | "Activity" | "Walls" | "Health">("All");
   const [intelType, setIntelType] = React.useState<IntelVariationType>("graph");
   const [scope, setScope] = React.useState<"all" | "favorites" | "recent">("all");
+  const [graphDepth, setGraphDepth] = React.useState<number>(2);
+  const [tagSort, setTagSort] = React.useState<"count" | "alpha">("count");
+  const [minTagCount, setMinTagCount] = React.useState<number>(1);
+  const [wallDensity, setWallDensity] = React.useState<"compact" | "standard" | "cozy">("standard");
+  const [wallSort, setWallSort] = React.useState<"visits" | "recent" | "alpha">("visits");
+  const [selectedFolderFilter, setSelectedFolderFilter] = React.useState<string>("all");
+  const [onlyAlive, setOnlyAlive] = React.useState<boolean>(false);
+
   const [accentColor, setAccentColor] = React.useState<string>("#8b5cf6");
   const [icon, setIcon] = React.useState<string>("layers");
   const [savedPresetMsg, setSavedPresetMsg] = React.useState<string | null>(null);
@@ -85,10 +93,67 @@ export function IntelligenceSystemsStudioBox({
   }, [intelType]);
 
   const filteredBookmarks = React.useMemo(() => {
-    if (scope === "favorites") return bookmarks.filter((b) => b.isFavorite);
-    if (scope === "recent") return [...bookmarks].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 50);
-    return bookmarks;
-  }, [bookmarks, scope]);
+    let list = bookmarks;
+    if (scope === "favorites") list = list.filter((b) => b.isFavorite);
+    if (scope === "recent") list = [...list].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 50);
+    if (selectedFolderFilter !== "all") list = list.filter((b) => b.folderId === selectedFolderFilter);
+    if (onlyAlive) list = list.filter((b) => (b.status || "alive") === "alive");
+    return list;
+  }, [bookmarks, scope, selectedFolderFilter, onlyAlive]);
+
+  // Distinct computed tags list
+  const computedTags = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredBookmarks.forEach((b) => {
+      (b.tags || []).forEach((t: any) => {
+        const name = typeof t === "string" ? t : t.name;
+        counts.set(name, (counts.get(name) || 0) + 1);
+      });
+    });
+    let list = Array.from(counts.entries())
+      .filter(([_, cnt]) => cnt >= minTagCount)
+      .map(([name, count]) => ({ name, count }));
+    if (tagSort === "count") list.sort((a, b) => b.count - a.count);
+    else list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }, [filteredBookmarks, minTagCount, tagSort]);
+
+  // Distinct computed domains list
+  const computedDomains = React.useMemo(() => {
+    const map = new Map<string, { domain: string; count: number; visits: number; iconUrl?: string | null; sampleSites: BookmarkWithDetails[] }>();
+    filteredBookmarks.forEach((b) => {
+      const d = b.domain || "unknown";
+      const existing = map.get(d) || { domain: d, count: 0, visits: 0, iconUrl: b.iconUrl, sampleSites: [] };
+      existing.count += 1;
+      existing.visits += b.visitCount || 0;
+      if (existing.sampleSites.length < 3) existing.sampleSites.push(b);
+      map.set(d, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [filteredBookmarks]);
+
+  // Distinct computed health stats
+  const computedHealth = React.useMemo(() => {
+    let alive = 0;
+    let broken = 0;
+    let unchecked = 0;
+    filteredBookmarks.forEach((b) => {
+      const s = (b.status as string) || "alive";
+      if (s === "alive") alive++;
+      else if (s === "dead" || s === "broken" || s === "error") broken++;
+      else unchecked++;
+    });
+    const total = filteredBookmarks.length || 1;
+    return {
+      alive,
+      broken,
+      unchecked,
+      total: filteredBookmarks.length,
+      alivePct: Math.round((alive / total) * 100),
+      brokenPct: Math.round((broken / total) * 100),
+      uncheckedPct: Math.round((unchecked / total) * 100),
+    };
+  }, [filteredBookmarks]);
 
   const handleSaveAsPreset = () => {
     try {
@@ -99,6 +164,7 @@ export function IntelligenceSystemsStudioBox({
         title: `${activeMeta.label} Preset`,
         type: intelType,
         scope,
+        graphDepth,
         createdAt: Date.now(),
       });
       localStorage.setItem("markly_custom_intel_presets", JSON.stringify(list));
@@ -113,6 +179,8 @@ export function IntelligenceSystemsStudioBox({
       title: activeMeta.label,
       kind: intelType,
     });
+    setSavedPresetMsg("Pinned to Dashboard Home!");
+    setTimeout(() => setSavedPresetMsg(null), 3000);
   };
 
   const handleConfirmAddToFolder = () => {
@@ -146,7 +214,7 @@ export function IntelligenceSystemsStudioBox({
       onColSpanChange={onColSpanChange}
       onRowSpanChange={onRowSpanChange}
       onDeleteWidget={onDeleteWidget}
-      minHeight={560}
+      minHeight={620}
       badgeText="7 SYSTEMS"
       extraHeaderAction={
         <div className="flex items-center gap-1.5">
@@ -247,27 +315,95 @@ export function IntelligenceSystemsStudioBox({
           })}
         </div>
 
-        {/* Controls Bar: Scope, Accent & Icon */}
-        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Scope:</span>
-            <div className="flex items-center gap-1">
-              {(["all", "favorites", "recent"] as const).map((sc) => (
-                <button
-                  key={sc}
-                  type="button"
-                  onClick={() => setScope(sc)}
-                  className={`px-2 py-0.5 rounded-md text-xs font-medium cursor-pointer transition-colors capitalize ${
-                    scope === sc ? "bg-primary text-primary-foreground font-semibold" : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {sc === "all" ? "All Bookmarks" : sc}
-                </button>
-              ))}
-            </div>
+        {/* Controls Bar: Contextual controls per system type */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 p-2.5 bg-secondary/30 rounded-xl border border-border text-xs">
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Scope</label>
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as any)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium"
+            >
+              <option value="all">All Bookmarks</option>
+              <option value="favorites">Starred Favorites</option>
+              <option value="recent">Recently Added</option>
+            </select>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Folder Scope</label>
+            <select
+              value={selectedFolderFilter}
+              onChange={(e) => setSelectedFolderFilter(e.target.value)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium truncate"
+            >
+              <option value="all">All Folders</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  📁 {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {intelType === "graph" && (
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Graph Depth</label>
+              <select
+                value={graphDepth}
+                onChange={(e) => setGraphDepth(Number(e.target.value))}
+                className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium"
+              >
+                <option value={1}>1 - Direct Links Only</option>
+                <option value={2}>2 - Standard Neighbors</option>
+                <option value={3}>3 - Deep Exploration</option>
+                <option value={4}>4 - Entire Ecosystem</option>
+              </select>
+            </div>
+          )}
+
+          {intelType === "tags" && (
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Tag Sort</label>
+              <select
+                value={tagSort}
+                onChange={(e) => setTagSort(e.target.value as any)}
+                className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium"
+              >
+                <option value="count">Highest Count First</option>
+                <option value="alpha">Alphabetical (A - Z)</option>
+              </select>
+            </div>
+          )}
+
+          {intelType === "wall" && (
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Wall Density</label>
+              <select
+                value={wallDensity}
+                onChange={(e) => setWallDensity(e.target.value as any)}
+                className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium"
+              >
+                <option value="compact">Compact (Dense)</option>
+                <option value="standard">Standard (Bento)</option>
+                <option value="cozy">Cozy (Spacious)</option>
+              </select>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 pt-3 text-[11px]">
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={onlyAlive}
+                onChange={(e) => setOnlyAlive(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>Alive Only</span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-1.5 col-span-2 sm:col-span-1 pt-1">
             <UniversalColorPicker color={accentColor} onChange={setAccentColor} compact={true} contextKey="studio_intel_color" />
             <UniversalIconPicker icon={icon} color={accentColor} onChange={setIcon} compact={true} contextKey="studio_intel_icon" />
           </div>
@@ -277,19 +413,50 @@ export function IntelligenceSystemsStudioBox({
         <div className="pt-2 border-t border-border/60">
           <div className="flex items-center justify-between pb-1.5 text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
               Live Interactive System: {activeMeta.label}
             </span>
-            <span className="text-[10px] font-mono text-muted-foreground">{filteredBookmarks.length} nodes computed</span>
+            <span className="text-[10px] font-mono text-muted-foreground">{filteredBookmarks.length} sites evaluated</span>
           </div>
 
           <div
-            className="min-h-[290px] w-full rounded-xl border border-border/80 bg-background/50 p-2 overflow-hidden flex items-center justify-center transition-colors"
+            className="min-h-[300px] w-full flex-1 rounded-xl border border-border/80 bg-background/50 p-2 overflow-hidden flex flex-col items-center justify-center transition-colors"
             style={{ borderColor: `${accentColor}30` }}
           >
-            {intelType === "graph" || intelType === "tree" ? (
-              <div className="w-full h-[280px]">
-                <KnowledgeGraph mode="global" depth={2} />
+            {intelType === "graph" ? (
+              <div className="w-full h-full min-h-[320px] flex-1">
+                <KnowledgeGraph
+                  mode={selectedFolderFilter !== "all" ? "folder" : "global"}
+                  folderId={selectedFolderFilter !== "all" ? selectedFolderFilter : undefined}
+                  depth={graphDepth}
+                />
+              </div>
+            ) : intelType === "tree" ? (
+              <div className="w-full h-full min-h-[280px] p-4 overflow-y-auto space-y-2">
+                <div className="text-xs font-semibold text-muted-foreground pb-1 border-b border-border">
+                  Folder Hierarchy Dendritic Tree ({folders.length} Collections)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                  {folders.map((f) => {
+                    const count = filteredBookmarks.filter((b) => b.folderId === f.id).length;
+                    const subfolders = folders.filter((sub) => sub.parentId === f.id);
+                    return (
+                      <div key={f.id} className="p-2.5 rounded-xl border border-border bg-card/80 flex flex-col justify-between gap-1 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs truncate">📁 {f.name}</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-primary font-semibold">
+                            {count} sites
+                          </span>
+                        </div>
+                        {subfolders.length > 0 && (
+                          <div className="text-[10px] text-muted-foreground pl-3 border-l-2 border-primary/40 truncate">
+                            ↳ {subfolders.length} subfolders: {subfolders.map((s) => s.name).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : intelType === "heatmap" ? (
               <div className="w-full p-2">
@@ -297,26 +464,87 @@ export function IntelligenceSystemsStudioBox({
               </div>
             ) : intelType === "tags" ? (
               <div className="w-full flex flex-wrap gap-1.5 p-4 max-h-64 overflow-y-auto">
-                {Array.from(new Set(filteredBookmarks.flatMap((b) => b.tags || []))).map((t: any) => {
-                  const name = typeof t === "string" ? t : t.name;
-                  const count = filteredBookmarks.filter((b) => (b.tags || []).some((x: any) => (typeof x === "string" ? x : x.name) === name)).length;
-                  return (
+                {computedTags.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-muted-foreground w-full">No tags found for current criteria.</div>
+                ) : (
+                  computedTags.map((t) => (
                     <span
-                      key={name}
-                      className="px-2.5 py-1 rounded-lg bg-secondary/80 border border-border text-xs font-medium flex items-center gap-1.5 hover:border-primary/50 cursor-pointer"
+                      key={t.name}
+                      className="px-2.5 py-1 rounded-lg bg-secondary/80 border border-border text-xs font-medium flex items-center gap-1.5 hover:border-primary/50 cursor-pointer shadow-2xs"
                     >
-                      <Tag className="h-3 w-3 text-purple-500" />
-                      <span>{name}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground bg-background px-1 rounded">{count}</span>
+                      <Tag className="h-3 w-3" style={{ color: accentColor }} />
+                      <span>{t.name}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground bg-background px-1 rounded">{t.count}</span>
                     </span>
-                  );
-                })}
+                  ))
+                )}
+              </div>
+            ) : intelType === "domains" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 w-full max-h-72 overflow-y-auto p-2">
+                {computedDomains.map((dom) => (
+                  <div key={dom.domain} className="p-2.5 rounded-xl border border-border bg-card/80 text-xs flex flex-col justify-between gap-1 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <img
+                          src={dom.iconUrl || `https://www.google.com/s2/favicons?domain=${dom.domain}&sz=32`}
+                          alt=""
+                          className="h-4 w-4 rounded shrink-0"
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        />
+                        <span className="font-bold text-xs truncate">{dom.domain}</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">
+                        {dom.count} sites
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {dom.visits} total visits • {dom.sampleSites.map((s) => s.title).join(" • ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : intelType === "health" ? (
+              <div className="w-full p-4 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Alive (200 OK)</span>
+                      <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">{computedHealth.alivePct}%</span>
+                    </div>
+                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{computedHealth.alive}</span>
+                    <span className="text-[10px] text-muted-foreground">Active accessible bookmarks</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-rose-600 dark:text-rose-400">Broken / Error</span>
+                      <span className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">{computedHealth.brokenPct}%</span>
+                    </div>
+                    <span className="text-xl font-black text-rose-600 dark:text-rose-400">{computedHealth.broken}</span>
+                    <span className="text-[10px] text-muted-foreground">Unreachable or dead links</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Unchecked / Fresh</span>
+                      <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">{computedHealth.uncheckedPct}%</span>
+                    </div>
+                    <span className="text-xl font-black text-amber-600 dark:text-amber-400">{computedHealth.unchecked}</span>
+                    <span className="text-[10px] text-muted-foreground">Pending health verification</span>
+                  </div>
+                </div>
+
+                <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden flex">
+                  <div className="bg-emerald-500 h-full" style={{ width: `${computedHealth.alivePct}%` }} />
+                  <div className="bg-rose-500 h-full" style={{ width: `${computedHealth.brokenPct}%` }} />
+                  <div className="bg-amber-500 h-full" style={{ width: `${computedHealth.uncheckedPct}%` }} />
+                </div>
               </div>
             ) : (
-              /* Bento Wall or Domain List */
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-h-64 overflow-y-auto p-2">
-                {filteredBookmarks.slice(0, 16).map((b) => (
-                  <div key={b.id} className="p-2 rounded-lg border border-border bg-card/80 text-xs flex items-center gap-2 truncate">
+              /* Bento Wall */
+              <div className={`grid ${wallDensity === "compact" ? "grid-cols-4 sm:grid-cols-8 gap-1.5" : wallDensity === "cozy" ? "grid-cols-2 sm:grid-cols-4 gap-3" : "grid-cols-3 sm:grid-cols-6 gap-2"} w-full max-h-72 overflow-y-auto p-2`}>
+                {filteredBookmarks.slice(0, 36).map((b) => (
+                  <div key={b.id} className="p-2 rounded-xl border border-border bg-card/80 text-xs flex items-center gap-2 truncate shadow-2xs hover:border-primary/50 cursor-pointer transition-colors">
                     <img
                       src={b.iconUrl || `https://www.google.com/s2/favicons?domain=${b.domain}&sz=32`}
                       alt=""

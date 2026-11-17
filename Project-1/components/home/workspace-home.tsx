@@ -459,8 +459,17 @@ export function WorkspaceHome({
       return;
     }
 
-    // 2. Otherwise create or update custom widget
-    let vizConfig: VizConfig;
+    // 2. Otherwise create or update custom / studio widget
+    const isStudio =
+      config.category === "plot_studio" ||
+      config.category === "chart_studio" ||
+      config.category === "intel_studio" ||
+      config.category === "sites_studio" ||
+      config.id.startsWith("studio_") ||
+      config.id.includes("studio") ||
+      config.title?.includes("Studio");
+
+    let vizConfig: VizConfig | undefined;
     if (config.category === "chart" && config.chartConfig) {
       vizConfig = config.chartConfig;
     } else if (config.category === "plot") {
@@ -491,7 +500,7 @@ export function WorkspaceHome({
         otherBucket: false,
         intelConfig: config.intelConfig,
       } as any;
-    } else {
+    } else if (!isStudio) {
       // Sites Box
       vizConfig = {
         version: 1,
@@ -508,16 +517,8 @@ export function WorkspaceHome({
       } as any;
     }
 
-    const isStudio =
-      config.category === "plot_studio" ||
-      config.category === "chart_studio" ||
-      config.category === "intel_studio" ||
-      config.category === "sites_studio" ||
-      config.id.startsWith("studio_") ||
-      config.id.includes("studio");
-
     const widgetId = isStudio
-      ? config.id.replace(/^custom:/, "")
+      ? (config.id.startsWith("studio_") ? config.id : `studio_${config.category}_${Date.now()}`)
       : config.id.startsWith("custom:")
       ? config.id
       : `custom:${config.id}`;
@@ -694,15 +695,25 @@ export function WorkspaceHome({
         if (Array.isArray(parsed) && parsed.length > 0) {
           const merged: HomeWidgetConfig[] = [];
           for (const p of parsed) {
-            if (p.kind === "custom" || p.id.startsWith("custom:")) {
+            const isStudio = p.kind === "studio" || p.id.startsWith("studio_") || (p as any).category?.includes("studio");
+            const isCustom = p.kind === "custom" || p.id.startsWith("custom:");
+            if (isStudio || isCustom) {
               merged.push({
                 id: p.id,
                 label: p.label,
                 visible: p.visible ?? true,
-                kind: "custom",
+                kind: isStudio ? ("studio" as any) : "custom",
+                category: (p as any).category,
                 vizConfig: p.vizConfig,
-                span: (p.span as any) ?? "1",
-                colSpan: (p.colSpan as WidgetColSpan) ?? 6,
+                plotConfig: (p as any).plotConfig,
+                chartConfig: (p as any).chartConfig,
+                intelConfig: (p as any).intelConfig,
+                siteConfig: (p as any).siteConfig,
+                icon: (p as any).icon,
+                color: (p as any).color,
+                span: (p.span as any) ?? (isStudio ? "2" : "1"),
+                colSpan: (p.colSpan as WidgetColSpan) ?? (isStudio ? 12 : 6),
+                rowSpan: (p as any).rowSpan ?? (isStudio ? 2 : 1),
               });
               continue;
             }
@@ -742,8 +753,17 @@ export function WorkspaceHome({
       }
     };
     loadWidgetsAsync();
+
+    const handleWorkspaceUpdated = () => {
+      loadWidgetsAsync();
+    };
+    window.addEventListener("markly-workspace-updated", handleWorkspaceUpdated);
+    window.addEventListener("markly-home-widgets-updated", handleWorkspaceUpdated);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("markly-workspace-updated", handleWorkspaceUpdated);
+      window.removeEventListener("markly-home-widgets-updated", handleWorkspaceUpdated);
     };
   }, [widgetStore]);
 
@@ -1335,7 +1355,7 @@ export function WorkspaceHome({
     const wCat = String((widget as any).category || "");
     const wLabel = String(widget.label || "");
 
-    if (wId === "studio_observable_plot" || wCat === "plot_studio" || wId.includes("observable_plot") || wLabel.includes("Observable Plot Layered")) {
+    if (wId === "studio_observable_plot" || wCat === "plot_studio" || wId.includes("observable_plot") || wLabel.includes("Observable Plot")) {
       return (
         <ObservablePlotStudioBox
           key={widget.id}
@@ -1351,7 +1371,7 @@ export function WorkspaceHome({
       );
     }
 
-    if (wId === "studio_classic_charts" || wCat === "chart_studio" || wId.includes("classic_charts") || wLabel.includes("Classic Charts Layered")) {
+    if (wId === "studio_classic_charts" || wCat === "chart_studio" || wId.includes("classic_charts") || wLabel.includes("Classic Charts")) {
       return (
         <ClassicChartsStudioBox
           key={widget.id}
@@ -1367,7 +1387,7 @@ export function WorkspaceHome({
       );
     }
 
-    if (wId === "studio_intel_systems" || wCat === "intel_studio" || wId.includes("intel_systems") || wId.includes("intel_suite") || wLabel.includes("Intelligence Systems Studio")) {
+    if (wId === "studio_intel_systems" || wCat === "intel_studio" || wId.includes("intel_systems") || wId.includes("intel_suite") || wLabel.includes("Intelligence Systems")) {
       return (
         <IntelligenceSystemsStudioBox
           key={widget.id}
@@ -1383,7 +1403,7 @@ export function WorkspaceHome({
       );
     }
 
-    if (wId === "studio_sites_matrix" || wCat === "sites_studio" || wId.includes("sites_matrix") || wLabel.includes("Sites Matrix Reference")) {
+    if (wId === "studio_sites_matrix" || wCat === "sites_studio" || wId.includes("sites_matrix") || wLabel.includes("Sites Matrix")) {
       return (
         <SitesMatrixStudioBox
           key={widget.id}
@@ -1423,9 +1443,9 @@ export function WorkspaceHome({
           onDuplicateWidget={() => handleDuplicateCustomWidget(widget)}
           onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
         >
-          <div className="p-3">
+          <div className="p-3 flex-1 flex flex-col min-h-0">
             {vKind === "graph" ? (
-              <div className="h-72 w-full rounded-lg overflow-hidden border border-border">
+              <div className="w-full h-full min-h-[300px] flex-1 rounded-lg overflow-hidden border border-border">
                 <KnowledgeGraph
                   mode={widget.vizConfig?.intelConfig?.folderId ? "folder" : "global"}
                   folderId={widget.vizConfig?.intelConfig?.folderId}

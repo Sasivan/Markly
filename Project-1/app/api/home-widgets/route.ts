@@ -14,23 +14,35 @@ export const revalidate = 0;
 const MAX_TOTAL_WIDGETS = 50;
 const MAX_PAYLOAD_BYTES = 65536; // 64 KB total body cap
 
-const singleWidgetPayloadSchema = z.object({
-  id: z.string().min(1).max(100),
-  label: z.string().min(1).max(100),
-  visible: z.boolean().default(true),
-  span: z.enum(["1", "2"]).optional(),
-  colSpan: z.union([
-    z.literal(2),
-    z.literal(3),
-    z.literal(4),
-    z.literal(6),
-    z.literal(8),
-    z.literal(9),
-    z.literal(12),
-  ]).optional(),
-  kind: z.enum(["builtin", "custom"]).optional(),
-  vizConfig: z.record(z.string(), z.unknown()).optional(),
-});
+const singleWidgetPayloadSchema = z
+  .object({
+    id: z.string().min(1).max(128),
+    label: z.string().min(1).max(128),
+    visible: z.boolean().default(true),
+    span: z.enum(["1", "2"]).optional(),
+    rowSpan: z.union([z.literal(1), z.literal(2)]).optional(),
+    colSpan: z
+      .union([
+        z.literal(2),
+        z.literal(3),
+        z.literal(4),
+        z.literal(6),
+        z.literal(8),
+        z.literal(9),
+        z.literal(12),
+      ])
+      .optional(),
+    kind: z.enum(["builtin", "custom", "studio"]).optional(),
+    category: z.string().optional(),
+    vizConfig: z.record(z.string(), z.unknown()).optional(),
+    plotConfig: z.any().optional(),
+    chartConfig: z.any().optional(),
+    intelConfig: z.any().optional(),
+    siteConfig: z.any().optional(),
+    icon: z.string().optional(),
+    color: z.string().optional(),
+  })
+  .passthrough();
 
 const putWidgetsBodySchema = z.object({
   widgets: z.array(singleWidgetPayloadSchema).max(MAX_TOTAL_WIDGETS),
@@ -132,7 +144,7 @@ export async function PUT(req: Request) {
     const sanitized = safeParseStoredWidgets(validation.data.widgets);
 
     const customCount = sanitized.filter(
-      (w) => w.kind === "custom" || w.id.startsWith("custom:")
+      (w) => w.kind === "custom" || w.kind === "studio" || w.id.startsWith("custom:") || w.id.startsWith("studio_")
     ).length;
 
     if (customCount > MAX_CUSTOM_WIDGETS) {

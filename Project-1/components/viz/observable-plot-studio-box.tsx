@@ -1,13 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { Activity, Pin, FolderPlus } from "lucide-react";
+import { Activity, Pin, FolderPlus, BookmarkPlus, Check, SlidersHorizontal, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
-import { ObservablePlotView, type ObservablePlotConfig } from "./observable-plot-view";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ObservablePlotView, type ObservablePlotConfig, type ObservableCurveType } from "./observable-plot-view";
+import {
+  computePlotData,
+  type PlotDimension,
+  type PlotMeasure,
+  type PlotTransform,
+  type PlotSortOrder,
+} from "@/lib/viz/plot-engine";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
@@ -103,355 +112,573 @@ export function ObservablePlotStudioBox({
   const [plotCategory, setPlotCategory] = React.useState<string>("All");
   const [plotDimension, setPlotDimension] = React.useState<string>("domain");
   const [plotMeasure, setPlotMeasure] = React.useState<string>("count");
+  const [plotGroup, setPlotGroup] = React.useState<string>("none");
+  const [plotTransform, setPlotTransform] = React.useState<PlotTransform>("raw");
+  const [plotSortOrder, setPlotSortOrder] = React.useState<PlotSortOrder>("desc");
+  const [plotLimit, setPlotLimit] = React.useState<number | "all">(10);
+  const [plotCurve, setPlotCurve] = React.useState<ObservableCurveType>("natural");
   const [plotColorScheme, setPlotColorScheme] = React.useState<string>("tableau10");
+  const [plotShowGrid, setPlotShowGrid] = React.useState<boolean>(true);
+  const [plotShowTip, setPlotShowTip] = React.useState<boolean>(true);
+  const [plotShowLegend, setPlotShowLegend] = React.useState<boolean>(false);
+  const [filterFolderId, setFilterFolderId] = React.useState<string>("all");
+  const [filterOnlyFavorites, setFilterOnlyFavorites] = React.useState<boolean>(false);
+  const [filterOnlyAlive, setFilterOnlyAlive] = React.useState<boolean>(false);
+
   const [plotCustomColor, setPlotCustomColor] = React.useState<string>("#3b82f6");
   const [plotCustomIcon, setPlotCustomIcon] = React.useState<string>("activity");
+  const [savedPresetMsg, setSavedPresetMsg] = React.useState<string | null>(null);
+
+  // Folder Destination Dialog
+  const [folderModalOpen, setFolderModalOpen] = React.useState(false);
+  const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(null);
 
   const filteredVariations = React.useMemo(() => {
     if (plotCategory === "All") return PLOT_VARIATIONS;
     return PLOT_VARIATIONS.filter((v) => v.category === plotCategory);
   }, [plotCategory]);
 
+  const activeVariationMeta = PLOT_VARIATIONS.find((p) => p.type === plotType) || PLOT_VARIATIONS[0];
+
   const plotData = React.useMemo(() => {
-    if (
-      plotType === "dot" ||
-      plotType === "bubble" ||
-      plotType === "vector" ||
-      plotType === "tick" ||
-      plotType === "cell" ||
-      plotType === "matrix" ||
-      plotType === "linearRegression" ||
-      plotType === "bollinger" ||
-      plotType === "density" ||
-      plotType === "contour" ||
-      plotType === "delaunay" ||
-      plotType === "voronoi"
-    ) {
-      return bookmarks.map((b, idx) => ({
-        x: (idx % 12) + 1,
-        y: (b.visitCount || 0) + (idx % 4),
-        dimension: b.domain || "Unknown",
-        value: b.visitCount || 1,
-        count: b.visitCount || 1,
-        dx: 1,
-        dy: (b.visitCount || 1) % 5,
-        targetX: ((idx + 2) % 12) + 1,
-        targetY: (b.visitCount || 0) + 2,
-      }));
-    }
+    return computePlotData(bookmarks, folders, {
+      type: plotType,
+      dimension: plotDimension as PlotDimension,
+      measure: plotMeasure as PlotMeasure,
+      group: plotGroup as any,
+      transform: plotTransform,
+      sortOrder: plotSortOrder,
+      limit: plotLimit,
+      colorScheme: plotColorScheme,
+      curve: plotCurve,
+      showGrid: plotShowGrid,
+      showTip: plotShowTip,
+      showLegend: plotShowLegend,
+      filters: {
+        folderId: filterFolderId,
+        onlyFavorites: filterOnlyFavorites,
+        onlyAlive: filterOnlyAlive,
+      },
+    });
+  }, [
+    bookmarks,
+    folders,
+    plotType,
+    plotDimension,
+    plotMeasure,
+    plotGroup,
+    plotTransform,
+    plotSortOrder,
+    plotLimit,
+    plotColorScheme,
+    plotCurve,
+    plotShowGrid,
+    plotShowTip,
+    plotShowLegend,
+    filterFolderId,
+    filterOnlyFavorites,
+    filterOnlyAlive,
+  ]);
 
-    if (plotType === "link" || plotType === "arrow") {
-      return bookmarks.slice(0, 15).map((b, idx) => ({
-        x: (idx % 8) + 1,
-        y: (b.visitCount || 1) + (idx % 3),
-        targetX: ((idx + 2) % 8) + 1,
-        targetY: (b.visitCount || 1) + 2,
-        dimension: b.domain || "Unknown",
-        value: b.visitCount || 1,
-      }));
-    }
+  const currentPlotConfig: ObservablePlotConfig = React.useMemo(() => ({
+    type: plotType,
+    dimension: plotDimension as any,
+    measure: plotMeasure as any,
+    group: plotGroup as any,
+    transform: plotTransform as any,
+    sortOrder: plotSortOrder as any,
+    limit: plotLimit,
+    colorScheme: plotColorScheme,
+    curve: plotCurve,
+    showGrid: plotShowGrid,
+    showTip: plotShowTip,
+    showLegend: plotShowLegend,
+    filters: {
+      folderId: filterFolderId,
+      onlyFavorites: filterOnlyFavorites,
+      onlyAlive: filterOnlyAlive,
+    },
+  }), [
+    plotType,
+    plotDimension,
+    plotMeasure,
+    plotGroup,
+    plotTransform,
+    plotSortOrder,
+    plotLimit,
+    plotColorScheme,
+    plotCurve,
+    plotShowGrid,
+    plotShowTip,
+    plotShowLegend,
+    filterFolderId,
+    filterOnlyFavorites,
+    filterOnlyAlive,
+  ]);
 
-    if (plotType === "tree") {
-      return folders.map((f) => ({
-        name: f.name,
-        parent: folders.find((p) => p.id === f.parentId)?.name || "Markly Root",
-        dimension: f.name,
-        value: bookmarks.filter((b) => b.folderId === f.id).length,
-      }));
-    }
+  const handleSaveAsPreset = () => {
+    try {
+      const stored = localStorage.getItem("markly_custom_plot_presets");
+      const list = stored ? JSON.parse(stored) : [];
+      list.push({
+        id: `preset_plot_${Date.now()}`,
+        title: `Observable ${activeVariationMeta.label} Preset`,
+        type: plotType,
+        config: currentPlotConfig,
+        createdAt: Date.now(),
+      });
+      localStorage.setItem("markly_custom_plot_presets", JSON.stringify(list));
+      setSavedPresetMsg("Saved to preset library!");
+      setTimeout(() => setSavedPresetMsg(null), 3000);
+    } catch {}
+  };
 
-    if (plotType === "waffle") {
-      return bookmarks.slice(0, 40).map((b) => ({
-        dimension: folders.find((f) => f.id === b.folderId)?.name || b.domain || "Unsorted",
-        value: 1,
-        y: 1,
-      }));
-    }
+  const handleExecutePinHome = () => {
+    onPinHome?.({
+      id: `plot_${plotType}_${Date.now()}`,
+      title: `Observable ${activeVariationMeta.label}`,
+      kind: "plot",
+      plotConfig: currentPlotConfig,
+    });
+    setSavedPresetMsg("Pinned to Dashboard Home!");
+    setTimeout(() => setSavedPresetMsg(null), 3000);
+  };
 
-    if (plotType === "histogram") {
-      return bookmarks.map((b) => ({
-        value: b.visitCount || 0,
-        dimension: b.domain || "Unknown",
-      }));
-    }
-
-    if (plotType === "text") {
-      const map = new Map<string, number>();
-      for (const b of bookmarks) {
-        for (const t of b.tags || []) {
-          const name = typeof t === "string" ? t : t.name;
-          map.set(name, (map.get(name) || 0) + 1);
-        }
-      }
-      return Array.from(map.entries()).slice(0, 30).map(([tag, count]) => ({
-        dimension: `#${tag}`,
-        value: count,
-      }));
-    }
-
-    // Default: Group by chosen dimension and measure
-    const map = new Map<string, { count: number; sum_visits: number }>();
-    for (const b of bookmarks) {
-      let key = "Unknown";
-      if (plotDimension === "domain") key = b.domain || "Unknown";
-      else if (plotDimension === "folder") key = folders.find((f) => f.id === b.folderId)?.name || "Unsorted";
-      else if (plotDimension === "status") key = b.status || "alive";
-      else if (plotDimension === "month") key = new Date(b.createdAt).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-
-      const curr = map.get(key) || { count: 0, sum_visits: 0 };
-      map.set(key, { count: curr.count + 1, sum_visits: curr.sum_visits + (b.visitCount || 0) });
-    }
-
-    return Array.from(map.entries())
-      .map(([k, v]) => ({
-        dimension: k,
-        value: plotMeasure === "sum_visits" ? v.sum_visits : v.count,
-        count: v.count,
-        y1: v.count,
-        y2: v.count + 3,
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 12);
-  }, [bookmarks, folders, plotType, plotDimension, plotMeasure]);
-
-  const activeVariationMeta = PLOT_VARIATIONS.find((p) => p.type === plotType);
+  const handleConfirmAddToFolder = () => {
+    if (!selectedFolderId) return;
+    const storageKey = `markly_folder_visuals_${selectedFolderId}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      const list = stored ? JSON.parse(stored) : [];
+      list.push({
+        id: `folder_plot_${Date.now()}`,
+        title: `Observable ${activeVariationMeta.label}`,
+        kind: "plot",
+        colSpan: 12,
+        rowSpan: 2,
+        plotConfig: currentPlotConfig,
+      });
+      localStorage.setItem(storageKey, JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent("markly-folder-visuals-updated", { detail: { folderId: selectedFolderId } }));
+      setFolderModalOpen(false);
+      setSavedPresetMsg(`Added to ${folders.find((f) => f.id === selectedFolderId)?.name || "Folder"}!`);
+      setTimeout(() => setSavedPresetMsg(null), 3000);
+    } catch {}
+  };
 
   return (
     <DashboardWidgetBox
       id={id}
-      title="Observable Plot Layered Graphics Studio (22 Variations)"
+      title="Observable Plot Studio (34 Variations)"
       icon={<FolderIconRenderer icon={plotCustomIcon} color={plotCustomColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}
       rowSpan={rowSpan}
-      minHeight={420}
+      minHeight={640}
       badgeText={`${PLOT_VARIATIONS.length} MARKS`}
       onColSpanChange={onColSpanChange}
       onRowSpanChange={onRowSpanChange}
       onDeleteWidget={onDeleteWidget}
       extraHeaderAction={
         <div className="flex items-center gap-1.5">
+          {savedPresetMsg && (
+            <span className="text-[11px] text-emerald-500 font-semibold flex items-center gap-1 animate-in fade-in">
+              <Check className="h-3 w-3" />
+              <span>{savedPresetMsg}</span>
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSaveAsPreset}
+            className="text-xs h-7 px-2 cursor-pointer gap-1 text-muted-foreground hover:text-foreground"
+            title="Save current plot settings as a preset"
+          >
+            <BookmarkPlus className="h-3 w-3 text-amber-500" />
+            <span className="hidden sm:inline">Save Preset</span>
+          </Button>
           {onPinHome && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() =>
-                onPinHome({
-                  id: `plot_${plotType}_${Date.now()}`,
-                  title: `Observable ${activeVariationMeta?.label || plotType}`,
-                  kind: "plot",
-                  plotConfig: { type: plotType, colorScheme: plotColorScheme },
-                })
-              }
-              className="text-xs h-7 px-2 cursor-pointer gap-1"
+              onClick={handleExecutePinHome}
+              className="text-xs h-7 px-2 cursor-pointer gap-1 text-muted-foreground hover:text-foreground"
+              title="Pin this plot to Dashboard Home"
             >
-              <Pin className="h-3 w-3" />
+              <Pin className="h-3 w-3 text-cyan-500" />
               <span>Pin Home</span>
             </Button>
           )}
-          {onAddToFolder && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                onAddToFolder({
-                  id: `plot_${plotType}_${Date.now()}`,
-                  title: `Observable ${activeVariationMeta?.label || plotType}`,
-                  kind: "plot",
-                  plotConfig: { type: plotType, colorScheme: plotColorScheme },
-                })
-              }
-              className="text-xs h-7 px-2 cursor-pointer gap-1 text-primary"
-            >
-              <FolderPlus className="h-3 w-3" />
-              <span>+ Folder</span>
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setFolderModalOpen(true)}
+            className="text-xs h-7 px-2 cursor-pointer gap-1 text-muted-foreground hover:text-foreground"
+            title="Put this plot into any folder"
+          >
+            <FolderPlus className="h-3 w-3 text-blue-500" />
+            <span>+ Folder</span>
+          </Button>
         </div>
       }
     >
-      <div className="p-4 space-y-4">
+      <div className="p-3.5 space-y-3 select-none text-foreground">
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border/50 text-xs">
-          {["All", "Bars", "Points", "Trends", "Areas", "Matrix", "Special"].map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setPlotCategory(cat)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors whitespace-nowrap ${
-                plotCategory === cat
-                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-          <span className="ml-auto text-[10px] font-mono text-muted-foreground">
+        <div className="flex items-center justify-between gap-1.5 pb-1 border-b border-border/50 text-xs">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+            {["All", "Bars", "Points", "Trends", "Areas", "Matrix", "Special"].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setPlotCategory(cat)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap ${
+                  plotCategory === cat
+                    ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
             {filteredVariations.length} types shown
           </span>
         </div>
 
-        {/* 34 Observable Plot Variations Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 max-h-36 overflow-y-auto p-1 bg-secondary/15 rounded-xl border border-border/60">
-          {filteredVariations.map((v) => (
-            <button
-              key={v.type}
-              type="button"
-              onClick={() => setPlotType(v.type)}
-              style={
-                plotType === v.type
-                  ? { borderColor: plotCustomColor, backgroundColor: `${plotCustomColor}15` }
-                  : undefined
-              }
-              className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
-                plotType === v.type
-                  ? "shadow-2xs ring-1 ring-primary/40 font-semibold"
-                  : "border-border/60 bg-card hover:bg-secondary/70 hover:border-border"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-foreground truncate">{v.label}</span>
-                <span className="text-[9px] font-mono text-muted-foreground uppercase">{v.category}</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground truncate mt-0.5">{v.desc}</p>
-            </button>
-          ))}
+        {/* Variations Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 max-h-36 overflow-y-auto scrollbar-none p-1 bg-secondary/15 rounded-xl border border-border/60">
+          {filteredVariations.map((v) => {
+            const isSel = plotType === v.type;
+            return (
+              <button
+                key={v.type}
+                type="button"
+                onClick={() => setPlotType(v.type)}
+                style={
+                  isSel
+                    ? { borderColor: plotCustomColor, backgroundColor: `${plotCustomColor}15` }
+                    : undefined
+                }
+                className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
+                  isSel
+                    ? "shadow-2xs ring-1 ring-primary/40 font-semibold"
+                    : "border-border/60 bg-card hover:bg-secondary/70 hover:border-border"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] font-bold truncate ${isSel ? "text-cyan-500" : "text-foreground"}`}>{v.label}</span>
+                  <span className="text-[9px] font-mono text-muted-foreground uppercase">{v.category}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{v.desc}</p>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Dimension & Metric Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
+        {/* Dimension, Metric, Grouping, Transform, Palette & Controls */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 p-2.5 bg-secondary/30 rounded-xl border border-border text-xs">
           {/* Dimension */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
               Dimension
             </label>
             <select
               value={plotDimension}
               onChange={(e) => setPlotDimension(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-medium"
             >
               <option value="domain">Web Domain</option>
-              <option value="folder">Folder Collection</option>
-              <option value="status">Link Health Status</option>
-              <option value="month">Creation Month</option>
+              <option value="folder_top">Top Collection</option>
+              <option value="folder_leaf">Subfolder</option>
+              <option value="is_favorite">Starred Status</option>
+              <option value="status">Health Status</option>
+              <option value="created_month">Created Month</option>
+              <option value="tag">Primary Tag</option>
             </select>
           </div>
 
           {/* Measure Value */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
               Measure Metric
             </label>
             <select
               value={plotMeasure}
               onChange={(e) => setPlotMeasure(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-medium"
             >
               <option value="count">Bookmark Count</option>
-              <option value="sum_visits">Sum of Total Visits</option>
+              <option value="sum_visits">Sum Total Visits</option>
+              <option value="avg_depth">Average Depth</option>
+              <option value="days_since_created">Days Since Ingestion</option>
             </select>
           </div>
 
-          {/* Observable Color Scheme */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              Color Palette Scale
+          {/* Grouping */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Group / Series
+            </label>
+            <select
+              value={plotGroup}
+              onChange={(e) => setPlotGroup(e.target.value)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-medium"
+            >
+              <option value="none">None (Single Series)</option>
+              <option value="is_favorite">By Starred Status</option>
+              <option value="status">By Link Health</option>
+              <option value="folder">By Folder Collection</option>
+              <option value="created_month">By Ingestion Month</option>
+            </select>
+          </div>
+
+          {/* Math Transform */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Transform
+            </label>
+            <select
+              value={plotTransform}
+              onChange={(e) => setPlotTransform(e.target.value as PlotTransform)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-medium"
+            >
+              <option value="raw">Absolute Raw</option>
+              <option value="percentage">Percentage (0-100%)</option>
+              <option value="cumulative">Cumulative Running</option>
+              <option value="log">Logarithmic (log10)</option>
+            </select>
+          </div>
+
+          {/* Sort & Limit */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Sort & Limit
+            </label>
+            <div className="flex items-center gap-1">
+              <select
+                value={plotSortOrder}
+                onChange={(e) => setPlotSortOrder(e.target.value as PlotSortOrder)}
+                className="w-1/2 h-7 px-1.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+              >
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+                <option value="alpha">A-Z</option>
+              </select>
+              <select
+                value={String(plotLimit)}
+                onChange={(e) => setPlotLimit(e.target.value === "all" ? "all" : Number(e.target.value))}
+                className="w-1/2 h-7 px-1.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+              >
+                <option value="5">5</option>
+                <option value="8">8</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Palette */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Color Palette
             </label>
             <select
               value={plotColorScheme}
               onChange={(e) => setPlotColorScheme(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-mono"
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-mono"
             >
-              <option value="tableau10">Tableau 10 (Qualitative)</option>
-              <option value="blues">Blues (Sequential)</option>
-              <option value="viridis">Viridis (Sequential)</option>
-              <option value="turbo">Turbo (Rainbow)</option>
-              <option value="spectral">Spectral (Diverging)</option>
-              <option value="warm">Warm (Sequential)</option>
-              <option value="cool">Cool (Sequential)</option>
+              <option value="tableau10">Tableau 10</option>
+              <option value="observable10">Observable 10</option>
+              <option value="blues">Blues</option>
+              <option value="viridis">Viridis</option>
+              <option value="turbo">Turbo</option>
+              <option value="spectral">Spectral</option>
+              <option value="warm">Warm</option>
+              <option value="cool">Cool</option>
             </select>
           </div>
 
-          {/* Accent Color & Icon Pickers */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-              Accent & Icon
+          {/* Curve Style */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Curve Spline
             </label>
-            <div className="flex items-center gap-1.5 h-8">
-              <UniversalColorPicker
-                value={plotCustomColor}
-                onChange={(c) => setPlotCustomColor(c)}
-                contextKey="studio_plot_color"
+            <select
+              value={plotCurve}
+              onChange={(e) => setPlotCurve(e.target.value as ObservableCurveType)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+            >
+              <option value="natural">Natural Spline</option>
+              <option value="linear">Linear Straight</option>
+              <option value="step">Step Discrete</option>
+              <option value="basis">Basis Smooth</option>
+              <option value="monotone-x">Monotone-X</option>
+            </select>
+          </div>
+
+          {/* Scope Folder Filter */}
+          <div className="space-y-0.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+              Folder Filter
+            </label>
+            <select
+              value={filterFolderId}
+              onChange={(e) => setFilterFolderId(e.target.value)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer truncate"
+            >
+              <option value="all">All Folders</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  📁 {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Boolean Toggles */}
+          <div className="col-span-2 flex items-center gap-3 pt-3 text-[11px]">
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={plotShowGrid}
+                onChange={(e) => setPlotShowGrid(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
               />
-              <UniversalIconPicker
-                value={plotCustomIcon}
-                onChange={(ic) => setPlotCustomIcon(ic)}
-                contextKey="studio_plot_icon"
+              <span>Grid</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={plotShowTip}
+                onChange={(e) => setPlotShowTip(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
               />
-            </div>
+              <span>Tooltip</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={plotShowLegend}
+                onChange={(e) => setPlotShowLegend(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>Legend</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={filterOnlyFavorites}
+                onChange={(e) => setFilterOnlyFavorites(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>Starred Only</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={filterOnlyAlive}
+                onChange={(e) => setFilterOnlyAlive(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>Alive Only</span>
+            </label>
+          </div>
+
+          {/* Accent Color & Icon Pickers */}
+          <div className="flex items-center justify-end gap-1.5 col-span-2 sm:col-span-1 pt-2">
+            <UniversalColorPicker
+              value={plotCustomColor}
+              onChange={(c) => setPlotCustomColor(c)}
+              contextKey="studio_plot_color"
+            />
+            <UniversalIconPicker
+              value={plotCustomIcon}
+              onChange={(ic) => setPlotCustomIcon(ic)}
+              contextKey="studio_plot_icon"
+            />
           </div>
         </div>
 
         {/* Observable Plot Canvas */}
         <div
-          className="rounded-xl border border-border bg-background p-4 shadow-inner transition-colors"
+          className="rounded-xl border border-border bg-background p-3.5 shadow-inner transition-colors flex-1 min-h-[260px] flex flex-col"
           style={{ borderColor: `${plotCustomColor}30` }}
         >
-          <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
-            <span className="text-xs font-semibold text-foreground">
-              Live ObservableHQ Plot: {activeVariationMeta?.label}
+          <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-2">
+            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: plotCustomColor }} />
+              Live ObservableHQ Plot: {activeVariationMeta.label}
             </span>
             <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border">
-              {plotType} • Reactive Grammar of Graphics
+              {plotType} • {plotData.length} marks computed
             </span>
           </div>
 
-          <ObservablePlotView
-            data={plotData}
-            config={{
-              type: plotType,
-              x:
-                plotType === "barX" || plotType === "stackedBarX"
-                  ? "value"
-                  : plotType === "dot" ||
-                    plotType === "bubble" ||
-                    plotType === "vector" ||
-                    plotType === "tick" ||
-                    plotType === "cell" ||
-                    plotType === "matrix" ||
-                    plotType === "linearRegression" ||
-                    plotType === "bollinger" ||
-                    plotType === "density" ||
-                    plotType === "contour" ||
-                    plotType === "delaunay" ||
-                    plotType === "voronoi"
-                  ? "x"
-                  : "dimension",
-              y:
-                plotType === "barX" || plotType === "stackedBarX"
-                  ? "dimension"
-                  : plotType === "dot" ||
-                    plotType === "bubble" ||
-                    plotType === "vector" ||
-                    plotType === "tick" ||
-                    plotType === "cell" ||
-                    plotType === "matrix" ||
-                    plotType === "linearRegression" ||
-                    plotType === "bollinger" ||
-                    plotType === "density" ||
-                    plotType === "contour" ||
-                    plotType === "delaunay" ||
-                    plotType === "voronoi"
-                  ? "y"
-                  : "value",
-              colorScheme: plotColorScheme,
-              curve: "natural",
-              grid: true,
-              crosshair: true,
-            }}
-          />
+          <div className="flex-1 w-full min-h-[220px]">
+            <ObservablePlotView
+              data={plotData}
+              config={{
+                type: plotType,
+                x: (plotType === "barX" || plotType === "stackedBarX") ? "value" : "dimension",
+                y: (plotType === "barX" || plotType === "stackedBarX") ? "dimension" : "value",
+                z: plotGroup !== "none" ? "group" : undefined,
+                fill: plotCustomColor,
+                stroke: plotCustomColor,
+                colorScheme: plotColorScheme,
+                curve: plotCurve,
+                grid: plotShowGrid,
+                tip: plotShowTip,
+                legend: plotShowLegend,
+              }}
+            />
+          </div>
         </div>
       </div>
+
+      {/* Put in Folder Destination Selector Modal */}
+      <Dialog open={folderModalOpen} onOpenChange={setFolderModalOpen}>
+        <DialogContent className="max-w-md p-5 bg-card border border-border shadow-2xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-foreground">
+              Put Observable Plot Into Folder
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Select which folder page should display this {activeVariationMeta.label} graphic.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <label className="text-xs font-semibold text-foreground block">Target Folder</label>
+            <UniversalFolderSelect
+              folders={folders}
+              value={selectedFolderId}
+              onChange={setSelectedFolderId}
+              allowRoot={false}
+              placeholder="Choose destination folder..."
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <Button size="sm" variant="outline" onClick={() => setFolderModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!selectedFolderId}
+              onClick={handleConfirmAddToFolder}
+              className="bg-cyan-600 text-white font-semibold"
+            >
+              Add to Folder
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardWidgetBox>
   );
 }

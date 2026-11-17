@@ -111,8 +111,8 @@ const UNIVERSAL_ICONS: IconMeta[] = [
   { name: "book-open", category: "System", icon: BookOpen, keywords: ["book", "docs", "documentation", "learning"] },
 ];
 
-const DEFAULT_ICON_WIDTH = 330;
-const DEFAULT_ICON_HEIGHT = 390;
+const getDefaultIconWidth = () => (typeof window !== "undefined" ? Math.min(380, window.innerWidth - 32) : 380);
+const getDefaultIconHeight = () => (typeof window !== "undefined" ? Math.min(500, Math.max(400, window.innerHeight - 80)) : 480);
 
 export function UniversalIconPicker({
   icon,
@@ -153,7 +153,7 @@ export function UniversalIconPicker({
         }
       } catch {}
     }
-    return DEFAULT_ICON_WIDTH;
+    return getDefaultIconWidth();
   });
 
   const [popupHeight, setPopupHeight] = React.useState<number>(() => {
@@ -168,7 +168,7 @@ export function UniversalIconPicker({
         }
       } catch {}
     }
-    return DEFAULT_ICON_HEIGHT;
+    return getDefaultIconHeight();
   });
 
   // Re-sync dimensions from localStorage whenever opened or context changes
@@ -185,12 +185,12 @@ export function UniversalIconPicker({
     }
   }, [isOpen, storageKey]);
 
-  const hasCustomSize = popupWidth !== DEFAULT_ICON_WIDTH || popupHeight !== DEFAULT_ICON_HEIGHT;
+  const hasCustomSize = popupWidth !== getDefaultIconWidth() || popupHeight !== getDefaultIconHeight();
 
   const handleResetSize = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setPopupWidth(DEFAULT_ICON_WIDTH);
-    setPopupHeight(DEFAULT_ICON_HEIGHT);
+    setPopupWidth(getDefaultIconWidth());
+    setPopupHeight(getDefaultIconHeight());
     try {
       localStorage.removeItem(storageKey);
     } catch {}
@@ -234,7 +234,7 @@ export function UniversalIconPicker({
 
   // Synchronously compute fixed screen coordinates so the popup floats completely OUT of parent modals
   const calculateCoords = React.useCallback(() => {
-    if (!triggerRef.current || typeof window === "undefined") return null;
+    if (!triggerRef.current || typeof window === "undefined") return { top: 60, left: 60 };
     const rect = triggerRef.current.getBoundingClientRect();
     const pad = 8;
 
@@ -252,7 +252,7 @@ export function UniversalIconPicker({
       left = Math.max(pad, window.innerWidth - popupWidth - pad);
     }
 
-    return { top, left };
+    return { top: Math.max(pad, top), left: Math.max(pad, left) };
   }, [popupWidth, popupHeight]);
 
   const updateCoords = React.useCallback(() => {
@@ -427,6 +427,7 @@ export function UniversalIconPicker({
       <button
         ref={triggerRef}
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={handleToggle}
         className={`${compact ? "h-8 w-8 justify-center" : "h-8 px-2 justify-between gap-1.5"} rounded-lg border border-border bg-card hover:bg-secondary flex items-center cursor-pointer transition-colors group shadow-2xs`}
         title={label}
@@ -440,17 +441,19 @@ export function UniversalIconPicker({
 
       {/* Portaled Resizable Window that pops completely OUT of any modal container */}
       {isOpen &&
-        coords.top > 0 &&
         typeof document !== "undefined" &&
         createPortal(
           <div
             ref={popoverRef}
+            data-universal-popover="true"
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: "fixed",
               top: `${coords.top}px`,
               left: `${coords.left}px`,
               width: `${popupWidth}px`,
               height: `${popupHeight}px`,
+              pointerEvents: "auto",
               zIndex: 99999,
               animation: "none",
               transition: "none",
@@ -538,7 +541,7 @@ export function UniversalIconPicker({
             </div>
 
             {/* Icon Grid */}
-            <div className="grid grid-cols-6 gap-1.5 overflow-y-auto flex-1 p-1 bg-secondary/15 rounded-xl border border-border/40">
+            <div className="grid grid-cols-6 gap-1.5 overflow-y-auto scrollbar-none flex-1 p-1 bg-secondary/15 rounded-xl border border-border/40">
               {filteredIcons.map((item) => {
                 const IconComp = item.icon;
                 const isSelected = activeIcon.toLowerCase().trim() === item.name.toLowerCase().trim();

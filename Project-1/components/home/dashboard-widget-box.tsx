@@ -489,7 +489,7 @@ export function DashboardWidgetBox({
         gridColumn: typeof window !== "undefined" && window.innerWidth >= 768 ? `span ${colSpanState} / span ${colSpanState}` : undefined,
         gridRow: typeof window !== "undefined" && window.innerWidth >= 768 && rowSpanState === 2 ? "span 2" : undefined,
         height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
-        minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : rowSpanState === 2 ? "440px" : "auto",
+        minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : minHeight ? `${minHeight}px` : rowSpanState === 2 ? "440px" : "auto",
       }}
       className={`rounded-xl border border-border bg-card shadow-2xs flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
         rowSpanState === 2 ? "md:row-span-2" : "md:row-span-1"
@@ -825,7 +825,7 @@ export function DashboardWidgetBox({
           )}
 
           {/* Reset Circle button: If box has custom dimensions and does NOT have a 3-dots menu */}
-          {!(onEditWidget || onDuplicateWidget || onDeleteWidget) && hasCustomDimensions && (
+          {!(onEditWidget || onDuplicateWidget || onDeleteWidget || onRowSpanChange) && hasCustomDimensions && (
             <button
               type="button"
               onClick={handleResetBoxDimensions}

@@ -51,7 +51,7 @@ export type HomeWidgetKey =
   | "tags"
   | (string & {});
 
-export type HomeWidgetKind = "builtin" | "custom";
+export type HomeWidgetKind = "builtin" | "custom" | "studio";
 export type WidgetColSpan = 2 | 3 | 4 | 6 | 8 | 9 | 12;
 
 export interface HomeWidgetConfig {

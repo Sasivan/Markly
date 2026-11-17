@@ -113,15 +113,19 @@ export function ObservablePlotView({
 }: ObservablePlotViewProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = React.useState<number>(500);
+  const [containerHeight, setContainerHeight] = React.useState<number>(260);
   const boxCtx = React.useContext(WidgetBoxContext);
 
-  // ResizeObserver for responsive width
+  // ResizeObserver for responsive width & height
   React.useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect.width > 50) {
           setContainerWidth(Math.floor(entry.contentRect.width));
+        }
+        if (entry.contentRect.height > 80) {
+          setContainerHeight(Math.floor(entry.contentRect.height));
         }
       }
     });
@@ -138,7 +142,7 @@ export function ObservablePlotView({
     try {
       const marks: Plot.Markish[] = [];
       const hasGrid = config.grid !== false;
-      const height = config.height || (boxCtx.boxHeight ? Math.max(160, boxCtx.boxHeight - 65) : 260);
+      const height = config.height || (boxCtx.boxHeight ? Math.max(160, boxCtx.boxHeight - 65) : Math.max(220, containerHeight));
       const width = config.width || containerWidth;
       const tipEnabled = config.tip !== false;
       const curve = config.curve || "natural";
@@ -749,7 +753,7 @@ export function ObservablePlotView({
         marginTop: config.marginTop ?? 20,
         marginRight: config.marginRight ?? 35,
         marginBottom: config.marginBottom ?? 35,
-        marginLeft: config.marginLeft ?? (config.type === "barX" || config.type === "stackedBarX" ? 95 : 45),
+        marginLeft: config.marginLeft ?? (config.type === "barX" || config.type === "stackedBarX" ? 135 : 55),
         inset: config.inset ?? 6,
         grid: hasGrid,
         ariaLabel: config.ariaLabel || config.title || `Observable ${config.type} plot`,

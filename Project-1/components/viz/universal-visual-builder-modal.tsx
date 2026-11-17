@@ -52,6 +52,7 @@ import { VizChart } from "./viz-chart";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { BookmarkItemsView } from "@/components/home/dashboard-widget-box";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { VizConfig, VizChartType, VizDimension, VizMeasure, VizSplitByDimension } from "@/lib/viz";
 import {
   computePlotData,
@@ -946,6 +947,7 @@ export function UniversalVisualBuilderModal({
       displayOptions: {
         showGrid: chartShowGrid,
         showLegend: chartShowLegend,
+        colorAccent: color || "#3b82f6",
         unitLabel: chartUnitLabel || undefined,
         valuePrefix: chartValuePrefix || undefined,
         valueSuffix: chartValueSuffix || undefined,
@@ -953,6 +955,7 @@ export function UniversalVisualBuilderModal({
     };
   }, [
     title,
+    color,
     chartType,
     chartDimension,
     chartMeasure,
@@ -1147,6 +1150,7 @@ export function UniversalVisualBuilderModal({
         displayOptions: {
           showGrid: chartShowGrid,
           showLegend: chartShowLegend,
+          colorAccent: color || "#3b82f6",
           unitLabel: chartUnitLabel || undefined,
           valuePrefix: chartValuePrefix || undefined,
           valueSuffix: chartValueSuffix || undefined,
@@ -1185,7 +1189,10 @@ export function UniversalVisualBuilderModal({
         <DialogHeader className="p-4 sm:px-6 border-b border-border bg-secondary/30 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-background border border-border shadow-2xs">
+              <div
+                className="flex items-center gap-1.5 p-1 rounded-xl bg-background border shadow-2xs transition-colors"
+                style={{ borderColor: `${color}60` }}
+              >
                 {/* Universal Icon Picker */}
                 <UniversalIconPicker
                   icon={icon}
@@ -1205,15 +1212,19 @@ export function UniversalVisualBuilderModal({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Visual Box Title..."
-                  className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none px-1 text-foreground"
-                />
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5 truncate">
-                  Configuring for {destinationName} • Multi-format Visual Intelligence
+                <div className="flex items-center gap-2">
+                  <FolderIconRenderer icon={icon} color={color} className="h-4 w-4 shrink-0 transition-transform hover:scale-110" />
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Visual Box Title..."
+                    className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none px-1 text-foreground"
+                  />
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span>Configuring for {destinationName} • Multi-format Visual Intelligence</span>
                 </DialogDescription>
               </div>
             </div>

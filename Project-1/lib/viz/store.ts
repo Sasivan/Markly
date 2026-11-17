@@ -18,7 +18,7 @@ export class LocalStorageWidgetStore implements WidgetStore {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (!saved) return [];
       const parsed = JSON.parse(saved);
-      return safeParseStoredWidgets(parsed);
+      return safeParseStoredWidgets(parsed) as HomeWidgetConfig[];
     } catch {
       return [];
     }
@@ -26,7 +26,7 @@ export class LocalStorageWidgetStore implements WidgetStore {
 
   async saveWidgets(widgets: HomeWidgetConfig[]): Promise<void> {
     if (typeof window === "undefined") return;
-    const sanitized = safeParseStoredWidgets(widgets);
+    const sanitized = safeParseStoredWidgets(widgets) as HomeWidgetConfig[];
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
   }
 }
@@ -47,7 +47,7 @@ export class RemoteWidgetStore implements WidgetStore {
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.widgets)) {
-          const parsed = safeParseStoredWidgets(json.widgets);
+          const parsed = safeParseStoredWidgets(json.widgets) as HomeWidgetConfig[];
           if (parsed.length > 0) {
             // Update local cache
             await this.localFallback.saveWidgets(parsed);
@@ -63,7 +63,7 @@ export class RemoteWidgetStore implements WidgetStore {
   }
 
   async saveWidgets(widgets: HomeWidgetConfig[]): Promise<void> {
-    const sanitized = safeParseStoredWidgets(widgets);
+    const sanitized = safeParseStoredWidgets(widgets) as HomeWidgetConfig[];
 
     // Save locally immediately for optimistic UI
     await this.localFallback.saveWidgets(sanitized);

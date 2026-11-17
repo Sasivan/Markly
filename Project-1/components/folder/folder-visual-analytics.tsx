@@ -70,6 +70,7 @@ export interface TabVisual {
   chartConfig?: VizConfig;
   plotConfig?: any;
   intelConfig?: any;
+  siteConfig?: any;
   colSpan?: WidgetColSpan;
   rowSpan?: 1 | 2;
   siteFilter?: "all" | "favorites" | "recent";
@@ -153,17 +154,18 @@ function makeDefaultVisuals(folderId: string, isCustom = false): TabVisual[] {
 function normalizeVisual(v: any): TabVisual {
   const vId = String(v.id || "");
   const vKind = String(v.kind || v.category || "");
+  const vTitle = String(v.title || "");
 
-  if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot")) {
+  if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot") || vTitle.includes("Observable Plot")) {
     return { ...v, id: "studio_observable_plot", title: v.title || "Observable Plot Layered Graphics Studio (22 Variations)", kind: "plot_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
   }
-  if (vId === "studio_classic_charts" || vKind === "chart_studio" || vId.includes("classic_charts")) {
+  if (vId === "studio_classic_charts" || vKind === "chart_studio" || vId.includes("classic_charts") || vTitle.includes("Classic Charts")) {
     return { ...v, id: "studio_classic_charts", title: v.title || "Classic Charts Layered Studio (18 Variations)", kind: "chart_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
   }
-  if (vId === "studio_intel_systems" || vKind === "intel_studio" || vId.includes("intel_systems") || vId.includes("intel_suite")) {
+  if (vId === "studio_intel_systems" || vKind === "intel_studio" || vId.includes("intel_systems") || vId.includes("intel_suite") || vTitle.includes("Intelligence Systems")) {
     return { ...v, id: "studio_intel_systems", title: v.title || "Workspace Intelligence Systems Studio (7 Variations)", kind: "intel_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
   }
-  if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix")) {
+  if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix") || vTitle.includes("Sites Matrix")) {
     return { ...v, id: "studio_sites_matrix", title: v.title || "Sites Matrix Reference Studio", kind: "sites_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
   }
 
@@ -433,21 +435,39 @@ export function FolderVisualAnalytics({
     const exists = activeTab.visuals.find((v) => v.id === config.id);
 
     let kind: VisualKind = "chart";
-    if (config.category === "sites") kind = "sites";
-    else if (config.category === "plot") kind = "plot";
-    else if (config.category === "intel") {
+    const cat = String(config.category || "");
+    const cfgId = String(config.id || "");
+    const cfgTitle = String(config.title || "");
+
+    if (cat === "plot_studio" || cfgId === "studio_observable_plot" || cfgTitle.includes("Observable Plot")) {
+      kind = "plot_studio";
+    } else if (cat === "chart_studio" || cfgId === "studio_classic_charts" || cfgTitle.includes("Classic Charts")) {
+      kind = "chart_studio";
+    } else if (cat === "intel_studio" || cfgId === "studio_intel_systems" || cfgTitle.includes("Intelligence Systems") || cfgTitle.includes("Workspace Intelligence")) {
+      kind = "intel_studio";
+    } else if (cat === "sites_studio" || cfgId === "studio_sites_matrix" || cfgTitle.includes("Sites Matrix")) {
+      kind = "sites_studio";
+    } else if (cat === "sites") {
+      kind = "sites";
+    } else if (cat === "plot") {
+      kind = "plot";
+    } else if (cat === "intel") {
       kind = (config.intelConfig?.type as any) || "tags";
     }
 
+    const isStudio = kind === "plot_studio" || kind === "chart_studio" || kind === "intel_studio" || kind === "sites_studio";
+
     const updatedTabVisual: TabVisual = {
-      id: config.id,
+      id: isStudio ? (config.id.startsWith("studio_") ? config.id : `studio_${kind}`) : config.id,
       title: config.title,
       kind,
-      colSpan: config.colSpan || 6,
+      colSpan: config.colSpan || (isStudio ? 12 : 6),
+      rowSpan: config.rowSpan || (isStudio ? 2 : 1),
       siteFilter: config.siteConfig?.source === "favorites" ? "favorites" : config.siteConfig?.source === "recent" ? "recent" : "all",
       plotConfig: config.plotConfig,
       chartConfig: config.chartConfig,
       intelConfig: config.intelConfig,
+      siteConfig: config.siteConfig,
     };
 
     if (config.siteConfig) {
@@ -598,6 +618,78 @@ export function FolderVisualAnalytics({
   const getParentName = (bm: BookmarkWithDetails) => {
     if (!bm.folderId) return "Unsorted";
     return folders.find((f) => f.id === bm.folderId)?.name || "Folder";
+  };
+
+  const handlePinStudioToHome = (visual: any) => {
+    try {
+      const stored = localStorage.getItem("markly_home_widgets");
+      let list = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(list)) list = [];
+      const isStudio =
+        visual.kind?.includes("studio") ||
+        visual.title?.includes("Studio") ||
+        visual.category?.includes("studio") ||
+        visual.id?.startsWith("studio_");
+      const targetId = isStudio
+        ? (visual.id?.startsWith("studio_") ? visual.id : `studio_${visual.kind}_${Date.now()}`)
+        : `custom:${visual.kind || "chart"}_${Date.now()}`;
+      list = list.filter((w: any) => w.id !== targetId && w.id !== visual.id);
+      list.unshift({
+        id: targetId,
+        label: visual.title,
+        visible: true,
+        kind: isStudio ? "studio" : "custom",
+        category: visual.kind || (isStudio ? "plot_studio" : "chart"),
+        colSpan: visual.colSpan || 12,
+        rowSpan: visual.rowSpan || 2,
+        chartConfig: visual.chartConfig,
+        plotConfig: visual.plotConfig,
+        intelConfig: visual.intelConfig,
+        siteConfig: visual.siteConfig,
+        vizConfig: visual.chartConfig,
+      });
+      localStorage.setItem("markly_home_widgets", JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      window.dispatchEvent(new CustomEvent("markly-home-widgets-updated"));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePinStudioToFolder = (visual: any) => {
+    try {
+      const key = isCustomScope ? `markly_folder_tabs_${folderId}` : "markly_universal_folder_tabs";
+      const raw = localStorage.getItem(key);
+      let tbs = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(tbs) || tbs.length === 0) {
+        tbs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+      }
+      const isStudio =
+        visual.kind?.includes("studio") ||
+        visual.title?.includes("Studio") ||
+        visual.category?.includes("studio") ||
+        visual.id?.startsWith("studio_");
+      const targetId = isStudio
+        ? (visual.id?.startsWith("studio_") ? visual.id : `studio_${visual.kind}_${Date.now()}`)
+        : `viz_${Date.now()}`;
+      tbs[0].visuals = (tbs[0].visuals || []).filter((v: any) => v.id !== targetId && v.id !== visual.id);
+      tbs[0].visuals.unshift({
+        id: targetId,
+        title: visual.title,
+        kind: visual.kind,
+        colSpan: visual.colSpan || 12,
+        rowSpan: visual.rowSpan || 2,
+        chartConfig: visual.chartConfig,
+        plotConfig: visual.plotConfig,
+        intelConfig: visual.intelConfig,
+        siteConfig: visual.siteConfig,
+      });
+      localStorage.setItem(key, JSON.stringify(tbs));
+      window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -776,9 +868,10 @@ export function FolderVisualAnalytics({
               {activeTab.visuals.map((viz) => {
                 const vId = String(viz.id || "");
                 const vKind = String(viz.kind || (viz as any).category || "");
+                const vTitle = String(viz.title || "");
 
                 // 1. Observable Plot Studio Box
-                if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot")) {
+                if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot") || vTitle.includes("Observable Plot")) {
                   return (
                     <ObservablePlotStudioBox
                       key={viz.id}
@@ -789,12 +882,14 @@ export function FolderVisualAnalytics({
                       rowSpan={viz.rowSpan || 2}
                       onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
                       onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                      onPinHome={handlePinStudioToHome}
+                      onAddToFolder={handlePinStudioToFolder}
                     />
                   );
                 }
 
                 // 2. Classic Charts Studio Box
-                if (vId === "studio_classic_charts" || vKind === "chart_studio" || vId.includes("classic_charts")) {
+                if (vId === "studio_classic_charts" || vKind === "chart_studio" || vId.includes("classic_charts") || vTitle.includes("Classic Charts")) {
                   return (
                     <ClassicChartsStudioBox
                       key={viz.id}
@@ -805,12 +900,14 @@ export function FolderVisualAnalytics({
                       rowSpan={viz.rowSpan || 2}
                       onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
                       onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                      onPinHome={handlePinStudioToHome}
+                      onAddToFolder={handlePinStudioToFolder}
                     />
                   );
                 }
 
                 // 3. Workspace Intelligence Systems Studio Box
-                if (vId === "studio_intel_systems" || vKind === "intel_studio" || vId.includes("intel_systems") || vId.includes("intel_suite")) {
+                if (vId === "studio_intel_systems" || vKind === "intel_studio" || vId.includes("intel_systems") || vId.includes("intel_suite") || vTitle.includes("Intelligence Systems")) {
                   return (
                     <IntelligenceSystemsStudioBox
                       key={viz.id}
@@ -821,12 +918,14 @@ export function FolderVisualAnalytics({
                       rowSpan={viz.rowSpan || 2}
                       onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
                       onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                      onPinHome={handlePinStudioToHome}
+                      onAddToFolder={handlePinStudioToFolder}
                     />
                   );
                 }
 
                 // 4. Sites Matrix Reference Studio Box
-                if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix")) {
+                if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix") || vTitle.includes("Sites Matrix")) {
                   return (
                     <SitesMatrixStudioBox
                       key={viz.id}
@@ -837,6 +936,8 @@ export function FolderVisualAnalytics({
                       rowSpan={viz.rowSpan || 2}
                       onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
                       onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                      onPinHome={handlePinStudioToHome}
+                      onAddToFolder={handlePinStudioToFolder}
                     />
                   );
                 }
@@ -1087,7 +1188,7 @@ export function FolderVisualAnalytics({
 
                       {/* 6. KNOWLEDGE GRAPH VISUAL */}
                       {viz.kind === "graph" && (
-                        <div className="h-72 w-full rounded-lg overflow-hidden border border-border bg-card flex-1">
+                        <div className="w-full h-full min-h-[300px] rounded-lg overflow-hidden border border-border bg-card flex-1">
                           <KnowledgeGraph
                             mode={folderId.startsWith("page_") ? "global" : "folder"}
                             folderId={folderId.startsWith("page_") ? undefined : folderId}

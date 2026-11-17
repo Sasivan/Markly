@@ -194,6 +194,14 @@ export function KnowledgeGraph({
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        resizeCanvas();
+      });
+      resizeObserver.observe(containerRef.current);
+    }
+
     // Helper for drawing various node shapes (circle, square, diamond, hexagon)
     const drawShape = (c: CanvasRenderingContext2D, shape: string, x: number, y: number, r: number) => {
       c.beginPath();
@@ -471,6 +479,7 @@ export function KnowledgeGraph({
       isRunning = false;
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resizeCanvas);
+      resizeObserver?.disconnect();
     };
   }, [nodes, edges, visibleTypes, favoritesOnly, nodeSpacing, linkDistance, showLabels, selectedNode, searchQuery, selectedFolderFilter, nodeShape, colorScheme, showOrphans, nodeScale]);
 
@@ -589,7 +598,7 @@ export function KnowledgeGraph({
   }, [nodes]);
 
   return (
-    <div className="relative flex flex-col md:flex-row w-full h-150 rounded-lg border border-border bg-card overflow-hidden">
+    <div className="relative flex flex-col md:flex-row w-full h-full min-h-[300px] flex-1 rounded-lg border border-border bg-card overflow-hidden">
       {/* LEFT: Canvas Viewport */}
       <div ref={containerRef} className="relative flex-1 h-full overflow-hidden bg-background">
         {loading && (

@@ -162,8 +162,8 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-const DEFAULT_COLOR_WIDTH = 330;
-const DEFAULT_COLOR_HEIGHT = 380;
+const getDefaultColorWidth = () => (typeof window !== "undefined" ? Math.min(360, window.innerWidth - 32) : 360);
+const getDefaultColorHeight = () => (typeof window !== "undefined" ? Math.min(500, Math.max(400, window.innerHeight - 80)) : 480);
 
 export function UniversalColorPicker({
   color,
@@ -204,7 +204,7 @@ export function UniversalColorPicker({
         }
       } catch {}
     }
-    return DEFAULT_COLOR_WIDTH;
+    return getDefaultColorWidth();
   });
 
   const [popupHeight, setPopupHeight] = React.useState<number>(() => {
@@ -219,7 +219,7 @@ export function UniversalColorPicker({
         }
       } catch {}
     }
-    return DEFAULT_COLOR_HEIGHT;
+    return getDefaultColorHeight();
   });
 
   // Re-sync dimensions from localStorage whenever opened or context changes
@@ -236,12 +236,12 @@ export function UniversalColorPicker({
     }
   }, [isOpen, storageKey]);
 
-  const hasCustomSize = popupWidth !== DEFAULT_COLOR_WIDTH || popupHeight !== DEFAULT_COLOR_HEIGHT;
+  const hasCustomSize = popupWidth !== getDefaultColorWidth() || popupHeight !== getDefaultColorHeight();
 
   const handleResetSize = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setPopupWidth(DEFAULT_COLOR_WIDTH);
-    setPopupHeight(DEFAULT_COLOR_HEIGHT);
+    setPopupWidth(getDefaultColorWidth());
+    setPopupHeight(getDefaultColorHeight());
     try {
       localStorage.removeItem(storageKey);
     } catch {}
@@ -300,7 +300,7 @@ export function UniversalColorPicker({
 
   // Synchronously compute fixed screen coordinates so the popup floats completely OUT of parent modals
   const calculateCoords = React.useCallback(() => {
-    if (!triggerRef.current || typeof window === "undefined") return null;
+    if (!triggerRef.current || typeof window === "undefined") return { top: 60, left: 60 };
     const rect = triggerRef.current.getBoundingClientRect();
     const pad = 8;
 
@@ -318,7 +318,7 @@ export function UniversalColorPicker({
       left = Math.max(pad, window.innerWidth - popupWidth - pad);
     }
 
-    return { top, left };
+    return { top: Math.max(pad, top), left: Math.max(pad, left) };
   }, [popupWidth, popupHeight]);
 
   const updateCoords = React.useCallback(() => {
@@ -502,6 +502,7 @@ export function UniversalColorPicker({
       <button
         ref={triggerRef}
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={handleToggle}
         className={`${compact ? "h-8 w-8 justify-center" : "h-8 px-2 justify-between gap-1.5"} rounded-lg border border-border bg-card hover:bg-secondary flex items-center cursor-pointer transition-colors group shadow-2xs`}
         title={label}
@@ -515,17 +516,19 @@ export function UniversalColorPicker({
 
       {/* Portaled Resizable Window that pops completely OUT of any modal container */}
       {isOpen &&
-        coords.top > 0 &&
         typeof document !== "undefined" &&
         createPortal(
           <div
             ref={popoverRef}
+            data-universal-popover="true"
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: "fixed",
               top: `${coords.top}px`,
               left: `${coords.left}px`,
               width: `${popupWidth}px`,
               height: `${popupHeight}px`,
+              pointerEvents: "auto",
               zIndex: 99999,
               animation: "none",
               transition: "none",
@@ -632,7 +635,7 @@ export function UniversalColorPicker({
 
             {/* TAB 1: Open-Source Curated Palettes */}
             {activeTab === "swatches" && (
-              <div className="space-y-2.5 overflow-y-auto flex-1 pr-1">
+              <div className="space-y-2.5 overflow-y-auto scrollbar-none flex-1 pr-1">
                 <div>
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Tailwind System Palettes

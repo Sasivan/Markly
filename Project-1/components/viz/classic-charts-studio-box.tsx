@@ -113,6 +113,13 @@ export function ClassicChartsStudioBox({
   const [dimension, setDimension] = React.useState<VizDimension>("domain");
   const [measure, setMeasure] = React.useState<VizMeasure>("count");
   const [colorScheme, setColorScheme] = React.useState<string>("tableau10");
+  const [splitBy, setSplitBy] = React.useState<string>("none");
+  const [sortOrder, setSortOrder] = React.useState<"desc" | "asc">("desc");
+  const [limit, setLimit] = React.useState<number>(12);
+  const [otherBucket, setOtherBucket] = React.useState<boolean>(false);
+  const [filterFolderId, setFilterFolderId] = React.useState<string>("all");
+  const [filterOnlyFavorites, setFilterOnlyFavorites] = React.useState<boolean>(false);
+  const [filterOnlyAlive, setFilterOnlyAlive] = React.useState<boolean>(false);
   const [accentColor, setAccentColor] = React.useState<string>("#3b82f6");
   const [icon, setIcon] = React.useState<string>("bar-chart-3");
   const [savedPresetMsg, setSavedPresetMsg] = React.useState<string | null>(null);
@@ -131,22 +138,42 @@ export function ClassicChartsStudioBox({
   }, [chartType]);
 
   const currentConfig: VizConfig = React.useMemo(() => {
+    const filters: any = {};
+    if (filterFolderId !== "all") filters.folderId = filterFolderId;
+    if (filterOnlyFavorites) filters.favorite = true;
+    if (filterOnlyAlive) filters.status = ["alive"];
+
     return {
       version: 1,
       id: `classic_${chartType}_${Date.now()}`,
       title: `${activeMeta.label}`,
       chartType: mapToVizChartType(chartType),
       dimension,
+      splitBy: splitBy === "none" ? undefined : (splitBy as any),
       measure,
-      filters: {},
-      sort: { by: "measure", direction: "desc" },
-      limit: 12,
-      otherBucket: false,
+      filters,
+      sort: { by: "measure", direction: sortOrder },
+      limit,
+      otherBucket,
       color: accentColor,
       colorPalette: colorScheme,
       curve: "natural",
     };
-  }, [chartType, dimension, measure, colorScheme, accentColor, activeMeta.label]);
+  }, [
+    chartType,
+    dimension,
+    splitBy,
+    measure,
+    filterFolderId,
+    filterOnlyFavorites,
+    filterOnlyAlive,
+    sortOrder,
+    limit,
+    otherBucket,
+    colorScheme,
+    accentColor,
+    activeMeta.label,
+  ]);
 
   const handleSaveAsPreset = () => {
     try {
@@ -205,7 +232,7 @@ export function ClassicChartsStudioBox({
       onColSpanChange={onColSpanChange}
       onRowSpanChange={onRowSpanChange}
       onDeleteWidget={onDeleteWidget}
-      minHeight={560}
+      minHeight={620}
       badgeText="18 PATTERNS"
       extraHeaderAction={
         <div className="flex items-center gap-1.5">
@@ -306,8 +333,8 @@ export function ClassicChartsStudioBox({
           })}
         </div>
 
-        {/* Controls Bar: Dimension, Metric, Color Palette, Accent & Icon */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-border/60 text-xs">
+        {/* Controls Bar: Dimension, Metric, Split By, Color Palette, Filters & Toggles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 p-2.5 bg-secondary/30 rounded-xl border border-border text-xs">
           <div>
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
               Dimension
@@ -315,7 +342,7 @@ export function ClassicChartsStudioBox({
             <select
               value={dimension}
               onChange={(e) => setDimension(e.target.value as VizDimension)}
-              className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
             >
               <option value="domain">Web Domain</option>
               <option value="folder">Folder Collection</option>
@@ -333,12 +360,56 @@ export function ClassicChartsStudioBox({
             <select
               value={measure}
               onChange={(e) => setMeasure(e.target.value as VizMeasure)}
-              className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
             >
               <option value="count">Bookmark Count</option>
-              <option value="visits">Total Visits</option>
+              <option value="sum_visits">Total Visits</option>
               <option value="avg_visits">Average Visits</option>
+              <option value="avg_depth">Average Depth</option>
             </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+              Split By / Group
+            </label>
+            <select
+              value={splitBy}
+              onChange={(e) => setSplitBy(e.target.value)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
+            >
+              <option value="none">None (Single Series)</option>
+              <option value="folder">By Folder</option>
+              <option value="status">By Link Health</option>
+              <option value="is_favorite">By Starred</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+              Sort & Limit
+            </label>
+            <div className="flex items-center gap-1">
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
+                className="w-1/2 h-7 px-1.5 rounded-lg border border-border bg-background text-xs cursor-pointer"
+              >
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+              </select>
+              <select
+                value={String(limit)}
+                onChange={(e) => setLimit(Number(e.target.value))}
+                className="w-1/2 h-7 px-1.5 rounded-lg border border-border bg-background text-xs cursor-pointer"
+              >
+                <option value="5">5</option>
+                <option value="8">8</option>
+                <option value="12">12</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
           </div>
 
           <div>
@@ -348,25 +419,70 @@ export function ClassicChartsStudioBox({
             <select
               value={colorScheme}
               onChange={(e) => setColorScheme(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
             >
-              <option value="tableau10">Tableau 10 (Qualitative)</option>
+              <option value="tableau10">Tableau 10</option>
               <option value="observable10">Observable 10</option>
               <option value="category10">Category 10</option>
-              <option value="blues">Blues (Sequential)</option>
-              <option value="viridis">Viridis (Scientific)</option>
-              <option value="spectral">Spectral (Diverging)</option>
+              <option value="blues">Blues</option>
+              <option value="viridis">Viridis</option>
+              <option value="spectral">Spectral</option>
             </select>
           </div>
 
           <div>
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-              Accent & Icon
+              Folder Filter
             </label>
-            <div className="flex items-center gap-1.5 h-8">
-              <UniversalColorPicker color={accentColor} onChange={setAccentColor} compact={true} contextKey="studio_chart_color" />
-              <UniversalIconPicker icon={icon} color={accentColor} onChange={setIcon} compact={true} contextKey="studio_chart_icon" />
-            </div>
+            <select
+              value={filterFolderId}
+              onChange={(e) => setFilterFolderId(e.target.value)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer truncate"
+            >
+              <option value="all">All Folders</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  📁 {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-span-2 flex items-center gap-3 pt-3 text-[11px]">
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={otherBucket}
+                onChange={(e) => setOtherBucket(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>&ldquo;Other&rdquo; Bucket</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={filterOnlyFavorites}
+                onChange={(e) => setFilterOnlyFavorites(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>Starred Only</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+              <input
+                type="checkbox"
+                checked={filterOnlyAlive}
+                onChange={(e) => setFilterOnlyAlive(e.target.checked)}
+                className="rounded border-border text-primary accent-primary h-3.5 w-3.5"
+              />
+              <span>Alive Only</span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-1.5 col-span-2 pt-2">
+            <UniversalColorPicker color={accentColor} onChange={setAccentColor} compact={true} contextKey="studio_chart_color" />
+            <UniversalIconPicker icon={icon} color={accentColor} onChange={setIcon} compact={true} contextKey="studio_chart_icon" />
           </div>
         </div>
 

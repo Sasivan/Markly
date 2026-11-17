@@ -168,8 +168,16 @@ export const storedWidgetConfigSchema = z
     id: z.string().min(1).max(128),
     label: z.string().min(1).max(128),
     visible: z.boolean().default(true),
-    kind: z.enum(["builtin", "custom"]).default("builtin").optional(),
+    kind: z.enum(["builtin", "custom", "studio"]).default("builtin").optional(),
+    category: z.string().optional(),
     vizConfig: vizConfigSchema.optional(),
+    plotConfig: z.any().optional(),
+    chartConfig: z.any().optional(),
+    intelConfig: z.any().optional(),
+    siteConfig: z.any().optional(),
+    icon: z.string().optional(),
+    color: z.string().optional(),
+    rowSpan: z.union([z.literal(1), z.literal(2)]).optional(),
     span: z.enum(["1", "2"]).optional(),
     colSpan: z
       .union([
@@ -197,7 +205,7 @@ export function safeParseStoredWidgets(raw: unknown): StoredWidgetConfig[] {
   for (const item of raw) {
     const result = storedWidgetConfigSchema.safeParse(item);
     if (result.success) {
-      if (result.data.kind === "custom") {
+      if (result.data.kind === "custom" || result.data.kind === "studio") {
         if (customCount >= MAX_CUSTOM_WIDGETS) continue; // Cap at 30 custom widgets
         customCount++;
       }

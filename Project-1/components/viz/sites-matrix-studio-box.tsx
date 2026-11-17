@@ -68,6 +68,10 @@ export function SitesMatrixStudioBox({
 }: SitesMatrixStudioBoxProps) {
   const [activeCategory, setActiveCategory] = React.useState<"All" | "Layouts" | "Sources" | "Clustered">("All");
   const [variationType, setVariationType] = React.useState<SitesVariationType>("all_grid");
+  const [sourceFilter, setSourceFilter] = React.useState<"all" | "favorites" | "recent" | "unsorted" | "folder" | "tag">("all");
+  const [selectedSourceFolder, setSelectedSourceFolder] = React.useState<string>("all");
+  const [selectedTag, setSelectedTag] = React.useState<string>("all");
+  const [sortBy, setSortBy] = React.useState<"recent" | "alpha" | "visits" | "favorite">("recent");
   const [itemLimit, setItemLimit] = React.useState<WidgetItemLimit>("auto");
   const [accentColor, setAccentColor] = React.useState<string>("#10b981");
   const [icon, setIcon] = React.useState<string>("globe");
@@ -89,12 +93,29 @@ export function SitesMatrixStudioBox({
 
   const activeViewMode: WidgetViewMode = overrideViewMode || activeMeta.viewMode;
 
+  // Distinct tags list
+  const allTags = React.useMemo(() => {
+    const s = new Set<string>();
+    bookmarks.forEach((b) => (b.tags || []).forEach((t: any) => s.add(typeof t === "string" ? t : t.name)));
+    return Array.from(s).sort();
+  }, [bookmarks]);
+
   const targetBookmarks = React.useMemo(() => {
-    if (activeMeta.source === "favorites") return bookmarks.filter((b) => b.isFavorite && !b.isArchived);
-    if (activeMeta.source === "recent") return [...bookmarks.filter((b) => !b.isArchived)].sort((a, b) => (b.lastVisitedAt || b.createdAt || 0) - (a.lastVisitedAt || a.createdAt || 0));
-    if (activeMeta.source === "unsorted") return bookmarks.filter((b) => !b.folderId && !b.isArchived);
-    return bookmarks.filter((b) => !b.isArchived);
-  }, [bookmarks, activeMeta.source]);
+    let list = bookmarks.filter((b) => !b.isArchived);
+    const effSource = sourceFilter !== "all" ? sourceFilter : activeMeta.source;
+    if (effSource === "favorites") list = list.filter((b) => b.isFavorite);
+    else if (effSource === "recent") list = [...list].sort((a, b) => (b.lastVisitedAt || b.createdAt || 0) - (a.lastVisitedAt || a.createdAt || 0));
+    else if (effSource === "unsorted") list = list.filter((b) => !b.folderId);
+    else if (effSource === "folder" && selectedSourceFolder !== "all") list = list.filter((b) => b.folderId === selectedSourceFolder);
+    else if (effSource === "tag" && selectedTag !== "all") list = list.filter((b) => (b.tags || []).some((t: any) => (typeof t === "string" ? t : t.name) === selectedTag));
+
+    if (sortBy === "alpha") list = [...list].sort((a, b) => (a.title || a.domain || "").localeCompare(b.title || b.domain || ""));
+    else if (sortBy === "visits") list = [...list].sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0));
+    else if (sortBy === "favorite") list = [...list].sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0));
+    else list = [...list].sort((a, b) => (b.lastVisitedAt || b.createdAt || 0) - (a.lastVisitedAt || a.createdAt || 0));
+
+    return list;
+  }, [bookmarks, sourceFilter, activeMeta.source, selectedSourceFolder, selectedTag, sortBy]);
 
   const siteConfig = React.useMemo(() => ({
     source: activeMeta.source,
@@ -161,7 +182,7 @@ export function SitesMatrixStudioBox({
       onColSpanChange={onColSpanChange}
       onRowSpanChange={onRowSpanChange}
       onDeleteWidget={onDeleteWidget}
-      minHeight={560}
+      minHeight={620}
       badgeText="7 MATRIX PATTERNS"
       extraHeaderAction={
         <div className="flex items-center gap-1.5">
@@ -257,27 +278,91 @@ export function SitesMatrixStudioBox({
           })}
         </div>
 
-        {/* Controls Bar: Item Limit, Accent & Icon */}
-        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/60 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Item Limit:</span>
-            <div className="flex items-center gap-1">
-              {(["auto", 6, 12, 24, "all"] as const).map((lim) => (
-                <button
-                  key={String(lim)}
-                  type="button"
-                  onClick={() => setItemLimit(lim as WidgetItemLimit)}
-                  className={`px-2 py-0.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${
-                    itemLimit === lim ? "bg-primary text-primary-foreground font-semibold" : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {String(lim)}
-                </button>
-              ))}
-            </div>
+        {/* Controls Bar: Source, Sort, Limit, Scope & Accent */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 p-2.5 bg-secondary/30 rounded-xl border border-border text-xs">
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Source</label>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as any)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium"
+            >
+              <option value="all">Auto (From Pattern)</option>
+              <option value="favorites">Starred Favorites</option>
+              <option value="recent">Recently Visited</option>
+              <option value="unsorted">Inbox / Unfiled</option>
+              <option value="folder">Specific Folder</option>
+              <option value="tag">Specific Tag</option>
+            </select>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium"
+            >
+              <option value="recent">Most Recent</option>
+              <option value="visits">Most Visited</option>
+              <option value="alpha">Alphabetical (A - Z)</option>
+              <option value="favorite">Starred First</option>
+            </select>
+          </div>
+
+          {sourceFilter === "folder" ? (
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Folder</label>
+              <select
+                value={selectedSourceFolder}
+                onChange={(e) => setSelectedSourceFolder(e.target.value)}
+                className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium truncate"
+              >
+                <option value="all">All Folders</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    📁 {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : sourceFilter === "tag" ? (
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Tag</label>
+              <select
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
+                className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium truncate"
+              >
+                <option value="all">All Tags</option>
+                {allTags.map((t) => (
+                  <option key={t} value={t}>
+                    #{t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Item Limit</label>
+              <div className="flex items-center gap-1">
+                {(["auto", 6, 12, 24, "all"] as const).map((lim) => (
+                  <button
+                    key={String(lim)}
+                    type="button"
+                    onClick={() => setItemLimit(lim as WidgetItemLimit)}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer transition-colors ${
+                      itemLimit === lim ? "bg-primary text-primary-foreground font-semibold" : "bg-card border border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {String(lim)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-1.5 col-span-2 pt-1">
             <UniversalColorPicker color={accentColor} onChange={setAccentColor} compact={true} contextKey="studio_sites_color" />
             <UniversalIconPicker icon={icon} color={accentColor} onChange={setIcon} compact={true} contextKey="studio_sites_icon" />
           </div>

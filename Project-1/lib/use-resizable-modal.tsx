@@ -230,35 +230,51 @@ export function ModalResizeHandles({
       <div
         onMouseDown={(e) => onStartResize("right", e)}
         title="Drag right border to resize width"
-        className="absolute top-2 -right-1 bottom-2 w-3 cursor-ew-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
-      />
+        className="absolute top-2 -right-1.5 bottom-2 w-3.5 cursor-ew-resize group/edge z-50 flex items-center justify-center select-none"
+      >
+        <div className="w-1 h-12 rounded-full bg-primary/0 group-hover/edge:bg-primary transition-colors shadow-xs" />
+      </div>
+
       {/* Left border drag handle (West) */}
       <div
         onMouseDown={(e) => onStartResize("left", e)}
         title="Drag left border to resize width"
-        className="absolute top-2 -left-1 bottom-2 w-3 cursor-ew-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
-      />
+        className="absolute top-2 -left-1.5 bottom-2 w-3.5 cursor-ew-resize group/edge z-50 flex items-center justify-center select-none"
+      >
+        <div className="w-1 h-12 rounded-full bg-primary/0 group-hover/edge:bg-primary transition-colors shadow-xs" />
+      </div>
+
       {/* Bottom border drag handle (South) */}
       <div
         onMouseDown={(e) => onStartResize("bottom", e)}
         title="Drag bottom border to resize height"
-        className="absolute -bottom-1 left-2 right-2 h-3 cursor-ns-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
-      />
+        className="absolute -bottom-1.5 left-2 right-2 h-3.5 cursor-ns-resize group/edge z-50 flex items-center justify-center select-none"
+      >
+        <div className="h-1 w-16 rounded-full bg-primary/0 group-hover/edge:bg-primary transition-colors shadow-xs" />
+      </div>
+
       {/* Top border drag handle (North) */}
       <div
         onMouseDown={(e) => onStartResize("top", e)}
         title="Drag top border to resize height"
-        className="absolute -top-1 left-2 right-2 h-3 cursor-ns-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 select-none"
-      />
+        className="absolute -top-1.5 left-2 right-2 h-3.5 cursor-ns-resize group/edge z-50 flex items-center justify-center select-none"
+      >
+        <div className="h-1 w-16 rounded-full bg-primary/0 group-hover/edge:bg-primary transition-colors shadow-xs" />
+      </div>
 
       {/* Bottom-right corner drag handle (South-East) */}
       <div
         onMouseDown={(e) => onStartResize("bottom-right", e)}
         title="Drag bottom-right corner to freely resize width and height"
-        className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-end justify-end p-0.5 select-none"
+        className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-50 flex items-end justify-end p-1 opacity-0 hover:opacity-100 transition-opacity select-none group/corner"
       >
-        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
-          <path d="M5 1L1 5M5 3L3 5M5 5H5.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        <svg className="w-3.5 h-3.5 text-muted-foreground group-hover/corner:text-primary transition-colors pointer-events-none" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="14" cy="14" r="1.5" />
+          <circle cx="9" cy="14" r="1.5" />
+          <circle cx="4" cy="14" r="1.5" />
+          <circle cx="14" cy="9" r="1.5" />
+          <circle cx="9" cy="9" r="1.5" />
+          <circle cx="14" cy="4" r="1.5" />
         </svg>
       </div>
 
@@ -266,10 +282,15 @@ export function ModalResizeHandles({
       <div
         onMouseDown={(e) => onStartResize("bottom-left", e)}
         title="Drag bottom-left corner to freely resize width and height"
-        className="absolute -bottom-1 -left-1 w-5 h-5 cursor-nesw-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-end justify-start p-0.5 select-none"
+        className="absolute -bottom-1 -left-1 w-6 h-6 cursor-nesw-resize z-50 flex items-end justify-start p-1 opacity-0 hover:opacity-100 transition-opacity select-none group/corner"
       >
-        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
-          <path d="M1 1L5 5M1 3L3 5M1 5H1.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        <svg className="w-3.5 h-3.5 text-muted-foreground group-hover/corner:text-primary transition-colors pointer-events-none" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="2" cy="14" r="1.5" />
+          <circle cx="7" cy="14" r="1.5" />
+          <circle cx="12" cy="14" r="1.5" />
+          <circle cx="2" cy="9" r="1.5" />
+          <circle cx="7" cy="9" r="1.5" />
+          <circle cx="2" cy="4" r="1.5" />
         </svg>
       </div>
 
@@ -277,10 +298,15 @@ export function ModalResizeHandles({
       <div
         onMouseDown={(e) => onStartResize("top-right", e)}
         title="Drag top-right corner to freely resize width and height"
-        className="absolute -top-1 -right-1 w-5 h-5 cursor-nesw-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-start justify-end p-0.5 select-none"
+        className="absolute -top-1 -right-1 w-6 h-6 cursor-nesw-resize z-50 flex items-start justify-end p-1 opacity-0 hover:opacity-100 transition-opacity select-none group/corner"
       >
-        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
-          <path d="M5 5L1 1M5 3L3 1M5 1H5.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        <svg className="w-3.5 h-3.5 text-muted-foreground group-hover/corner:text-primary transition-colors pointer-events-none" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="14" cy="2" r="1.5" />
+          <circle cx="9" cy="2" r="1.5" />
+          <circle cx="4" cy="2" r="1.5" />
+          <circle cx="14" cy="7" r="1.5" />
+          <circle cx="9" cy="7" r="1.5" />
+          <circle cx="14" cy="12" r="1.5" />
         </svg>
       </div>
 
@@ -288,10 +314,15 @@ export function ModalResizeHandles({
       <div
         onMouseDown={(e) => onStartResize("top-left", e)}
         title="Drag top-left corner to freely resize width and height"
-        className="absolute -top-1 -left-1 w-5 h-5 cursor-nwse-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-50 flex items-start justify-start p-0.5 select-none"
+        className="absolute -top-1 -left-1 w-6 h-6 cursor-nwse-resize z-50 flex items-start justify-start p-1 opacity-0 hover:opacity-100 transition-opacity select-none group/corner"
       >
-        <svg className="w-2.5 h-2.5 text-muted-foreground/60 pointer-events-none" viewBox="0 0 6 6" fill="none">
-          <path d="M1 5L5 1M1 3L3 1M1 1H1.01" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        <svg className="w-3.5 h-3.5 text-muted-foreground group-hover/corner:text-primary transition-colors pointer-events-none" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="2" cy="2" r="1.5" />
+          <circle cx="7" cy="2" r="1.5" />
+          <circle cx="12" cy="2" r="1.5" />
+          <circle cx="2" cy="7" r="1.5" />
+          <circle cx="7" cy="7" r="1.5" />
+          <circle cx="2" cy="12" r="1.5" />
         </svg>
       </div>
     </>

@@ -238,12 +238,12 @@ export function UniversalColorPicker({
   const updateCoords = React.useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const pad = 10;
+    const pad = 8;
 
-    let top = rect.bottom + 8;
+    let top = rect.bottom + 4;
     if (top + popupHeight > window.innerHeight - pad) {
-      if (rect.top - popupHeight - 8 > pad) {
-        top = rect.top - popupHeight - 8;
+      if (rect.top - popupHeight - 4 > pad) {
+        top = rect.top - popupHeight - 4;
       } else {
         top = Math.max(pad, window.innerHeight - popupHeight - pad);
       }
@@ -432,10 +432,20 @@ export function UniversalColorPicker({
               height: `${popupHeight}px`,
               zIndex: 99999,
             }}
-            className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-3 flex flex-col justify-between animate-in fade-in zoom-in-95 duration-150 select-none text-foreground"
+            className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-3 flex flex-col justify-between select-none text-foreground"
           >
             {/* Header & Tabs */}
             <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-4 w-4 rounded-full border border-black/20 dark:border-white/20 shadow-xs shrink-0"
+                  style={{ backgroundColor: activeColor }}
+                  title={activeColor}
+                />
+                <span className="text-[10px] font-mono text-muted-foreground uppercase bg-secondary px-1.5 py-0.5 rounded border border-border/50">
+                  {activeColor}
+                </span>
+              </div>
               <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-lg border border-border/50 text-[10px] font-medium overflow-x-auto">
                 <button
                   type="button"

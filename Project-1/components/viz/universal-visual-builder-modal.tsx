@@ -415,8 +415,8 @@ export function UniversalVisualBuilderModal({
     initialConfig?.chartConfig?.filters?.status?.includes("alive")
       ? "alive"
       : initialConfig?.chartConfig?.filters?.status?.length
-      ? "broken"
-      : "all"
+        ? "broken"
+        : "all"
   );
   const [chartFilterDateRange, setChartFilterDateRange] = React.useState<"all" | "24h" | "7d" | "30d" | "90d" | "1y">("all");
   const [chartFilterSearch, setChartFilterSearch] = React.useState<string>(
@@ -573,6 +573,101 @@ export function UniversalVisualBuilderModal({
     }
   }, [initialConfig, folders]);
 
+  // One-Click Sample Studio Builders for testing all variations together
+  const handlePlaceSamplePlotStudio = () => {
+    onSave({
+      id: "studio_observable_plot",
+      title: "Observable Plot Layered Graphics Studio (22 Variations)",
+      category: "plot",
+      colSpan: 12,
+      rowSpan: 2,
+      icon: "activity",
+      color: "#06b6d4",
+      plotConfig: {
+        type: "barX",
+        dimension: "domain",
+        measure: "count",
+        colorScheme: "tableau10",
+        curve: "natural",
+        showGrid: true,
+        showTip: true,
+        showLegend: true,
+        crosshair: true,
+      },
+    });
+    try {
+      const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((id: string) => id !== "studio_observable_plot");
+        localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
+        window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_observable_plot" } }));
+      }
+    } catch {}
+    onOpenChange(false);
+  };
+
+  const handlePlaceSampleChartStudio = () => {
+    onSave({
+      id: `studio_classic_charts_${Date.now()}`,
+      title: "Complete Classic Charts Studio",
+      category: "chart",
+      colSpan: 12,
+      rowSpan: 2,
+      icon: "bar-chart-3",
+      color: "#3b82f6",
+      chartConfig: {
+        version: 1,
+        id: `studio_classic_charts_${Date.now()}`,
+        title: "Complete Classic Charts Studio",
+        chartType: "bar",
+        dimension: "domain",
+        measure: "count",
+        filters: {},
+        sort: { by: "measure", direction: "desc" },
+        limit: 10,
+        otherBucket: true,
+      },
+    });
+    onOpenChange(false);
+  };
+
+  const handlePlaceSampleIntelSuite = () => {
+    onSave({
+      id: `studio_intel_suite_${Date.now()}`,
+      title: "Workspace Intelligence Suite",
+      category: "intel",
+      colSpan: 12,
+      rowSpan: 2,
+      icon: "layers",
+      color: "#8b5cf6",
+      intelConfig: {
+        type: "graph",
+        graphDepth: 2,
+      },
+    });
+    onOpenChange(false);
+  };
+
+  const handlePlaceSampleSitesMatrix = () => {
+    onSave({
+      id: `studio_sites_matrix_${Date.now()}`,
+      title: "Multi-Source Sites Matrix",
+      category: "sites",
+      colSpan: 12,
+      rowSpan: 2,
+      icon: "compass",
+      color: "#10b981",
+      siteConfig: {
+        source: "all",
+        limit: "all",
+        viewMode: "grid",
+        sortBy: "recent",
+      },
+    });
+    onOpenChange(false);
+  };
+
   // Compute Filtered Bookmark Items for Site Reference Box Preview
   const previewSiteItems = React.useMemo(() => {
     let result = bookmarks.filter((b) => !b.isArchived);
@@ -683,12 +778,12 @@ export function UniversalVisualBuilderModal({
         chartFilterDateRange === "24h"
           ? 1
           : chartFilterDateRange === "7d"
-          ? 7
-          : chartFilterDateRange === "30d"
-          ? 30
-          : chartFilterDateRange === "90d"
-          ? 90
-          : 365;
+            ? 7
+            : chartFilterDateRange === "30d"
+              ? 30
+              : chartFilterDateRange === "90d"
+                ? 90
+                : 365;
       filters.dateRangeField = "created";
       filters.dateAfter = now - days * 24 * 60 * 60 * 1000;
     }
@@ -884,12 +979,12 @@ export function UniversalVisualBuilderModal({
           chartFilterDateRange === "24h"
             ? 1
             : chartFilterDateRange === "7d"
-            ? 7
-            : chartFilterDateRange === "30d"
-            ? 30
-            : chartFilterDateRange === "90d"
-            ? 90
-            : 365;
+              ? 7
+              : chartFilterDateRange === "30d"
+                ? 30
+                : chartFilterDateRange === "90d"
+                  ? 90
+                  : 365;
         filters.dateRangeField = "created";
         filters.dateAfter = now - days * 24 * 60 * 60 * 1000;
       }
@@ -992,8 +1087,8 @@ export function UniversalVisualBuilderModal({
                     type="button"
                     onClick={() => setColSpan(s.val)}
                     className={`px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${colSpan === s.val
-                        ? "bg-card text-foreground font-semibold shadow-2xs"
-                        : "text-muted-foreground hover:text-foreground"
+                      ? "bg-card text-foreground font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
                       }`}
                   >
                     {s.label}
@@ -1006,8 +1101,8 @@ export function UniversalVisualBuilderModal({
                 type="button"
                 onClick={() => setRowSpan(rowSpan === 1 ? 2 : 1)}
                 className={`h-7 px-2.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors flex items-center gap-1 ${rowSpan === 2
-                    ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
-                    : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                  ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
+                  : "bg-secondary text-muted-foreground border-border hover:text-foreground"
                   }`}
                 title="Toggle standard height vs 2x tall Bento box"
               >
@@ -1037,8 +1132,8 @@ export function UniversalVisualBuilderModal({
                     }
                   }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left cursor-pointer transition-all shrink-0 ${isSelected
-                      ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
-                      : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+                    ? "bg-primary text-primary-foreground border-primary font-semibold shadow-xs"
+                    : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
                     }`}
                 >
                   <IconComp className="h-3.5 w-3.5" />
@@ -1056,6 +1151,17 @@ export function UniversalVisualBuilderModal({
             {/* 1. SITES REFERENCE BOX CONFIGURATION */}
             {activeTab === "sites" && (
               <div className="space-y-3.5 animate-in fade-in">
+                {/* One-Click Sample Studio Unit Action */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePlaceSampleSitesMatrix}
+                  className="w-full text-xs h-8 border-dashed border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                >
+                  <Compass className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Create Sample Multi-Source Sites Matrix (All Sources)</span>
+                </Button>
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Bookmark Source
@@ -1171,6 +1277,17 @@ export function UniversalVisualBuilderModal({
             {/* 2. OBSERVABLE PLOT CONFIGURATION (Advanced Information Graphics Studio) */}
             {activeTab === "plot" && (
               <div className="space-y-4 animate-in fade-in">
+                {/* One-Click Sample Studio Unit Action */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePlaceSamplePlotStudio}
+                  className="w-full text-xs h-8 border-dashed border-cyan-500/50 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                >
+                  <Activity className="h-3.5 w-3.5 text-cyan-500" />
+                  <span>Create Observable Plot Studio (All 22 Variations Studio)</span>
+                </Button>
                 {/* 1. Mark Type & Curve */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -1518,6 +1635,17 @@ export function UniversalVisualBuilderModal({
             {/* 3. CLASSIC CHART CONFIGURATION */}
             {activeTab === "chart" && (
               <div className="space-y-3.5 animate-in fade-in">
+                {/* One-Click Sample Studio Unit Action */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePlaceSampleChartStudio}
+                  className="w-full text-xs h-8 border-dashed border-blue-500/50 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                >
+                  <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Create Classic Charts Studio (All Chart Types)</span>
+                </Button>
                 {/* Widely Used Presets & Recipes */}
                 <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">
@@ -1567,11 +1695,10 @@ export function UniversalVisualBuilderModal({
                           key={c.id}
                           type="button"
                           onClick={() => setChartType(c.id)}
-                          className={`p-2 rounded-xl border text-center cursor-pointer transition-colors flex flex-col items-center gap-1 ${
-                            isSel
-                              ? "bg-primary/10 border-primary text-primary font-semibold shadow-2xs"
-                              : "bg-background border-border hover:bg-secondary text-muted-foreground"
-                          }`}
+                          className={`p-2 rounded-xl border text-center cursor-pointer transition-colors flex flex-col items-center gap-1 ${isSel
+                            ? "bg-primary/10 border-primary text-primary font-semibold shadow-2xs"
+                            : "bg-background border-border hover:bg-secondary text-muted-foreground"
+                            }`}
                         >
                           <IconC className="h-4 w-4" />
                           <span className="text-[11px] truncate w-full">{c.label}</span>
@@ -1836,6 +1963,17 @@ export function UniversalVisualBuilderModal({
             {/* 4. WORKSPACE INTELLIGENCE CONFIGURATION */}
             {activeTab === "intel" && (
               <div className="space-y-3.5 animate-in fade-in">
+                {/* One-Click Sample Studio Unit Action */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePlaceSampleIntelSuite}
+                  className="w-full text-xs h-8 border-dashed border-purple-500/50 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                >
+                  <Layers className="h-3.5 w-3.5 text-purple-500" />
+                  <span>Create Full Intelligence Suite (Graph, Tags, Heatmap, Wall)</span>
+                </Button>
                 {/* Widely Used Presets */}
                 <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">
@@ -1881,11 +2019,10 @@ export function UniversalVisualBuilderModal({
                           key={item.id}
                           type="button"
                           onClick={() => setIntelType(item.id)}
-                          className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-start gap-2.5 ${
-                            isSel
-                              ? "bg-primary/10 border-primary text-foreground shadow-2xs"
-                              : "bg-background border-border hover:bg-secondary text-muted-foreground"
-                          }`}
+                          className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-start gap-2.5 ${isSel
+                            ? "bg-primary/10 border-primary text-foreground shadow-2xs"
+                            : "bg-background border-border hover:bg-secondary text-muted-foreground"
+                            }`}
                         >
                           <IconI className={`h-4 w-4 mt-0.5 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
                           <div className="min-w-0">
@@ -2217,13 +2354,12 @@ export function UniversalVisualBuilderModal({
                         <span className="capitalize">{intelWallDensity} • {intelWallSort}</span>
                       </div>
                       <div
-                        className={`grid gap-1.5 max-h-56 overflow-y-auto p-1 ${
-                          intelWallDensity === "compact"
-                            ? "grid-cols-6 sm:grid-cols-10"
-                            : intelWallDensity === "cozy"
+                        className={`grid gap-1.5 max-h-56 overflow-y-auto p-1 ${intelWallDensity === "compact"
+                          ? "grid-cols-6 sm:grid-cols-10"
+                          : intelWallDensity === "cozy"
                             ? "grid-cols-4 sm:grid-cols-6"
                             : "grid-cols-5 sm:grid-cols-8"
-                        }`}
+                          }`}
                       >
                         {liveIntelWall.map((bm) => (
                           <div

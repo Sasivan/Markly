@@ -149,6 +149,9 @@ export function ObservablePlotView({
       const strokeColor = config.stroke || "#3b82f6";
       const markerOptions = config.marker ? { markerEnd: "arrow" as any, markerStart: "dot" as any } : {};
 
+      const useColorScheme = Boolean(config.colorScheme && config.colorScheme !== "none");
+      const dynamicFill = (d: any) => d.dimension || d.group || d[yField] || d[xField];
+
       // Auto: Let Observable Plot infer best marks and layout
       if (config.type === "auto") {
         marks.push(
@@ -167,7 +170,7 @@ export function ObservablePlotView({
           Plot.barX(data, {
             y: yField,
             x: xField,
-            fill: config.fill ? fillField : "#3b82f6",
+            fill: useColorScheme ? (config.z || dynamicFill) : (config.fill || "#3b82f6"),
             rx: 4,
             sort: { y: "-x" },
             tip: tipEnabled,
@@ -182,7 +185,7 @@ export function ObservablePlotView({
           Plot.barY(data, {
             x: xField,
             y: yField,
-            fill: config.fill ? fillField : "#3b82f6",
+            fill: useColorScheme ? (config.z || dynamicFill) : (config.fill || "#3b82f6"),
             rx: 4,
             tip: tipEnabled,
           })
@@ -270,11 +273,11 @@ export function ObservablePlotView({
           Plot.dot(data, {
             x: xField,
             y: yField,
-            fill: config.fill ? fillField : "#6366f1",
-            r: config.r ? (typeof config.r === "string" ? config.r : config.r) : 5,
-            fillOpacity: 0.8,
-            stroke: "#ffffff",
-            strokeWidth: 1,
+            fill: useColorScheme ? (config.z || dynamicFill) : (config.fill || "#6366f1"),
+            r: config.r ? (typeof config.r === "string" ? config.r : config.r) : 6,
+            fillOpacity: 0.85,
+            stroke: "currentColor",
+            strokeWidth: 0.75,
             tip: tipEnabled,
           })
         );
@@ -286,11 +289,11 @@ export function ObservablePlotView({
           Plot.dot(data, {
             x: xField,
             y: yField,
-            r: (d: any) => Math.min(22, Math.max(4, Math.sqrt(d.value || d.r || d.visitCount || 1) * 3)),
-            fill: config.z || "folder",
-            fillOpacity: 0.7,
+            r: (d: any) => Math.min(24, Math.max(5, Math.sqrt(d.value || d.r || d.count || d.visitCount || 1) * 3.5)),
+            fill: useColorScheme ? (config.z || dynamicFill) : (config.fill || "#3b82f6"),
+            fillOpacity: 0.8,
             stroke: "currentColor",
-            strokeWidth: 0.75,
+            strokeWidth: 1,
             tip: tipEnabled,
           })
         );
@@ -301,8 +304,8 @@ export function ObservablePlotView({
         marks.push(
           Plot.tickX(data, {
             x: xField,
-            stroke: config.fill || strokeColor,
-            strokeWidth: 1.5,
+            stroke: useColorScheme ? (config.z || dynamicFill) : (config.fill || strokeColor),
+            strokeWidth: 2,
             tip: tipEnabled,
           })
         );
@@ -700,7 +703,7 @@ export function ObservablePlotView({
           Plot.ruleY(data, {
             x: xField,
             y: yField,
-            stroke: strokeColor,
+            stroke: useColorScheme ? (config.z || dynamicFill) : strokeColor,
             strokeWidth: 1.5,
           })
         );
@@ -708,7 +711,7 @@ export function ObservablePlotView({
           Plot.dot(data, {
             x: xField,
             y: yField,
-            fill: strokeColor,
+            fill: useColorScheme ? (config.z || dynamicFill) : strokeColor,
             r: 5,
             tip: tipEnabled,
           })
@@ -757,11 +760,11 @@ export function ObservablePlotView({
           fontSize: "11px",
           fontFamily: "inherit",
         },
-        color: config.colorScheme
+        color: useColorScheme
           ? {
               scheme: config.colorScheme as any,
-              type: config.colorType,
-              legend: config.legend ?? (config.type === "cell" || config.type === "multiLine" || config.type === "stackedBarY" || config.type === "waffle"),
+              type: config.colorType || (config.type === "cell" || config.type === "density" || config.type === "matrix" ? "linear" : "categorical"),
+              legend: config.legend ?? true,
             }
           : undefined,
         x: {

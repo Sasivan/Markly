@@ -265,6 +265,24 @@ export function Sidebar({
     } catch {}
   };
 
+  // 5.3: Workspace Brand Icon live sync
+  const [workspaceIcon, setWorkspaceIcon] = React.useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("markly_workspace_icon") || "sparkles";
+      } catch {}
+    }
+    return "sparkles";
+  });
+
+  React.useEffect(() => {
+    const handleIconChange = (e: any) => {
+      if (e.detail?.icon) setWorkspaceIcon(e.detail.icon);
+    };
+    window.addEventListener("markly-icon-changed", handleIconChange);
+    return () => window.removeEventListener("markly-icon-changed", handleIconChange);
+  }, []);
+
   const handleSelectSavedSearch = (query: string) => {
     onSelectFolder(null);
     onSelectView("all");
@@ -569,7 +587,7 @@ export function Sidebar({
             title="Expand Sidebar (Ctrl+\)"
             className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-semibold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs shrink-0"
           >
-            M
+            <FolderIconRenderer icon={workspaceIcon} className="h-4 w-4" color="#ffffff" />
           </button>
         </div>
 
@@ -929,7 +947,7 @@ export function Sidebar({
           >
             {/* Markly Logo: Exact same size and position as collapsed */}
             <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-semibold text-xs shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-              M
+              <FolderIconRenderer icon={workspaceIcon} className="h-4 w-4" color="#ffffff" />
             </div>
             <span className="font-semibold text-xs text-foreground tracking-tight truncate group-hover:text-primary transition-colors">
               Markly

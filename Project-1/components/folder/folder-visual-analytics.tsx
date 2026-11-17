@@ -590,16 +590,16 @@ export function FolderVisualAnalytics({
             className={`h-6 px-2 rounded-md border flex items-center gap-1.5 cursor-pointer text-[10px] font-mono transition-colors ${
               isCustomScope
                 ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
-                : "bg-secondary text-muted-foreground border-border/60 hover:text-foreground hover:bg-secondary/80"
+                : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 font-semibold"
             }`}
             title={
               isCustomScope
-                ? "Custom Visuals (Isolated to this page). Click to switch to Universal Synced Visuals."
-                : "Universal Visuals (Synced across all folders). Click to make visual layout custom for this page."
+                ? "Folder Custom: Edits only affect this folder. Click to switch to Universal Synced mode."
+                : "Universal (All Folders): Edits here automatically reflect across all folders and sites. Click to switch to Folder Custom."
             }
           >
             <Globe className="h-3 w-3" />
-            <span className="hidden md:inline">{isCustomScope ? "Page Custom" : "Universal"}</span>
+            <span className="hidden sm:inline">{isCustomScope ? "Custom (This Folder)" : "Universal (All Folders)"}</span>
           </button>
         </div>
 

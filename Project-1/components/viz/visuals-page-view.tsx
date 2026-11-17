@@ -489,6 +489,16 @@ export function VisualsPageView({
     } catch {}
   };
 
+  React.useEffect(() => {
+    const handleUnhide = (e: any) => {
+      if (e.detail?.id) {
+        setHiddenStudioUnits((prev) => prev.filter((id) => id !== e.detail.id));
+      }
+    };
+    window.addEventListener("markly-unhide-studio-unit", handleUnhide);
+    return () => window.removeEventListener("markly-unhide-studio-unit", handleUnhide);
+  }, []);
+
   // Pin ANY visual to Homepage Dashboard
   const handlePinAnyVisual = async (visual: {
     id: string;

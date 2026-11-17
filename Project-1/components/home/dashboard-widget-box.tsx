@@ -810,7 +810,7 @@ export function DashboardWidgetBox({
       <div
         onMouseDown={(e) => startResize("e", e)}
         onDoubleClick={handleCycleColSpan}
-        className="absolute top-2 -right-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+        className="absolute top-2 -right-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
         title="Drag right edge to resize column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
       >
         <div
@@ -826,7 +826,7 @@ export function DashboardWidgetBox({
       <div
         onMouseDown={(e) => startResize("w", e)}
         onDoubleClick={handleCycleColSpan}
-        className="absolute top-2 -left-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+        className="absolute top-2 -left-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
         title="Drag left edge to resize column width"
       >
         <div
@@ -843,7 +843,7 @@ export function DashboardWidgetBox({
         <div
           onMouseDown={(e) => startResize("s", e)}
           onDoubleClick={toggleRowSpan}
-          className="absolute -bottom-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -bottom-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag bottom edge to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
         >
           <div
@@ -861,7 +861,7 @@ export function DashboardWidgetBox({
         <div
           onMouseDown={(e) => startResize("n", e)}
           onDoubleClick={toggleRowSpan}
-          className="absolute -top-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-30 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -top-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag top edge to resize box height"
         >
           <div
@@ -878,7 +878,7 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div
           onMouseDown={(e) => startResize("se", e)}
-          className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-30 flex items-end justify-end p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-30 flex items-end justify-end p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag bottom-right corner to freely resize width and height"
         >
           <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
@@ -896,7 +896,7 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div
           onMouseDown={(e) => startResize("sw", e)}
-          className="absolute -bottom-1 -left-1 w-6 h-6 cursor-nesw-resize z-30 flex items-end justify-start p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -bottom-1 -left-1 w-6 h-6 cursor-nesw-resize z-30 flex items-end justify-start p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag bottom-left corner to freely resize width and height"
         >
           <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
@@ -914,7 +914,7 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div
           onMouseDown={(e) => startResize("ne", e)}
-          className="absolute -top-1 -right-1 w-6 h-6 cursor-nesw-resize z-30 flex items-start justify-end p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -top-1 -right-1 w-6 h-6 cursor-nesw-resize z-30 flex items-start justify-end p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag top-right corner to freely resize width and height"
         >
           <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
@@ -932,7 +932,7 @@ export function DashboardWidgetBox({
       {!isCollapsed && (
         <div
           onMouseDown={(e) => startResize("nw", e)}
-          className="absolute -top-1 -left-1 w-6 h-6 cursor-nwse-resize z-30 flex items-start justify-start p-1 opacity-70 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+          className="absolute -top-1 -left-1 w-6 h-6 cursor-nwse-resize z-30 flex items-start justify-start p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
           title="Drag top-left corner to freely resize width and height"
         >
           <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">

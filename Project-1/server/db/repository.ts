@@ -197,8 +197,15 @@ export class BookmarkRepository {
         VALUES (?, ?, ?, 'Resources', '🎨', '#10b981', 1, ?, ?)
       `).run(subFolder2Id, userId, rootFolderId, now + 2, now + 2);
 
-      // 4. Ensure Unsorted system folder exists with persistent custom properties
-    this.ensureUnsortedFolder(userId);
+      // 4. Subfolder 3 ("Frontend & UI" nested inside Development -> 3-level deep hierarchy)
+      const subFolder3Id = `fld_nested_front_${prefix}`;
+      sqlite.prepare(`
+        INSERT OR REPLACE INTO folders (id, user_id, parent_id, name, icon, color, position, created_at, updated_at)
+        VALUES (?, ?, ?, 'Frontend & UI', '⚛️', '#38bdf8', 0, ?, ?)
+      `).run(subFolder3Id, userId, subFolder1Id, now + 3, now + 3);
+
+      // 5. Ensure Unsorted system folder exists with persistent custom properties
+      this.ensureUnsortedFolder(userId);
 
     const devBookmarks = [
         {
@@ -283,13 +290,50 @@ export class BookmarkRepository {
         }
       }
 
-      for (const b of resBookmarks) {
-        insertBm.run(b.id, userId, subFolder2Id, b.url, b.canonicalUrl, b.title, b.description, b.iconUrl, b.domain, now + 5, `${b.title} ${b.description} ${b.domain}`.toLowerCase());
+      const frontBookmarks = [
+        {
+          id: `bm_react_${subFolder3Id}`,
+          url: "https://react.dev",
+          canonicalUrl: "https://react.dev",
+          title: "React Official Documentation",
+          domain: "react.dev",
+          description: "The library for web and native user interfaces.",
+          iconUrl: "https://react.dev/favicon.ico",
+          tags: ["react", "ui", "frontend"],
+          visitCount: 28,
+        },
+        {
+          id: `bm_twcss_${subFolder3Id}`,
+          url: "https://tailwindcss.com",
+          canonicalUrl: "https://tailwindcss.com",
+          title: "Tailwind CSS - Rapidly build modern websites",
+          domain: "tailwindcss.com",
+          description: "A utility-first CSS framework packed with classes.",
+          iconUrl: "https://tailwindcss.com/favicons/favicon-32x32.png",
+          tags: ["design", "css", "ui"],
+          visitCount: 14,
+        },
+        {
+          id: `bm_supa_${subFolder3Id}`,
+          url: "https://supabase.com",
+          canonicalUrl: "https://supabase.com",
+          title: "Supabase - The Open Source Firebase Alternative",
+          domain: "supabase.com",
+          description: "Build production apps with Postgres database, Authentication, instant APIs, Realtime, Storage and Vectors.",
+          iconUrl: "https://supabase.com/favicon.ico",
+          tags: ["backend", "database", "sql"],
+          visitCount: 9,
+        },
+      ];
+
+      for (const b of frontBookmarks) {
+        insertBm.run(b.id, userId, subFolder3Id, b.url, b.canonicalUrl, b.title, b.description, b.iconUrl, b.domain, now + 10, `${b.title} ${b.description} ${b.domain}`.toLowerCase());
+        sqlite.prepare(`UPDATE bookmarks SET visit_count = ? WHERE id = ?`).run(b.visitCount, b.id);
         for (const tName of b.tags) {
           const existingTag = sqlite.prepare(`SELECT id FROM tags WHERE user_id = ? AND name = ?`).get(userId, tName) as { id: string } | undefined;
           const tagId = existingTag ? existingTag.id : `tag_${tName}_${prefix}`;
           if (!existingTag) {
-            sqlite.prepare(`INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, '#10b981', ?)`).run(tagId, userId, tName, now);
+            sqlite.prepare(`INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, '#38bdf8', ?)`).run(tagId, userId, tName, now);
           }
           sqlite.prepare(`INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)`).run(b.id, tagId);
         }

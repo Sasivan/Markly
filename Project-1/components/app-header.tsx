@@ -18,7 +18,9 @@ import {
   Puzzle,
   Layers,
   ShieldCheck,
+  SlidersHorizontal,
 } from "lucide-react";
+import { UniversalPresetHub } from "@/components/presets/universal-preset-hub";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { ThemeAccentPicker } from "./theme-accent-picker";
@@ -59,6 +61,7 @@ export function AppHeader({
   const { user, signOut, signOutAllDevices, openAuthModal } = useAuth();
   const [customAvatar, setCustomAvatar] = React.useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const [presetHubOpen, setPresetHubOpen] = React.useState(false);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
 
   const isUserAdmin = React.useMemo(() => {
@@ -219,6 +222,17 @@ export function AppHeader({
           <Keyboard className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
 
+        {/* Universal Preset & Layout Hub Button */}
+        <button
+          type="button"
+          onClick={() => setPresetHubOpen(true)}
+          title="Universal Presets & Layout Hub (Homepage, Tabs, Visuals, Searches)"
+          className="h-8 px-2.5 rounded-lg border border-border bg-card hover:bg-secondary flex items-center gap-1.5 text-foreground cursor-pointer transition-colors shadow-2xs text-xs font-semibold"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+          <span className="hidden sm:inline">Presets</span>
+        </button>
+
         {/* 5. Theme Accent Picker */}
         <ThemeAccentPicker />
 
@@ -371,6 +385,9 @@ export function AppHeader({
           )}
         </div>
       </div>
+
+      {/* Universal Preset Hub Modal */}
+      <UniversalPresetHub open={presetHubOpen} onOpenChange={setPresetHubOpen} />
     </header>
   );
 }

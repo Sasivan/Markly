@@ -753,7 +753,7 @@ export function ObservablePlotView({
         marginTop: config.marginTop ?? 20,
         marginRight: config.marginRight ?? 35,
         marginBottom: config.marginBottom ?? 35,
-        marginLeft: config.marginLeft ?? (config.type === "barX" || config.type === "stackedBarX" ? 135 : 55),
+        marginLeft: config.marginLeft ?? (config.type === "barX" || config.type === "stackedBarX" ? 175 : 55),
         inset: config.inset ?? 6,
         grid: hasGrid,
         ariaLabel: config.ariaLabel || config.title || `Observable ${config.type} plot`,
@@ -773,11 +773,11 @@ export function ObservablePlotView({
           : undefined,
         x: {
           type: config.xType,
-          label: config.xLabel,
+          label: config.xLabel ?? null,
         },
         y: {
           type: config.yType,
-          label: config.yLabel,
+          label: config.yLabel ?? null,
         },
         marks,
       });

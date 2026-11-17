@@ -32,8 +32,11 @@ import {
   BarChart3,
   Columns3,
   Rows3,
+  BookmarkCheck,
+  Trash2,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { UniversalPresetHub } from "@/components/presets/universal-preset-hub";
 
 export type HomeWidgetKey =
   | "heatmap"
@@ -118,6 +121,47 @@ export function HomeLayoutModal({
   React.useEffect(() => {
     setLocalWidgets(widgets);
   }, [widgets, open]);
+
+  const [presetHubOpen, setPresetHubOpen] = React.useState(false);
+  const [hasCustomDefaultLayout, setHasCustomDefaultLayout] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("markly_home_custom_default_layout") !== null;
+      } catch {}
+    }
+    return false;
+  });
+  const [customDefaultSavedToast, setCustomDefaultSavedToast] = React.useState(false);
+
+  const handleSetCustomDefaultLayout = () => {
+    try {
+      localStorage.setItem("markly_home_custom_default_layout", JSON.stringify(localWidgets));
+      setHasCustomDefaultLayout(true);
+      setCustomDefaultSavedToast(true);
+      setTimeout(() => setCustomDefaultSavedToast(false), 2500);
+    } catch {}
+  };
+
+  const handleClearCustomDefaultLayout = () => {
+    try {
+      localStorage.removeItem("markly_home_custom_default_layout");
+      setHasCustomDefaultLayout(false);
+    } catch {}
+  };
+
+  const handleResetToCustomOrDefault = () => {
+    try {
+      const stored = localStorage.getItem("markly_home_custom_default_layout");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLocalWidgets(parsed);
+          return;
+        }
+      }
+    } catch {}
+    onResetDefaults();
+  };
 
   const toggleVisibility = (id: HomeWidgetKey) => {
     setLocalWidgets((prev) =>
@@ -675,19 +719,67 @@ export function HomeLayoutModal({
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-border mt-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onResetDefaults}
-            className="text-xs text-muted-foreground hover:text-foreground h-8 cursor-pointer gap-1.5"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>Reset Defaults</span>
-          </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-3 border-t border-border mt-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleResetToCustomOrDefault}
+              className="text-xs text-muted-foreground hover:text-foreground h-8 cursor-pointer gap-1.5"
+              title={hasCustomDefaultLayout ? "Reset to your saved custom default layout" : "Reset to system defaults"}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>{hasCustomDefaultLayout ? "Reset to Custom Default" : "Reset Defaults"}</span>
+            </Button>
 
-          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSetCustomDefaultLayout}
+              className="text-xs h-8 cursor-pointer gap-1.5 text-foreground hover:bg-secondary"
+              title="Save this layout as your personal default"
+            >
+              <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
+              <span>Set as Default</span>
+            </Button>
+
+            {hasCustomDefaultLayout && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClearCustomDefaultLayout}
+                className="text-xs h-8 cursor-pointer gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Remove custom default and revert to system standard default"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear Default</span>
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPresetHubOpen(true)}
+              className="text-xs h-8 cursor-pointer gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+              title="Open Presets Hub to manage, switch, or export saved layout sets"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Presets Hub</span>
+            </Button>
+
+            {customDefaultSavedToast && (
+              <span className="text-[11px] text-emerald-500 font-semibold flex items-center gap-1 animate-in fade-in bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                <Check className="h-3 w-3" />
+                <span>Custom Default Saved!</span>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 justify-end">
             <Button
               type="button"
               variant="outline"
@@ -710,6 +802,13 @@ export function HomeLayoutModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* Universal Preset & Layout Hub Modal */}
+      <UniversalPresetHub
+        open={presetHubOpen}
+        onOpenChange={setPresetHubOpen}
+        activeCategory="home"
+      />
     </Dialog>
   );
 }

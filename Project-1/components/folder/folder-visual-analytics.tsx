@@ -27,7 +27,11 @@ import {
   History,
   Folder as FolderIcon,
   Globe,
+  BookmarkCheck,
+  MoreHorizontal,
+  Check,
 } from "lucide-react";
+import { UniversalPresetHub } from "@/components/presets/universal-preset-hub";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, Pie } from "recharts";
 import { Button } from "@/components/ui/button";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
@@ -154,7 +158,7 @@ function makeDefaultVisuals(folderId: string, isCustom = false): TabVisual[] {
 function normalizeVisual(v: any): TabVisual {
   const vId = String(v.id || "");
   const vKind = String(v.kind || v.category || "");
-  const vTitle = String(v.title || "");
+  const vTitle = String(v.title || (v as any).label || "");
 
   if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot") || vTitle.includes("Observable Plot")) {
     return { ...v, id: "studio_observable_plot", title: v.title || "Observable Plot Layered Graphics Studio (22 Variations)", kind: "plot_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
@@ -251,6 +255,47 @@ export function FolderVisualAnalytics({
   onDeleteBookmark,
 }: FolderVisualAnalyticsProps) {
   // Collapsed / Expanded state
+  const [presetHubOpen, setPresetHubOpen] = React.useState(false);
+  const [tabMenuOpen, setTabMenuOpen] = React.useState(false);
+  const tabMenuRef = React.useRef<HTMLDivElement>(null);
+  const [hasCustomDefaultTabs, setHasCustomDefaultTabs] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem(`markly_folder_custom_default_tabs_${folderId}`) !== null;
+      } catch {}
+    }
+    return false;
+  });
+  const [customDefaultSavedToast, setCustomDefaultSavedToast] = React.useState(false);
+
+  const handleSetCustomDefaultTabs = () => {
+    try {
+      localStorage.setItem(`markly_folder_custom_default_tabs_${folderId}`, JSON.stringify(tabs));
+      setHasCustomDefaultTabs(true);
+      setCustomDefaultSavedToast(true);
+      setTimeout(() => setCustomDefaultSavedToast(false), 2500);
+    } catch {}
+  };
+
+  const handleClearCustomDefaultTabs = () => {
+    try {
+      localStorage.removeItem(`markly_folder_custom_default_tabs_${folderId}`);
+      setHasCustomDefaultTabs(false);
+    } catch {}
+  };
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (tabMenuRef.current && !tabMenuRef.current.contains(event.target as Node)) {
+        setTabMenuOpen(false);
+      }
+    }
+    if (tabMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [tabMenuOpen]);
+
   const [isExpanded, setIsExpanded] = React.useState<boolean>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -349,6 +394,28 @@ export function FolderVisualAnalytics({
   const updateTabs = (next: Tab[]) => {
     setTabs(next);
     persistTabs(folderId, next, isCustomScope);
+  };
+
+  const handleResetToStandardDefaults = () => {
+    const defaults = makeDefaultVisuals(folderId, isCustomScope);
+    const standardTabs: Tab[] = [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: defaults }];
+    updateTabs(standardTabs);
+    setActiveTabId("tab_default");
+  };
+
+  const handleResetToCustomDefaultTabs = () => {
+    try {
+      const stored = localStorage.getItem(`markly_folder_custom_default_tabs_${folderId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          updateTabs(parsed);
+          setActiveTabId(parsed[0].id);
+          return;
+        }
+      }
+    } catch {}
+    handleResetToStandardDefaults();
   };
 
   const handleAddTab = () => {
@@ -766,6 +833,108 @@ export function FolderVisualAnalytics({
             <PanelTop className="h-3.5 w-3.5" />
           </button>
 
+          {/* Universal Preset Hub Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPresetHubOpen(true)}
+            className="h-7 px-2 text-xs gap-1 cursor-pointer hover:bg-secondary text-foreground border-border"
+            title="Manage and switch between folder tab presets"
+          >
+            <SlidersHorizontal className="h-3 w-3 text-primary" />
+            <span className="font-medium hidden sm:inline">Presets</span>
+          </Button>
+
+          {/* Tab Options 3-Dots Menu */}
+          <div ref={tabMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setTabMenuOpen((prev) => !prev)}
+              className="h-7 w-7 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors border border-border/60"
+              title="Folder Tab Options (Defaults, Presets, Reset)"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+
+            {tabMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-56 rounded-xl border border-border bg-card shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTabMenuOpen(false);
+                    handleSetCustomDefaultTabs();
+                  }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-secondary cursor-pointer transition-colors text-left"
+                >
+                  <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
+                  <span>Set as Custom Default Tabs</span>
+                </button>
+
+                {hasCustomDefaultTabs && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTabMenuOpen(false);
+                      handleResetToCustomDefaultTabs();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 cursor-pointer transition-colors text-left"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>Reset to Custom Default</span>
+                  </button>
+                )}
+
+                {hasCustomDefaultTabs && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTabMenuOpen(false);
+                      handleClearCustomDefaultTabs();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors text-left"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Clear Custom Default</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTabMenuOpen(false);
+                    handleResetToStandardDefaults();
+                  }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors text-left"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Reset to Standard Defaults</span>
+                </button>
+
+                <div className="my-1 border-t border-border/60" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTabMenuOpen(false);
+                    setPresetHubOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 cursor-pointer transition-colors text-left"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <span>Open Presets &amp; Layout Hub</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {customDefaultSavedToast && (
+            <span className="text-[10px] text-emerald-500 font-mono font-semibold flex items-center gap-1 animate-in fade-in bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+              <Check className="h-2.5 w-2.5" />
+              <span>Tabs Default Saved</span>
+            </span>
+          )}
+
           {/* Toggle Expand / Collapse */}
           <button
             type="button"
@@ -868,7 +1037,7 @@ export function FolderVisualAnalytics({
               {activeTab.visuals.map((viz) => {
                 const vId = String(viz.id || "");
                 const vKind = String(viz.kind || (viz as any).category || "");
-                const vTitle = String(viz.title || "");
+                const vTitle = String(viz.title || (viz as any).label || "");
 
                 // 1. Observable Plot Studio Box
                 if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot") || vTitle.includes("Observable Plot")) {
@@ -1238,6 +1407,13 @@ export function FolderVisualAnalytics({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName={folderName}
+      />
+
+      {/* Universal Preset & Layout Hub */}
+      <UniversalPresetHub
+        open={presetHubOpen}
+        onOpenChange={setPresetHubOpen}
+        activeCategory="folder"
       />
     </div>
   );

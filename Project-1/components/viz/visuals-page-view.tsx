@@ -30,6 +30,7 @@ import {
   Search,
   ChevronDown,
 } from "lucide-react";
+import { UniversalPresetHub } from "@/components/presets/universal-preset-hub";
 import { Button } from "@/components/ui/button";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { HomeWidgetConfig } from "@/components/home/home-layout-modal";
@@ -198,6 +199,38 @@ export function VisualsPageView({
 }: VisualsPageViewProps) {
   const [builderOpen, setBuilderOpen] = React.useState(false);
   const [editingConfig, setEditingConfig] = React.useState<UniversalVisualConfig | null>(null);
+  const [presetHubOpen, setPresetHubOpen] = React.useState(false);
+
+  // Parity 12-Column Grid Resizing for Studio Units
+  const [studioColSpans, setStudioColSpans] = React.useState<Record<string, WidgetColSpan>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const keys = [
+          "studio_observable_plot",
+          "studio_classic_charts",
+          "studio_intel_systems",
+          "studio_sites_matrix",
+          "studio_knowledge_graph",
+        ];
+        const res: Record<string, WidgetColSpan> = {};
+        for (const k of keys) {
+          const val = localStorage.getItem("markly_box_colspan_" + k);
+          if (val && [2, 3, 4, 6, 8, 9, 12].includes(Number(val))) {
+            res[k] = Number(val) as WidgetColSpan;
+          }
+        }
+        return res;
+      } catch {}
+    }
+    return {};
+  });
+
+  const handleStudioColSpanChange = (id: string, span: WidgetColSpan) => {
+    setStudioColSpans((prev) => ({ ...prev, [id]: span }));
+    try {
+      localStorage.setItem("markly_box_colspan_" + id, String(span));
+    } catch {}
+  };
 
   // Observable Plot Studio state (22 Plot Variations)
   const [plotType, setPlotType] = React.useState<ObservablePlotConfig["type"]>("barX");
@@ -785,6 +818,16 @@ export function VisualsPageView({
                 <span>Restore Default Units ({hiddenStudioUnits.length})</span>
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPresetHubOpen(true)}
+              className="text-xs h-8 cursor-pointer gap-1.5 border-border hover:bg-secondary text-foreground"
+              title="Manage and switch between visual presets"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              <span>Presets &amp; Layouts</span>
+            </Button>
             {onNavigateHome && (
               <Button
                 variant="outline"
@@ -811,178 +854,191 @@ export function VisualsPageView({
         </div>
       </div>
 
-      {/* 1. OBSERVABLE PLOT GRAMMAR OF GRAPHICS STUDIO (Wrapped in Resizable Box) */}
-      {!hiddenStudioUnits.includes("studio_observable_plot") && (
-        <ObservablePlotStudioBox
-          id="studio_observable_plot"
-          bookmarks={bookmarks}
-          folders={folders}
-          onDeleteWidget={() => handleHideStudioUnit("studio_observable_plot")}
-          onPinHome={handlePinAnyVisual}
-          onAddToFolder={(v) => setExportTargetVisual(v)}
-        />
-      )}
+      {/* Visual Studios Grid (12-Column Responsive Bento Layout with Parity to Homepage Resizing) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 w-full items-start [grid-auto-flow:dense]">
+        {/* 1. OBSERVABLE PLOT GRAMMAR OF GRAPHICS STUDIO (T2) */}
+        {!hiddenStudioUnits.includes("studio_observable_plot") && (
+          <ObservablePlotStudioBox
+            id="studio_observable_plot"
+            bookmarks={bookmarks}
+            folders={folders}
+            initialColSpan={studioColSpans["studio_observable_plot"] || 12}
+            onColSpanChange={(span) => handleStudioColSpanChange("studio_observable_plot", span)}
+            onDeleteWidget={() => handleHideStudioUnit("studio_observable_plot")}
+            onPinHome={handlePinAnyVisual}
+            onAddToFolder={(v) => setExportTargetVisual(v)}
+          />
+        )}
 
-      {/* 2. CLASSIC CHARTS MULTI-VARIATION STUDIO */}
-      {!hiddenStudioUnits.includes("studio_classic_charts") && (
-        <ClassicChartsStudioBox
-          id="studio_classic_charts"
-          bookmarks={bookmarks}
-          folders={folders}
-          onDeleteWidget={() => handleHideStudioUnit("studio_classic_charts")}
-          onPinHome={handlePinAnyVisual}
-          onAddToFolder={(v) => setExportTargetVisual(v)}
-        />
-      )}
+        {/* 2. CLASSIC CHARTS MULTI-VARIATION STUDIO (T3) */}
+        {!hiddenStudioUnits.includes("studio_classic_charts") && (
+          <ClassicChartsStudioBox
+            id="studio_classic_charts"
+            bookmarks={bookmarks}
+            folders={folders}
+            initialColSpan={studioColSpans["studio_classic_charts"] || 12}
+            onColSpanChange={(span) => handleStudioColSpanChange("studio_classic_charts", span)}
+            onDeleteWidget={() => handleHideStudioUnit("studio_classic_charts")}
+            onPinHome={handlePinAnyVisual}
+            onAddToFolder={(v) => setExportTargetVisual(v)}
+          />
+        )}
 
-      {/* 3. INTELLIGENCE SYSTEMS MULTI-VARIATION STUDIO */}
-      {!hiddenStudioUnits.includes("studio_intel_systems") && (
-        <IntelligenceSystemsStudioBox
-          id="studio_intel_systems"
-          bookmarks={bookmarks}
-          folders={folders}
-          onDeleteWidget={() => handleHideStudioUnit("studio_intel_systems")}
-          onPinHome={handlePinAnyVisual}
-          onAddToFolder={(v) => setExportTargetVisual(v)}
-        />
-      )}
+        {/* 3. INTELLIGENCE SYSTEMS MULTI-VARIATION STUDIO (T4) */}
+        {!hiddenStudioUnits.includes("studio_intel_systems") && (
+          <IntelligenceSystemsStudioBox
+            id="studio_intel_systems"
+            bookmarks={bookmarks}
+            folders={folders}
+            initialColSpan={studioColSpans["studio_intel_systems"] || 12}
+            onColSpanChange={(span) => handleStudioColSpanChange("studio_intel_systems", span)}
+            onDeleteWidget={() => handleHideStudioUnit("studio_intel_systems")}
+            onPinHome={handlePinAnyVisual}
+            onAddToFolder={(v) => setExportTargetVisual(v)}
+          />
+        )}
 
-      {/* 4. SITES REFERENCE MATRIX MULTI-VARIATION STUDIO */}
-      {!hiddenStudioUnits.includes("studio_sites_matrix") && (
-        <SitesMatrixStudioBox
-          id="studio_sites_matrix"
-          bookmarks={bookmarks}
-          folders={folders}
-          onDeleteWidget={() => handleHideStudioUnit("studio_sites_matrix")}
-          onPinHome={handlePinAnyVisual}
-          onAddToFolder={(v) => setExportTargetVisual(v)}
-        />
-      )}
+        {/* 4. SITES REFERENCE MATRIX MULTI-VARIATION STUDIO (T1) */}
+        {!hiddenStudioUnits.includes("studio_sites_matrix") && (
+          <SitesMatrixStudioBox
+            id="studio_sites_matrix"
+            bookmarks={bookmarks}
+            folders={folders}
+            initialColSpan={studioColSpans["studio_sites_matrix"] || 12}
+            onColSpanChange={(span) => handleStudioColSpanChange("studio_sites_matrix", span)}
+            onDeleteWidget={() => handleHideStudioUnit("studio_sites_matrix")}
+            onPinHome={handlePinAnyVisual}
+            onAddToFolder={(v) => setExportTargetVisual(v)}
+          />
+        )}
 
-      {/* 2. KNOWLEDGE GRAPH MASTER STUDIO (Wrapped in Resizable Box) */}
-      {!hiddenStudioUnits.includes("studio_knowledge_graph") && (
-      <DashboardWidgetBox
-        id="studio_knowledge_graph"
-        title="Knowledge Graph Master Allocation Studio"
-        icon={<Layers className="h-4 w-4 text-indigo-500" />}
-        initialColSpan={12}
-        minHeight={420}
-        badgeText="FORCE-DIRECTED"
-        onDeleteWidget={() => handleHideStudioUnit("studio_knowledge_graph")}
-        extraHeaderAction={
-          <div className="flex items-center gap-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                handlePinAnyVisual({
-                  id: `graph_${Date.now()}`,
-                  title: "Interactive Knowledge Graph",
-                  kind: "graph",
-                })
-              }
-              className="text-xs h-7 px-2 cursor-pointer gap-1"
-            >
-              <Pin className="h-3 w-3" />
-              <span>Pin Home</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setExportTargetVisual({
-                  id: `graph_${Date.now()}`,
-                  title: "Interactive Knowledge Graph",
-                  kind: "graph",
-                })
-              }
-              className="text-xs h-7 px-2 cursor-pointer gap-1 text-primary"
-            >
-              <FolderPlus className="h-3 w-3" />
-              <span>+ Folder</span>
-            </Button>
-          </div>
-        }
-      >
-        <div className="p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Graph Scope
-              </label>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setGraphMode("global")}
-                  className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${
-                    graphMode === "global"
-                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                      : "bg-card hover:bg-secondary text-foreground border-border"
-                  }`}
+        {/* 5. KNOWLEDGE GRAPH MASTER STUDIO (T4) */}
+        {!hiddenStudioUnits.includes("studio_knowledge_graph") && (
+          <DashboardWidgetBox
+            id="studio_knowledge_graph"
+            title="Knowledge Graph Master Allocation Studio"
+            tabRef="T4"
+            icon={<Layers className="h-4 w-4 text-indigo-500" />}
+            initialColSpan={studioColSpans["studio_knowledge_graph"] || 12}
+            onColSpanChange={(span) => handleStudioColSpanChange("studio_knowledge_graph", span)}
+            minHeight={420}
+            badgeText="FORCE-DIRECTED"
+            onDeleteWidget={() => handleHideStudioUnit("studio_knowledge_graph")}
+            extraHeaderAction={
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    handlePinAnyVisual({
+                      id: `graph_${Date.now()}`,
+                      title: "Interactive Knowledge Graph",
+                      kind: "graph",
+                    })
+                  }
+                  className="text-xs h-7 px-2 cursor-pointer gap-1"
                 >
-                  Global Workspace
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGraphMode("folder")}
-                  className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${
-                    graphMode === "folder"
-                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                      : "bg-card hover:bg-secondary text-foreground border-border"
-                  }`}
+                  <Pin className="h-3 w-3" />
+                  <span>Pin Home</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setExportTargetVisual({
+                      id: `graph_${Date.now()}`,
+                      title: "Interactive Knowledge Graph",
+                      kind: "graph",
+                    })
+                  }
+                  className="text-xs h-7 px-2 cursor-pointer gap-1 text-primary"
                 >
-                  Folder Filtered
-                </button>
+                  <FolderPlus className="h-3 w-3" />
+                  <span>+ Folder</span>
+                </Button>
+              </div>
+            }
+          >
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                    Graph Scope
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setGraphMode("global")}
+                      className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${
+                        graphMode === "global"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                          : "bg-card hover:bg-secondary text-foreground border-border"
+                      }`}
+                    >
+                      Global Workspace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGraphMode("folder")}
+                      className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${
+                        graphMode === "folder"
+                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                          : "bg-card hover:bg-secondary text-foreground border-border"
+                      }`}
+                    >
+                      Folder Filtered
+                    </button>
+                  </div>
+                </div>
+
+                {graphMode === "folder" && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                      Target Folder
+                    </label>
+                    <select
+                      value={selectedGraphFolder}
+                      onChange={(e) => setSelectedGraphFolder(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
+                    >
+                      <option value="">Select a folder...</option>
+                      {folders.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                    Node Exploration Depth: {graphDepth}
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={4}
+                    value={graphDepth}
+                    onChange={(e) => setGraphDepth(Number(e.target.value))}
+                    className="w-full accent-primary cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="h-80 w-full rounded-xl overflow-hidden border border-border bg-card shadow-inner">
+                <KnowledgeGraph
+                  mode={graphMode}
+                  folderId={graphMode === "folder" && selectedGraphFolder ? selectedGraphFolder : undefined}
+                  depth={graphDepth}
+                  showControls={true}
+                  onSelectDomain={onSelectDomain}
+                />
               </div>
             </div>
-
-            {graphMode === "folder" && (
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Target Folder
-                </label>
-                <select
-                  value={selectedGraphFolder}
-                  onChange={(e) => setSelectedGraphFolder(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
-                >
-                  <option value="">Select a folder...</option>
-                  {folders.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Node Exploration Depth: {graphDepth}
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={4}
-                value={graphDepth}
-                onChange={(e) => setGraphDepth(Number(e.target.value))}
-                className="w-full accent-primary cursor-pointer"
-              />
-            </div>
-          </div>
-
-          <div className="h-80 w-full rounded-xl overflow-hidden border border-border bg-card shadow-inner">
-            <KnowledgeGraph
-              mode={graphMode}
-              folderId={graphMode === "folder" && selectedGraphFolder ? selectedGraphFolder : undefined}
-              depth={graphDepth}
-              showControls={true}
-              onSelectDomain={onSelectDomain}
-            />
-          </div>
-        </div>
-      </DashboardWidgetBox>
-      )}
+          </DashboardWidgetBox>
+        )}
+      </div>
 
       {/* 3. CORE SPECIALIZED VISUALS IN RESIZABLE BOXES */}
       {(!hiddenStudioUnits.includes("unit_tags_cloud") || !hiddenStudioUnits.includes("unit_engagement_spectrum") || !hiddenStudioUnits.includes("unit_favicon_wall")) && (
@@ -1604,6 +1660,13 @@ export function VisualsPageView({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName="Visuals Studio Page"
+      />
+
+      {/* Universal Preset & Layout Hub */}
+      <UniversalPresetHub
+        open={presetHubOpen}
+        onOpenChange={setPresetHubOpen}
+        activeCategory="visuals"
       />
     </div>
   );

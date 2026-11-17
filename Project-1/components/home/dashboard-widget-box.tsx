@@ -26,6 +26,7 @@ import {
   Minus,
   RotateCcw,
   Table as TableIcon,
+  BookmarkCheck,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
@@ -51,6 +52,7 @@ interface DashboardWidgetBoxProps {
   title: string;
   icon: React.ReactNode;
   badgeText?: string | number;
+  tabRef?: "T1" | "T2" | "T3" | "T4" | string;
   span?: "1" | "2";
   colSpan?: WidgetColSpan;
   initialColSpan?: WidgetColSpan;
@@ -86,6 +88,7 @@ export function DashboardWidgetBox({
   title,
   icon,
   badgeText,
+  tabRef,
   span = "1",
   colSpan,
   initialColSpan,
@@ -200,9 +203,66 @@ export function DashboardWidgetBox({
     onRowSpanChange?.(next);
   };
 
+  const [hasCustomDefault, setHasCustomDefault] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("markly_box_custom_default_" + id) !== null;
+      } catch {}
+    }
+    return false;
+  });
+
+  const [customDefaultSavedToast, setCustomDefaultSavedToast] = React.useState(false);
+
+  const handleSetCustomDefault = () => {
+    try {
+      const config = {
+        colSpan: colSpanState,
+        rowSpan: rowSpanState,
+        boxHeight,
+        itemLimit: activeLimit,
+        viewMode,
+      };
+      localStorage.setItem("markly_box_custom_default_" + id, JSON.stringify(config));
+      setHasCustomDefault(true);
+      setCustomDefaultSavedToast(true);
+      setTimeout(() => setCustomDefaultSavedToast(false), 2500);
+    } catch {}
+  };
+
+  const handleClearCustomDefault = () => {
+    try {
+      localStorage.removeItem("markly_box_custom_default_" + id);
+      setHasCustomDefault(false);
+    } catch {}
+  };
+
   const handleResetBoxDimensions = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     try {
+      const customDef = localStorage.getItem("markly_box_custom_default_" + id);
+      if (customDef) {
+        const parsed = JSON.parse(customDef);
+        if (parsed.colSpan) {
+          setColSpanState(parsed.colSpan);
+          onColSpanChange?.(parsed.colSpan);
+          localStorage.setItem("markly_box_colspan_" + id, String(parsed.colSpan));
+        }
+        if (parsed.rowSpan) {
+          setRowSpanState(parsed.rowSpan);
+          onRowSpanChange?.(parsed.rowSpan);
+          localStorage.setItem("markly_box_rowspan_" + id, String(parsed.rowSpan));
+        }
+        if (parsed.boxHeight) {
+          setBoxHeight(parsed.boxHeight);
+          localStorage.setItem("markly_box_h_" + id, String(parsed.boxHeight));
+        } else {
+          setBoxHeight(null);
+          localStorage.removeItem("markly_box_h_" + id);
+        }
+        setHasCustomDimensions(false);
+        return;
+      }
       localStorage.removeItem("markly_box_colspan_" + id);
       localStorage.removeItem("markly_box_h_" + id);
       localStorage.removeItem("markly_box_rowspan_" + id);
@@ -479,6 +539,57 @@ export function DashboardWidgetBox({
     2: "1/6 (16%)",
   }[colSpanState] || `${colSpanState}/12`;
 
+  // Resolve Tab Reference (T1: Sites, T2: Observable Plot, T3: Classic Charts, T4: Intelligence Systems)
+  const resolvedTabRef = React.useMemo(() => {
+    if (tabRef) return tabRef;
+    const lower = `${id} ${title} ${badgeText || ""}`.toLowerCase();
+    if (
+      lower.includes("observable") ||
+      lower.includes("plot") ||
+      lower.includes("marks") ||
+      lower.includes("grammar")
+    ) {
+      return "T2";
+    }
+    if (
+      lower.includes("classic") ||
+      lower.includes("recharts") ||
+      lower.includes("patterns") ||
+      lower.includes("velocity") ||
+      lower.includes("domain") ||
+      lower.includes("radar") ||
+      lower.includes("bar") ||
+      lower.includes("donut") ||
+      lower.includes("distribution")
+    ) {
+      return "T3";
+    }
+    if (
+      lower.includes("intel") ||
+      lower.includes("graph") ||
+      lower.includes("force") ||
+      lower.includes("spectrum") ||
+      lower.includes("heatmap") ||
+      lower.includes("wall") ||
+      lower.includes("systems") ||
+      lower.includes("topics")
+    ) {
+      return "T4";
+    }
+    if (
+      lower.includes("sites") ||
+      lower.includes("quick") ||
+      lower.includes("matrix") ||
+      lower.includes("favorite") ||
+      lower.includes("recent") ||
+      lower.includes("unsorted") ||
+      lower.includes("folders")
+    ) {
+      return "T1";
+    }
+    return null;
+  }, [tabRef, id, title, badgeText]);
+
   return (
     <div
       ref={boxRef}
@@ -528,10 +639,40 @@ export function DashboardWidgetBox({
             className="flex items-center gap-1.5 truncate cursor-pointer select-text"
             onClick={toggleCollapsed}
           >
+            {resolvedTabRef && (
+              <span
+                className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border shadow-2xs tracking-wider shrink-0 select-none ${
+                  resolvedTabRef === "T1"
+                    ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                    : resolvedTabRef === "T2"
+                    ? "bg-cyan-500/15 text-cyan-500 border-cyan-500/30"
+                    : resolvedTabRef === "T3"
+                    ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
+                    : "bg-purple-500/15 text-purple-500 border-purple-500/30"
+                }`}
+                title={
+                  resolvedTabRef === "T1"
+                    ? "T1: Sites Reference Matrix (Tab 1)"
+                    : resolvedTabRef === "T2"
+                    ? "T2: Observable Plot Layered Graphics (Tab 2)"
+                    : resolvedTabRef === "T3"
+                    ? "T3: Classic Charts Studio (Tab 3)"
+                    : "T4: Workspace Intelligence Systems (Tab 4)"
+                }
+              >
+                {resolvedTabRef}
+              </span>
+            )}
             <h2 className="text-xs font-semibold text-foreground truncate">{title}</h2>
             {badgeText !== undefined && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/60 tabular-nums">
                 {badgeText}
+              </span>
+            )}
+            {customDefaultSavedToast && (
+              <span className="text-[10px] text-emerald-500 font-mono font-semibold flex items-center gap-1 animate-in fade-in shrink-0 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/30">
+                <Check className="h-2.5 w-2.5" />
+                <span>Default Saved</span>
               </span>
             )}
           </div>
@@ -766,7 +907,20 @@ export function DashboardWidgetBox({
                     <span>{rowSpanState === 2 ? "Standard 1x Height" : "Bento 2x Tall (1:2)"}</span>
                   </button>
 
-                  {hasCustomDimensions && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      handleSetCustomDefault();
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    title="Remember this box's current width, height, and limits as your personal default"
+                  >
+                    <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
+                    <span>Set as custom default</span>
+                  </button>
+
+                  {hasCustomDefault && (
                     <button
                       type="button"
                       onClick={() => {
@@ -776,7 +930,35 @@ export function DashboardWidgetBox({
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
-                      <span>Reset custom size</span>
+                      <span>Reset to custom default</span>
+                    </button>
+                  )}
+
+                  {hasCustomDefault && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        handleClearCustomDefault();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer text-[11px]"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Clear custom default</span>
+                    </button>
+                  )}
+
+                  {!hasCustomDefault && hasCustomDimensions && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        handleResetBoxDimensions();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Reset default size</span>
                     </button>
                   )}
 

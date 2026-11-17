@@ -175,6 +175,7 @@ export function SitesMatrixStudioBox({
   return (
     <DashboardWidgetBox
       id={id}
+      tabRef="T1"
       title="Sites Matrix Studio (7 Variations)"
       icon={<FolderIconRenderer icon={icon} color={accentColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}

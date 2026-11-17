@@ -225,6 +225,7 @@ export function ClassicChartsStudioBox({
   return (
     <DashboardWidgetBox
       id={id}
+      tabRef="T3"
       title="Classic Charts Studio (18 Variations)"
       icon={<FolderIconRenderer icon={icon} color={accentColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}

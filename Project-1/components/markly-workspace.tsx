@@ -10,6 +10,8 @@ import {
   TrendingUp,
   ArrowLeft,
   Home,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/app-header";
@@ -1381,7 +1383,21 @@ export function MarklyWorkspace({
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* Outside Panel Sidebar Collapse / Expand Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleSidebarCollapse}
+          className="absolute -left-3 top-16 z-30 h-6 w-6 rounded-full border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center shadow-md transition-all hover:scale-110 cursor-pointer"
+          title={sidebarCollapsed ? "Expand sidebar panel (Ctrl+B)" : "Collapse sidebar panel (Ctrl+B)"}
+        >
+          {sidebarCollapsed ? (
+            <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronLeft className="h-3.5 w-3.5" />
+          )}
+        </button>
+
         {/* Top Header without search bar (available in left panel) */}
         <AppHeader
           isSidebarCollapsed={sidebarCollapsed}

@@ -1309,10 +1309,10 @@ export function UniversalVisualBuilderModal({
           {/* Master Visual Category Tabs */}
           <div className="flex items-center gap-2 pt-3 border-t border-border/40 mt-3 text-xs overflow-x-auto">
             {[
-              { id: "sites" as const, label: "Sites Reference Box", icon: Compass, desc: "Quick access, favorites, recent, or folder site cards" },
-              { id: "plot" as const, label: "ObservableHQ Plots", icon: Activity, desc: "33 marks, transforms, and reactive grammar of graphics" },
-              { id: "chart" as const, label: "Classic Charts", icon: BarChart3, desc: "Standard bars, lines, donuts, and stat metrics" },
-              { id: "intel" as const, label: "Intelligence Systems", icon: Layers, desc: "Knowledge graph, tags cloud, engagement, favicon wall" },
+              { id: "sites" as const, tabRef: "T1", label: "Sites Reference Box", icon: Compass, desc: "Quick access, favorites, recent, or folder site cards" },
+              { id: "plot" as const, tabRef: "T2", label: "ObservableHQ Plots", icon: Activity, desc: "33 marks, transforms, and reactive grammar of graphics" },
+              { id: "chart" as const, tabRef: "T3", label: "Classic Charts", icon: BarChart3, desc: "Standard bars, lines, donuts, and stat metrics" },
+              { id: "intel" as const, tabRef: "T4", label: "Intelligence Systems", icon: Layers, desc: "Knowledge graph, tags cloud, engagement, favicon wall" },
             ].map((cat) => {
               const IconComp = cat.icon;
               const isSelected = activeTab === cat.id;
@@ -1331,6 +1331,21 @@ export function UniversalVisualBuilderModal({
                     : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
                     }`}
                 >
+                  <span
+                    className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border shadow-2xs tracking-wider shrink-0 ${
+                      isSelected
+                        ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30"
+                        : cat.tabRef === "T1"
+                        ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                        : cat.tabRef === "T2"
+                        ? "bg-cyan-500/15 text-cyan-500 border-cyan-500/30"
+                        : cat.tabRef === "T3"
+                        ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
+                        : "bg-purple-500/15 text-purple-500 border-purple-500/30"
+                    }`}
+                  >
+                    {cat.tabRef}
+                  </span>
                   <IconComp className="h-3.5 w-3.5" />
                   <span>{cat.label}</span>
                 </button>

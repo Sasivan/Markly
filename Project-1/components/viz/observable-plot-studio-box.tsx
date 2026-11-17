@@ -269,6 +269,7 @@ export function ObservablePlotStudioBox({
   return (
     <DashboardWidgetBox
       id={id}
+      tabRef="T2"
       title="Observable Plot Studio (34 Variations)"
       icon={<FolderIconRenderer icon={plotCustomIcon} color={plotCustomColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}

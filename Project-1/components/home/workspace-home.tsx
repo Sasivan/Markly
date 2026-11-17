@@ -62,6 +62,7 @@ import { SitesMatrixStudioBox } from "@/components/viz/sites-matrix-studio-box";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { computePlotData } from "@/lib/viz/plot-engine";
+import { UniversalPresetHub } from "@/components/presets/universal-preset-hub";
 import { type VizConfig, safeParseStoredWidgets, RemoteWidgetStore } from "@/lib/viz";
 import type { Folder, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
@@ -173,6 +174,7 @@ export function WorkspaceHome({
     return DEFAULT_HOME_WIDGETS;
   });
   const [layoutModalOpen, setLayoutModalOpen] = React.useState(false);
+  const [presetHubOpen, setPresetHubOpen] = React.useState(false);
   const [universalModalOpen, setUniversalModalOpen] = React.useState(false);
   const [editingUniversalConfig, setEditingUniversalConfig] = React.useState<UniversalVisualConfig | null>(null);
 
@@ -1353,7 +1355,7 @@ export function WorkspaceHome({
     // Custom Visual Studio Units (Observable Plot, Classic Charts, Intelligence Systems, Sites Matrix)
     const wId = String(widget.id || "").replace(/^custom:/, "");
     const wCat = String((widget as any).category || "");
-    const wLabel = String(widget.label || "");
+    const wLabel = String(widget.label || widget.vizConfig?.title || "");
 
     if (wId === "studio_observable_plot" || wCat === "plot_studio" || wId.includes("observable_plot") || wLabel.includes("Observable Plot")) {
       return (
@@ -2029,6 +2031,15 @@ export function WorkspaceHome({
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Layout</span>
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPresetHubOpen(true)}
+              className="text-xs h-8 px-2.5 rounded-lg border-border cursor-pointer flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+              title="Open Universal Presets &amp; Layout Hub to switch, save, and delete presets"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              <span>Presets</span>
+            </Button>
           </div>
         </div>
 
@@ -2326,6 +2337,13 @@ export function WorkspaceHome({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName="Dashboard Home"
+      />
+
+      {/* Universal Preset & Layout Hub */}
+      <UniversalPresetHub
+        open={presetHubOpen}
+        onOpenChange={setPresetHubOpen}
+        activeCategory="home"
       />
 
       {/* Modern In-App Notification Toast */}

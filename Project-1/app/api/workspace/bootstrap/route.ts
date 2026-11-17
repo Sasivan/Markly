@@ -3,6 +3,8 @@ import { BookmarkRepository } from "@/server/db/repository";
 import { seedRichHierarchy } from "@/server/db/seed-rich-hierarchy";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { isUserAdmin } from "@/server/auth/admin";
+import { sqlite } from "@/server/db/client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,19 +12,34 @@ export const revalidate = 0;
 export async function GET(req: Request) {
   try {
     const user = await requireUser();
+    const userEmail = (user.email || (user as any).user_metadata?.email || "").trim().toLowerCase();
+    const isAdmin = isUserAdmin(user) || userEmail === "sasivan177@gmail.com" || userEmail.includes("sasivan177");
 
-    // 1. Ensure user has rich hierarchy with 10 nested folders and 200 sites
+    // 1. Ensure admin user has rich hierarchy with 10 nested folders and 200 sites
     try {
-      const syncRes = await SupabaseManager.ensureUserSynced(user.id);
-      const existing = BookmarkRepository.getAllFolders(user.id);
-      if (existing.length < 5) {
-        seedRichHierarchy(user.id);
+      await SupabaseManager.ensureUserSynced(user.id);
+      if (isAdmin) {
+        const existingHub = sqlite
+          .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Core Engineering Hub'`)
+          .get(user.id);
+        if (!existingHub) {
+          seedRichHierarchy(user.id);
+        }
       } else {
         BookmarkRepository.ensureUser(user.id);
       }
     } catch (err) {
       console.warn("Bootstrap user sync warning:", err);
-      BookmarkRepository.ensureUser(user.id);
+      if (isAdmin) {
+        const existingHub = sqlite
+          .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Core Engineering Hub'`)
+          .get(user.id);
+        if (!existingHub) {
+          seedRichHierarchy(user.id);
+        }
+      } else {
+        BookmarkRepository.ensureUser(user.id);
+      }
     }
 
     // 2. Fetch canonical tree, folders, bookmarks, and stats from local SQLite

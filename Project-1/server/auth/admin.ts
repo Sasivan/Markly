@@ -14,7 +14,23 @@
 export function isUserAdmin(user: any): boolean {
   if (!user) return false;
 
-  // 1. Check Supabase role in metadata
+  // Guests are never administrators
+  if (
+    user.id === "guest-user-default" ||
+    user.id === "usr_default_markly" ||
+    user.isGuest === true ||
+    user.app_metadata?.provider === "guest"
+  ) {
+    return false;
+  }
+
+  // 1. Explicit admin check for sasivan177@gmail.com
+  const userEmail = (user.email || user.user_metadata?.email || "").trim().toLowerCase();
+  if (userEmail === "sasivan177@gmail.com" || userEmail.includes("sasivan177")) {
+    return true;
+  }
+
+  // 2. Check Supabase role in metadata
   if (
     user.app_metadata?.role === "admin" ||
     user.user_metadata?.role === "admin" ||
@@ -25,9 +41,7 @@ export function isUserAdmin(user: any): boolean {
     return true;
   }
 
-  // 2. Check email against configured environment admin emails
-  const userEmail = (user.email || user.user_metadata?.email || "").trim().toLowerCase();
-
+  // 3. Check email against configured environment admin emails
   const rawEnvEmails = [
     process.env.ADMIN_EMAIL,
     process.env.ADMIN_EMAILS,
@@ -48,14 +62,10 @@ export function isUserAdmin(user: any): boolean {
     }
   }
 
-  // 3. Development Mode / Local SQLite account support
+  // 4. Authenticated developer account role in dev mode
   if (
-    (process.env.NODE_ENV === "development" || process.env.DATABASE_MODE === "sqlite") &&
-    (process.env.DEV_ADMIN === "true" ||
-      user.id === "guest-user-default" ||
-      user.id?.startsWith("usr_dev_") ||
-      user.app_metadata?.provider === "dev" ||
-      user.user_metadata?.role === "admin")
+    process.env.NODE_ENV === "development" &&
+    (user.id?.startsWith("usr_dev_") || user.app_metadata?.provider === "dev")
   ) {
     return true;
   }

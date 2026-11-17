@@ -133,6 +133,37 @@ export function WorkspaceHome({
                   if (rVal === 1 || rVal === 2) rowSpan = rVal as 1 | 2;
                 }
               } catch {}
+
+              // Normalize studio widgets that may have been saved with custom: prefix or legacy format
+              const pId = String(p.id || "");
+              const pLabel = String(p.label || "");
+              if (
+                pId.startsWith("custom:studio_") ||
+                pId.startsWith("studio_") ||
+                pLabel.includes("Studio (18 Variations)") ||
+                pLabel.includes("Studio (22 Variations)") ||
+                pLabel.includes("Intelligence Systems Studio") ||
+                pLabel.includes("Sites Matrix Reference")
+              ) {
+                const cleanId = pId.replace(/^custom:/, "");
+                const cat =
+                  cleanId.includes("observable_plot") || pLabel.includes("Observable Plot")
+                    ? "plot_studio"
+                    : cleanId.includes("classic_charts") || pLabel.includes("Classic Charts")
+                    ? "chart_studio"
+                    : cleanId.includes("intel_systems") || cleanId.includes("intel_suite") || pLabel.includes("Intelligence Systems")
+                    ? "intel_studio"
+                    : "sites_studio";
+                return {
+                  ...p,
+                  id: cleanId,
+                  kind: "studio",
+                  category: cat,
+                  colSpan: colSpan ?? p.colSpan ?? 12,
+                  rowSpan: rowSpan ?? p.rowSpan ?? 2,
+                };
+              }
+
               return { ...p, colSpan: colSpan ?? p.colSpan, rowSpan: rowSpan ?? p.rowSpan };
             });
           }
@@ -477,14 +508,29 @@ export function WorkspaceHome({
       } as any;
     }
 
+    const isStudio =
+      config.category === "plot_studio" ||
+      config.category === "chart_studio" ||
+      config.category === "intel_studio" ||
+      config.category === "sites_studio" ||
+      config.id.startsWith("studio_") ||
+      config.id.includes("studio");
+
+    const widgetId = isStudio
+      ? config.id.replace(/^custom:/, "")
+      : config.id.startsWith("custom:")
+      ? config.id
+      : `custom:${config.id}`;
+
     const newWidget: HomeWidgetConfig = {
-      id: config.id.startsWith("custom:") ? config.id : `custom:${config.id}`,
+      id: widgetId,
       label: config.title,
       visible: true,
-      kind: "custom",
-      span: (config.colSpan === 12 ? "2" : "1") as any,
-      colSpan: config.colSpan || 6,
-      rowSpan: config.rowSpan || 1,
+      kind: isStudio ? ("studio" as any) : "custom",
+      category: config.category as any,
+      span: "2",
+      colSpan: config.colSpan || 12,
+      rowSpan: config.rowSpan || 2,
       chartConfig: config.chartConfig,
       intelConfig: config.intelConfig,
       plotConfig: config.plotConfig,
@@ -492,10 +538,10 @@ export function WorkspaceHome({
       vizConfig,
     };
 
-    const exists = homeWidgets.some((w) => w.id === newWidget.id);
-    const updated = exists
-      ? homeWidgets.map((w) => (w.id === newWidget.id ? newWidget : w))
-      : [newWidget, ...homeWidgets];
+    const filtered = homeWidgets.filter(
+      (w) => w.id !== widgetId && w.id !== `custom:${widgetId}` && w.id !== config.id
+    );
+    const updated = [newWidget, ...filtered];
 
     handleSaveWidgets(updated);
   };
@@ -1284,8 +1330,12 @@ export function WorkspaceHome({
       onDeleteWidget: () => handleDeleteCustomWidget(widget.id),
     };
 
-    // Custom Visual Widget (Charts, Observable Plot, Knowledge Graph, Tags, Wall, Engagement)
-    if (widget.id === "studio_observable_plot" || (widget as any).category === "plot_studio") {
+    // Custom Visual Studio Units (Observable Plot, Classic Charts, Intelligence Systems, Sites Matrix)
+    const wId = String(widget.id || "").replace(/^custom:/, "");
+    const wCat = String((widget as any).category || "");
+    const wLabel = String(widget.label || "");
+
+    if (wId === "studio_observable_plot" || wCat === "plot_studio" || wId.includes("observable_plot") || wLabel.includes("Observable Plot Layered")) {
       return (
         <ObservablePlotStudioBox
           key={widget.id}
@@ -1301,7 +1351,7 @@ export function WorkspaceHome({
       );
     }
 
-    if (widget.id === "studio_classic_charts" || (widget as any).category === "chart_studio" || widget.id.startsWith("studio_classic_charts")) {
+    if (wId === "studio_classic_charts" || wCat === "chart_studio" || wId.includes("classic_charts") || wLabel.includes("Classic Charts Layered")) {
       return (
         <ClassicChartsStudioBox
           key={widget.id}
@@ -1317,7 +1367,7 @@ export function WorkspaceHome({
       );
     }
 
-    if (widget.id === "studio_intel_systems" || (widget as any).category === "intel_studio" || widget.id.startsWith("studio_intel_systems") || widget.id.startsWith("studio_intel_suite")) {
+    if (wId === "studio_intel_systems" || wCat === "intel_studio" || wId.includes("intel_systems") || wId.includes("intel_suite") || wLabel.includes("Intelligence Systems Studio")) {
       return (
         <IntelligenceSystemsStudioBox
           key={widget.id}
@@ -1333,7 +1383,7 @@ export function WorkspaceHome({
       );
     }
 
-    if (widget.id === "studio_sites_matrix" || (widget as any).category === "sites_studio" || widget.id.startsWith("studio_sites_matrix")) {
+    if (wId === "studio_sites_matrix" || wCat === "sites_studio" || wId.includes("sites_matrix") || wLabel.includes("Sites Matrix Reference")) {
       return (
         <SitesMatrixStudioBox
           key={widget.id}

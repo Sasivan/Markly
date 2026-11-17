@@ -3,6 +3,8 @@ import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { sqlite } from "@/server/db/client";
 import { BookmarkRepository } from "@/server/db/repository";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
+import { isUserAdmin } from "@/server/auth/admin";
+import { seedRichHierarchy } from "@/server/db/seed-rich-hierarchy";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,6 +19,19 @@ export async function POST(req: Request) {
 
     // Sync remote Supabase user data to local cache using battle-tested transaction engine
     const syncRes = await SupabaseManager.syncRemoteUserToLocal(userId);
+
+    // If admin user, verify rich hierarchy exists; seed if missing
+    const userEmail = (user.email || (user as any).user_metadata?.email || "").trim().toLowerCase();
+    const isAdmin = isUserAdmin(user) || userEmail === "sasivan177@gmail.com" || userEmail.includes("sasivan177");
+
+    if (isAdmin) {
+      const existingHub = sqlite
+        .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Core Engineering Hub'`)
+        .get(userId);
+      if (!existingHub) {
+        seedRichHierarchy(userId);
+      }
+    }
 
     const localFolders = sqlite.prepare(`SELECT COUNT(*) as c FROM folders WHERE user_id = ?`).get(userId) as any;
     const localBms = sqlite.prepare(`SELECT COUNT(*) as c FROM bookmarks WHERE user_id = ?`).get(userId) as any;

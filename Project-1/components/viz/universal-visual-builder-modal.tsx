@@ -62,7 +62,15 @@ import {
   type PlotFilterConstraints,
 } from "@/lib/viz/plot-engine";
 
-export type VisualCategory = "sites" | "plot" | "chart" | "intel";
+export type VisualCategory =
+  | "sites"
+  | "plot"
+  | "chart"
+  | "intel"
+  | "plot_studio"
+  | "chart_studio"
+  | "intel_studio"
+  | "sites_studio";
 
 export interface UniversalVisualConfig {
   id: string;
@@ -618,65 +626,76 @@ export function UniversalVisualBuilderModal({
 
     if (typeof window !== "undefined") {
       try {
+        const isStudio =
+          config.category === "plot_studio" ||
+          config.category === "chart_studio" ||
+          config.category === "intel_studio" ||
+          config.category === "sites_studio" ||
+          config.id.startsWith("studio_");
+
+        const targetId = isStudio ? config.id.replace(/^custom:/, "") : config.id;
+        const targetKind = isStudio ? config.category : (config.category === "plot" ? "plot" : config.category);
+
         if (targetDestination === "home") {
-          const stored = localStorage.getItem("markly_workspace_dashboard_widgets");
-          const list = stored ? JSON.parse(stored) : [];
-          if (!list.some((w: any) => w.id === config.id)) {
-            list.push({
-              id: config.id,
-              label: config.title,
-              visible: true,
-              kind: "custom",
-              colSpan: config.colSpan || 12,
-              rowSpan: config.rowSpan || 2,
-              icon: config.icon,
-              color: config.color,
-              category: config.category,
-              vizConfig: {
-                id: config.id,
-                title: config.title,
-                chartType: config.category === "plot" ? "plot" : "bar",
-                plotConfig: config.plotConfig,
-                chartConfig: config.chartConfig,
-                intelConfig: config.intelConfig,
-                siteConfig: config.siteConfig,
-              },
-            });
-            localStorage.setItem("markly_workspace_dashboard_widgets", JSON.stringify(list));
-            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-          }
+          const stored = localStorage.getItem("markly_home_widgets");
+          let list = stored ? JSON.parse(stored) : [];
+          if (!Array.isArray(list)) list = [];
+
+          // Clean any previous entry with this ID
+          list = list.filter((w: any) => w.id !== targetId && w.id !== `custom:${targetId}` && w.id !== config.id);
+
+          list.unshift({
+            id: targetId,
+            label: config.title,
+            visible: true,
+            kind: isStudio ? "studio" : "custom",
+            category: config.category,
+            colSpan: config.colSpan || 12,
+            rowSpan: config.rowSpan || 2,
+            icon: config.icon,
+            color: config.color,
+            plotConfig: config.plotConfig,
+            chartConfig: config.chartConfig,
+            intelConfig: config.intelConfig,
+            siteConfig: config.siteConfig,
+          });
+          localStorage.setItem("markly_home_widgets", JSON.stringify(list));
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         } else if (targetDestination === "universal_folders") {
-          const stored = localStorage.getItem("markly_universal_visual_tabs");
-          let tabs = stored ? JSON.parse(stored) : [];
+          const raw = localStorage.getItem("markly_universal_folder_tabs");
+          let tabs = raw ? JSON.parse(raw) : [];
           if (!Array.isArray(tabs) || tabs.length === 0) {
             tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
           }
-          if (!tabs[0].visuals.some((v: any) => v.id === config.id)) {
-            tabs[0].visuals.push({
-              id: config.id,
-              title: config.title,
-              kind: config.category === "plot" ? "plot_studio" : config.category,
-              colSpan: config.colSpan || 12,
-              rowSpan: config.rowSpan || 2,
-              plotConfig: config.plotConfig,
-              chartConfig: config.chartConfig,
-              intelConfig: config.intelConfig,
-              siteConfig: config.siteConfig,
-            });
-            localStorage.setItem("markly_universal_visual_tabs", JSON.stringify(tabs));
-            window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
-            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-          }
+          tabs[0].visuals = (tabs[0].visuals || []).filter((v: any) => v.id !== targetId && v.id !== `custom:${targetId}` && v.id !== config.id);
+          tabs[0].visuals.unshift({
+            id: targetId,
+            title: config.title,
+            kind: targetKind,
+            category: config.category,
+            colSpan: config.colSpan || 12,
+            rowSpan: config.rowSpan || 2,
+            plotConfig: config.plotConfig,
+            chartConfig: config.chartConfig,
+            intelConfig: config.intelConfig,
+            siteConfig: config.siteConfig,
+          });
+          localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(tabs));
+          window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         } else if (targetDestination.startsWith("folder:")) {
           const folderId = targetDestination.replace("folder:", "");
-          const storageKey = `markly_folder_visuals_${folderId}`;
-          const stored = localStorage.getItem(storageKey);
-          let visuals = stored ? JSON.parse(stored) : [];
-          if (!visuals.some((v: any) => v.id === config.id)) {
-            visuals.push({
-              id: config.id,
+          const updateFolderTabs = (key: string) => {
+            const raw = localStorage.getItem(key);
+            let tabs = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(tabs) || tabs.length === 0) {
+              tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+            }
+            tabs[0].visuals = (tabs[0].visuals || []).filter((v: any) => v.id !== targetId && v.id !== `custom:${targetId}` && v.id !== config.id);
+            tabs[0].visuals.unshift({
+              id: targetId,
               title: config.title,
-              kind: config.category === "plot" ? "plot_studio" : config.category,
+              kind: targetKind,
               category: config.category,
               colSpan: config.colSpan || 12,
               rowSpan: config.rowSpan || 2,
@@ -685,9 +704,13 @@ export function UniversalVisualBuilderModal({
               intelConfig: config.intelConfig,
               siteConfig: config.siteConfig,
             });
-            localStorage.setItem(storageKey, JSON.stringify(visuals));
-            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-          }
+            localStorage.setItem(key, JSON.stringify(tabs));
+          };
+
+          updateFolderTabs(`markly_folder_tabs_${folderId}`);
+          updateFolderTabs("markly_universal_folder_tabs");
+          window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         }
       } catch (err) {
         console.error("dispatchToDestination error:", err);

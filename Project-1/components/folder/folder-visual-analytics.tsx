@@ -39,6 +39,9 @@ import { computePlotData } from "@/lib/viz/plot-engine";
 import { DashboardWidgetBox, BookmarkItemsView, type WidgetItemLimit, type WidgetViewMode } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
 import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio-box";
+import { ClassicChartsStudioBox } from "@/components/viz/classic-charts-studio-box";
+import { IntelligenceSystemsStudioBox } from "@/components/viz/intelligence-systems-studio-box";
+import { SitesMatrixStudioBox } from "@/components/viz/sites-matrix-studio-box";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
@@ -47,7 +50,18 @@ export interface FolderFilter {
   value: string;
 }
 
-export type VisualKind = "chart" | "tags" | "engagement" | "wall" | "graph" | "plot" | "plot_studio" | "sites";
+export type VisualKind =
+  | "chart"
+  | "tags"
+  | "engagement"
+  | "wall"
+  | "graph"
+  | "plot"
+  | "plot_studio"
+  | "chart_studio"
+  | "intel_studio"
+  | "sites_studio"
+  | "sites";
 
 export interface TabVisual {
   id: string;
@@ -137,6 +151,22 @@ function makeDefaultVisuals(folderId: string, isCustom = false): TabVisual[] {
 }
 
 function normalizeVisual(v: any): TabVisual {
+  const vId = String(v.id || "");
+  const vKind = String(v.kind || v.category || "");
+
+  if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot")) {
+    return { ...v, id: "studio_observable_plot", title: v.title || "Observable Plot Layered Graphics Studio (22 Variations)", kind: "plot_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
+  }
+  if (vId === "studio_classic_charts" || vKind === "chart_studio" || vId.includes("classic_charts")) {
+    return { ...v, id: "studio_classic_charts", title: v.title || "Classic Charts Layered Studio (18 Variations)", kind: "chart_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
+  }
+  if (vId === "studio_intel_systems" || vKind === "intel_studio" || vId.includes("intel_systems") || vId.includes("intel_suite")) {
+    return { ...v, id: "studio_intel_systems", title: v.title || "Workspace Intelligence Systems Studio (7 Variations)", kind: "intel_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
+  }
+  if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix")) {
+    return { ...v, id: "studio_sites_matrix", title: v.title || "Sites Matrix Reference Studio", kind: "sites_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
+  }
+
   if (v.kind) return v;
   if (v.id?.startsWith("plot_") || v.chartType === "plot") {
     return { id: v.id, title: v.title || "Observable Plot", kind: "plot", plotConfig: v.plotConfig, colSpan: v.colSpan || 6 };
@@ -744,9 +774,61 @@ export function FolderVisualAnalytics({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
               {activeTab.visuals.map((viz) => {
-                if (viz.id === "studio_observable_plot" || viz.kind === "plot_studio") {
+                const vId = String(viz.id || "");
+                const vKind = String(viz.kind || (viz as any).category || "");
+
+                // 1. Observable Plot Studio Box
+                if (vId === "studio_observable_plot" || vKind === "plot_studio" || vId.includes("observable_plot")) {
                   return (
                     <ObservablePlotStudioBox
+                      key={viz.id}
+                      id={viz.id}
+                      bookmarks={bookmarks}
+                      folders={folders}
+                      initialColSpan={viz.colSpan || 12}
+                      rowSpan={viz.rowSpan || 2}
+                      onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
+                      onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                    />
+                  );
+                }
+
+                // 2. Classic Charts Studio Box
+                if (vId === "studio_classic_charts" || vKind === "chart_studio" || vId.includes("classic_charts")) {
+                  return (
+                    <ClassicChartsStudioBox
+                      key={viz.id}
+                      id={viz.id}
+                      bookmarks={bookmarks}
+                      folders={folders}
+                      initialColSpan={viz.colSpan || 12}
+                      rowSpan={viz.rowSpan || 2}
+                      onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
+                      onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                    />
+                  );
+                }
+
+                // 3. Workspace Intelligence Systems Studio Box
+                if (vId === "studio_intel_systems" || vKind === "intel_studio" || vId.includes("intel_systems") || vId.includes("intel_suite")) {
+                  return (
+                    <IntelligenceSystemsStudioBox
+                      key={viz.id}
+                      id={viz.id}
+                      bookmarks={bookmarks}
+                      folders={folders}
+                      initialColSpan={viz.colSpan || 12}
+                      rowSpan={viz.rowSpan || 2}
+                      onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
+                      onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                    />
+                  );
+                }
+
+                // 4. Sites Matrix Reference Studio Box
+                if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix")) {
+                  return (
+                    <SitesMatrixStudioBox
                       key={viz.id}
                       id={viz.id}
                       bookmarks={bookmarks}

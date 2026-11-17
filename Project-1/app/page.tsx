@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
 import { seedRichHierarchy } from "@/server/db/seed-rich-hierarchy";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { sqlite } from "@/server/db/client";
 import { MarklyWorkspace } from "@/components/markly-workspace";
 
 export const dynamic = "force-dynamic";
@@ -55,13 +56,19 @@ export default async function HomePage() {
     // Authenticated user
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
-    const isAdmin = Boolean(adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail)));
+    const isAdmin = Boolean(
+      uEmail === "sasivan177@gmail.com" ||
+      uEmail.includes("sasivan177") ||
+      (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail)))
+    );
 
     try {
       const syncRes = await SupabaseManager.ensureUserSynced(user.id);
       if (isAdmin) {
-        const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
-        if (existingUserFolders.length < 5) {
+        const existingHub = sqlite
+          .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Core Engineering Hub'`)
+          .get(user.id);
+        if (!existingHub) {
           seedRichHierarchy(user.id);
         }
       } else {
@@ -70,8 +77,10 @@ export default async function HomePage() {
     } catch (e) {
       console.warn("SSR sync user notice:", e);
       if (isAdmin) {
-        const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
-        if (existingUserFolders.length < 5) {
+        const existingHub = sqlite
+          .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Core Engineering Hub'`)
+          .get(user.id);
+        if (!existingHub) {
           seedRichHierarchy(user.id);
         }
       }

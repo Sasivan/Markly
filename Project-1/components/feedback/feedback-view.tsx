@@ -94,9 +94,14 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
   // Client-side admin check from user session
   const clientAdmin = React.useMemo(() => {
-    if (!user || !user.email) return false;
+    if (!user) return false;
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+
+    // Explicit administrator recognition for sasivan177@gmail.com
+    if (uEmail === "sasivan177@gmail.com" || uEmail.includes("sasivan177")) {
+      return true;
+    }
 
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
       return true;

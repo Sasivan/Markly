@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import type { BookmarkWithDetails, SmartCollection } from "@/server/db/schema";
 
 interface SmartCollectionsViewProps {
@@ -98,6 +99,7 @@ export function SmartCollectionsView({
   const [selectedCollectionId, setSelectedCollectionId] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [createdFolderId, setCreatedFolderId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; name: string } | null>(null);
 
   const fetchCollections = React.useCallback(async (newId?: string) => {
     try {
@@ -166,25 +168,31 @@ export function SmartCollectionsView({
       setTimeout(() => setConvertSuccess(false), 5000);
     } catch (err: any) {
       console.error("Convert to folder error:", err);
-      alert(err.message || "Failed to convert collection to folder");
+      setError(err.message || "Failed to convert collection to folder");
     } finally {
       setIsConverting(false);
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete smart collection "${name}"?`)) return;
+  const handleDelete = (id: string, name: string) => {
+    setDeleteTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      const res = await fetch(`/api/smart-collections?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/smart-collections?id=${deleteTarget.id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
-        setCollections((prev) => prev.filter((c) => c.id !== id));
-        if (selectedCollectionId === id) {
+        setCollections((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        if (selectedCollectionId === deleteTarget.id) {
           setSelectedCollectionId(null);
         }
       }
     } catch (e) {
       console.error("Failed to delete smart collection:", e);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -479,6 +487,16 @@ export function SmartCollectionsView({
           </div>
         </div>
       )}
+
+      {/* Modern In-App Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Smart Collection"
+        itemName={deleteTarget?.name}
+        description={`Are you sure you want to delete smart collection "${deleteTarget?.name}"? This action cannot be undone.`}
+        onConfirm={executeDelete}
+      />
     </div>
   );
 }

@@ -32,6 +32,7 @@ import {
   Calendar,
   Folders,
   BarChart3,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,9 @@ import {
 import { VizChart } from "@/components/viz/viz-chart";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "@/components/viz/universal-visual-builder-modal";
 import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio-box";
+import { ClassicChartsStudioBox } from "@/components/viz/classic-charts-studio-box";
+import { IntelligenceSystemsStudioBox } from "@/components/viz/intelligence-systems-studio-box";
+import { SitesMatrixStudioBox } from "@/components/viz/sites-matrix-studio-box";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { computePlotData } from "@/lib/viz/plot-engine";
@@ -200,6 +204,8 @@ export function WorkspaceHome({
     }
     return {};
   });
+
+  const [homeNotice, setHomeNotice] = React.useState<string | null>(null);
 
   const handleSetWidgetLimit = (widgetId: string, limit: WidgetItemLimit) => {
     setWidgetItemLimits((prev) => {
@@ -589,7 +595,8 @@ export function WorkspaceHome({
     if (!widget.vizConfig) return;
     const customCount = homeWidgets.filter((w) => w.kind === "custom" || w.id.startsWith("custom:")).length;
     if (customCount >= 30) {
-      alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+      setHomeNotice("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+      setTimeout(() => setHomeNotice(null), 4000);
       return;
     }
     const duplicatedConfig: VizConfig = {
@@ -1281,6 +1288,54 @@ export function WorkspaceHome({
     if (widget.id === "studio_observable_plot" || (widget as any).category === "plot_studio") {
       return (
         <ObservablePlotStudioBox
+          key={widget.id}
+          id={widget.id}
+          bookmarks={bookmarks}
+          folders={folders}
+          initialColSpan={widget.colSpan || 12}
+          rowSpan={widget.rowSpan || 2}
+          onColSpanChange={(span) => handleWidgetColSpanChange(widget.id, span)}
+          onRowSpanChange={(span) => handleWidgetRowSpanChange(widget.id, span as 1 | 2)}
+          onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+        />
+      );
+    }
+
+    if (widget.id === "studio_classic_charts" || (widget as any).category === "chart_studio" || widget.id.startsWith("studio_classic_charts")) {
+      return (
+        <ClassicChartsStudioBox
+          key={widget.id}
+          id={widget.id}
+          bookmarks={bookmarks}
+          folders={folders}
+          initialColSpan={widget.colSpan || 12}
+          rowSpan={widget.rowSpan || 2}
+          onColSpanChange={(span) => handleWidgetColSpanChange(widget.id, span)}
+          onRowSpanChange={(span) => handleWidgetRowSpanChange(widget.id, span as 1 | 2)}
+          onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+        />
+      );
+    }
+
+    if (widget.id === "studio_intel_systems" || (widget as any).category === "intel_studio" || widget.id.startsWith("studio_intel_systems") || widget.id.startsWith("studio_intel_suite")) {
+      return (
+        <IntelligenceSystemsStudioBox
+          key={widget.id}
+          id={widget.id}
+          bookmarks={bookmarks}
+          folders={folders}
+          initialColSpan={widget.colSpan || 12}
+          rowSpan={widget.rowSpan || 2}
+          onColSpanChange={(span) => handleWidgetColSpanChange(widget.id, span)}
+          onRowSpanChange={(span) => handleWidgetRowSpanChange(widget.id, span as 1 | 2)}
+          onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+        />
+      );
+    }
+
+    if (widget.id === "studio_sites_matrix" || (widget as any).category === "sites_studio" || widget.id.startsWith("studio_sites_matrix")) {
+      return (
+        <SitesMatrixStudioBox
           key={widget.id}
           id={widget.id}
           bookmarks={bookmarks}
@@ -2202,6 +2257,14 @@ export function WorkspaceHome({
         onSave={handleSaveUniversalVisual}
         destinationName="Dashboard Home"
       />
+
+      {/* Modern In-App Notification Toast */}
+      {homeNotice && (
+        <div className="fixed bottom-6 right-6 z-50 bg-destructive text-destructive-foreground px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-in slide-in-from-bottom-3">
+          <AlertCircle className="h-4 w-4" />
+          <span>{homeNotice}</span>
+        </div>
+      )}
     </div>
   );
 }

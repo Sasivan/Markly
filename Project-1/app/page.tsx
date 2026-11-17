@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { BookmarkRepository } from "@/server/db/repository";
+import { BookmarkRepository, DEFAULT_USER_ID } from "@/server/db/repository";
+import { seedRichHierarchy } from "@/server/db/seed-rich-hierarchy";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { MarklyWorkspace } from "@/components/markly-workspace";
 
@@ -30,13 +31,21 @@ export default async function HomePage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // Unauthenticated guest: empty workspace
+      // Unauthenticated / Guest explorer mode: serve rich hierarchy library (10 nested folders, 200 sites)
+      BookmarkRepository.ensureDefaultUser();
+      const demoUserId = DEFAULT_USER_ID;
+      seedRichHierarchy(demoUserId);
+      const folderTree = BookmarkRepository.getFolderTree(demoUserId) || [];
+      const allFolders = BookmarkRepository.getAllFolders(demoUserId) || [];
+      const bookmarks = BookmarkRepository.getBookmarks({ view: "all", includeArchived: true, userId: demoUserId }) || [];
+      const stats = BookmarkRepository.getDashboardStats(demoUserId) || emptyStats;
+
       return (
         <MarklyWorkspace
-          initialFolderTree={[]}
-          initialFolders={[]}
-          initialBookmarks={[]}
-          initialStats={emptyStats}
+          initialFolderTree={folderTree}
+          initialFolders={allFolders}
+          initialBookmarks={bookmarks}
+          initialStats={stats}
           initialView={initialView}
           initialFolderId={initialFolderId}
           initialSidebarCollapsed={initialSidebarCollapsed}
@@ -47,13 +56,18 @@ export default async function HomePage() {
     // Authenticated user
     try {
       const syncRes = await SupabaseManager.ensureUserSynced(user.id);
-      if (syncRes.synced && syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
-        BookmarkRepository.ensureUserStarterData(user.id);
+      const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
+      if (existingUserFolders.length < 5) {
+        seedRichHierarchy(user.id);
       } else {
         BookmarkRepository.ensureUser(user.id);
       }
     } catch (e) {
       console.warn("SSR sync user notice:", e);
+      const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
+      if (existingUserFolders.length < 5) {
+        seedRichHierarchy(user.id);
+      }
     }
 
     const folderTree = BookmarkRepository.getFolderTree(user.id) || [];

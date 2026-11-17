@@ -46,6 +46,9 @@ import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "./unive
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { ObservablePlotStudioBox } from "./observable-plot-studio-box";
+import { ClassicChartsStudioBox } from "./classic-charts-studio-box";
+import { IntelligenceSystemsStudioBox } from "./intelligence-systems-studio-box";
+import { SitesMatrixStudioBox } from "./sites-matrix-studio-box";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
 export interface VisualsPageViewProps {
@@ -214,9 +217,11 @@ export function VisualsPageView({
   const [exportTargetVisual, setExportTargetVisual] = React.useState<{
     id: string;
     title: string;
-    kind: "chart" | "tags" | "engagement" | "wall" | "graph" | "plot";
+    kind: string;
     chartConfig?: VizConfig;
     plotConfig?: ObservablePlotConfig;
+    siteConfig?: any;
+    intelConfig?: any;
   } | null>(null);
 
   const [exportDestination, setExportDestination] = React.useState<"universal" | "folder" | "page">("universal");
@@ -504,9 +509,11 @@ export function VisualsPageView({
   const handlePinAnyVisual = async (visual: {
     id: string;
     title: string;
-    kind: "chart" | "tags" | "engagement" | "wall" | "graph" | "plot";
+    kind: string;
     chartConfig?: VizConfig;
     plotConfig?: ObservablePlotConfig;
+    siteConfig?: any;
+    intelConfig?: any;
   }) => {
     try {
       const current = await widgetStore.loadWidgets();
@@ -515,7 +522,8 @@ export function VisualsPageView({
       ).length;
 
       if (customCount >= 30) {
-        alert("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+        setExportSuccessMsg("Maximum limit of 30 custom visuals reached. Please remove an existing visual first.");
+        setTimeout(() => setExportSuccessMsg(null), 4000);
         return;
       }
 
@@ -761,6 +769,42 @@ export function VisualsPageView({
           bookmarks={bookmarks}
           folders={folders}
           onDeleteWidget={() => handleHideStudioUnit("studio_observable_plot")}
+          onPinHome={handlePinAnyVisual}
+          onAddToFolder={(v) => setExportTargetVisual(v)}
+        />
+      )}
+
+      {/* 2. CLASSIC CHARTS MULTI-VARIATION STUDIO */}
+      {!hiddenStudioUnits.includes("studio_classic_charts") && (
+        <ClassicChartsStudioBox
+          id="studio_classic_charts"
+          bookmarks={bookmarks}
+          folders={folders}
+          onDeleteWidget={() => handleHideStudioUnit("studio_classic_charts")}
+          onPinHome={handlePinAnyVisual}
+          onAddToFolder={(v) => setExportTargetVisual(v)}
+        />
+      )}
+
+      {/* 3. INTELLIGENCE SYSTEMS MULTI-VARIATION STUDIO */}
+      {!hiddenStudioUnits.includes("studio_intel_systems") && (
+        <IntelligenceSystemsStudioBox
+          id="studio_intel_systems"
+          bookmarks={bookmarks}
+          folders={folders}
+          onDeleteWidget={() => handleHideStudioUnit("studio_intel_systems")}
+          onPinHome={handlePinAnyVisual}
+          onAddToFolder={(v) => setExportTargetVisual(v)}
+        />
+      )}
+
+      {/* 4. SITES REFERENCE MATRIX MULTI-VARIATION STUDIO */}
+      {!hiddenStudioUnits.includes("studio_sites_matrix") && (
+        <SitesMatrixStudioBox
+          id="studio_sites_matrix"
+          bookmarks={bookmarks}
+          folders={folders}
+          onDeleteWidget={() => handleHideStudioUnit("studio_sites_matrix")}
           onPinHome={handlePinAnyVisual}
           onAddToFolder={(v) => setExportTargetVisual(v)}
         />

@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 
 interface SessionsViewProps {
@@ -42,6 +43,7 @@ export function SessionsView({
   const [copiedSessionId, setCopiedSessionId] = React.useState<string | null>(null);
   const [editingFolderId, setEditingFolderId] = React.useState<string | null>(null);
   const [editName, setEditName] = React.useState("");
+  const [deleteSessionTarget, setDeleteSessionTarget] = React.useState<{ id: string; name: string } | null>(null);
 
   // Group bookmarks by session folders (icon === 'Layers' or name includes 'Stash' or 'Session')
   const sessionFolders = React.useMemo(() => {
@@ -109,14 +111,20 @@ export function SessionsView({
     URL.revokeObjectURL(url);
   };
 
-  const handleDeleteSession = async (folderId: string, folderName: string) => {
-    if (!confirm(`Delete session "${folderName}" and all of its tabs?`)) return;
+  const handleDeleteSession = (folderId: string, folderName: string) => {
+    setDeleteSessionTarget({ id: folderId, name: folderName });
+  };
+
+  const executeDeleteSession = async () => {
+    if (!deleteSessionTarget) return;
     try {
-      await fetch(`/api/folders/${folderId}?mode=delete_all`, { method: "DELETE" });
+      await fetch(`/api/folders/${deleteSessionTarget.id}?mode=delete_all`, { method: "DELETE" });
       onRefreshData();
       window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
     } catch (err) {
       console.error("Failed to delete session:", err);
+    } finally {
+      setDeleteSessionTarget(null);
     }
   };
 
@@ -388,6 +396,15 @@ export function SessionsView({
           ))}
         </div>
       )}
+      {/* Custom Confirmation Modal replacing native browser alert/confirm */}
+      <ConfirmDeleteModal
+        open={Boolean(deleteSessionTarget)}
+        onOpenChange={(open) => !open && setDeleteSessionTarget(null)}
+        title="Delete Stash Session"
+        itemName={deleteSessionTarget?.name}
+        description={`Are you sure you want to delete session "${deleteSessionTarget?.name}" and all of its saved tabs? This action cannot be undone.`}
+        onConfirm={executeDeleteSession}
+      />
     </div>
   );
 }

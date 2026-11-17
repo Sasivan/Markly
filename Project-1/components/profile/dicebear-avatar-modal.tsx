@@ -65,6 +65,7 @@ export function DicebearAvatarModal({
   const [selectedStyle, setSelectedStyle] = React.useState<string>("bottts");
   const [seed, setSeed] = React.useState<string>("Markly");
   const [customUploadUrl, setCustomUploadUrl] = React.useState<string>("");
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const fallbackDefault = defaultAvatarUrl || "https://api.dicebear.com/7.x/bottts/svg?seed=Markly";
@@ -107,9 +108,11 @@ export function DicebearAvatarModal({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Please upload a valid image file (PNG, JPG, SVG, WebP).");
+      setUploadError("Please upload a valid image file (PNG, JPG, SVG, WebP).");
+      setTimeout(() => setUploadError(null), 4000);
       return;
     }
+    setUploadError(null);
 
     // Convert file to Base64 Data URL
     const reader = new FileReader();
@@ -327,6 +330,12 @@ export function DicebearAvatarModal({
                 Supports PNG, JPG, GIF, WebP, or SVG (max 5MB)
               </p>
             </div>
+
+            {uploadError && (
+              <p className="text-xs text-destructive font-medium bg-destructive/10 p-2 rounded-lg border border-destructive/20 animate-in fade-in">
+                {uploadError}
+              </p>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-foreground">

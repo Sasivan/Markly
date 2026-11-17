@@ -677,6 +677,7 @@ export function UniversalVisualBuilderModal({
               id: config.id,
               title: config.title,
               kind: config.category === "plot" ? "plot_studio" : config.category,
+              category: config.category,
               colSpan: config.colSpan || 12,
               rowSpan: config.rowSpan || 2,
               plotConfig: config.plotConfig,
@@ -699,22 +700,11 @@ export function UniversalVisualBuilderModal({
     dispatchToDestination({
       id: "studio_observable_plot",
       title: "Observable Plot Layered Graphics Studio (22 Variations)",
-      category: "plot",
+      category: "plot_studio" as any,
       colSpan: 12,
       rowSpan: 2,
       icon: "activity",
       color: "#06b6d4",
-      plotConfig: {
-        type: "barX",
-        dimension: "domain",
-        measure: "count",
-        colorScheme: "tableau10",
-        curve: "natural",
-        showGrid: true,
-        showTip: true,
-        showLegend: true,
-        crosshair: true,
-      },
     });
     try {
       const stored = localStorage.getItem("markly_hidden_visual_studio_units");
@@ -730,62 +720,67 @@ export function UniversalVisualBuilderModal({
 
   const handlePlaceSampleChartStudio = () => {
     dispatchToDestination({
-      id: `studio_classic_charts_${Date.now()}`,
-      title: "Complete Classic Charts Studio",
-      category: "chart",
+      id: "studio_classic_charts",
+      title: "Classic Charts Layered Studio (18 Variations)",
+      category: "chart_studio" as any,
       colSpan: 12,
       rowSpan: 2,
       icon: "bar-chart-3",
       color: "#3b82f6",
-      chartConfig: {
-        version: 1,
-        id: `studio_classic_charts_${Date.now()}`,
-        title: "Complete Classic Charts Studio",
-        chartType: "bar",
-        dimension: "domain",
-        measure: "count",
-        filters: {},
-        sort: { by: "measure", direction: "desc" },
-        limit: 10,
-        otherBucket: true,
-      },
     });
+    try {
+      const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((id: string) => id !== "studio_classic_charts");
+        localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
+        window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_classic_charts" } }));
+      }
+    } catch {}
     onOpenChange(false);
   };
 
   const handlePlaceSampleIntelSuite = () => {
     dispatchToDestination({
-      id: `studio_intel_suite_${Date.now()}`,
-      title: "Workspace Intelligence Suite",
-      category: "intel",
+      id: "studio_intel_systems",
+      title: "Workspace Intelligence Systems Studio (7 Variations)",
+      category: "intel_studio" as any,
       colSpan: 12,
       rowSpan: 2,
       icon: "layers",
       color: "#8b5cf6",
-      intelConfig: {
-        type: "graph",
-        graphDepth: 2,
-      },
     });
+    try {
+      const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((id: string) => id !== "studio_intel_systems");
+        localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
+        window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_intel_systems" } }));
+      }
+    } catch {}
     onOpenChange(false);
   };
 
   const handlePlaceSampleSitesMatrix = () => {
     dispatchToDestination({
-      id: `studio_sites_matrix_${Date.now()}`,
-      title: "Multi-Source Sites Matrix",
-      category: "sites",
+      id: "studio_sites_matrix",
+      title: "Sites Matrix Reference Studio",
+      category: "sites_studio" as any,
       colSpan: 12,
       rowSpan: 2,
       icon: "compass",
       color: "#10b981",
-      siteConfig: {
-        source: "all",
-        limit: "all",
-        viewMode: "grid",
-        sortBy: "recent",
-      },
     });
+    try {
+      const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((id: string) => id !== "studio_sites_matrix");
+        localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
+        window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_sites_matrix" } }));
+      }
+    } catch {}
     onOpenChange(false);
   };
 
@@ -1321,17 +1316,22 @@ export function UniversalVisualBuilderModal({
             {/* 1. SITES REFERENCE BOX CONFIGURATION */}
             {activeTab === "sites" && (
               <div className="space-y-3.5 animate-in fade-in">
-                {/* One-Click Sample Studio Unit Action */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePlaceSampleSitesMatrix}
-                  className="w-full text-xs h-9 border-dashed border-emerald-500/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
-                >
-                  <Compass className="h-4 w-4 text-emerald-500" />
-                  <span>🧪 Try All Patterns: Multi-Source Sites Matrix (All Sources & Layouts)</span>
-                </Button>
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Sites Matrix Configuration
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePlaceSampleSitesMatrix}
+                    className="h-6 px-2.5 rounded-lg border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold gap-1.5 cursor-pointer shadow-2xs"
+                    title="Open all-patterns Sites Matrix Studio Unit"
+                  >
+                    <Compass className="h-3 w-3 text-emerald-500" />
+                    <span>Try Studio Unit</span>
+                  </Button>
+                </div>
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Bookmark Source
@@ -1447,17 +1447,22 @@ export function UniversalVisualBuilderModal({
             {/* 2. OBSERVABLE PLOT CONFIGURATION (Advanced Information Graphics Studio) */}
             {activeTab === "plot" && (
               <div className="space-y-4 animate-in fade-in">
-                {/* One-Click Sample Studio Unit Action */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePlaceSamplePlotStudio}
-                  className="w-full text-xs h-9 border-dashed border-cyan-500/60 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
-                >
-                  <Activity className="h-4 w-4 text-cyan-500" />
-                  <span>🧪 Try All Patterns: 34 Marks ObservableHQ Layered Studio (Single Box)</span>
-                </Button>
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Observable Plot Setup
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePlaceSamplePlotStudio}
+                    className="h-6 px-2.5 rounded-lg border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-[11px] font-semibold gap-1.5 cursor-pointer shadow-2xs"
+                    title="Open 34-variation Observable Plot Studio Unit"
+                  >
+                    <Activity className="h-3 w-3 text-cyan-500" />
+                    <span>Try Studio Unit</span>
+                  </Button>
+                </div>
                 {/* 1. Mark Type & Curve */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -1805,17 +1810,22 @@ export function UniversalVisualBuilderModal({
             {/* 3. CLASSIC CHART CONFIGURATION */}
             {activeTab === "chart" && (
               <div className="space-y-3.5 animate-in fade-in">
-                {/* One-Click Sample Studio Unit Action */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePlaceSampleChartStudio}
-                  className="w-full text-xs h-9 border-dashed border-blue-500/60 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
-                >
-                  <BarChart3 className="h-4 w-4 text-blue-500" />
-                  <span>🧪 Try All Patterns: Complete Classic Charts Studio (Bars, Lines, Donuts, Areas)</span>
-                </Button>
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Classic Charts Setup
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePlaceSampleChartStudio}
+                    className="h-6 px-2.5 rounded-lg border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-[11px] font-semibold gap-1.5 cursor-pointer shadow-2xs"
+                    title="Open 18-variation Classic Charts Studio Unit"
+                  >
+                    <BarChart3 className="h-3 w-3 text-blue-500" />
+                    <span>Try Studio Unit</span>
+                  </Button>
+                </div>
                 {/* Widely Used Presets & Recipes */}
                 <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">
@@ -2133,17 +2143,22 @@ export function UniversalVisualBuilderModal({
             {/* 4. WORKSPACE INTELLIGENCE CONFIGURATION */}
             {activeTab === "intel" && (
               <div className="space-y-3.5 animate-in fade-in">
-                {/* One-Click Sample Studio Unit Action */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePlaceSampleIntelSuite}
-                  className="w-full text-xs h-9 border-dashed border-purple-500/60 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
-                >
-                  <Layers className="h-4 w-4 text-purple-500" />
-                  <span>🧪 Try All Patterns: Full Intelligence Suite (Knowledge Graph, Tag Cloud, Wall)</span>
-                </Button>
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Intelligence Systems Setup
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePlaceSampleIntelSuite}
+                    className="h-6 px-2.5 rounded-lg border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[11px] font-semibold gap-1.5 cursor-pointer shadow-2xs"
+                    title="Open 7-variation Intelligence Systems Studio Unit"
+                  >
+                    <Layers className="h-3 w-3 text-purple-500" />
+                    <span>Try Studio Unit</span>
+                  </Button>
+                </div>
                 {/* Widely Used Presets */}
                 <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">

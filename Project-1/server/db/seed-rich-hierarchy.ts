@@ -1,11 +1,20 @@
 import { BookmarkRepository, DEFAULT_USER_ID } from "./repository";
 import { sqlite } from "./client";
 
-export function seedRichHierarchy() {
-  console.log("🚀 Seeding rich multi-level nested folders and comprehensive sites data...");
+export function seedRichHierarchy(targetUserId: string = DEFAULT_USER_ID) {
+  console.log(`🚀 Seeding rich multi-level nested folders and comprehensive sites data for user: ${targetUserId}...`);
 
-  // Ensure tables and default user exist
-  BookmarkRepository.ensureDefaultUser();
+  // Ensure tables and user exist
+  BookmarkRepository.ensureUser(targetUserId);
+
+  // Prevent duplicate seeding if already seeded
+  const existingHub = sqlite
+    .prepare(`SELECT id FROM folders WHERE user_id = ? AND name = 'Core Engineering Hub'`)
+    .get(targetUserId);
+  if (existingHub) {
+    console.log(`ℹ️ Rich hierarchy already present for user ${targetUserId}. Skipping duplicate seed.`);
+    return;
+  }
 
   // Create 10 Nested Folders across 3 levels
   // Root Level 1: Core Engineering Hub
@@ -13,7 +22,7 @@ export function seedRichHierarchy() {
     name: "Core Engineering Hub",
     icon: "code",
     color: "#3b82f6",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   // Level 2 under Engineering
@@ -22,7 +31,7 @@ export function seedRichHierarchy() {
     parentId: fEngineering.id,
     icon: "layout",
     color: "#60a5fa",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   const fBackend = BookmarkRepository.createFolder({
@@ -30,7 +39,7 @@ export function seedRichHierarchy() {
     parentId: fEngineering.id,
     icon: "database",
     color: "#2563eb",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   // Level 3 under Frontend
@@ -39,7 +48,7 @@ export function seedRichHierarchy() {
     parentId: fFrontend.id,
     icon: "zap",
     color: "#38bdf8",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   const fUIStyling = BookmarkRepository.createFolder({
@@ -47,7 +56,7 @@ export function seedRichHierarchy() {
     parentId: fFrontend.id,
     icon: "palette",
     color: "#818cf8",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   const fState = BookmarkRepository.createFolder({
@@ -55,7 +64,7 @@ export function seedRichHierarchy() {
     parentId: fFrontend.id,
     icon: "layers",
     color: "#a78bfa",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   // Level 3 under Backend
@@ -64,7 +73,7 @@ export function seedRichHierarchy() {
     parentId: fBackend.id,
     icon: "database",
     color: "#1d4ed8",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   const fDevOps = BookmarkRepository.createFolder({
@@ -72,7 +81,7 @@ export function seedRichHierarchy() {
     parentId: fBackend.id,
     icon: "cloud",
     color: "#0284c7",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   // Root Level 1: Artificial Intelligence & Research
@@ -80,7 +89,7 @@ export function seedRichHierarchy() {
     name: "AI & Machine Learning Lab",
     icon: "sparkles",
     color: "#8b5cf6",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   // Level 2 under AI
@@ -89,7 +98,7 @@ export function seedRichHierarchy() {
     parentId: fAI.id,
     icon: "cpu",
     color: "#c084fc",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   // Root Level 1: Data Analytics & Graphics
@@ -97,7 +106,7 @@ export function seedRichHierarchy() {
     name: "Data Visualization & Graphics",
     icon: "bar-chart-3",
     color: "#06b6d4",
-    userId: DEFAULT_USER_ID,
+    userId: targetUserId,
   });
 
   const targetFolders = [
@@ -1123,7 +1132,7 @@ export function seedRichHierarchy() {
         status: site.status,
         tagNames: site.tags,
         notes: `${site.notes}\n\n*Verified by Markly Database Seeder. Folder: ${folder.name}.*`,
-        userId: DEFAULT_USER_ID,
+        userId: targetUserId,
       });
 
       // Update visit count and realistic timestamp directly in sqlite

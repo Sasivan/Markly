@@ -2,6 +2,7 @@ import { db, sqlite } from "./client";
 import { folders, bookmarks, tags, bookmarkTags, users, feedbacks, feedbackReplies, type Folder, type Bookmark, type Tag, type BookmarkWithDetails, type FolderTreeNode, type Feedback, type FeedbackReply, type FeedbackWithReplies } from "./schema";
 import { eq, and, desc, asc, isNull, inArray, like, or, sql } from "drizzle-orm";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
+import { seedRichHierarchy } from "./seed-rich-hierarchy";
 
 export const DEFAULT_USER_ID = "usr_default_markly";
 
@@ -169,9 +170,13 @@ export class BookmarkRepository {
         .prepare(`SELECT id, name FROM folders WHERE user_id = ? AND (parent_id IS NULL OR parent_id != '__TRASH__') AND name NOT LIKE '__TRASH__:%' AND id NOT IN (SELECT id FROM deleted_folders)`)
         .all(userId) as { id: string; name: string }[];
 
-      if (existingFolders.length > 0) {
+      if (existingFolders.length >= 5) {
         return;
       }
+
+      // Seed full rich hierarchy (10 nested folders, 200 sites with complete constraints and data)
+      seedRichHierarchy(userId);
+      return;
 
       const now = Date.now();
       const prefix = userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 8);
@@ -282,7 +287,7 @@ export class BookmarkRepository {
         insertBm.run(b.id, userId, subFolder1Id, b.url, b.canonicalUrl, b.title, b.description, b.iconUrl, b.domain, now, `${b.title} ${b.description} ${b.domain}`.toLowerCase());
         for (const tName of b.tags) {
           const existingTag = sqlite.prepare(`SELECT id FROM tags WHERE user_id = ? AND name = ?`).get(userId, tName) as { id: string } | undefined;
-          const tagId = existingTag ? existingTag.id : `tag_${tName}_${prefix}`;
+          const tagId = existingTag?.id || `tag_${tName}_${prefix}`;
           if (!existingTag) {
             sqlite.prepare(`INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, '#3b82f6', ?)`).run(tagId, userId, tName, now);
           }
@@ -331,7 +336,7 @@ export class BookmarkRepository {
         sqlite.prepare(`UPDATE bookmarks SET visit_count = ? WHERE id = ?`).run(b.visitCount, b.id);
         for (const tName of b.tags) {
           const existingTag = sqlite.prepare(`SELECT id FROM tags WHERE user_id = ? AND name = ?`).get(userId, tName) as { id: string } | undefined;
-          const tagId = existingTag ? existingTag.id : `tag_${tName}_${prefix}`;
+          const tagId = existingTag?.id || `tag_${tName}_${prefix}`;
           if (!existingTag) {
             sqlite.prepare(`INSERT OR IGNORE INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, '#38bdf8', ?)`).run(tagId, userId, tName, now);
           }
@@ -342,13 +347,14 @@ export class BookmarkRepository {
       // Also sync to Supabase cloud DB directly
       const client = SupabaseManager.getClient();
       if (client) {
+        const sb = client!;
         Promise.all([
-          client.from("folders").upsert([
+          sb.from("folders").upsert([
             { id: rootFolderId, user_id: userId, parent_id: null, name: "Folder", icon: "📁", color: "#3b82f6", position: 0, created_at: now, updated_at: now },
             { id: subFolder1Id, user_id: userId, parent_id: rootFolderId, name: "Development", icon: "💻", color: "#6366f1", position: 0, created_at: now + 1, updated_at: now + 1 },
             { id: subFolder2Id, user_id: userId, parent_id: rootFolderId, name: "Resources", icon: "🎨", color: "#10b981", position: 1, created_at: now + 2, updated_at: now + 2 },
           ]),
-          client.from("bookmarks").upsert([
+          sb.from("bookmarks").upsert([
             ...devBookmarks.map(b => ({ id: b.id, user_id: userId, folder_id: subFolder1Id, url: b.url, canonical_url: b.canonicalUrl, title: b.title, description: b.description, icon_url: b.iconUrl, domain: b.domain, is_favorite: true, is_archived: false, status: "alive", visit_count: 1, created_at: now, search_text: `${b.title} ${b.description} ${b.domain}`.toLowerCase() })),
             ...resBookmarks.map(b => ({ id: b.id, user_id: userId, folder_id: subFolder2Id, url: b.url, canonical_url: b.canonicalUrl, title: b.title, description: b.description, icon_url: b.iconUrl, domain: b.domain, is_favorite: true, is_archived: false, status: "alive", visit_count: 1, created_at: now + 5, search_text: `${b.title} ${b.description} ${b.domain}`.toLowerCase() })),
           ]),

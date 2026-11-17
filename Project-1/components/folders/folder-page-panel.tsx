@@ -22,8 +22,13 @@ import {
   Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { ShareCollectionModal } from "./share-collection-modal";
+import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio-box";
+import { ClassicChartsStudioBox } from "@/components/viz/classic-charts-studio-box";
+import { IntelligenceSystemsStudioBox } from "@/components/viz/intelligence-systems-studio-box";
+import { SitesMatrixStudioBox } from "@/components/viz/sites-matrix-studio-box";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
 interface FolderPagePanelProps {
@@ -83,6 +88,38 @@ export function FolderPagePanel({
     return "chips";
   });
 
+  const [folderVisuals, setFolderVisuals] = React.useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`markly_folder_visuals_${currentFolder.id}`);
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const stored = localStorage.getItem(`markly_folder_visuals_${currentFolder.id}`);
+        setFolderVisuals(stored ? JSON.parse(stored) : []);
+      } catch {}
+    };
+    handleUpdate();
+    window.addEventListener("markly-workspace-updated", handleUpdate);
+    return () => window.removeEventListener("markly-workspace-updated", handleUpdate);
+  }, [currentFolder.id]);
+
+  const handleDeleteFolderVisual = (visualId: string) => {
+    try {
+      const storageKey = `markly_folder_visuals_${currentFolder.id}`;
+      const next = folderVisuals.filter((v) => v.id !== visualId);
+      setFolderVisuals(next);
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+    } catch {}
+  };
+
   const handleSubfolderViewChange = (mode: "chips" | "cards" | "list") => {
     setSubfolderViewMode(mode);
     try {
@@ -121,28 +158,37 @@ export function FolderPagePanel({
     }
   };
 
-  const handleOpenAllInTabs = () => {
-    const targetBookmarks = includeSubfolders
+  const [confirmOpenModalOpen, setConfirmOpenModalOpen] = React.useState(false);
+  const [emptyFolderNotice, setEmptyFolderNotice] = React.useState(false);
+
+  const targetBookmarksToOpen = React.useMemo(() => {
+    return includeSubfolders
       ? bookmarks
       : bookmarks.filter((b) => b.folderId === currentFolder.id);
+  }, [includeSubfolders, bookmarks, currentFolder.id]);
 
-    if (targetBookmarks.length === 0) {
-      alert("No bookmarks in this folder to open.");
-      return;
-    }
-
-    if (targetBookmarks.length > 10) {
-      const confirmOpen = window.confirm(
-        `Open all ${targetBookmarks.length} links in separate browser tabs? (Please ensure popups are allowed for this site)`
-      );
-      if (!confirmOpen) return;
-    }
-
-    targetBookmarks.forEach((b) => {
+  const executeOpenAllInTabs = () => {
+    targetBookmarksToOpen.forEach((b) => {
       if (b.url) {
         window.open(b.url, "_blank");
       }
     });
+    setConfirmOpenModalOpen(false);
+  };
+
+  const handleOpenAllInTabs = () => {
+    if (targetBookmarksToOpen.length === 0) {
+      setEmptyFolderNotice(true);
+      setTimeout(() => setEmptyFolderNotice(false), 3500);
+      return;
+    }
+
+    if (targetBookmarksToOpen.length > 10) {
+      setConfirmOpenModalOpen(true);
+      return;
+    }
+
+    executeOpenAllInTabs();
   };
 
   const parentFolder = currentFolder.parentId
@@ -594,6 +640,72 @@ export function FolderPagePanel({
           )}
         </div>
       )}
+
+      {/* Folder Analytics & Multi-Variation Visual Studios */}
+      {folderVisuals.length > 0 && (
+        <div className="space-y-4 pt-1">
+          {folderVisuals.map((v) => {
+            const isPlot = v.kind === "plot_studio" || v.id === "studio_observable_plot";
+            const isClassic = v.kind === "chart_studio" || v.id?.startsWith("studio_classic_charts");
+            const isIntel = v.kind === "intel_studio" || v.id?.startsWith("studio_intel_systems");
+            const isSites = v.kind === "sites_studio" || v.id?.startsWith("studio_sites_matrix");
+
+            if (isPlot) {
+              return (
+                <ObservablePlotStudioBox
+                  key={v.id}
+                  id={v.id}
+                  bookmarks={bookmarks || []}
+                  folders={folders}
+                  initialColSpan={v.colSpan || 12}
+                  rowSpan={v.rowSpan || 2}
+                  onDeleteWidget={() => handleDeleteFolderVisual(v.id)}
+                />
+              );
+            }
+            if (isClassic) {
+              return (
+                <ClassicChartsStudioBox
+                  key={v.id}
+                  id={v.id}
+                  bookmarks={bookmarks || []}
+                  folders={folders}
+                  initialColSpan={v.colSpan || 12}
+                  rowSpan={v.rowSpan || 2}
+                  onDeleteWidget={() => handleDeleteFolderVisual(v.id)}
+                />
+              );
+            }
+            if (isIntel) {
+              return (
+                <IntelligenceSystemsStudioBox
+                  key={v.id}
+                  id={v.id}
+                  bookmarks={bookmarks || []}
+                  folders={folders}
+                  initialColSpan={v.colSpan || 12}
+                  rowSpan={v.rowSpan || 2}
+                  onDeleteWidget={() => handleDeleteFolderVisual(v.id)}
+                />
+              );
+            }
+            if (isSites) {
+              return (
+                <SitesMatrixStudioBox
+                  key={v.id}
+                  id={v.id}
+                  bookmarks={bookmarks || []}
+                  folders={folders}
+                  initialColSpan={v.colSpan || 12}
+                  rowSpan={v.rowSpan || 2}
+                  onDeleteWidget={() => handleDeleteFolderVisual(v.id)}
+                />
+              );
+            }
+            return null;
+          })}
+        </div>
+      )}
       {/* 3.1: Share Collection Modal */}
       <ShareCollectionModal
         open={shareModalOpen}
@@ -601,6 +713,48 @@ export function FolderPagePanel({
         folder={currentFolder}
         bookmarks={bookmarks}
       />
+
+      {/* In-App Confirmation Modal for opening large number of tabs */}
+      <Dialog open={confirmOpenModalOpen} onOpenChange={setConfirmOpenModalOpen}>
+        <DialogContent className="max-w-md p-6 bg-card border border-border shadow-2xl rounded-2xl animate-in zoom-in-95">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                <ExternalLink className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Open Multiple Links
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Open all {targetBookmarksToOpen.length} bookmarks in separate browser tabs? (Please ensure popups are allowed for this site).
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex items-center justify-end gap-2.5 mt-6 pt-4 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmOpenModalOpen(false)}
+              className="text-xs h-9 px-4 rounded-lg cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={executeOpenAllInTabs}
+              className="text-xs h-9 px-4 rounded-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 cursor-pointer shadow-xs"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Open {targetBookmarksToOpen.length} Tabs</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

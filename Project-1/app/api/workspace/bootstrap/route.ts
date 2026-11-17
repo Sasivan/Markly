@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { BookmarkRepository } from "@/server/db/repository";
+import { seedRichHierarchy } from "@/server/db/seed-rich-hierarchy";
 import { SupabaseManager } from "@/server/supabase/supabase-client";
 import { requireUser, handleAuthError } from "@/server/auth/require-user";
 
@@ -10,16 +11,21 @@ export async function GET(req: Request) {
   try {
     const user = await requireUser();
 
-    // 1. Ensure user is synced with Supabase cloud
+    // 1. Ensure user has rich hierarchy with 10 nested folders and 200 sites
     try {
       const syncRes = await SupabaseManager.ensureUserSynced(user.id);
-      if (syncRes.synced && syncRes.foldersCount === 0 && syncRes.bookmarksCount === 0) {
-        BookmarkRepository.ensureUserStarterData(user.id);
+      const existing = BookmarkRepository.getAllFolders(user.id);
+      if (existing.length < 5) {
+        seedRichHierarchy(user.id);
       } else {
         BookmarkRepository.ensureUser(user.id);
       }
     } catch (err) {
       console.warn("Bootstrap user sync warning:", err);
+      const existing = BookmarkRepository.getAllFolders(user.id);
+      if (existing.length < 5) {
+        seedRichHierarchy(user.id);
+      }
     }
 
     // 2. Fetch canonical tree, folders, bookmarks, and stats from local SQLite

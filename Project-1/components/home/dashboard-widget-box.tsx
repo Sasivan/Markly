@@ -24,6 +24,7 @@ import {
   Sparkles,
   Plus,
   Minus,
+  RotateCcw,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
@@ -149,11 +150,26 @@ export function DashboardWidgetBox({
     return span === "2" ? 12 : 6;
   });
 
+  // Track whether the user has manually resized this box
+  const [hasCustomDimensions, setHasCustomDimensions] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return (
+          localStorage.getItem("markly_box_colspan_" + id) !== null ||
+          localStorage.getItem("markly_box_h_" + id) !== null ||
+          localStorage.getItem("markly_box_rowspan_" + id) !== null ||
+          localStorage.getItem("markly_box_custom_" + id) === "true"
+        );
+      } catch {}
+    }
+    return false;
+  });
+
   React.useEffect(() => {
-    if (colSpan && colSpan !== colSpanState) {
+    if (!hasCustomDimensions && colSpan && colSpan !== colSpanState) {
       setColSpanState(colSpan);
     }
-  }, [colSpan]);
+  }, [colSpan, hasCustomDimensions]);
 
   // Track Row Span (1 or 2 rows tall, persisted in localStorage)
   const [rowSpanState, setRowSpanState] = React.useState<1 | 2>(() => {
@@ -167,18 +183,38 @@ export function DashboardWidgetBox({
   });
 
   React.useEffect(() => {
-    if (rowSpan && rowSpan !== rowSpanState) {
+    if (!hasCustomDimensions && rowSpan && rowSpan !== rowSpanState) {
       setRowSpanState(rowSpan);
     }
-  }, [rowSpan]);
+  }, [rowSpan, hasCustomDimensions]);
 
   const toggleRowSpan = () => {
     const next: 1 | 2 = rowSpanState === 1 ? 2 : 1;
     setRowSpanState(next);
+    setHasCustomDimensions(true);
     try {
       localStorage.setItem("markly_box_rowspan_" + id, String(next));
+      localStorage.setItem("markly_box_custom_" + id, "true");
     } catch {}
     onRowSpanChange?.(next);
+  };
+
+  const handleResetBoxDimensions = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      localStorage.removeItem("markly_box_colspan_" + id);
+      localStorage.removeItem("markly_box_h_" + id);
+      localStorage.removeItem("markly_box_rowspan_" + id);
+      localStorage.removeItem("markly_box_custom_" + id);
+    } catch {}
+    setHasCustomDimensions(false);
+    setBoxHeight(null);
+    const defColSpan = colSpan || initialColSpan || (span === "2" ? 12 : 6);
+    const defRowSpan = rowSpan || 1;
+    setColSpanState(defColSpan);
+    setRowSpanState(defRowSpan);
+    onColSpanChange?.(defColSpan);
+    onRowSpanChange?.(defRowSpan);
   };
 
   // User-Customizable Box Height (Persisted in localStorage)
@@ -365,6 +401,8 @@ export function DashboardWidgetBox({
 
         try {
           localStorage.setItem("markly_box_colspan_" + id, String(lastSpan));
+          localStorage.setItem("markly_box_custom_" + id, "true");
+          setHasCustomDimensions(true);
           onColSpanChange?.(lastSpan);
           setBoxHeight((currH) => {
             if (currH !== null) {
@@ -412,8 +450,10 @@ export function DashboardWidgetBox({
     const currentIdx = cycleOrder.indexOf(colSpanState);
     const nextSpan = currentIdx !== -1 && currentIdx < cycleOrder.length - 1 ? cycleOrder[currentIdx + 1] : cycleOrder[0];
     setColSpanState(nextSpan);
+    setHasCustomDimensions(true);
     try {
       localStorage.setItem("markly_box_colspan_" + id, String(nextSpan));
+      localStorage.setItem("markly_box_custom_" + id, "true");
     } catch {}
     onColSpanChange?.(nextSpan);
   };
@@ -723,6 +763,20 @@ export function DashboardWidgetBox({
                     <span>{rowSpanState === 2 ? "Standard 1x Height" : "Bento 2x Tall (1:2)"}</span>
                   </button>
 
+                  {hasCustomDimensions && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMenuOpen(false);
+                        handleResetBoxDimensions();
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Reset custom size</span>
+                    </button>
+                  )}
+
                   {onEditWidget && (
                     <button
                       type="button"
@@ -765,6 +819,18 @@ export function DashboardWidgetBox({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Reset Circle Button when box has manual custom resize */}
+          {hasCustomDimensions && (
+            <button
+              type="button"
+              onClick={handleResetBoxDimensions}
+              className="h-6 w-6 rounded-md border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center cursor-pointer transition-colors shadow-2xs group"
+              title="Reset box size & dimensions"
+            >
+              <RotateCcw className="h-3 w-3 group-hover:-rotate-90 transition-transform duration-200" />
+            </button>
           )}
 
           {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}

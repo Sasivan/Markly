@@ -7,6 +7,7 @@ import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
+import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ActivityHeatmap365 } from "@/components/home/activity-heatmap-365";
@@ -157,17 +158,26 @@ export function IntelligenceSystemsStudioBox({
 
   const handleSaveAsPreset = () => {
     try {
-      const stored = localStorage.getItem("markly_custom_intel_presets");
-      const list = stored ? JSON.parse(stored) : [];
-      list.push({
-        id: `preset_intel_${Date.now()}`,
-        title: `${activeMeta.label} Preset`,
-        type: intelType,
-        scope,
-        graphDepth,
-        createdAt: Date.now(),
+      saveUniversalPreset({
+        id: `preset_box_intel_${Date.now()}`,
+        name: activeMeta.label,
+        description: `T4 Intelligence Suite (${activeMeta.type}) - ${activeMeta.desc}`,
+        category: "box",
+        tabRef: "T4",
+        data: {
+          id: `intel_${Date.now()}`,
+          title: activeMeta.label,
+          kind: intelType,
+          category: "intel",
+          intelConfig: {
+            type: intelType,
+            scope,
+            graphDepth,
+          },
+          colSpan: 12,
+          rowSpan: 2,
+        },
       });
-      localStorage.setItem("markly_custom_intel_presets", JSON.stringify(list));
       setSavedPresetMsg("Saved to preset library!");
       setTimeout(() => setSavedPresetMsg(null), 3000);
     } catch {}
@@ -260,7 +270,7 @@ export function IntelligenceSystemsStudioBox({
         </div>
       }
     >
-      <div className="p-3.5 space-y-3.5 select-none text-foreground">
+      <div className="p-3.5 space-y-3.5 select-none text-foreground min-w-0">
         {/* Category Tabs */}
         <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">

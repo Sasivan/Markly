@@ -8,6 +8,7 @@ import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ObservablePlotView, type ObservablePlotConfig, type ObservableCurveType } from "./observable-plot-view";
 import {
@@ -218,16 +219,22 @@ export function ObservablePlotStudioBox({
 
   const handleSaveAsPreset = () => {
     try {
-      const stored = localStorage.getItem("markly_custom_plot_presets");
-      const list = stored ? JSON.parse(stored) : [];
-      list.push({
-        id: `preset_plot_${Date.now()}`,
-        title: `Observable ${activeVariationMeta.label} Preset`,
-        type: plotType,
-        config: currentPlotConfig,
-        createdAt: Date.now(),
+      saveUniversalPreset({
+        id: `preset_box_plot_${Date.now()}`,
+        name: `Observable ${activeVariationMeta.label}`,
+        description: `T2 Observable HQ Plot with ${plotColorScheme} scale and ${plotDimension} dimension.`,
+        category: "box",
+        tabRef: "T2",
+        data: {
+          id: `plot_${plotType}_${Date.now()}`,
+          title: `Observable ${activeVariationMeta.label}`,
+          kind: "plot",
+          category: "plot",
+          plotConfig: currentPlotConfig,
+          colSpan: 12,
+          rowSpan: 2,
+        },
       });
-      localStorage.setItem("markly_custom_plot_presets", JSON.stringify(list));
       setSavedPresetMsg("Saved to preset library!");
       setTimeout(() => setSavedPresetMsg(null), 3000);
     } catch {}
@@ -274,7 +281,7 @@ export function ObservablePlotStudioBox({
       icon={<FolderIconRenderer icon={plotCustomIcon} color={plotCustomColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}
       rowSpan={rowSpan}
-      minHeight={640}
+      minHeight={660}
       badgeText={`${PLOT_VARIATIONS.length} MARKS`}
       onColSpanChange={onColSpanChange}
       onRowSpanChange={onRowSpanChange}
@@ -322,7 +329,7 @@ export function ObservablePlotStudioBox({
         </div>
       }
     >
-      <div className="p-3.5 space-y-3 select-none text-foreground">
+      <div className="p-3.5 space-y-3 select-none text-foreground min-w-0">
         {/* Category Filter Pills */}
         <div className="flex items-center justify-between gap-1.5 pb-1 border-b border-border/50 text-xs">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">

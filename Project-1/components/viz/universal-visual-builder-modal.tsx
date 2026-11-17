@@ -90,6 +90,8 @@ export interface UniversalVisualConfig {
     limit: number | "all" | "auto";
     viewMode: "grid" | "list" | "compact" | "table";
     sortBy: "recent" | "created" | "visits" | "title";
+    accentColor?: string;
+    icon?: string;
   };
 
   // 2. Observable Plot Config
@@ -107,6 +109,8 @@ export interface UniversalVisualConfig {
     showTip?: boolean;
     showLegend?: boolean;
     crosshair?: boolean;
+    fill?: string;
+    stroke?: string;
     filters?: PlotFilterConstraints;
   };
 
@@ -659,6 +663,18 @@ export function UniversalVisualBuilderModal({
             chartConfig: config.chartConfig,
             intelConfig: config.intelConfig,
             siteConfig: config.siteConfig,
+            vizConfig: (config as any).chartConfig || {
+              version: 1,
+              id: targetId,
+              title: config.title,
+              chartType: (config as any).chartConfig?.chartType || "bar",
+              dimension: (config as any).chartConfig?.dimension || "domain",
+              measure: (config as any).chartConfig?.measure || "count",
+              filters: (config as any).chartConfig?.filters || {},
+              sort: (config as any).chartConfig?.sort || { by: "measure", direction: "desc" },
+              limit: (config as any).chartConfig?.limit || 8,
+              otherBucket: true,
+            },
           });
           localStorage.setItem("markly_home_widgets", JSON.stringify(list));
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
@@ -680,6 +696,18 @@ export function UniversalVisualBuilderModal({
             chartConfig: config.chartConfig,
             intelConfig: config.intelConfig,
             siteConfig: config.siteConfig,
+            vizConfig: (config as any).chartConfig || {
+              version: 1,
+              id: targetId,
+              title: config.title,
+              chartType: (config as any).chartConfig?.chartType || "bar",
+              dimension: (config as any).chartConfig?.dimension || "domain",
+              measure: (config as any).chartConfig?.measure || "count",
+              filters: (config as any).chartConfig?.filters || {},
+              sort: (config as any).chartConfig?.sort || { by: "measure", direction: "desc" },
+              limit: (config as any).chartConfig?.limit || 8,
+              otherBucket: true,
+            },
           });
           localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(tabs));
           window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
@@ -1076,6 +1104,8 @@ export function UniversalVisualBuilderModal({
         limit: siteLimit,
         viewMode: siteViewMode,
         sortBy: siteSortBy,
+        accentColor: color || "#10b981",
+        icon: icon || "compass",
       };
     } else if (activeTab === "plot") {
       builtConfig.plotConfig = {
@@ -1092,6 +1122,8 @@ export function UniversalVisualBuilderModal({
         showTip: plotShowTip,
         showLegend: plotShowLegend,
         crosshair: true,
+        fill: color || "#3b82f6",
+        stroke: color || "#3b82f6",
         filters: {
           folderId: filterFolderId,
           minVisits: filterMinVisits,

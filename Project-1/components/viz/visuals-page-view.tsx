@@ -1060,6 +1060,7 @@ export function VisualsPageView({
           {!hiddenStudioUnits.includes("unit_tags_cloud") && (
           <DashboardWidgetBox
             id="unit_tags_cloud"
+            tabRef="T4"
             title="Tag Frequency & Topic Cloud"
             icon={<TagIcon className="h-4 w-4 text-pink-500" />}
             initialColSpan={4}
@@ -1122,6 +1123,7 @@ export function VisualsPageView({
           {!hiddenStudioUnits.includes("unit_engagement_spectrum") && (
           <DashboardWidgetBox
             id="unit_engagement_spectrum"
+            tabRef="T4"
             title="Engagement Spectrum Tiers"
             icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
             initialColSpan={4}
@@ -1181,6 +1183,7 @@ export function VisualsPageView({
           {!hiddenStudioUnits.includes("unit_favicon_wall") && (
           <DashboardWidgetBox
             id="unit_favicon_wall"
+            tabRef="T4"
             title="Visual Favicon Wall"
             icon={<LayoutGrid className="h-4 w-4 text-amber-500" />}
             initialColSpan={4}
@@ -1305,6 +1308,9 @@ export function VisualsPageView({
                   icon={<BarChart3 className="h-4 w-4 text-primary" />}
                   initialColSpan={widget.colSpan || 6}
                   minHeight={280}
+                  badgeText={String(widget.category || (siteCfg ? "sites" : plotCfg ? "plot" : intelCfg ? "intel" : "chart")).toUpperCase()}
+                  viewMode={siteCfg ? (siteCfg.viewMode || "grid") : undefined}
+                  availableViews={siteCfg ? ["grid", "list", "table", "compact"] : undefined}
                   onDeleteWidget={() => handleDeleteWidget(widget.id)}
                   onEditWidget={() => {
                     setEditingConfig({
@@ -1348,7 +1354,7 @@ export function VisualsPageView({
                     {siteCfg ? (
                       <BookmarkItemsView
                         items={siteItems}
-                        mode={siteCfg.viewMode || "list"}
+                        mode={siteCfg.viewMode || "grid"}
                         onOpenPreview={() => {}}
                       />
                     ) : plotCfg ? (

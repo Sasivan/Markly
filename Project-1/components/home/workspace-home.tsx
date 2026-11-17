@@ -1421,16 +1421,37 @@ export function WorkspaceHome({
       );
     }
 
-    if (widget.kind === "custom" || widget.id.startsWith("custom:")) {
-      const vKind = widget.vizConfig?.kind || widget.vizConfig?.chartType;
+    if (widget.kind === "custom" || widget.id.startsWith("custom:") || (widget as any).category || (widget as any).siteConfig || (widget as any).plotConfig || (widget as any).chartConfig || (widget as any).intelConfig) {
+      const siteCfg = (widget as any).siteConfig || widget.vizConfig?.siteConfig;
+      const plotCfg = (widget as any).plotConfig || widget.vizConfig?.plotConfig;
+      const intelCfg = (widget as any).intelConfig || widget.vizConfig?.intelConfig;
+      const chartCfg = (widget as any).chartConfig || widget.vizConfig;
+      const vKind =
+        (widget as any).category ||
+        (siteCfg ? "sites" : plotCfg ? "plot" : intelCfg ? "intel" : widget.vizConfig?.kind || widget.vizConfig?.chartType || "chart");
+
+      // Filter sites if siteCfg exists
+      let customSiteItems = bookmarks.filter((b) => !b.isArchived);
+      if (siteCfg) {
+        if (siteCfg.source === "favorites") customSiteItems = customSiteItems.filter((b) => b.isFavorite);
+        else if (siteCfg.source === "recent") customSiteItems = [...customSiteItems].sort((a, b) => (b.lastVisitedAt || b.createdAt || 0) - (a.lastVisitedAt || a.createdAt || 0));
+        else if (siteCfg.source === "unsorted") customSiteItems = customSiteItems.filter((b) => !b.folderId);
+        else if (siteCfg.source === "folder" && siteCfg.folderId) customSiteItems = customSiteItems.filter((b) => b.folderId === siteCfg.folderId);
+        else if (siteCfg.source === "tag" && siteCfg.tag) customSiteItems = customSiteItems.filter((b) => (b.tags || []).some((t: any) => (typeof t === "string" ? t : t.name).toLowerCase() === siteCfg.tag.toLowerCase()));
+      }
+
+      const activeView = widgetViews[widget.id] || siteCfg?.viewMode || "grid";
+      const activeLimit = widgetItemLimits[widget.id] || siteCfg?.limit || "auto";
 
       return (
         <DashboardWidgetBox
           key={widget.id}
           {...commonProps}
-          title={widget.vizConfig?.title || widget.label}
+          title={widget.vizConfig?.title || widget.label || "Custom Visual"}
           icon={
-            vKind === "graph" ? (
+            vKind === "sites" ? (
+              <FolderIconRenderer icon={(widget as any).icon || "compass"} color={(widget as any).color || "#10b981"} className="h-4 w-4" />
+            ) : vKind === "graph" ? (
               <Layers className="h-4 w-4 text-indigo-500" />
             ) : vKind === "tags" ? (
               <Tag className="h-4 w-4 text-pink-500" />
@@ -1441,52 +1462,71 @@ export function WorkspaceHome({
             )
           }
           badgeText={String(vKind || "visual").toUpperCase()}
+          viewMode={vKind === "sites" ? activeView : undefined}
+          availableViews={vKind === "sites" ? ["grid", "list", "table", "compact"] : undefined}
+          onViewModeChange={vKind === "sites" ? (mode) => handleSetWidgetView(widget.id, mode) : undefined}
+          itemLimit={vKind === "sites" ? activeLimit : undefined}
+          showItemLimitPicker={vKind === "sites"}
+          onItemLimitChange={vKind === "sites" ? (lim) => handleSetWidgetLimit(widget.id, lim) : undefined}
           onEditWidget={() => handleEditCustomWidget(widget)}
           onDuplicateWidget={() => handleDuplicateCustomWidget(widget)}
           onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
         >
           <div className="p-3 flex-1 flex flex-col min-h-0">
-            {vKind === "graph" ? (
+            {vKind === "sites" || siteCfg ? (
+              <div className="flex-1 min-h-[220px] overflow-y-auto">
+                <BookmarkItemsView
+                  items={customSiteItems}
+                  mode={activeView}
+                  limit={activeLimit}
+                  onOpenPreview={onOpenPreview}
+                  onEditBookmark={onEditBookmark}
+                  onToggleFavorite={onToggleFavorite}
+                  onToggleArchive={onToggleArchive}
+                  onDeleteBookmark={onDeleteBookmark}
+                />
+              </div>
+            ) : vKind === "graph" || intelCfg?.type === "graph" ? (
               <div className="w-full h-full min-h-[300px] flex-1 rounded-lg overflow-hidden border border-border">
                 <KnowledgeGraph
-                  mode={widget.vizConfig?.intelConfig?.folderId ? "folder" : "global"}
-                  folderId={widget.vizConfig?.intelConfig?.folderId}
-                  depth={widget.vizConfig?.intelConfig?.graphDepth ?? 2}
+                  mode={widget.vizConfig?.intelConfig?.folderId || intelCfg?.folderId ? "folder" : "global"}
+                  folderId={widget.vizConfig?.intelConfig?.folderId || intelCfg?.folderId}
+                  depth={widget.vizConfig?.intelConfig?.graphDepth ?? intelCfg?.graphDepth ?? 2}
                   showControls={false}
                   onSelectDomain={onSelectDomain}
                 />
               </div>
-            ) : vKind === "plot" ? (
+            ) : vKind === "plot" || plotCfg ? (
               <ObservablePlotView
                 data={computePlotData(bookmarks, folders, {
-                  type: (widget.vizConfig?.plotConfig?.type as any) || "barX",
-                  dimension: (widget.vizConfig?.plotConfig?.dimension as any) || "domain",
-                  measure: (widget.vizConfig?.plotConfig?.measure as any) || "count",
-                  group: (widget.vizConfig?.plotConfig?.group as any) || "none",
-                  transform: (widget.vizConfig?.plotConfig?.transform as any) || "raw",
-                  sortOrder: (widget.vizConfig?.plotConfig?.sortOrder as any) || "desc",
-                  limit: widget.vizConfig?.plotConfig?.limit ?? 10,
-                  colorScheme: widget.vizConfig?.plotConfig?.colorScheme || "tableau10",
-                  curve: (widget.vizConfig?.plotConfig?.curve as any) || "natural",
-                  showGrid: widget.vizConfig?.plotConfig?.showGrid ?? true,
-                  showTip: widget.vizConfig?.plotConfig?.showTip ?? true,
-                  showLegend: widget.vizConfig?.plotConfig?.showLegend ?? false,
-                  filters: widget.vizConfig?.plotConfig?.filters,
+                  type: (plotCfg?.type as any) || "barX",
+                  dimension: (plotCfg?.dimension as any) || "domain",
+                  measure: (plotCfg?.measure as any) || "count",
+                  group: (plotCfg?.group as any) || "none",
+                  transform: (plotCfg?.transform as any) || "raw",
+                  sortOrder: (plotCfg?.sortOrder as any) || "desc",
+                  limit: plotCfg?.limit ?? 10,
+                  colorScheme: plotCfg?.colorScheme || "tableau10",
+                  curve: (plotCfg?.curve as any) || "natural",
+                  showGrid: plotCfg?.showGrid ?? true,
+                  showTip: plotCfg?.showTip ?? true,
+                  showLegend: plotCfg?.showLegend ?? false,
+                  filters: plotCfg?.filters,
                 })}
                 config={{
-                  type: (widget.vizConfig?.plotConfig?.type as any) || "barX",
-                  x: (widget.vizConfig?.plotConfig?.type === "barX" || widget.vizConfig?.plotConfig?.type === "stackedBarX") ? "value" : "dimension",
-                  y: (widget.vizConfig?.plotConfig?.type === "barX" || widget.vizConfig?.plotConfig?.type === "stackedBarX") ? "dimension" : "value",
-                  z: widget.vizConfig?.plotConfig?.group && widget.vizConfig?.plotConfig?.group !== "none" ? "group" : undefined,
+                  type: (plotCfg?.type as any) || "barX",
+                  x: (plotCfg?.type === "barX" || plotCfg?.type === "stackedBarX") ? "value" : "dimension",
+                  y: (plotCfg?.type === "barX" || plotCfg?.type === "stackedBarX") ? "dimension" : "value",
+                  z: plotCfg?.group && plotCfg?.group !== "none" ? "group" : undefined,
                   height: 220,
-                  colorScheme: widget.vizConfig?.plotConfig?.colorScheme || "tableau10",
-                  curve: (widget.vizConfig?.plotConfig?.curve as any) || "natural",
-                  grid: widget.vizConfig?.plotConfig?.showGrid ?? true,
-                  tip: widget.vizConfig?.plotConfig?.showTip ?? true,
-                  legend: widget.vizConfig?.plotConfig?.showLegend ?? false,
+                  colorScheme: plotCfg?.colorScheme || "tableau10",
+                  curve: (plotCfg?.curve as any) || "natural",
+                  grid: plotCfg?.showGrid ?? true,
+                  tip: plotCfg?.showTip ?? true,
+                  legend: plotCfg?.showLegend ?? false,
                 }}
               />
-            ) : vKind === "wall" ? (
+            ) : vKind === "wall" || intelCfg?.type === "wall" ? (
               <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 max-h-48 overflow-y-auto p-1 bg-secondary/15 rounded-lg border border-border/40">
                 {bookmarks.map((bm) => (
                   <div
@@ -1499,7 +1539,7 @@ export function WorkspaceHome({
                   </div>
                 ))}
               </div>
-            ) : vKind === "tags" ? (
+            ) : vKind === "tags" || intelCfg?.type === "tags" ? (
               <div className="flex flex-wrap gap-1.5 p-2 bg-secondary/15 rounded-lg border border-border/40">
                 {topTags.map((tag) => (
                   <button
@@ -1517,9 +1557,20 @@ export function WorkspaceHome({
                   </button>
                 ))}
               </div>
-            ) : widget.vizConfig ? (
+            ) : (
               <VizChart
-                config={widget.vizConfig}
+                config={chartCfg || widget.vizConfig || {
+                  version: 1,
+                  id: widget.id,
+                  title: widget.label || "Visual Chart",
+                  chartType: "bar",
+                  dimension: "domain",
+                  measure: "count",
+                  filters: {},
+                  sort: { by: "measure", direction: "desc" },
+                  limit: 8,
+                  otherBucket: true,
+                }}
                 bookmarks={bookmarks}
                 folders={folders}
                 onSelectDomain={onSelectDomain}
@@ -1527,10 +1578,6 @@ export function WorkspaceHome({
                 onSelectFolder={onSelectFolder}
                 bare={false}
               />
-            ) : (
-              <div className="p-6 text-xs text-muted-foreground text-center">
-                Visual configuration is missing
-              </div>
             )}
           </div>
         </DashboardWidgetBox>

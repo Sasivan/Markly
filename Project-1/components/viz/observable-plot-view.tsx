@@ -205,7 +205,7 @@ export function ObservablePlotView({
             Plot.stackY({
               x: xField,
               y: yField,
-              fill: config.z || "folder",
+              fill: config.z || "group",
               rx: 3,
               tip: tipEnabled,
             })
@@ -222,7 +222,7 @@ export function ObservablePlotView({
             Plot.stackX({
               y: yField,
               x: xField,
-              fill: config.z || "folder",
+              fill: config.z || "group",
               rx: 3,
               tip: tipEnabled,
             })
@@ -237,8 +237,8 @@ export function ObservablePlotView({
           Plot.barY(data, {
             x: xField,
             y: yField,
-            fx: config.fx || config.z || "folder",
-            fill: config.z || "folder",
+            fx: config.fx || config.z || "group",
+            fill: config.z || "group",
             rx: 3,
             tip: tipEnabled,
           })
@@ -264,7 +264,7 @@ export function ObservablePlotView({
         marks.push(
           Plot.waffleY(data, {
             y: yField,
-            fill: config.z || "folder",
+            fill: config.z || "group",
             rx: 2,
             tip: tipEnabled,
           })
@@ -767,7 +767,13 @@ export function ObservablePlotView({
         color: useColorScheme
           ? {
               scheme: config.colorScheme as any,
-              type: config.colorType || (config.type === "cell" || config.type === "density" || config.type === "matrix" ? "linear" : "categorical"),
+              type:
+                config.colorType ||
+                (["viridis", "magma", "inferno", "plasma", "cividis", "turbo", "warm", "cool", "blues", "greens", "reds", "spectral", "rdylbu"].includes(String(config.colorScheme).toLowerCase())
+                  ? "linear"
+                  : config.type === "cell" || config.type === "density" || config.type === "matrix"
+                  ? "linear"
+                  : "categorical"),
               legend: config.legend ?? true,
             }
           : undefined,

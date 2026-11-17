@@ -7,6 +7,7 @@ import { DashboardWidgetBox, BookmarkItemsView, type WidgetViewMode, type Widget
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
+import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
@@ -127,15 +128,22 @@ export function SitesMatrixStudioBox({
 
   const handleSaveAsPreset = () => {
     try {
-      const stored = localStorage.getItem("markly_custom_sites_presets");
-      const list = stored ? JSON.parse(stored) : [];
-      list.push({
-        id: `preset_sites_${Date.now()}`,
-        title: `${activeMeta.label} Preset`,
-        config: siteConfig,
-        createdAt: Date.now(),
+      saveUniversalPreset({
+        id: `preset_box_sites_${Date.now()}`,
+        name: activeMeta.label,
+        description: `T1 Sites Reference Matrix (${activeMeta.type}) - ${activeMeta.desc}`,
+        category: "box",
+        tabRef: "T1",
+        data: {
+          id: `sites_${Date.now()}`,
+          title: activeMeta.label,
+          kind: "sites",
+          category: "sites",
+          siteConfig,
+          colSpan: 12,
+          rowSpan: 2,
+        },
       });
-      localStorage.setItem("markly_custom_sites_presets", JSON.stringify(list));
       setSavedPresetMsg("Saved to preset library!");
       setTimeout(() => setSavedPresetMsg(null), 3000);
     } catch {}
@@ -228,7 +236,7 @@ export function SitesMatrixStudioBox({
         </div>
       }
     >
-      <div className="p-3.5 space-y-3.5 select-none text-foreground">
+      <div className="p-3.5 space-y-3.5 select-none text-foreground min-w-0">
         {/* Category Tabs */}
         <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">

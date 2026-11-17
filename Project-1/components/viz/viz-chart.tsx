@@ -21,7 +21,7 @@ import {
 import { Table, BarChart2, Info, ArrowUpRight, ExternalLink, Sparkles } from "lucide-react";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import type { VizConfig, VizRow, VizResult } from "@/lib/viz";
-import { runViz, VIZ_PALETTE } from "@/lib/viz";
+import { runViz, VIZ_PALETTE, VIZ_GRADIENTS } from "@/lib/viz";
 import { ObservablePlotView } from "./observable-plot-view";
 import { WidgetBoxContext } from "@/components/home/dashboard-widget-box";
 
@@ -106,8 +106,22 @@ export function VizChart({
     onFilterClick?.(config.dimension, dimValue);
   };
 
-  // Safe color accent
+  // Safe color accent & dynamic active palette
   const singleAccent = config.displayOptions?.colorAccent || VIZ_PALETTE[0];
+  const activePalette = React.useMemo(() => {
+    const accent = config.displayOptions?.colorAccent;
+    const gradId = (config.displayOptions as any)?.gradientPreset;
+    if (gradId) {
+      const grad = VIZ_GRADIENTS.find((g) => g.id === gradId);
+      if (grad) {
+        return [grad.from, grad.to, ...VIZ_PALETTE.slice(2)];
+      }
+    }
+    if (accent && accent !== "#2563eb" && accent !== "#3b82f6") {
+      return [accent, ...VIZ_PALETTE.filter((c) => c !== accent)];
+    }
+    return VIZ_PALETTE;
+  }, [config.displayOptions?.colorAccent, (config.displayOptions as any)?.gradientPreset]);
 
   // Aria summary for accessibility
   const ariaSummary = React.useMemo(() => {
@@ -349,7 +363,7 @@ export function VizChart({
                 {queryResult.rows.slice(0, 8).map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={entry.isOther ? "#64748b" : VIZ_PALETTE[index % VIZ_PALETTE.length]}
+                    fill={entry.isOther ? "#64748b" : activePalette[index % activePalette.length]}
                     className="hover:opacity-85 transition-opacity"
                   />
                 ))}
@@ -400,7 +414,14 @@ export function VizChart({
                 onClick={(data: any) => handleItemClick(data.dimension)}
                 cursor="pointer"
                 className="hover:opacity-85 transition-opacity"
-              />
+              >
+                {queryResult.rows.map((entry, index) => (
+                  <Cell
+                    key={`hbar-${index}`}
+                    fill={entry.isOther ? "#64748b" : activePalette[index % activePalette.length]}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -452,7 +473,7 @@ export function VizChart({
                   key={s}
                   dataKey={s}
                   stackId="a"
-                  fill={VIZ_PALETTE[idx % VIZ_PALETTE.length]}
+                  fill={activePalette[idx % activePalette.length]}
                   radius={idx === queryResult.series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                 />
               ))}

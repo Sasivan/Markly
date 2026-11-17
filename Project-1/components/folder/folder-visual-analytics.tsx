@@ -1112,8 +1112,9 @@ export function FolderVisualAnalytics({
                 }
 
                 const currentSpan = viz.colSpan || (viz.kind === "graph" || viz.kind === "wall" ? 12 : 6);
-                const sitesList = viz.kind === "sites" ? getSitesListForVisual(viz.siteFilter) : [];
-                const activeLimit = visualLimits[viz.id] ?? "auto";
+                const isSiteKind = viz.kind === "sites" || Boolean(viz.siteConfig);
+                const sitesList = isSiteKind ? getSitesListForVisual(viz.siteConfig?.source || viz.siteFilter) : [];
+                const activeLimit = visualLimits[viz.id] ?? viz.siteConfig?.limit ?? "auto";
 
                 return (
                   <DashboardWidgetBox
@@ -1124,23 +1125,23 @@ export function FolderVisualAnalytics({
                     initialColSpan={currentSpan}
                     onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
                     minHeight={viz.kind === "graph" ? 340 : 250}
-                    badgeText={String(viz.kind || "chart").toUpperCase()}
+                    badgeText={String(viz.kind || (isSiteKind ? "sites" : "chart")).toUpperCase()}
                     onEditWidget={() => handleOpenUniversalBuilder(viz)}
                     onDeleteWidget={() => handleDeleteVisual(viz.id)}
-                    showItemLimitPicker={viz.kind === "sites" || viz.kind === "wall"}
+                    showItemLimitPicker={isSiteKind || viz.kind === "wall"}
                     itemLimit={activeLimit}
                     onItemLimitChange={(lim) => handleSetVisualLimit(viz.id, lim)}
-                    viewMode={viz.kind === "sites" ? (visualViewModes[viz.id] ?? "grid") : undefined}
-                    availableViews={viz.kind === "sites" ? ["grid", "list", "table", "compact"] : undefined}
-                    onViewModeChange={viz.kind === "sites" ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
+                    viewMode={isSiteKind ? (visualViewModes[viz.id] ?? viz.siteConfig?.viewMode ?? "grid") : undefined}
+                    availableViews={isSiteKind ? ["grid", "list", "table", "compact"] : undefined}
+                    onViewModeChange={isSiteKind ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
                   >
                     <div className="p-2 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
                       {/* 1. SITES PRESET (Quick Access / Favorites / Recent) */}
-                      {viz.kind === "sites" && (
+                      {isSiteKind && (
                         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                           <BookmarkItemsView
                             items={sitesList}
-                            mode={visualViewModes[viz.id] ?? "grid"}
+                            mode={visualViewModes[viz.id] ?? viz.siteConfig?.viewMode ?? "grid"}
                             limit={activeLimit}
                             emptyMessage={`No ${viz.title.toLowerCase()} recorded in this folder yet.`}
                             onOpenPreview={onOpenPreview}

@@ -27,8 +27,10 @@ import {
   RotateCcw,
   Table as TableIcon,
   BookmarkCheck,
+  Box,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
 import type { BookmarkWithDetails } from "@/server/db/schema";
 import type { WidgetColSpan } from "./home-layout-modal";
 
@@ -546,46 +548,74 @@ export function DashboardWidgetBox({
     if (
       lower.includes("observable") ||
       lower.includes("plot") ||
+      lower.includes("mark") ||
       lower.includes("marks") ||
       lower.includes("grammar")
     ) {
       return "T2";
     }
     if (
-      lower.includes("classic") ||
-      lower.includes("recharts") ||
-      lower.includes("patterns") ||
-      lower.includes("velocity") ||
-      lower.includes("domain") ||
-      lower.includes("radar") ||
-      lower.includes("bar") ||
-      lower.includes("donut") ||
-      lower.includes("distribution")
-    ) {
-      return "T3";
-    }
-    if (
       lower.includes("intel") ||
       lower.includes("graph") ||
       lower.includes("force") ||
+      lower.includes("obsidian") ||
       lower.includes("spectrum") ||
+      lower.includes("engagement") ||
       lower.includes("heatmap") ||
       lower.includes("wall") ||
+      lower.includes("system") ||
       lower.includes("systems") ||
-      lower.includes("topics")
+      lower.includes("topic") ||
+      lower.includes("topics") ||
+      lower.includes("tag") ||
+      lower.includes("tags") ||
+      lower.includes("frequency") ||
+      lower.includes("cloud")
     ) {
       return "T4";
     }
     if (
+      lower.includes("site") ||
       lower.includes("sites") ||
-      lower.includes("quick") ||
       lower.includes("matrix") ||
-      lower.includes("favorite") ||
+      lower.includes("folder") ||
+      lower.includes("folders") ||
       lower.includes("recent") ||
+      lower.includes("favorite") ||
+      lower.includes("favorites") ||
       lower.includes("unsorted") ||
-      lower.includes("folders")
+      lower.includes("scratchpad") ||
+      lower.includes("inbox") ||
+      lower.includes("collection") ||
+      lower.includes("quick")
     ) {
       return "T1";
+    }
+    if (
+      lower.includes("classic") ||
+      lower.includes("rechart") ||
+      lower.includes("recharts") ||
+      lower.includes("bar") ||
+      lower.includes("bars") ||
+      lower.includes("line") ||
+      lower.includes("lines") ||
+      lower.includes("area") ||
+      lower.includes("donut") ||
+      lower.includes("radar") ||
+      lower.includes("pie") ||
+      lower.includes("velocity") ||
+      lower.includes("domain") ||
+      lower.includes("domains") ||
+      lower.includes("distribution") ||
+      lower.includes("metric") ||
+      lower.includes("metrics") ||
+      lower.includes("analytics") ||
+      lower.includes("pattern") ||
+      lower.includes("patterns") ||
+      lower.includes("chart") ||
+      lower.includes("charts")
+    ) {
+      return "T3";
     }
     return null;
   }, [tabRef, id, title, badgeText]);
@@ -602,7 +632,7 @@ export function DashboardWidgetBox({
         height: isCollapsed ? "auto" : boxHeight ? `${boxHeight}px` : undefined,
         minHeight: isCollapsed ? undefined : boxHeight ? `${boxHeight}px` : minHeight ? `${minHeight}px` : rowSpanState === 2 ? "440px" : "auto",
       }}
-      className={`rounded-xl border border-border bg-card shadow-2xs flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
+      className={`min-w-0 rounded-xl border border-border bg-card shadow-2xs flex flex-col transition-[border-color,background-color] duration-150 group/box relative ${colSpanClass} ${
         rowSpanState === 2 ? "md:row-span-2" : "md:row-span-1"
       } ${
         isResizing ? "ring-2 ring-primary/40 select-none" : ""
@@ -899,6 +929,33 @@ export function DashboardWidgetBox({
                     type="button"
                     onClick={() => {
                       setActionMenuOpen(false);
+                      saveUniversalPreset({
+                        id: `preset_box_${id}_${Date.now()}`,
+                        name: title,
+                        category: "box",
+                        tabRef: (resolvedTabRef as "T1" | "T2" | "T3" | "T4") || undefined,
+                        data: {
+                          id,
+                          title,
+                          colSpan: colSpanState,
+                          rowSpan: rowSpanState,
+                          boxHeight,
+                        },
+                      });
+                      setCustomDefaultSavedToast(true);
+                      setTimeout(() => setCustomDefaultSavedToast(false), 2500);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    title="Save this individual visual box into the Universal Preset Library"
+                  >
+                    <Box className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>Save as Preset Box</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(false);
                       toggleRowSpan();
                     }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
@@ -1041,7 +1098,7 @@ export function DashboardWidgetBox({
             boxHeight,
           }}
         >
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin rounded-b-xl animate-in fade-in duration-150 relative">
+          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin rounded-b-xl animate-in fade-in duration-150 relative">
             {children}
           </div>
         </WidgetBoxContext.Provider>

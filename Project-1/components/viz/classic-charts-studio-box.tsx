@@ -7,6 +7,7 @@ import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
+import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { VizChart, type VizChartProps } from "./viz-chart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -177,15 +178,22 @@ export function ClassicChartsStudioBox({
 
   const handleSaveAsPreset = () => {
     try {
-      const stored = localStorage.getItem("markly_custom_chart_presets");
-      const list = stored ? JSON.parse(stored) : [];
-      list.push({
-        id: `preset_${Date.now()}`,
-        title: `${activeMeta.label} Preset`,
-        config: currentConfig,
-        createdAt: Date.now(),
+      saveUniversalPreset({
+        id: `preset_box_chart_${Date.now()}`,
+        name: activeMeta.label,
+        description: `T3 Classic Chart (${activeMeta.type}) measuring ${measure} by ${dimension}.`,
+        category: "box",
+        tabRef: "T3",
+        data: {
+          id: `chart_${Date.now()}`,
+          title: activeMeta.label,
+          kind: "chart",
+          category: "chart",
+          chartConfig: currentConfig,
+          colSpan: 12,
+          rowSpan: 2,
+        },
       });
-      localStorage.setItem("markly_custom_chart_presets", JSON.stringify(list));
       setSavedPresetMsg("Saved to preset library!");
       setTimeout(() => setSavedPresetMsg(null), 3000);
     } catch {}
@@ -278,7 +286,7 @@ export function ClassicChartsStudioBox({
         </div>
       }
     >
-      <div className="p-3.5 space-y-3.5 select-none text-foreground">
+      <div className="p-3.5 space-y-3.5 select-none text-foreground min-w-0">
         {/* Category Tabs */}
         <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">

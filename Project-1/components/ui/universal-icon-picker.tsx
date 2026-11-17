@@ -44,6 +44,7 @@ import {
   Check,
   X,
   Dices,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
@@ -56,6 +57,7 @@ export interface UniversalIconPickerProps {
   onChange: (iconName: string) => void;
   label?: string;
   compact?: boolean;
+  contextKey?: string;
 }
 
 interface IconMeta {
@@ -109,6 +111,9 @@ const UNIVERSAL_ICONS: IconMeta[] = [
   { name: "book-open", category: "System", icon: BookOpen, keywords: ["book", "docs", "documentation", "learning"] },
 ];
 
+const DEFAULT_ICON_WIDTH = 330;
+const DEFAULT_ICON_HEIGHT = 390;
+
 export function UniversalIconPicker({
   icon,
   value,
@@ -116,6 +121,7 @@ export function UniversalIconPicker({
   onChange,
   label = "Pick icon",
   compact = true,
+  contextKey,
 }: UniversalIconPickerProps) {
   const activeIcon = icon || value || "folder";
   const [isOpen, setIsOpen] = React.useState(false);
@@ -123,14 +129,73 @@ export function UniversalIconPicker({
   const [activeCategory, setActiveCategory] = React.useState<string>("All");
   const [customEmoji, setCustomEmoji] = React.useState("");
 
+  // Storage key uniquely scoped by location/context (e.g. top_icon vs folder_xxx)
+  const storageKey = React.useMemo(() => {
+    const base = contextKey || (label ? label.toLowerCase().replace(/[^a-z0-9_-]/g, "_") : "default");
+    return `markly_popup_size_icon_${base}`;
+  }, [contextKey, label]);
+
   // Trigger button & Portaled popover positioning refs
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const popoverRef = React.useRef<HTMLDivElement>(null);
   const [coords, setCoords] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  // Resizable dimensions state
-  const [popupWidth, setPopupWidth] = React.useState<number>(330);
-  const [popupHeight, setPopupHeight] = React.useState<number>(390);
+  // Resizable dimensions state (persisted per context location)
+  const [popupWidth, setPopupWidth] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed.width === "number" && parsed.width >= 260) {
+            return parsed.width;
+          }
+        }
+      } catch {}
+    }
+    return DEFAULT_ICON_WIDTH;
+  });
+
+  const [popupHeight, setPopupHeight] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed.height === "number" && parsed.height >= 260) {
+            return parsed.height;
+          }
+        }
+      } catch {}
+    }
+    return DEFAULT_ICON_HEIGHT;
+  });
+
+  // Re-sync dimensions from localStorage whenever opened or context changes
+  React.useEffect(() => {
+    if (isOpen && typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed.width === "number" && parsed.width >= 260) setPopupWidth(parsed.width);
+          if (typeof parsed.height === "number" && parsed.height >= 260) setPopupHeight(parsed.height);
+        }
+      } catch {}
+    }
+  }, [isOpen, storageKey]);
+
+  const hasCustomSize = popupWidth !== DEFAULT_ICON_WIDTH || popupHeight !== DEFAULT_ICON_HEIGHT;
+
+  const handleResetSize = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setPopupWidth(DEFAULT_ICON_WIDTH);
+    setPopupHeight(DEFAULT_ICON_HEIGHT);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {}
+  };
+
   const [isResizing, setIsResizing] = React.useState<"width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw" | null>(null);
 
   // Recent Icons
@@ -283,6 +348,9 @@ export function UniversalIconPicker({
       document.body.style.cursor = "nwse-resize";
     }
 
+    let currentW = initialW;
+    let currentH = initialH;
+
     const onMouseMove = (moveEvent: MouseEvent) => {
       // Horizontal resize
       if (
@@ -293,12 +361,13 @@ export function UniversalIconPicker({
         direction === "ne"
       ) {
         const deltaX = moveEvent.clientX - startX;
-        setPopupWidth(Math.min(700, Math.max(260, initialW + deltaX)));
+        currentW = Math.min(700, Math.max(260, initialW + deltaX));
+        setPopupWidth(currentW);
       } else if (direction === "w" || direction === "sw" || direction === "nw") {
         const deltaX = startX - moveEvent.clientX;
-        const newW = Math.min(700, Math.max(260, initialW + deltaX));
-        const appliedDelta = newW - initialW;
-        setPopupWidth(newW);
+        currentW = Math.min(700, Math.max(260, initialW + deltaX));
+        const appliedDelta = currentW - initialW;
+        setPopupWidth(currentW);
         setCoords((prev) => ({ ...prev, left: initialCoords.left - appliedDelta }));
       }
 
@@ -311,12 +380,13 @@ export function UniversalIconPicker({
         direction === "sw"
       ) {
         const deltaY = moveEvent.clientY - startY;
-        setPopupHeight(Math.min(750, Math.max(260, initialH + deltaY)));
+        currentH = Math.min(750, Math.max(260, initialH + deltaY));
+        setPopupHeight(currentH);
       } else if (direction === "n" || direction === "ne" || direction === "nw") {
         const deltaY = startY - moveEvent.clientY;
-        const newH = Math.min(750, Math.max(260, initialH + deltaY));
-        const appliedDelta = newH - initialH;
-        setPopupHeight(newH);
+        currentH = Math.min(750, Math.max(260, initialH + deltaY));
+        const appliedDelta = currentH - initialH;
+        setPopupHeight(currentH);
         setCoords((prev) => ({ ...prev, top: initialCoords.top - appliedDelta }));
       }
     };
@@ -327,6 +397,11 @@ export function UniversalIconPicker({
       document.body.style.userSelect = prevSelect;
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+
+      // Persist size for this context/location
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ width: currentW, height: currentH }));
+      } catch {}
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -409,6 +484,19 @@ export function UniversalIconPicker({
                 >
                   <Dices className="h-3.5 w-3.5" />
                 </button>
+
+                {/* Reset Custom Size Circle Button (since this popup has no 3-dots menu) */}
+                <button
+                  type="button"
+                  onClick={handleResetSize}
+                  title={hasCustomSize ? "Reset custom size" : "Default size"}
+                  className={`h-6 w-6 rounded hover:bg-secondary flex items-center justify-center cursor-pointer transition-colors ${
+                    hasCustomSize ? "text-primary hover:text-foreground font-semibold" : "text-muted-foreground/50 hover:text-foreground"
+                  }`}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}

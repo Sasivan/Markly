@@ -14,6 +14,7 @@ export interface UniversalIdentityPickerProps {
   previewName?: string;
   className?: string;
   compact?: boolean;
+  contextKey?: string;
 }
 
 /**
@@ -32,6 +33,7 @@ export function UniversalIdentityPicker({
   previewName,
   className = "",
   compact = false,
+  contextKey,
 }: UniversalIdentityPickerProps) {
   const safeColor = color || "#3b82f6";
   const safeIcon = icon || "folder";
@@ -45,12 +47,14 @@ export function UniversalIdentityPicker({
           onChange={onIconChange}
           label="Select Icon"
           compact={true}
+          contextKey={contextKey ? `${contextKey}_icon` : undefined}
         />
         <UniversalColorPicker
           color={safeColor}
           onChange={onColorChange}
           label="Select Accent Color"
           compact={true}
+          contextKey={contextKey ? `${contextKey}_color` : undefined}
         />
       </div>
     );
@@ -97,12 +101,14 @@ export function UniversalIdentityPicker({
           onChange={onIconChange}
           label="Change Icon"
           compact={true}
+          contextKey={contextKey ? `${contextKey}_icon` : undefined}
         />
         <UniversalColorPicker
           color={safeColor}
           onChange={onColorChange}
           label="Change Accent Color"
           compact={true}
+          contextKey={contextKey ? `${contextKey}_color` : undefined}
         />
       </div>
     </div>

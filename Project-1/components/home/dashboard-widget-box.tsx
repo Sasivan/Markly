@@ -740,8 +740,8 @@ export function DashboardWidgetBox({
             </div>
           )}
 
-          {/* Custom Widget Menu: Edit, Duplicate, Delete, Dimensions */}
-          {(onEditWidget || onDuplicateWidget || onDeleteWidget || hasCustomDimensions) && (
+          {/* Custom Widget Menu: Edit, Duplicate, Delete, Dimensions (3-dots menu) */}
+          {(onEditWidget || onDuplicateWidget || onDeleteWidget) && (
             <div className="relative" ref={actionMenuRef}>
               <button
                 type="button"
@@ -822,6 +822,18 @@ export function DashboardWidgetBox({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Reset Circle button: If box has custom dimensions and does NOT have a 3-dots menu */}
+          {!(onEditWidget || onDuplicateWidget || onDeleteWidget) && hasCustomDimensions && (
+            <button
+              type="button"
+              onClick={handleResetBoxDimensions}
+              className="h-6 w-6 rounded border border-border/60 hover:bg-secondary text-primary hover:text-foreground flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+              title="Reset custom size"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </button>
           )}
 
           {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}

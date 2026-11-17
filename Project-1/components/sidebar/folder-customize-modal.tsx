@@ -164,12 +164,14 @@ export function FolderCustomizeModal({
                     onChange={setSelectedIcon}
                     label="Change Folder Icon"
                     compact={true}
+                    contextKey={`folder_${folder?.id || "custom"}_icon`}
                   />
                   <UniversalColorPicker
                     color={selectedColor}
                     onChange={setSelectedColor}
                     label="Change Accent Color"
                     compact={true}
+                    contextKey={`folder_${folder?.id || "custom"}_color`}
                   />
                 </div>
 

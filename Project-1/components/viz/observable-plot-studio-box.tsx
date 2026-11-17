@@ -381,10 +381,12 @@ export function ObservablePlotStudioBox({
               <UniversalColorPicker
                 value={plotCustomColor}
                 onChange={(c) => setPlotCustomColor(c)}
+                contextKey="studio_plot_color"
               />
               <UniversalIconPicker
                 value={plotCustomIcon}
                 onChange={(ic) => setPlotCustomIcon(ic)}
+                contextKey="studio_plot_icon"
               />
             </div>
           </div>

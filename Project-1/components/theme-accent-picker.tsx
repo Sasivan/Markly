@@ -47,19 +47,21 @@ export function ThemeAccentPicker() {
 
   return (
     <div className="flex items-center gap-1">
-      {/* Universal Theme Color Picker */}
+      {/* Universal Theme Color Picker (Header Location) */}
       <UniversalColorPicker
         color={accentColor}
         onChange={handleColorChange}
         label="Theme Accent Color (Palettes, Gradients & Custom HSL)"
+        contextKey="top_accent"
       />
 
-      {/* Universal Icon Collection Picker (Stays as Icon Collection explorer, independent of website logo) */}
+      {/* Universal Icon Collection Picker (Header Location) */}
       <UniversalIconPicker
         icon={iconCollection}
         color={accentColor}
         onChange={handleIconChange}
         label="Icon Collection & Universal Glyphs"
+        contextKey="top_icon"
       />
     </div>
   );

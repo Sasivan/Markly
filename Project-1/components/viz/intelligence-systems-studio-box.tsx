@@ -268,8 +268,8 @@ export function IntelligenceSystemsStudioBox({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <UniversalColorPicker color={accentColor} onChange={setAccentColor} compact={true} />
-            <UniversalIconPicker icon={icon} color={accentColor} onChange={setIcon} compact={true} />
+            <UniversalColorPicker color={accentColor} onChange={setAccentColor} compact={true} contextKey="studio_intel_color" />
+            <UniversalIconPicker icon={icon} color={accentColor} onChange={setIcon} compact={true} contextKey="studio_intel_icon" />
           </div>
         </div>
 

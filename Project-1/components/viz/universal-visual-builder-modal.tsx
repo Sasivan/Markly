@@ -1193,6 +1193,7 @@ export function UniversalVisualBuilderModal({
                   onChange={setIcon}
                   label="Choose visual icon"
                   compact={true}
+                  contextKey="builder_icon"
                 />
                 {/* Universal Color Picker */}
                 <UniversalColorPicker
@@ -1200,6 +1201,7 @@ export function UniversalVisualBuilderModal({
                   onChange={setColor}
                   label="Choose visual accent color"
                   compact={true}
+                  contextKey="builder_color"
                 />
               </div>
               <div className="flex-1 min-w-0">

@@ -160,12 +160,14 @@ export function AddFolderModal({
                     onChange={setIcon}
                     label="Select Folder Icon"
                     compact={true}
+                    contextKey="add_folder_icon"
                   />
                   <UniversalColorPicker
                     color={color}
                     onChange={setColor}
                     label="Select Accent Color"
                     compact={true}
+                    contextKey="add_folder_color"
                   />
                 </div>
 

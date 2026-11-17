@@ -98,8 +98,8 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
 
-    // Explicit administrator recognition for sasivan177@gmail.com
-    if (uEmail === "sasivan177@gmail.com" || uEmail.includes("sasivan177")) {
+    // Explicit administrator recognition
+    if (uEmail.startsWith("sasivan177@") || uEmail.includes("sasivan177")) {
       return true;
     }
 

@@ -57,7 +57,7 @@ export default async function HomePage() {
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const isAdmin = Boolean(
-      uEmail === "sasivan177@gmail.com" ||
+      uEmail.startsWith("sasivan177@") ||
       uEmail.includes("sasivan177") ||
       (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail)))
     );

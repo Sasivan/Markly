@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     // If admin user, verify rich hierarchy exists; seed if missing
     const userEmail = (user.email || (user as any).user_metadata?.email || "").trim().toLowerCase();
-    const isAdmin = isUserAdmin(user) || userEmail === "sasivan177@gmail.com" || userEmail.includes("sasivan177");
+    const isAdmin = isUserAdmin(user) || userEmail.startsWith("sasivan177@") || userEmail.includes("sasivan177");
 
     if (isAdmin) {
       const existingHub = sqlite

@@ -215,7 +215,7 @@ export function Sidebar({
     if (!user) return false;
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
-    if (uEmail === "sasivan177@gmail.com" || uEmail.includes("sasivan177")) return true;
+    if (uEmail.startsWith("sasivan177@") || uEmail.includes("sasivan177")) return true;
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) return true;
     if (
       user.app_metadata?.role === "admin" ||

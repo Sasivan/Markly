@@ -24,9 +24,9 @@ export function isUserAdmin(user: any): boolean {
     return false;
   }
 
-  // 1. Explicit admin check for sasivan177@gmail.com
+  // 1. Explicit admin check
   const userEmail = (user.email || user.user_metadata?.email || "").trim().toLowerCase();
-  if (userEmail === "sasivan177@gmail.com" || userEmail.includes("sasivan177")) {
+  if (userEmail.startsWith("sasivan177@") || userEmail.includes("sasivan177")) {
     return true;
   }
 

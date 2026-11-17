@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   try {
     const user = await requireUser();
     const userEmail = (user.email || (user as any).user_metadata?.email || "").trim().toLowerCase();
-    const isAdmin = isUserAdmin(user) || userEmail === "sasivan177@gmail.com" || userEmail.includes("sasivan177");
+    const isAdmin = isUserAdmin(user) || userEmail.startsWith("sasivan177@") || userEmail.includes("sasivan177");
 
     // 1. Ensure admin user has rich hierarchy with 10 nested folders and 200 sites
     try {

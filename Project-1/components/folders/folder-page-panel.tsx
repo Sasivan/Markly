@@ -211,16 +211,22 @@ export function FolderPagePanel({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Left: Folder Icon, Name, and Metrics */}
         <div className="flex items-center gap-3.5 min-w-0">
-          <div
-            className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 text-xl shadow-xs border border-slate-200/60 dark:border-neutral-700/60"
-            style={{ backgroundColor: `${currentFolder.color}20` }}
+          <button
+            type="button"
+            onClick={onCustomizeFolder ? () => onCustomizeFolder(currentFolder) : undefined}
+            className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 text-xl shadow-xs border border-slate-200/60 dark:border-neutral-700/60 cursor-pointer group relative transition-transform hover:scale-105"
+            style={{ backgroundColor: `${currentFolder.color}20`, borderColor: `${currentFolder.color}50` }}
+            title="Click to customize folder icon & accent color"
           >
             <FolderIconRenderer
               icon={currentFolder.icon}
               color={currentFolder.color}
-              className="h-6 w-6"
+              className="h-6 w-6 transition-transform group-hover:scale-110"
             />
-          </div>
+            <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] shadow-xs opacity-0 group-hover:opacity-100 transition-opacity">
+              ✎
+            </span>
+          </button>
 
           <div className="min-w-0 flex-1">
             {isEditingName ? (

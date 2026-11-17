@@ -54,6 +54,7 @@ import {
 } from "./home-layout-modal";
 import { VizChart } from "@/components/viz/viz-chart";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "@/components/viz/universal-visual-builder-modal";
+import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio-box";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { computePlotData } from "@/lib/viz/plot-engine";
@@ -1277,6 +1278,22 @@ export function WorkspaceHome({
     };
 
     // Custom Visual Widget (Charts, Observable Plot, Knowledge Graph, Tags, Wall, Engagement)
+    if (widget.id === "studio_observable_plot" || (widget as any).category === "plot_studio") {
+      return (
+        <ObservablePlotStudioBox
+          key={widget.id}
+          id={widget.id}
+          bookmarks={bookmarks}
+          folders={folders}
+          initialColSpan={widget.colSpan || 12}
+          rowSpan={widget.rowSpan || 2}
+          onColSpanChange={(span) => handleWidgetColSpanChange(widget.id, span)}
+          onRowSpanChange={(span) => handleWidgetRowSpanChange(widget.id, span as 1 | 2)}
+          onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+        />
+      );
+    }
+
     if (widget.kind === "custom" || widget.id.startsWith("custom:")) {
       const vKind = widget.vizConfig?.kind || widget.vizConfig?.chartType;
 

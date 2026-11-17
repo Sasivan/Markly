@@ -45,6 +45,7 @@ import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboa
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "./universal-visual-builder-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { ObservablePlotStudioBox } from "./observable-plot-studio-box";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
 export interface VisualsPageViewProps {
@@ -755,233 +756,14 @@ export function VisualsPageView({
 
       {/* 1. OBSERVABLE PLOT GRAMMAR OF GRAPHICS STUDIO (Wrapped in Resizable Box) */}
       {!hiddenStudioUnits.includes("studio_observable_plot") && (
-        <DashboardWidgetBox
+        <ObservablePlotStudioBox
           id="studio_observable_plot"
-          title="Observable Plot Layered Graphics Studio (22 Variations)"
-          icon={<Activity className="h-4 w-4 text-cyan-500" />}
-          initialColSpan={12}
-          minHeight={420}
-          badgeText={`${PLOT_VARIATIONS.length} MARKS`}
+          bookmarks={bookmarks}
+          folders={folders}
           onDeleteWidget={() => handleHideStudioUnit("studio_observable_plot")}
-        extraHeaderAction={
-          <div className="flex items-center gap-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                handlePinAnyVisual({
-                  id: `plot_${plotType}_${Date.now()}`,
-                  title: `Observable ${PLOT_VARIATIONS.find((p) => p.type === plotType)?.label || plotType}`,
-                  kind: "plot",
-                  plotConfig: { type: plotType, colorScheme: plotColorScheme },
-                })
-              }
-              className="text-xs h-7 px-2 cursor-pointer gap-1"
-            >
-              <Pin className="h-3 w-3" />
-              <span>Pin Home</span>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                setExportTargetVisual({
-                  id: `plot_${plotType}_${Date.now()}`,
-                  title: `Observable ${PLOT_VARIATIONS.find((p) => p.type === plotType)?.label || plotType}`,
-                  kind: "plot",
-                  plotConfig: { type: plotType, colorScheme: plotColorScheme },
-                })
-              }
-              className="text-xs h-7 px-2 cursor-pointer gap-1 text-primary"
-            >
-              <FolderPlus className="h-3 w-3" />
-              <span>+ Folder</span>
-            </Button>
-          </div>
-        }
-      >
-        <div className="p-4 space-y-4">
-          {/* Category Filter Pills for 22 Plot Variations */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border/50 text-xs">
-            {["All", "Bars", "Points", "Trends", "Areas", "Matrix", "Special"].map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setPlotCategory(cat)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors whitespace-nowrap ${
-                  plotCategory === cat
-                    ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-            <span className="ml-auto text-[10px] font-mono text-muted-foreground">
-              {filteredVariations.length} types shown
-            </span>
-          </div>
-
-          {/* 22 Observable Plot Variations Selector Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 max-h-36 overflow-y-auto p-1 bg-secondary/15 rounded-xl border border-border/60">
-            {filteredVariations.map((v) => (
-              <button
-                key={v.type}
-                type="button"
-                onClick={() => setPlotType(v.type)}
-                className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
-                  plotType === v.type
-                    ? "border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/40"
-                    : "border-border/60 bg-card hover:bg-secondary/70 hover:border-border"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-foreground truncate">{v.label}</span>
-                  <span className="text-[9px] font-mono text-muted-foreground uppercase">{v.category}</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{v.desc}</p>
-              </button>
-            ))}
-          </div>
-
-          {/* Observable Plot Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
-            {/* Dimension */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Dimension
-              </label>
-              <select
-                value={plotDimension}
-                onChange={(e) => setPlotDimension(e.target.value)}
-                className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
-              >
-                <option value="domain">Web Domain</option>
-                <option value="folder">Folder Collection</option>
-                <option value="status">Link Health Status</option>
-                <option value="month">Creation Month</option>
-              </select>
-            </div>
-
-            {/* Measure Value */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Measure Metric
-              </label>
-              <select
-                value={plotMeasure}
-                onChange={(e) => setPlotMeasure(e.target.value)}
-                className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
-              >
-                <option value="count">Bookmark Count</option>
-                <option value="sum_visits">Sum of Total Visits</option>
-              </select>
-            </div>
-
-            {/* Observable Color Scheme */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Color Palette Scale
-              </label>
-              <select
-                value={plotColorScheme}
-                onChange={(e) => setPlotColorScheme(e.target.value)}
-                className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer font-mono"
-              >
-                <option value="tableau10">Tableau 10 (Qualitative)</option>
-                <option value="blues">Blues (Sequential)</option>
-                <option value="viridis">Viridis (Sequential)</option>
-                <option value="turbo">Turbo (Rainbow)</option>
-                <option value="spectral">Spectral (Diverging)</option>
-                <option value="warm">Warm (Sequential)</option>
-                <option value="cool">Cool (Sequential)</option>
-              </select>
-            </div>
-
-            {/* Universal Accent Color & Icon Pickers */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Accent & Icon
-              </label>
-              <div className="flex items-center gap-1.5 h-8">
-                <UniversalColorPicker
-                  value={plotCustomColor}
-                  onChange={(c) => setPlotCustomColor(c)}
-                />
-                <UniversalIconPicker
-                  value={plotCustomIcon}
-                  onChange={(ic) => setPlotCustomIcon(ic)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Observable Plot Canvas */}
-          <div className="rounded-xl border border-border bg-background p-4 shadow-inner">
-            <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
-              <span className="text-xs font-semibold text-foreground">
-                Live ObservableHQ Plot: {PLOT_VARIATIONS.find((p) => p.type === plotType)?.label}
-              </span>
-              <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border">
-                {plotType} • Reactive Grammar of Graphics
-              </span>
-            </div>
-
-            <ObservablePlotView
-              data={plotData}
-              config={{
-                type: plotType,
-                x:
-                  plotType === "barX" || plotType === "stackedBarX"
-                    ? "value"
-                    : plotType === "dot" ||
-                      plotType === "bubble" ||
-                      plotType === "vector" ||
-                      plotType === "tick" ||
-                      plotType === "cell" ||
-                      plotType === "matrix" ||
-                      plotType === "linearRegression" ||
-                      plotType === "bollinger" ||
-                      plotType === "density" ||
-                      plotType === "contour" ||
-                      plotType === "delaunay" ||
-                      plotType === "voronoi"
-                    ? "x"
-                    : "dimension",
-                y:
-                  plotType === "barX" || plotType === "stackedBarX"
-                    ? "dimension"
-                    : plotType === "dot" ||
-                      plotType === "bubble" ||
-                      plotType === "vector" ||
-                      plotType === "tick" ||
-                      plotType === "cell" ||
-                      plotType === "matrix" ||
-                      plotType === "linearRegression" ||
-                      plotType === "bollinger" ||
-                      plotType === "density" ||
-                      plotType === "contour" ||
-                      plotType === "delaunay" ||
-                      plotType === "voronoi"
-                    ? "y"
-                    : "value",
-                x1: "x1",
-                y1: "y1",
-                x2: "x2",
-                y2: "y2",
-                fill: plotType === "dot" || plotType === "bubble" || plotType === "stackedBarY" || plotType === "stackedBarX" ? "folder" : plotType === "cell" ? "count" : (plotCustomColor || "#3b82f6"),
-                stroke: plotCustomColor || "#3b82f6",
-                z: "folder",
-                r: 6,
-                colorScheme: plotColorScheme,
-                crosshair: true,
-                grid: true,
-                height: 300,
-              }}
-            />
-          </div>
-        </div>
-      </DashboardWidgetBox>
+          onPinHome={handlePinAnyVisual}
+          onAddToFolder={(v) => setExportTargetVisual(v)}
+        />
       )}
 
       {/* 2. KNOWLEDGE GRAPH MASTER STUDIO (Wrapped in Resizable Box) */}
@@ -1728,7 +1510,7 @@ export function VisualsPageView({
         bookmarks={bookmarks}
         folders={folders}
         onSave={handleSaveUniversalVisual}
-        destinationName="Dashboard Home"
+        destinationName="Visuals Studio Page"
       />
     </div>
   );

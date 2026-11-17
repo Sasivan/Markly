@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "db:seed": "tsx server/db/seed.ts",
+    "db:seed-rich": "tsx server/db/seed-rich-hierarchy.ts",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

@@ -38,6 +38,7 @@ import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { computePlotData } from "@/lib/viz/plot-engine";
 import { DashboardWidgetBox, BookmarkItemsView, type WidgetItemLimit } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
+import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio-box";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
@@ -46,7 +47,7 @@ export interface FolderFilter {
   value: string;
 }
 
-export type VisualKind = "chart" | "tags" | "engagement" | "wall" | "graph" | "plot" | "sites";
+export type VisualKind = "chart" | "tags" | "engagement" | "wall" | "graph" | "plot" | "plot_studio" | "sites";
 
 export interface TabVisual {
   id: string;
@@ -56,6 +57,7 @@ export interface TabVisual {
   plotConfig?: any;
   intelConfig?: any;
   colSpan?: WidgetColSpan;
+  rowSpan?: 1 | 2;
   siteFilter?: "all" | "favorites" | "recent";
   graphDepth?: number;
   chartType?: VizChartType;
@@ -742,6 +744,21 @@ export function FolderVisualAnalytics({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
               {activeTab.visuals.map((viz) => {
+                if (viz.id === "studio_observable_plot" || viz.kind === "plot_studio") {
+                  return (
+                    <ObservablePlotStudioBox
+                      key={viz.id}
+                      id={viz.id}
+                      bookmarks={bookmarks}
+                      folders={folders}
+                      initialColSpan={viz.colSpan || 12}
+                      rowSpan={viz.rowSpan || 2}
+                      onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
+                      onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                    />
+                  );
+                }
+
                 const currentSpan = viz.colSpan || (viz.kind === "graph" || viz.kind === "wall" ? 12 : 6);
                 const sitesList = viz.kind === "sites" ? getSitesListForVisual(viz.siteFilter) : [];
                 const activeLimit = visualLimits[viz.id] ?? "auto";

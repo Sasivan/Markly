@@ -283,6 +283,23 @@ export function UniversalVisualBuilderModal({
   const [colSpan, setColSpan] = React.useState<WidgetColSpan>(initialConfig?.colSpan || 6);
   const [rowSpan, setRowSpan] = React.useState<1 | 2>(initialConfig?.rowSpan || 1);
 
+  // Target Destination Selector State (defaulted to caller's context)
+  const [targetDestination, setTargetDestination] = React.useState<string>(() => {
+    if (destinationName?.toLowerCase().includes("home")) return "home";
+    if (destinationName?.toLowerCase().includes("visual")) return "visuals";
+    if (destinationName?.toLowerCase().includes("universal")) return "universal_folders";
+    return destinationName || "home";
+  });
+
+  React.useEffect(() => {
+    if (open) {
+      if (destinationName?.toLowerCase().includes("home")) setTargetDestination("home");
+      else if (destinationName?.toLowerCase().includes("visual")) setTargetDestination("visuals");
+      else if (destinationName?.toLowerCase().includes("universal")) setTargetDestination("universal_folders");
+      else setTargetDestination(destinationName || "home");
+    }
+  }, [open, destinationName]);
+
   // 1. Site Box State
   const [siteSource, setSiteSource] = React.useState<"all" | "favorites" | "recent" | "unsorted" | "folder" | "tag">(
     initialConfig?.siteConfig?.source || "all"
@@ -573,9 +590,91 @@ export function UniversalVisualBuilderModal({
     }
   }, [initialConfig, folders]);
 
+  // Cross-destination visual dispatcher
+  const dispatchToDestination = (config: UniversalVisualConfig) => {
+    onSave(config);
+
+    if (typeof window !== "undefined") {
+      try {
+        if (targetDestination === "home") {
+          const stored = localStorage.getItem("markly_workspace_dashboard_widgets");
+          const list = stored ? JSON.parse(stored) : [];
+          if (!list.some((w: any) => w.id === config.id)) {
+            list.push({
+              id: config.id,
+              label: config.title,
+              visible: true,
+              kind: "custom",
+              colSpan: config.colSpan || 12,
+              rowSpan: config.rowSpan || 2,
+              icon: config.icon,
+              color: config.color,
+              category: config.category,
+              vizConfig: {
+                id: config.id,
+                title: config.title,
+                chartType: config.category === "plot" ? "plot" : "bar",
+                plotConfig: config.plotConfig,
+                chartConfig: config.chartConfig,
+                intelConfig: config.intelConfig,
+                siteConfig: config.siteConfig,
+              },
+            });
+            localStorage.setItem("markly_workspace_dashboard_widgets", JSON.stringify(list));
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        } else if (targetDestination === "universal_folders") {
+          const stored = localStorage.getItem("markly_universal_visual_tabs");
+          let tabs = stored ? JSON.parse(stored) : [];
+          if (!Array.isArray(tabs) || tabs.length === 0) {
+            tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+          }
+          if (!tabs[0].visuals.some((v: any) => v.id === config.id)) {
+            tabs[0].visuals.push({
+              id: config.id,
+              title: config.title,
+              kind: config.category === "plot" ? "plot_studio" : config.category,
+              colSpan: config.colSpan || 12,
+              rowSpan: config.rowSpan || 2,
+              plotConfig: config.plotConfig,
+              chartConfig: config.chartConfig,
+              intelConfig: config.intelConfig,
+              siteConfig: config.siteConfig,
+            });
+            localStorage.setItem("markly_universal_visual_tabs", JSON.stringify(tabs));
+            window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        } else if (targetDestination.startsWith("folder:")) {
+          const folderId = targetDestination.replace("folder:", "");
+          const storageKey = `markly_folder_visuals_${folderId}`;
+          const stored = localStorage.getItem(storageKey);
+          let visuals = stored ? JSON.parse(stored) : [];
+          if (!visuals.some((v: any) => v.id === config.id)) {
+            visuals.push({
+              id: config.id,
+              title: config.title,
+              kind: config.category === "plot" ? "plot_studio" : config.category,
+              colSpan: config.colSpan || 12,
+              rowSpan: config.rowSpan || 2,
+              plotConfig: config.plotConfig,
+              chartConfig: config.chartConfig,
+              intelConfig: config.intelConfig,
+              siteConfig: config.siteConfig,
+            });
+            localStorage.setItem(storageKey, JSON.stringify(visuals));
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        }
+      } catch (err) {
+        console.error("dispatchToDestination error:", err);
+      }
+    }
+  };
+
   // One-Click Sample Studio Builders for testing all variations together
   const handlePlaceSamplePlotStudio = () => {
-    onSave({
+    dispatchToDestination({
       id: "studio_observable_plot",
       title: "Observable Plot Layered Graphics Studio (22 Variations)",
       category: "plot",
@@ -608,7 +707,7 @@ export function UniversalVisualBuilderModal({
   };
 
   const handlePlaceSampleChartStudio = () => {
-    onSave({
+    dispatchToDestination({
       id: `studio_classic_charts_${Date.now()}`,
       title: "Complete Classic Charts Studio",
       category: "chart",
@@ -633,7 +732,7 @@ export function UniversalVisualBuilderModal({
   };
 
   const handlePlaceSampleIntelSuite = () => {
-    onSave({
+    dispatchToDestination({
       id: `studio_intel_suite_${Date.now()}`,
       title: "Workspace Intelligence Suite",
       category: "intel",
@@ -650,7 +749,7 @@ export function UniversalVisualBuilderModal({
   };
 
   const handlePlaceSampleSitesMatrix = () => {
-    onSave({
+    dispatchToDestination({
       id: `studio_sites_matrix_${Date.now()}`,
       title: "Multi-Source Sites Matrix",
       category: "sites",
@@ -1030,7 +1129,7 @@ export function UniversalVisualBuilderModal({
       };
     }
 
-    onSave(builtConfig);
+    dispatchToDestination(builtConfig);
     onOpenChange(false);
   };
 
@@ -1157,10 +1256,10 @@ export function UniversalVisualBuilderModal({
                   variant="outline"
                   size="sm"
                   onClick={handlePlaceSampleSitesMatrix}
-                  className="w-full text-xs h-8 border-dashed border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                  className="w-full text-xs h-9 border-dashed border-emerald-500/60 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
                 >
-                  <Compass className="h-3.5 w-3.5 text-emerald-500" />
-                  <span>Create Sample Multi-Source Sites Matrix (All Sources)</span>
+                  <Compass className="h-4 w-4 text-emerald-500" />
+                  <span>🧪 Try All Patterns: Multi-Source Sites Matrix (All Sources & Layouts)</span>
                 </Button>
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
@@ -1283,10 +1382,10 @@ export function UniversalVisualBuilderModal({
                   variant="outline"
                   size="sm"
                   onClick={handlePlaceSamplePlotStudio}
-                  className="w-full text-xs h-8 border-dashed border-cyan-500/50 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                  className="w-full text-xs h-9 border-dashed border-cyan-500/60 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
                 >
-                  <Activity className="h-3.5 w-3.5 text-cyan-500" />
-                  <span>Create Observable Plot Studio (All 22 Variations Studio)</span>
+                  <Activity className="h-4 w-4 text-cyan-500" />
+                  <span>🧪 Try All Patterns: 34 Marks ObservableHQ Layered Studio (Single Box)</span>
                 </Button>
                 {/* 1. Mark Type & Curve */}
                 <div className="space-y-2">
@@ -1641,10 +1740,10 @@ export function UniversalVisualBuilderModal({
                   variant="outline"
                   size="sm"
                   onClick={handlePlaceSampleChartStudio}
-                  className="w-full text-xs h-8 border-dashed border-blue-500/50 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                  className="w-full text-xs h-9 border-dashed border-blue-500/60 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
                 >
-                  <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Create Classic Charts Studio (All Chart Types)</span>
+                  <BarChart3 className="h-4 w-4 text-blue-500" />
+                  <span>🧪 Try All Patterns: Complete Classic Charts Studio (Bars, Lines, Donuts, Areas)</span>
                 </Button>
                 {/* Widely Used Presets & Recipes */}
                 <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
@@ -1969,10 +2068,10 @@ export function UniversalVisualBuilderModal({
                   variant="outline"
                   size="sm"
                   onClick={handlePlaceSampleIntelSuite}
-                  className="w-full text-xs h-8 border-dashed border-purple-500/50 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 gap-1.5 font-medium cursor-pointer shadow-2xs"
+                  className="w-full text-xs h-9 border-dashed border-purple-500/60 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 gap-2 font-semibold cursor-pointer shadow-2xs"
                 >
-                  <Layers className="h-3.5 w-3.5 text-purple-500" />
-                  <span>Create Full Intelligence Suite (Graph, Tags, Heatmap, Wall)</span>
+                  <Layers className="h-4 w-4 text-purple-500" />
+                  <span>🧪 Try All Patterns: Full Intelligence Suite (Knowledge Graph, Tag Cloud, Wall)</span>
                 </Button>
                 {/* Widely Used Presets */}
                 <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5">
@@ -2391,27 +2490,49 @@ export function UniversalVisualBuilderModal({
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-3.5 sm:px-6 border-t border-border bg-secondary/20 flex items-center justify-between flex-shrink-0">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-xs cursor-pointer"
-          >
-            Cancel
-          </Button>
+        {/* Modal Footer with Destination Selector */}
+        <div className="p-3.5 sm:px-6 border-t border-border bg-secondary/30 flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden sm:inline">
+              Place In:
+            </span>
+            <select
+              value={targetDestination}
+              onChange={(e) => setTargetDestination(e.target.value)}
+              className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-semibold text-foreground cursor-pointer shadow-2xs"
+            >
+              <option value="home">Dashboard Home</option>
+              <option value="visuals">Visuals Studio Page</option>
+              <option value="universal_folders">All Folders (Universal Sync)</option>
+              {folders.map((f) => (
+                <option key={f.id} value={`folder:${f.id}`}>
+                  Folder: {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSave}
-            className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 cursor-pointer gap-1.5 shadow-xs"
-          >
-            <Check className="h-3.5 w-3.5" />
-            <span>Save & Place Visual</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSave}
+              className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 cursor-pointer gap-1.5 shadow-xs"
+            >
+              <Check className="h-3.5 w-3.5" />
+              <span>Save & Place Visual</span>
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

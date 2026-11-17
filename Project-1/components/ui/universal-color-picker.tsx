@@ -234,9 +234,9 @@ export function UniversalColorPicker({
     recordColorChoice(chosen);
   };
 
-  // Compute fixed screen coordinates so the popup floats completely OUT of parent modals
-  const updateCoords = React.useCallback(() => {
-    if (!triggerRef.current) return;
+  // Synchronously compute fixed screen coordinates so the popup floats completely OUT of parent modals
+  const calculateCoords = React.useCallback(() => {
+    if (!triggerRef.current || typeof window === "undefined") return null;
     const rect = triggerRef.current.getBoundingClientRect();
     const pad = 8;
 
@@ -254,10 +254,23 @@ export function UniversalColorPicker({
       left = Math.max(pad, window.innerWidth - popupWidth - pad);
     }
 
-    setCoords({ top, left });
+    return { top, left };
   }, [popupWidth, popupHeight]);
 
-  React.useEffect(() => {
+  const updateCoords = React.useCallback(() => {
+    const c = calculateCoords();
+    if (c) setCoords(c);
+  }, [calculateCoords]);
+
+  const handleToggle = () => {
+    if (!isOpen) {
+      const c = calculateCoords();
+      if (c) setCoords(c);
+    }
+    setIsOpen(!isOpen);
+  };
+
+  React.useLayoutEffect(() => {
     if (isOpen) {
       updateCoords();
       window.addEventListener("resize", updateCoords);
@@ -407,7 +420,7 @@ export function UniversalColorPicker({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={`${compact ? "h-8 w-8 justify-center" : "h-8 px-2 justify-between gap-1.5"} rounded-lg border border-border bg-card hover:bg-secondary flex items-center cursor-pointer transition-colors group shadow-2xs`}
         title={label}
       >
@@ -420,6 +433,7 @@ export function UniversalColorPicker({
 
       {/* Portaled Resizable Window that pops completely OUT of any modal container */}
       {isOpen &&
+        coords.top > 0 &&
         typeof document !== "undefined" &&
         createPortal(
           <div
@@ -432,7 +446,7 @@ export function UniversalColorPicker({
               height: `${popupHeight}px`,
               zIndex: 99999,
             }}
-            className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-3 flex flex-col justify-between select-none text-foreground"
+            className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-3 flex flex-col justify-between select-none text-foreground transition-none"
           >
             {/* Header & Tabs */}
             <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2 flex-shrink-0">

@@ -815,7 +815,9 @@ export function MarklyWorkspace({
       setFolders(updated);
       setFolderTree(buildTreeFromFolders(updated, bookmarks));
 
-      if (!user) return; // Guest mode in-memory only
+      // Global notification so sidebar, header, and analytics tabs adapt immediately
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      window.dispatchEvent(new CustomEvent("markly-icon-changed", { detail: { icon: updates.icon } }));
 
       try {
         await fetch(`/api/folders/${folderId}`, {
@@ -825,10 +827,9 @@ export function MarklyWorkspace({
         });
       } catch (err) {
         console.error("Customize folder error:", err);
-        refreshData();
       }
     },
-    [folders, bookmarks, user, refreshData]
+    [folders, bookmarks]
   );
 
   const handleMoveFolderOptimistic = React.useCallback(

@@ -6,7 +6,7 @@ import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 
 export function ThemeAccentPicker() {
   const [accentColor, setAccentColor] = React.useState<string>("#2563eb");
-  const [workspaceIcon, setWorkspaceIcon] = React.useState<string>("sparkles");
+  const [iconCollection, setIconCollection] = React.useState<string>("layers");
 
   React.useEffect(() => {
     try {
@@ -20,9 +20,9 @@ export function ThemeAccentPicker() {
         document.documentElement.setAttribute("data-accent", legacyAccent);
       }
 
-      const savedIcon = localStorage.getItem("markly_workspace_icon");
+      const savedIcon = localStorage.getItem("markly_icon_collection_choice");
       if (savedIcon) {
-        setWorkspaceIcon(savedIcon);
+        setIconCollection(savedIcon);
       }
     } catch {}
   }, []);
@@ -38,10 +38,10 @@ export function ThemeAccentPicker() {
   };
 
   const handleIconChange = (iconName: string) => {
-    setWorkspaceIcon(iconName);
+    setIconCollection(iconName);
     try {
-      localStorage.setItem("markly_workspace_icon", iconName);
-      window.dispatchEvent(new CustomEvent("markly-icon-changed", { detail: { icon: iconName } }));
+      localStorage.setItem("markly_icon_collection_choice", iconName);
+      window.dispatchEvent(new CustomEvent("markly-icon-collection-changed", { detail: { icon: iconName } }));
     } catch {}
   };
 
@@ -54,12 +54,12 @@ export function ThemeAccentPicker() {
         label="Theme Accent Color (Palettes, Gradients & Custom HSL)"
       />
 
-      {/* Universal Workspace Brand Icon Picker */}
+      {/* Universal Icon Collection Picker (Stays as Icon Collection explorer, independent of website logo) */}
       <UniversalIconPicker
-        icon={workspaceIcon}
+        icon={iconCollection}
         color={accentColor}
         onChange={handleIconChange}
-        label="Workspace Brand Icon & Glyphs"
+        label="Icon Collection & Universal Glyphs"
       />
     </div>
   );

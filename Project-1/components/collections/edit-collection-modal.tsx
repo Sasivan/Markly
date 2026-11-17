@@ -24,7 +24,9 @@ import {
   Check,
   Sparkles,
   ArrowRight,
+  RotateCcw,
 } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import type { Folder, FolderTreeNode } from "@/server/db/schema";
 
 interface EditCollectionModalProps {
@@ -77,6 +79,21 @@ export function EditCollectionModal({
   onCopyFolder,
   onDeleteFolder,
 }: EditCollectionModalProps) {
+  const {
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "edit_collection",
+    defaultVerticalWidth: 500,
+    defaultHorizontalWidth: 620,
+    defaultVerticalHeight: 520,
+    defaultHorizontalHeight: 520,
+    minWidth: 400,
+    minHeight: 400,
+  });
+
   const [name, setName] = React.useState("");
   const [selectedIcon, setSelectedIcon] = React.useState("folder");
   const [selectedColor, setSelectedColor] = React.useState("#3b82f6");
@@ -145,28 +162,46 @@ export function EditCollectionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-6 max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        style={modalStyle}
+        className="relative sm:max-w-none max-w-[95vw] p-6 max-h-[92vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div
-              className="h-11 w-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 shadow-sm border border-black/5"
-              style={{ backgroundColor: `${selectedColor}25` }}
-            >
-              <FolderIconRenderer icon={selectedIcon} className="h-6 w-6" color={selectedColor} />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div
+                className="h-11 w-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 shadow-sm border border-black/5"
+                style={{ backgroundColor: `${selectedColor}25` }}
+              >
+                <FolderIconRenderer icon={selectedIcon} className="h-6 w-6" color={selectedColor} />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-1.5">
+                  <span>{isPermanent ? "Edit Unsorted Collection" : "Edit Folder Collection"}</span>
+                  {isPermanent && (
+                    <span className="text-xs bg-secondary text-secondary-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
+                      Permanent
+                    </span>
+                  )}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Rename, change icon branding, color, and location in one place.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-1.5">
-                <span>{isPermanent ? "Edit Unsorted Collection" : "Edit Folder Collection"}</span>
-                {isPermanent && (
-                  <span className="text-xs bg-secondary text-secondary-foreground font-mono px-2 py-0.5 rounded-md font-medium border border-border">
-                    Permanent
-                  </span>
-                )}
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Rename, change icon branding, color, and location in one place.
-              </DialogDescription>
-            </div>
+
+            {hasCustomSize && (
+              <button
+                type="button"
+                onClick={handleRestoreDefaults}
+                title="Restore default modal size"
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </DialogHeader>
 

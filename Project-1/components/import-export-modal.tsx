@@ -3,7 +3,8 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Activity, FileText, Check, AlertCircle, Loader2, Bookmark, Puzzle, Sparkles, Copy } from "lucide-react";
+import { Download, Upload, Activity, FileText, Check, AlertCircle, Loader2, Bookmark, Puzzle, Sparkles, Copy, RotateCcw } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 
 interface ImportExportModalProps {
   open: boolean;
@@ -13,6 +14,21 @@ interface ImportExportModalProps {
 }
 
 export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportExportModalProps) {
+  const {
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "import_export",
+    defaultVerticalWidth: 500,
+    defaultHorizontalWidth: 560,
+    defaultVerticalHeight: 520,
+    defaultHorizontalHeight: 520,
+    minWidth: 380,
+    minHeight: 400,
+  });
+
   const [importing, setImporting] = React.useState(false);
   const [importResult, setImportResult] = React.useState<string | null>(null);
   const [checkingHealth, setCheckingHealth] = React.useState(false);
@@ -70,12 +86,32 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-5 max-h-[85vh] overflow-y-auto">
+      <DialogContent
+        style={modalStyle}
+        className="relative max-w-[95vw] p-5 max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Import, Export & Health Check</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Manage your bookmarks portability and verify link availability.
-          </DialogDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <DialogTitle className="text-base font-semibold">Import, Export & Health Check</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Manage your bookmarks portability and verify link availability.
+              </DialogDescription>
+            </div>
+
+            {hasCustomSize && (
+              <button
+                type="button"
+                onClick={handleRestoreDefaults}
+                title="Restore default modal size"
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 mt-4 text-xs">

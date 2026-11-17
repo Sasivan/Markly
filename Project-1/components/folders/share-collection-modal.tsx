@@ -20,7 +20,9 @@ import {
   Globe,
   Lock,
   Clock,
+  RotateCcw,
 } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import type { Folder, BookmarkWithDetails } from "@/server/db/schema";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
@@ -37,6 +39,21 @@ export function ShareCollectionModal({
   open,
   onOpenChange,
 }: ShareCollectionModalProps) {
+  const {
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "share_collection",
+    defaultVerticalWidth: 480,
+    defaultHorizontalWidth: 540,
+    defaultVerticalHeight: 520,
+    defaultHorizontalHeight: 520,
+    minWidth: 380,
+    minHeight: 400,
+  });
+
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [copiedMarkdown, setCopiedMarkdown] = React.useState(false);
   const [shareUrl, setShareUrl] = React.useState("");
@@ -150,15 +167,33 @@ export function ShareCollectionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border border-border p-5 shadow-xl">
+      <DialogContent
+        style={modalStyle}
+        className="relative max-w-[95vw] bg-card border border-border p-5 shadow-2xl max-h-[92vh] overflow-y-auto rounded-xl"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader className="space-y-1 pb-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Share2 className="h-4 w-4" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <Share2 className="h-4 w-4" />
+              </div>
+              <DialogTitle className="text-base font-semibold text-foreground">
+                Share Collection
+              </DialogTitle>
             </div>
-            <DialogTitle className="text-base font-semibold text-foreground">
-              Share Collection
-            </DialogTitle>
+
+            {hasCustomSize && (
+              <button
+                type="button"
+                onClick={handleRestoreDefaults}
+                title="Restore default modal size"
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
             Share this curated folder collection publicly or export it as markdown or JSON.

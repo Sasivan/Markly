@@ -18,7 +18,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 import { useAuth } from "@/components/auth/auth-context";
@@ -40,6 +42,21 @@ export function EditBookmarkModal({
   onSave,
 }: EditBookmarkModalProps) {
   const { user } = useAuth();
+
+  const {
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "edit_bookmark",
+    defaultVerticalWidth: 580,
+    defaultHorizontalWidth: 680,
+    defaultVerticalHeight: 600,
+    defaultHorizontalHeight: 600,
+    minWidth: 420,
+    minHeight: 440,
+  });
   const [title, setTitle] = React.useState("");
   const [url, setUrl] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState("");
@@ -179,38 +196,56 @@ export function EditBookmarkModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl p-5 max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        style={modalStyle}
+        className="relative max-w-[95vw] p-5 max-h-[92vh] overflow-y-auto rounded-xl border border-border bg-card shadow-2xl"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader>
-          <div className="flex items-center gap-2.5">
-            {bookmark.iconUrl ? (
-              <img
-                src={bookmark.iconUrl}
-                alt={bookmark.domain}
-                className="h-8 w-8 rounded-lg object-contain border border-slate-200 dark:border-neutral-700 bg-background flex-shrink-0 p-0.5"
-              />
-            ) : (
-              <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-neutral-800 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-neutral-300">
-                {bookmark.domain.charAt(0).toUpperCase()}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {bookmark.iconUrl ? (
+                <img
+                  src={bookmark.iconUrl}
+                  alt={bookmark.domain}
+                  className="h-8 w-8 rounded-lg object-contain border border-slate-200 dark:border-neutral-700 bg-background flex-shrink-0 p-0.5"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-neutral-800 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-neutral-300">
+                  {bookmark.domain.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="truncate flex-1">
+                <DialogTitle className="text-base font-bold text-slate-900 dark:text-white truncate">
+                  Edit Bookmark
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 dark:text-neutral-400 truncate flex items-center gap-1.5 mt-0.5">
+                  <Globe className="h-3 w-3" />
+                  <span>{bookmark.domain}</span>
+                  <span>•</span>
+                  <a
+                    href={bookmark.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:underline text-blue-600 dark:text-blue-400 inline-flex items-center gap-0.5 font-medium"
+                  >
+                    Visit Link <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </DialogDescription>
               </div>
-            )}
-            <div className="truncate flex-1">
-              <DialogTitle className="text-base font-bold text-slate-900 dark:text-white truncate">
-                Edit Bookmark
-              </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500 dark:text-neutral-400 truncate flex items-center gap-1.5 mt-0.5">
-                <Globe className="h-3 w-3" />
-                <span>{bookmark.domain}</span>
-                <span>•</span>
-                <a
-                  href={bookmark.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:underline text-blue-600 dark:text-blue-400 inline-flex items-center gap-0.5 font-medium"
-                >
-                  Visit Link <ExternalLink className="h-2.5 w-2.5" />
-                </a>
-              </DialogDescription>
             </div>
+
+            {hasCustomSize && (
+              <button
+                type="button"
+                onClick={handleRestoreDefaults}
+                title="Restore default modal size"
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </DialogHeader>
 

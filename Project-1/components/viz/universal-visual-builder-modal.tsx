@@ -38,7 +38,11 @@ import {
   Hash,
   Globe,
   ShieldCheck,
+  RotateCcw,
+  Columns2,
+  Rows2,
 } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
@@ -282,6 +286,24 @@ export function UniversalVisualBuilderModal({
   const [color, setColor] = React.useState(initialConfig?.color || "#3b82f6");
   const [colSpan, setColSpan] = React.useState<WidgetColSpan>(initialConfig?.colSpan || 6);
   const [rowSpan, setRowSpan] = React.useState<1 | 2>(initialConfig?.rowSpan || 1);
+
+  // Adaptive Resizable Modal state with custom width & height persisted
+  const {
+    format: modalFormat,
+    toggleFormat: toggleModalFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "universal_visual_builder",
+    defaultVerticalWidth: 720,
+    defaultHorizontalWidth: 1080,
+    defaultVerticalHeight: 680,
+    defaultHorizontalHeight: 660,
+    minWidth: 500,
+    minHeight: 420,
+  });
 
   // Target Destination Selector State (defaulted to caller's context)
   const [targetDestination, setTargetDestination] = React.useState<string>(() => {
@@ -1135,7 +1157,12 @@ export function UniversalVisualBuilderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden bg-card border-border shadow-2xl rounded-2xl">
+      <DialogContent
+        style={modalStyle}
+        className="relative flex flex-col p-0 overflow-hidden bg-card border-border shadow-2xl rounded-2xl max-w-[98vw] max-h-[96vh]"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         {/* Header with Title Input, Universal Icon Picker, and Universal Color Picker */}
         <DialogHeader className="p-4 sm:px-6 border-b border-border bg-secondary/30 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1171,7 +1198,7 @@ export function UniversalVisualBuilderModal({
               </div>
             </div>
 
-            {/* Layout Column Span & Row Span Control */}
+            {/* Layout Column Span, Row Span Control & Modal Controls */}
             <div className="flex items-center gap-2 shrink-0">
               <div className="flex items-center gap-1 bg-secondary/80 p-0.5 rounded-lg border border-border/60 text-xs">
                 <span className="text-[10px] text-muted-foreground uppercase px-1.5 font-mono">Width:</span>
@@ -1207,6 +1234,44 @@ export function UniversalVisualBuilderModal({
               >
                 <span>{rowSpan === 2 ? "2x Tall (Bento)" : "1x Standard"}</span>
               </button>
+
+              {/* Restore size button */}
+              {hasCustomSize && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaults}
+                  title="Restore default modal size"
+                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              )}
+
+              {/* Layout format toggle */}
+              <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-lg border border-border/60">
+                <button
+                  type="button"
+                  onClick={() => toggleModalFormat("vertical")}
+                  title="Vertical stacked layout"
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${modalFormat === "vertical"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  <Rows2 className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleModalFormat("horizontal")}
+                  title="Horizontal side-by-side layout"
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${modalFormat === "horizontal"
+                    ? "bg-card text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  <Columns2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1244,9 +1309,15 @@ export function UniversalVisualBuilderModal({
         </DialogHeader>
 
         {/* Modal Body: Left Controls & Right Live Preview */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-          {/* Left Column: Category Specific Configuration Controls (5 cols) */}
-          <div className="lg:col-span-5 space-y-4 pr-1">
+        <div
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 min-h-0 ${
+            modalFormat === "vertical"
+              ? "flex flex-col gap-6"
+              : "grid grid-cols-1 lg:grid-cols-12 gap-6"
+          }`}
+        >
+          {/* Left Column: Category Specific Configuration Controls */}
+          <div className={modalFormat === "vertical" ? "w-full space-y-4" : "lg:col-span-5 space-y-4 pr-1"}>
             {/* 1. SITES REFERENCE BOX CONFIGURATION */}
             {activeTab === "sites" && (
               <div className="space-y-3.5 animate-in fade-in">
@@ -2312,8 +2383,8 @@ export function UniversalVisualBuilderModal({
             )}
           </div>
 
-          {/* Right Column: Real-Time Live Preview (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col rounded-2xl border border-border bg-background p-3.5 overflow-hidden shadow-inner">
+          {/* Right Column: Real-Time Live Preview */}
+          <div className={`${modalFormat === "vertical" ? "w-full" : "lg:col-span-7"} flex flex-col rounded-2xl border border-border bg-background p-3.5 overflow-hidden shadow-inner`}>
             <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-3">
               <div className="flex items-center gap-2">
                 <Eye className="h-3.5 w-3.5 text-primary" />

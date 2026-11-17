@@ -163,7 +163,7 @@ export function HomeLayoutModal({
 
   const startBoxResize = (
     widgetId: string,
-    direction: "width" | "height" | "both",
+    direction: "width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw",
     startEvent: React.MouseEvent
   ) => {
     startEvent.preventDefault();
@@ -177,18 +177,23 @@ export function HomeLayoutModal({
     const gridWidth = gridContainer ? gridContainer.getBoundingClientRect().width : 800;
     const initialWidth = targetCard ? targetCard.getBoundingClientRect().width : 200;
 
-    const currentWidget = localWidgets.find((w) => w.id === widgetId);
-    let lastSpan: WidgetColSpan = currentWidget?.colSpan ?? (currentWidget?.span === "2" ? 12 : 6);
-
     const prevCursor = document.body.style.cursor;
     const prevSelect = document.body.style.userSelect;
     document.body.style.userSelect = "none";
-    if (direction === "width") document.body.style.cursor = "ew-resize";
-    else if (direction === "height") document.body.style.cursor = "ns-resize";
+    if (direction === "width" || direction === "e" || direction === "w") document.body.style.cursor = "ew-resize";
+    else if (direction === "height" || direction === "s" || direction === "n") document.body.style.cursor = "ns-resize";
+    else if (direction === "ne" || direction === "sw") document.body.style.cursor = "nesw-resize";
     else document.body.style.cursor = "nwse-resize";
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      if (direction === "width" || direction === "both") {
+      // Horizontal resize (from right or left)
+      if (
+        direction === "width" ||
+        direction === "both" ||
+        direction === "e" ||
+        direction === "se" ||
+        direction === "ne"
+      ) {
         const deltaX = moveEvent.clientX - startX;
         const newWidth = Math.max(60, initialWidth + deltaX);
         const fraction = newWidth / gridWidth;
@@ -203,7 +208,28 @@ export function HomeLayoutModal({
             closest = s;
           }
         }
-        lastSpan = closest;
+        setLocalWidgets((prev) =>
+          prev.map((w) =>
+            w.id === widgetId
+              ? { ...w, colSpan: closest, span: closest === 12 ? "2" : "1" }
+              : w
+          )
+        );
+      } else if (direction === "w" || direction === "sw" || direction === "nw") {
+        const deltaX = startX - moveEvent.clientX;
+        const newWidth = Math.max(60, initialWidth + deltaX);
+        const fraction = newWidth / gridWidth;
+        const rawCols = Math.round(fraction * 12);
+        const validSpans: WidgetColSpan[] = [2, 3, 4, 6, 8, 9, 12];
+        let closest = validSpans[0];
+        let minDiff = Math.abs(closest - rawCols);
+        for (const s of validSpans) {
+          const diff = Math.abs(s - rawCols);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = s;
+          }
+        }
         setLocalWidgets((prev) =>
           prev.map((w) =>
             w.id === widgetId
@@ -213,9 +239,24 @@ export function HomeLayoutModal({
         );
       }
 
-      if (direction === "height" || direction === "both") {
+      // Vertical resize (from bottom or top)
+      if (
+        direction === "height" ||
+        direction === "both" ||
+        direction === "s" ||
+        direction === "se" ||
+        direction === "sw"
+      ) {
         const deltaY = moveEvent.clientY - startY;
-        const newRowSpan: 1 | 2 = deltaY > 40 ? 2 : 1;
+        const newRowSpan: 1 | 2 = deltaY > 30 ? 2 : 1;
+        setLocalWidgets((prev) =>
+          prev.map((w) =>
+            w.id === widgetId ? { ...w, rowSpan: newRowSpan } : w
+          )
+        );
+      } else if (direction === "n" || direction === "ne" || direction === "nw") {
+        const deltaY = startY - moveEvent.clientY;
+        const newRowSpan: 1 | 2 = deltaY > 30 ? 2 : 1;
         setLocalWidgets((prev) =>
           prev.map((w) =>
             w.id === widgetId ? { ...w, rowSpan: newRowSpan } : w
@@ -465,14 +506,14 @@ export function HomeLayoutModal({
                     </button>
                   </div>
 
-                  {/* Right Edge: Width Drag Resize Handle */}
+                  {/* Right Edge: Horizontal Width Resize (East) */}
                   <div
-                    onMouseDown={(e) => startBoxResize(widget.id, "width", e)}
+                    onMouseDown={(e) => startBoxResize(widget.id, "e", e)}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       cycleColSpan(widget.id);
                     }}
-                    className="absolute top-0 -right-1.5 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center opacity-40 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    className="absolute top-1 -right-1.5 bottom-1 w-3 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
                     title="Drag right edge to resize column width (Double-click to cycle)"
                   >
                     <div
@@ -484,14 +525,33 @@ export function HomeLayoutModal({
                     />
                   </div>
 
-                  {/* Bottom Edge: Height Drag Resize Handle */}
+                  {/* Left Edge: Horizontal Width Resize (West) */}
                   <div
-                    onMouseDown={(e) => startBoxResize(widget.id, "height", e)}
+                    onMouseDown={(e) => startBoxResize(widget.id, "w", e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      cycleColSpan(widget.id);
+                    }}
+                    className="absolute top-1 -left-1.5 bottom-1 w-3 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag left edge to resize column width"
+                  >
+                    <div
+                      className={`w-1 h-8 rounded-full transition-all ${
+                        resizingBoxId === widget.id
+                          ? "bg-primary w-1.5 shadow-sm"
+                          : "bg-muted-foreground/50 hover:bg-primary hover:w-1.5"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Bottom Edge: Height Resize (South) */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "s", e)}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       toggleRowSpan(widget.id);
                     }}
-                    className="absolute -bottom-1.5 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-center justify-center opacity-40 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    className="absolute -bottom-1.5 left-1 right-1 h-3 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
                     title="Drag bottom edge to toggle 1x standard / 2x Bento tall"
                   >
                     <div
@@ -503,10 +563,29 @@ export function HomeLayoutModal({
                     />
                   </div>
 
-                  {/* Bottom-Right Corner: Bi-Directional Resize Grip */}
+                  {/* Top Edge: Height Resize (North) */}
                   <div
-                    onMouseDown={(e) => startBoxResize(widget.id, "both", e)}
-                    className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize z-30 flex items-end justify-end p-0.5 opacity-60 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    onMouseDown={(e) => startBoxResize(widget.id, "n", e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      toggleRowSpan(widget.id);
+                    }}
+                    className="absolute -top-1.5 left-1 right-1 h-3 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag top edge to resize height"
+                  >
+                    <div
+                      className={`h-1 w-12 rounded-full transition-all ${
+                        resizingBoxId === widget.id
+                          ? "bg-primary h-1.5 shadow-sm"
+                          : "bg-muted-foreground/50 hover:bg-primary hover:h-1.5"
+                      }`}
+                    />
+                  </div>
+
+                  {/* Bottom-Right Corner (South-East) */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "se", e)}
+                    className="absolute -bottom-1 -right-1 w-5 h-5 cursor-nwse-resize z-30 flex items-end justify-end p-0.5 opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
                     title="Drag corner to freely resize width and height"
                   >
                     <svg className="w-3 h-3 text-muted-foreground/70 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
@@ -516,6 +595,54 @@ export function HomeLayoutModal({
                       <circle cx="4" cy="14" r="1.5" />
                       <circle cx="9" cy="9" r="1.5" />
                       <circle cx="14" cy="4" r="1.5" />
+                    </svg>
+                  </div>
+
+                  {/* Bottom-Left Corner (South-West) */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "sw", e)}
+                    className="absolute -bottom-1 -left-1 w-5 h-5 cursor-nesw-resize z-30 flex items-end justify-start p-0.5 opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag corner to freely resize width and height"
+                  >
+                    <svg className="w-3 h-3 text-muted-foreground/70 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="2" cy="14" r="1.5" />
+                      <circle cx="7" cy="14" r="1.5" />
+                      <circle cx="2" cy="9" r="1.5" />
+                      <circle cx="12" cy="14" r="1.5" />
+                      <circle cx="7" cy="9" r="1.5" />
+                      <circle cx="2" cy="4" r="1.5" />
+                    </svg>
+                  </div>
+
+                  {/* Top-Right Corner (North-East) */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "ne", e)}
+                    className="absolute -top-1 -right-1 w-5 h-5 cursor-nesw-resize z-30 flex items-start justify-end p-0.5 opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag corner to freely resize width and height"
+                  >
+                    <svg className="w-3 h-3 text-muted-foreground/70 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="14" cy="2" r="1.5" />
+                      <circle cx="9" cy="2" r="1.5" />
+                      <circle cx="14" cy="7" r="1.5" />
+                      <circle cx="4" cy="2" r="1.5" />
+                      <circle cx="9" cy="7" r="1.5" />
+                      <circle cx="14" cy="12" r="1.5" />
+                    </svg>
+                  </div>
+
+                  {/* Top-Left Corner (North-West) */}
+                  <div
+                    onMouseDown={(e) => startBoxResize(widget.id, "nw", e)}
+                    className="absolute -top-1 -left-1 w-5 h-5 cursor-nwse-resize z-30 flex items-start justify-start p-0.5 opacity-0 group-hover/card:opacity-100 hover:!opacity-100 transition-opacity select-none"
+                    title="Drag corner to freely resize width and height"
+                  >
+                    <svg className="w-3 h-3 text-muted-foreground/70 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="2" cy="2" r="1.5" />
+                      <circle cx="7" cy="2" r="1.5" />
+                      <circle cx="2" cy="7" r="1.5" />
+                      <circle cx="12" cy="2" r="1.5" />
+                      <circle cx="7" cy="7" r="1.5" />
+                      <circle cx="2" cy="12" r="1.5" />
                     </svg>
                   </div>
                 </div>

@@ -27,7 +27,9 @@ import {
   Layers,
   Clipboard,
   GitBranch,
+  RotateCcw,
 } from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import type { Folder, BookmarkWithDetails, FolderTreeNode } from "@/server/db/schema";
 import { useAuth } from "@/components/auth/auth-context";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
@@ -65,6 +67,21 @@ export function AddBookmarkModal({
   onOpenApiKeyModal,
 }: AddBookmarkModalProps) {
   const { user } = useAuth();
+  const {
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "add_bookmark",
+    defaultVerticalWidth: 540,
+    defaultHorizontalWidth: 620,
+    defaultVerticalHeight: 620,
+    defaultHorizontalHeight: 620,
+    minWidth: 400,
+    minHeight: 440,
+  });
+
   const [url, setUrl] = React.useState(initialUrl);
   const [selectedFolderId, setSelectedFolderId] = React.useState<string>(defaultFolderId || "");
   const [isFavorite, setIsFavorite] = React.useState(false);
@@ -491,20 +508,38 @@ export function AddBookmarkModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto overflow-x-hidden p-5 rounded-lg border border-border bg-card shadow-lg">
+      <DialogContent
+        style={modalStyle}
+        className="relative sm:max-w-none max-h-[94vh] overflow-y-auto overflow-x-hidden p-5 rounded-xl border border-border bg-card shadow-2xl max-w-[95vw]"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
         <DialogHeader className="pb-2">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-md bg-secondary text-primary flex items-center justify-center flex-shrink-0 border border-border">
-              <Plus className="h-5 w-5" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-md bg-secondary text-primary flex items-center justify-center flex-shrink-0 border border-border">
+                <Plus className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  Add New Bookmark
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Save any link. Markly auto-fetches high-res icon, favicon, and rich metadata.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-semibold text-foreground">
-                Add New Bookmark
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Save any link. Markly auto-fetches high-res icon, favicon, and rich metadata.
-              </DialogDescription>
-            </div>
+
+            {hasCustomSize && (
+              <button
+                type="button"
+                onClick={handleRestoreDefaults}
+                title="Restore default modal size"
+                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </DialogHeader>
 

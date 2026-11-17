@@ -262,12 +262,20 @@ export function UniversalColorPicker({
     if (c) setCoords(c);
   }, [calculateCoords]);
 
-  const handleToggle = () => {
+  const handleClose = React.useCallback(() => {
+    setIsOpen(false);
+    setCoords({ top: 0, left: 0 });
+  }, []);
+
+  const handleToggle = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!isOpen) {
       const c = calculateCoords();
       if (c) setCoords(c);
+      setIsOpen(true);
+    } else {
+      handleClose();
     }
-    setIsOpen(!isOpen);
   };
 
   React.useLayoutEffect(() => {
@@ -292,27 +300,27 @@ export function UniversalColorPicker({
         triggerRef.current &&
         !triggerRef.current.contains(target)
       ) {
-        setIsOpen(false);
+        handleClose();
       }
     }
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   // Escape key handler
   React.useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setIsOpen(false);
+        handleClose();
       }
     }
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
       return () => document.removeEventListener("keydown", handleKeyDown);
     }
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   // Resizing handler for the portaled popup window
   const startPopupResize = (
@@ -445,8 +453,12 @@ export function UniversalColorPicker({
               width: `${popupWidth}px`,
               height: `${popupHeight}px`,
               zIndex: 99999,
+              animation: "none",
+              transition: "none",
+              transform: "none",
+              transformOrigin: "top left",
             }}
-            className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-3 flex flex-col justify-between select-none text-foreground transition-none"
+            className="rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl p-3 flex flex-col justify-between select-none text-foreground !animate-none !transition-none"
           >
             {/* Header & Tabs */}
             <div className="flex items-center justify-between border-b border-border/60 pb-2 mb-2 flex-shrink-0">

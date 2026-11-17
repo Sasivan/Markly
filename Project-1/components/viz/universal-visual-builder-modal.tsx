@@ -79,7 +79,7 @@ export interface UniversalVisualConfig {
     folderId?: string;
     tag?: string;
     limit: number | "all" | "auto";
-    viewMode: "grid" | "list" | "compact";
+    viewMode: "grid" | "list" | "compact" | "table";
     sortBy: "recent" | "created" | "visits" | "title";
   };
 
@@ -335,7 +335,7 @@ export function UniversalVisualBuilderModal({
   const [siteLimit, setSiteLimit] = React.useState<number | "all" | "auto">(
     initialConfig?.siteConfig?.limit || "auto"
   );
-  const [siteViewMode, setSiteViewMode] = React.useState<"grid" | "list" | "compact">(
+  const [siteViewMode, setSiteViewMode] = React.useState<"grid" | "list" | "compact" | "table">(
     initialConfig?.siteConfig?.viewMode || "grid"
   );
   const [siteSortBy, setSiteSortBy] = React.useState<"recent" | "created" | "visits" | "title">(
@@ -1421,6 +1421,7 @@ export function UniversalVisualBuilderModal({
                     >
                       <option value="grid">Grid Cards</option>
                       <option value="list">Document List</option>
+                      <option value="table">Data Table</option>
                       <option value="compact">Compact Rows</option>
                     </select>
                   </div>

@@ -212,16 +212,16 @@ export function Sidebar({
 
   // Check if current authenticated user has administrator privileges
   const isUserAdmin = React.useMemo(() => {
+    if (!user || !user.email) return false;
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
-    const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) return true;
     if (
-      user?.app_metadata?.role === "admin" ||
-      user?.user_metadata?.role === "admin" ||
-      user?.role === "admin" ||
-      user?.app_metadata?.is_admin === true ||
-      user?.user_metadata?.is_admin === true ||
-      process.env.NEXT_PUBLIC_DEV_ADMIN === "true"
+      user.app_metadata?.role === "admin" ||
+      user.user_metadata?.role === "admin" ||
+      user.role === "admin" ||
+      user.app_metadata?.is_admin === true ||
+      user.user_metadata?.is_admin === true
     ) {
       return true;
     }

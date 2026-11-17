@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { ObservablePlotView, type ObservablePlotConfig } from "./observable-plot-view";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
@@ -219,7 +220,7 @@ export function ObservablePlotStudioBox({
     <DashboardWidgetBox
       id={id}
       title="Observable Plot Layered Graphics Studio (22 Variations)"
-      icon={<Activity className="h-4 w-4 text-cyan-500" />}
+      icon={<FolderIconRenderer icon={plotCustomIcon} color={plotCustomColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}
       rowSpan={rowSpan}
       minHeight={420}
@@ -297,9 +298,14 @@ export function ObservablePlotStudioBox({
               key={v.type}
               type="button"
               onClick={() => setPlotType(v.type)}
+              style={
+                plotType === v.type
+                  ? { borderColor: plotCustomColor, backgroundColor: `${plotCustomColor}15` }
+                  : undefined
+              }
               className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
                 plotType === v.type
-                  ? "border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/40"
+                  ? "shadow-2xs ring-1 ring-primary/40 font-semibold"
                   : "border-border/60 bg-card hover:bg-secondary/70 hover:border-border"
               }`}
             >
@@ -385,7 +391,10 @@ export function ObservablePlotStudioBox({
         </div>
 
         {/* Observable Plot Canvas */}
-        <div className="rounded-xl border border-border bg-background p-4 shadow-inner">
+        <div
+          className="rounded-xl border border-border bg-background p-4 shadow-inner transition-colors"
+          style={{ borderColor: `${plotCustomColor}30` }}
+        >
           <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-3">
             <span className="text-xs font-semibold text-foreground">
               Live ObservableHQ Plot: {activeVariationMeta?.label}

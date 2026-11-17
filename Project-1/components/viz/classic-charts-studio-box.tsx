@@ -7,6 +7,7 @@ import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { VizChart, type VizChartProps } from "./viz-chart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
@@ -141,10 +142,11 @@ export function ClassicChartsStudioBox({
       sort: { by: "measure", direction: "desc" },
       limit: 12,
       otherBucket: false,
+      color: accentColor,
       colorPalette: colorScheme,
       curve: "natural",
     };
-  }, [chartType, dimension, measure, colorScheme, activeMeta.label]);
+  }, [chartType, dimension, measure, colorScheme, accentColor, activeMeta.label]);
 
   const handleSaveAsPreset = () => {
     try {
@@ -197,7 +199,7 @@ export function ClassicChartsStudioBox({
     <DashboardWidgetBox
       id={id}
       title="Classic Charts Studio (18 Variations)"
-      icon={<BarChart3 className="h-4 w-4 text-blue-500" />}
+      icon={<FolderIconRenderer icon={icon} color={accentColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}
       rowSpan={rowSpan}
       onColSpanChange={onColSpanChange}
@@ -281,9 +283,14 @@ export function ClassicChartsStudioBox({
                 key={v.type}
                 type="button"
                 onClick={() => setChartType(v.type)}
+                style={
+                  isSel
+                    ? { borderColor: accentColor, backgroundColor: `${accentColor}15` }
+                    : undefined
+                }
                 className={`p-2 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between gap-1 ${
                   isSel
-                    ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
+                    ? "shadow-xs ring-1 ring-primary/40 font-semibold"
                     : "border-border/60 bg-secondary/30 hover:bg-secondary hover:border-border"
                 }`}
               >

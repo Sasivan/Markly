@@ -7,6 +7,7 @@ import { DashboardWidgetBox } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ActivityHeatmap365 } from "@/components/home/activity-heatmap-365";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -139,7 +140,7 @@ export function IntelligenceSystemsStudioBox({
     <DashboardWidgetBox
       id={id}
       title="Intelligence Systems Studio (7 Variations)"
-      icon={<Layers className="h-4 w-4 text-purple-500" />}
+      icon={<FolderIconRenderer icon={icon} color={accentColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}
       rowSpan={rowSpan}
       onColSpanChange={onColSpanChange}
@@ -223,9 +224,14 @@ export function IntelligenceSystemsStudioBox({
                 key={v.type}
                 type="button"
                 onClick={() => setIntelType(v.type)}
+                style={
+                  isSel
+                    ? { borderColor: accentColor, backgroundColor: `${accentColor}15` }
+                    : undefined
+                }
                 className={`p-2 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between gap-1 ${
                   isSel
-                    ? "border-purple-500 bg-purple-500/10 shadow-xs ring-1 ring-purple-500/40"
+                    ? "shadow-xs ring-1 ring-primary/40 font-semibold"
                     : "border-border/60 bg-secondary/30 hover:bg-secondary hover:border-border"
                 }`}
               >
@@ -277,7 +283,10 @@ export function IntelligenceSystemsStudioBox({
             <span className="text-[10px] font-mono text-muted-foreground">{filteredBookmarks.length} nodes computed</span>
           </div>
 
-          <div className="min-h-[290px] w-full rounded-xl border border-border/80 bg-background/50 p-2 overflow-hidden flex items-center justify-center">
+          <div
+            className="min-h-[290px] w-full rounded-xl border border-border/80 bg-background/50 p-2 overflow-hidden flex items-center justify-center transition-colors"
+            style={{ borderColor: `${accentColor}30` }}
+          >
             {intelType === "graph" || intelType === "tree" ? (
               <div className="w-full h-[280px]">
                 <KnowledgeGraph mode="global" depth={2} />

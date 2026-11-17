@@ -31,10 +31,9 @@ export default async function HomePage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // Unauthenticated / Guest explorer mode: serve rich hierarchy library (10 nested folders, 200 sites)
+      // Unauthenticated / Guest explorer mode: clean starter library (3 folders, 6 bookmarks)
       BookmarkRepository.ensureDefaultUser();
       const demoUserId = DEFAULT_USER_ID;
-      seedRichHierarchy(demoUserId);
       const folderTree = BookmarkRepository.getFolderTree(demoUserId) || [];
       const allFolders = BookmarkRepository.getAllFolders(demoUserId) || [];
       const bookmarks = BookmarkRepository.getBookmarks({ view: "all", includeArchived: true, userId: demoUserId }) || [];
@@ -54,19 +53,27 @@ export default async function HomePage() {
     }
 
     // Authenticated user
+    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const isAdmin = Boolean(adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail)));
+
     try {
       const syncRes = await SupabaseManager.ensureUserSynced(user.id);
-      const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
-      if (existingUserFolders.length < 5) {
-        seedRichHierarchy(user.id);
+      if (isAdmin) {
+        const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
+        if (existingUserFolders.length < 5) {
+          seedRichHierarchy(user.id);
+        }
       } else {
         BookmarkRepository.ensureUser(user.id);
       }
     } catch (e) {
       console.warn("SSR sync user notice:", e);
-      const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
-      if (existingUserFolders.length < 5) {
-        seedRichHierarchy(user.id);
+      if (isAdmin) {
+        const existingUserFolders = BookmarkRepository.getAllFolders(user.id);
+        if (existingUserFolders.length < 5) {
+          seedRichHierarchy(user.id);
+        }
       }
     }
 

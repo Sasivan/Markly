@@ -170,13 +170,9 @@ export class BookmarkRepository {
         .prepare(`SELECT id, name FROM folders WHERE user_id = ? AND (parent_id IS NULL OR parent_id != '__TRASH__') AND name NOT LIKE '__TRASH__:%' AND id NOT IN (SELECT id FROM deleted_folders)`)
         .all(userId) as { id: string; name: string }[];
 
-      if (existingFolders.length >= 5) {
+      if (existingFolders.length > 0) {
         return;
       }
-
-      // Seed full rich hierarchy (10 nested folders, 200 sites with complete constraints and data)
-      seedRichHierarchy(userId);
-      return;
 
       const now = Date.now();
       const prefix = userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 8);

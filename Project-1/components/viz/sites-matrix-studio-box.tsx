@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { LayoutGrid, Pin, FolderPlus, BookmarkPlus, Check, Sparkles, Star, Clock, Inbox, Globe, List, Rows3 } from "lucide-react";
+import { LayoutGrid, Pin, FolderPlus, BookmarkPlus, Check, Sparkles, Star, Clock, Inbox, Globe, List, Rows3, Table as TableIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardWidgetBox, BookmarkItemsView, type WidgetViewMode, type WidgetItemLimit } from "@/components/home/dashboard-widget-box";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
@@ -70,6 +71,7 @@ export function SitesMatrixStudioBox({
   const [itemLimit, setItemLimit] = React.useState<WidgetItemLimit>("auto");
   const [accentColor, setAccentColor] = React.useState<string>("#10b981");
   const [icon, setIcon] = React.useState<string>("globe");
+  const [overrideViewMode, setOverrideViewMode] = React.useState<WidgetViewMode | null>(null);
   const [savedPresetMsg, setSavedPresetMsg] = React.useState<string | null>(null);
 
   // Folder Destination Dialog
@@ -85,6 +87,8 @@ export function SitesMatrixStudioBox({
     return SITES_VARIATIONS.find((v) => v.type === variationType) || SITES_VARIATIONS[0];
   }, [variationType]);
 
+  const activeViewMode: WidgetViewMode = overrideViewMode || activeMeta.viewMode;
+
   const targetBookmarks = React.useMemo(() => {
     if (activeMeta.source === "favorites") return bookmarks.filter((b) => b.isFavorite && !b.isArchived);
     if (activeMeta.source === "recent") return [...bookmarks.filter((b) => !b.isArchived)].sort((a, b) => (b.lastVisitedAt || b.createdAt || 0) - (a.lastVisitedAt || a.createdAt || 0));
@@ -94,9 +98,11 @@ export function SitesMatrixStudioBox({
 
   const siteConfig = React.useMemo(() => ({
     source: activeMeta.source,
-    layout: activeMeta.viewMode,
+    layout: activeViewMode,
     limit: itemLimit,
-  }), [activeMeta.source, activeMeta.viewMode, itemLimit]);
+    accentColor,
+    icon,
+  }), [activeMeta.source, activeViewMode, itemLimit, accentColor, icon]);
 
   const handleSaveAsPreset = () => {
     try {
@@ -149,7 +155,7 @@ export function SitesMatrixStudioBox({
     <DashboardWidgetBox
       id={id}
       title="Sites Matrix Studio (7 Variations)"
-      icon={<Globe className="h-4 w-4 text-emerald-500" />}
+      icon={<FolderIconRenderer icon={icon} color={accentColor} className="h-4 w-4" />}
       initialColSpan={initialColSpan}
       rowSpan={rowSpan}
       onColSpanChange={onColSpanChange}
@@ -279,18 +285,51 @@ export function SitesMatrixStudioBox({
 
         {/* Live Interactive Sites Matrix Container */}
         <div className="pt-2 border-t border-border/60">
-          <div className="flex items-center justify-between pb-1.5 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
               Live Interactive Matrix: {activeMeta.label}
             </span>
-            <span className="text-[10px] font-mono text-muted-foreground">{targetBookmarks.length} sites loaded</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-muted-foreground">{targetBookmarks.length} sites loaded</span>
+              {/* Visual Format Selector (Cards, List, Table, Compact) */}
+              <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border">
+                {[
+                  { mode: "grid" as const, label: "Cards", icon: LayoutGrid },
+                  { mode: "list" as const, label: "List", icon: List },
+                  { mode: "table" as const, label: "Table", icon: TableIcon },
+                  { mode: "compact" as const, label: "Compact", icon: Rows3 },
+                ].map((m) => {
+                  const Icon = m.icon;
+                  const isSel = activeViewMode === m.mode;
+                  return (
+                    <button
+                      key={m.mode}
+                      type="button"
+                      onClick={() => setOverrideViewMode(m.mode)}
+                      className={`h-6 px-2 rounded-md text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors ${
+                        isSel
+                          ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title={`Switch to ${m.label} layout`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      <span className="hidden sm:inline">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          <div className="min-h-[290px] w-full rounded-xl border border-border/80 bg-background/50 p-3 overflow-y-auto max-h-80">
+          <div
+            className="min-h-[290px] w-full rounded-xl border border-border/80 bg-background/50 p-3 overflow-y-auto max-h-80 transition-colors"
+            style={{ borderColor: `${accentColor}30` }}
+          >
             <BookmarkItemsView
               items={targetBookmarks}
-              mode={activeMeta.viewMode}
+              mode={activeViewMode}
               limit={itemLimit}
             />
           </div>

@@ -36,7 +36,7 @@ import { VizChart } from "@/components/viz/viz-chart";
 import { UniversalVisualBuilderModal, type UniversalVisualConfig, type VisualCategory } from "@/components/viz/universal-visual-builder-modal";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { computePlotData } from "@/lib/viz/plot-engine";
-import { DashboardWidgetBox, BookmarkItemsView, type WidgetItemLimit } from "@/components/home/dashboard-widget-box";
+import { DashboardWidgetBox, BookmarkItemsView, type WidgetItemLimit, type WidgetViewMode } from "@/components/home/dashboard-widget-box";
 import type { VizConfig, VizChartType } from "@/lib/viz";
 import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio-box";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
@@ -241,7 +241,7 @@ export function FolderVisualAnalytics({
 
   // Visual limits and view modes persisted
   const [visualLimits, setVisualLimits] = React.useState<Record<string, WidgetItemLimit>>({});
-  const [visualViewModes, setVisualViewModes] = React.useState<Record<string, "grid" | "list" | "compact">>({});
+  const [visualViewModes, setVisualViewModes] = React.useState<Record<string, WidgetViewMode>>({});
 
   const handleSetVisualLimit = (vizId: string, limit: WidgetItemLimit) => {
     setVisualLimits((prev) => ({ ...prev, [vizId]: limit }));
@@ -250,7 +250,7 @@ export function FolderVisualAnalytics({
     } catch {}
   };
 
-  const handleSetVisualViewMode = (vizId: string, mode: "grid" | "list" | "compact") => {
+  const handleSetVisualViewMode = (vizId: string, mode: WidgetViewMode) => {
     setVisualViewModes((prev) => ({ ...prev, [vizId]: mode }));
     try {
       localStorage.setItem(`markly_widget_view_${vizId}`, mode);
@@ -779,7 +779,7 @@ export function FolderVisualAnalytics({
                     itemLimit={activeLimit}
                     onItemLimitChange={(lim) => handleSetVisualLimit(viz.id, lim)}
                     viewMode={viz.kind === "sites" ? (visualViewModes[viz.id] ?? "grid") : undefined}
-                    availableViews={viz.kind === "sites" ? ["grid", "list", "compact"] : undefined}
+                    availableViews={viz.kind === "sites" ? ["grid", "list", "table", "compact"] : undefined}
                     onViewModeChange={viz.kind === "sites" ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
                   >
                     <div className="p-2 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">

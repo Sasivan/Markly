@@ -94,37 +94,20 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
 
   // Client-side admin check from user session
   const clientAdmin = React.useMemo(() => {
+    if (!user || !user.email) return false;
     const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
-    const uEmail = (user?.email || user?.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
-    const storedEmail = typeof window !== "undefined" ? (localStorage.getItem("markly_user_email") || "").trim().toLowerCase() : "";
-
-    if (uEmail.includes("sasivan177") || storedEmail.includes("sasivan177")) {
-      return true;
-    }
+    const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
 
     if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
       return true;
     }
 
     if (
-      user?.app_metadata?.role === "admin" ||
-      user?.user_metadata?.role === "admin" ||
-      user?.role === "admin" ||
-      user?.app_metadata?.is_admin === true ||
-      user?.user_metadata?.is_admin === true
-    ) {
-      return true;
-    }
-
-    // In dev mode / localhost with dev account
-    if (
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") &&
-      (user?.id === "guest-user-default" ||
-        user?.id?.startsWith("usr_dev_") ||
-        user?.app_metadata?.provider === "dev" ||
-        !user ||
-        process.env.NEXT_PUBLIC_DEV_ADMIN === "true")
+      user.app_metadata?.role === "admin" ||
+      user.user_metadata?.role === "admin" ||
+      user.role === "admin" ||
+      user.app_metadata?.is_admin === true ||
+      user.user_metadata?.is_admin === true
     ) {
       return true;
     }
@@ -132,8 +115,8 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
     return false;
   }, [user]);
 
-  const [isAdmin, setIsAdmin] = React.useState(true);
-  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("admin");
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("my");
   const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -150,18 +133,22 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
   React.useEffect(() => {
     if (clientAdmin) {
       setIsAdmin(true);
-      setMainTab("admin");
+    } else {
+      setIsAdmin(false);
+      setMainTab("my");
     }
   }, [clientAdmin]);
 
   React.useEffect(() => {
     const handleOpenAdmin = () => {
-      setIsAdmin(true);
-      setMainTab("admin");
+      if (clientAdmin) {
+        setIsAdmin(true);
+        setMainTab("admin");
+      }
     };
     window.addEventListener("markly-open-admin-feedback", handleOpenAdmin);
     return () => window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
-  }, []);
+  }, [clientAdmin]);
 
   // Form State
   const [title, setTitle] = React.useState("");

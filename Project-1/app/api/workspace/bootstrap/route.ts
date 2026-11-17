@@ -22,10 +22,7 @@ export async function GET(req: Request) {
       }
     } catch (err) {
       console.warn("Bootstrap user sync warning:", err);
-      const existing = BookmarkRepository.getAllFolders(user.id);
-      if (existing.length < 5) {
-        seedRichHierarchy(user.id);
-      }
+      BookmarkRepository.ensureUser(user.id);
     }
 
     // 2. Fetch canonical tree, folders, bookmarks, and stats from local SQLite

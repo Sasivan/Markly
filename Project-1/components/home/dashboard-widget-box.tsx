@@ -25,12 +25,13 @@ import {
   Plus,
   Minus,
   RotateCcw,
+  Table as TableIcon,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import type { BookmarkWithDetails } from "@/server/db/schema";
 import type { WidgetColSpan } from "./home-layout-modal";
 
-export type WidgetViewMode = "grid" | "list" | "compact";
+export type WidgetViewMode = "grid" | "list" | "compact" | "table";
 export type WidgetItemLimit = number | "all" | "auto";
 
 export interface WidgetBoxContextType {
@@ -481,6 +482,7 @@ export function DashboardWidgetBox({
   return (
     <div
       ref={boxRef}
+      id={id}
       onDragOver={onDragOver}
       onDrop={onDrop}
       style={{
@@ -709,6 +711,7 @@ export function DashboardWidgetBox({
                   {[
                     { id: "grid", label: "Grid Cards", icon: LayoutGrid },
                     { id: "list", label: "Document List", icon: List },
+                    { id: "table", label: "Data Table", icon: TableIcon },
                     { id: "compact", label: "Compact Rows", icon: Rows3 },
                   ]
                     .filter((v) => availableViews.includes(v.id as any))
@@ -737,8 +740,8 @@ export function DashboardWidgetBox({
             </div>
           )}
 
-          {/* Custom Widget Menu: Edit, Duplicate, Delete */}
-          {(onEditWidget || onDuplicateWidget || onDeleteWidget) && (
+          {/* Custom Widget Menu: Edit, Duplicate, Delete, Dimensions */}
+          {(onEditWidget || onDuplicateWidget || onDeleteWidget || hasCustomDimensions) && (
             <div className="relative" ref={actionMenuRef}>
               <button
                 type="button"
@@ -819,18 +822,6 @@ export function DashboardWidgetBox({
                 </div>
               )}
             </div>
-          )}
-
-          {/* Reset Circle Button when box has manual custom resize */}
-          {hasCustomDimensions && (
-            <button
-              type="button"
-              onClick={handleResetBoxDimensions}
-              className="h-6 w-6 rounded-md border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center cursor-pointer transition-colors shadow-2xs group"
-              title="Reset box size & dimensions"
-            >
-              <RotateCcw className="h-3 w-3 group-hover:-rotate-90 transition-transform duration-200" />
-            </button>
           )}
 
           {/* Icon-Only > Link to Open Page (Replacing "View all" text) */}
@@ -1273,7 +1264,83 @@ export function BookmarkItemsView({
     );
   }
 
-  // 3. Compact View (Dense 1-Line Rows)
+  // 3. Table View (Data Table with Header, Favicon, Domain, Visits, Date & Quick Actions)
+  if (mode === "table") {
+    return (
+      <div ref={containerRef} className="w-full overflow-x-auto min-h-0 text-xs">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border/70 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <th className="py-2 px-3">Title &amp; Link</th>
+              <th className="py-2 px-2.5">Domain</th>
+              <th className="py-2 px-2.5 text-center">Visits</th>
+              <th className="py-2 px-2.5 text-right">Added</th>
+              <th className="py-2 px-2.5 text-right">Open</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/40">
+            {displayItems.map((bm) => (
+              <tr
+                key={bm.id}
+                onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+                className="hover:bg-muted/30 transition-colors cursor-pointer group"
+              >
+                <td className="py-2 px-3 max-w-[260px] truncate">
+                  <div className="flex items-center gap-2 truncate">
+                    <BookmarkIcon
+                      src={bm.iconUrl}
+                      alt={bm.title}
+                      domain={bm.domain}
+                      className="h-4 w-4 rounded object-contain shrink-0"
+                    />
+                    <span className="font-medium text-foreground truncate group-hover:text-primary">
+                      {bm.title}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-2 px-2.5 text-muted-foreground font-mono text-[11px] truncate max-w-[140px]">
+                  {bm.domain}
+                </td>
+                <td className="py-2 px-2.5 text-center font-mono text-[11px] tabular-nums text-foreground/80">
+                  {bm.visitCount || 0}
+                </td>
+                <td className="py-2 px-2.5 text-right font-mono text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                  {formatTimeAgo(bm.createdAt)}
+                </td>
+                <td className="py-2 px-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    {onToggleFavorite && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleFavorite(bm)}
+                        className={`h-5 w-5 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                          bm.isFavorite ? "text-amber-500" : "text-muted-foreground/30 hover:text-muted-foreground"
+                        }`}
+                      >
+                        <Star className={`h-2.5 w-2.5 ${bm.isFavorite ? "fill-amber-500" : ""}`} />
+                      </button>
+                    )}
+                    <a
+                      href={bm.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => handleSiteVisit(bm)}
+                      className="h-5 w-5 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                      title="Open in new tab"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // 4. Compact View (Dense 1-Line Rows)
   return (
     <div ref={containerRef} className="divide-y divide-border/60 min-h-0 w-full">
       {displayItems.map((bm) => (

@@ -561,6 +561,55 @@ export function VisualsPageView({
 
   const handleSaveUniversalVisual = async (uConfig: UniversalVisualConfig) => {
     try {
+      // If user clicked "Try Studio Unit" on any of the 4 tabs, directly activate and scroll to that Studio Box
+      const cat = String(uConfig.category || "");
+      if (
+        cat === "plot_studio" ||
+        cat === "chart_studio" ||
+        cat === "intel_studio" ||
+        cat === "sites_studio" ||
+        uConfig.id.startsWith("studio_")
+      ) {
+        const studioId = uConfig.id.startsWith("studio_")
+          ? uConfig.id
+          : cat === "plot_studio"
+          ? "studio_observable_plot"
+          : cat === "chart_studio"
+          ? "studio_classic_charts"
+          : cat === "intel_studio"
+          ? "studio_intel_systems"
+          : "studio_sites_matrix";
+
+        try {
+          const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+          if (stored) {
+            const list = JSON.parse(stored).filter((i: string) => i !== studioId);
+            localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(list));
+          }
+        } catch {}
+        setHiddenStudioUnits((prev) => prev.filter((i) => i !== studioId));
+        setBuilderOpen(false);
+        setEditingConfig(null);
+
+        // Remove any accidental single chart that had this studio label
+        try {
+          const current = await widgetStore.loadWidgets();
+          const cleaned = current.filter(
+            (w: any) => !w.id.includes("studio_") && !w.label?.toLowerCase().includes("studio (22 variations)")
+          );
+          await widgetStore.saveWidgets(cleaned);
+          setCustomWidgets(
+            cleaned.filter((w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:")))
+          );
+        } catch {}
+
+        setTimeout(() => {
+          const elem = document.getElementById(studioId);
+          elem?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
+        return;
+      }
+
       const current = await widgetStore.loadWidgets();
       const newId = uConfig.id.startsWith("custom:") ? uConfig.id : `custom:${uConfig.category}_${Date.now()}`;
       const newWidget: HomeWidgetConfig = {

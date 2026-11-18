@@ -67,52 +67,52 @@ const PLOT_VARIATIONS: Array<{
   category: "Bars" | "Points" | "Trends" | "Areas" | "Matrix" | "Special";
   desc: string;
 }> = [
-  // Bars & Distribution (8)
-  { type: "barX", label: "Ranked BarX", category: "Bars", desc: "Horizontal ranked bars sorted by value" },
-  { type: "barY", label: "Column BarY", category: "Bars", desc: "Vertical columns with rounded caps" },
-  { type: "stackedBarY", label: "Stacked BarY", category: "Bars", desc: "Stacked columns by folder" },
-  { type: "stackedBarX", label: "Stacked BarX", category: "Bars", desc: "Horizontal stacked bars" },
-  { type: "groupedBar", label: "Grouped Bar", category: "Bars", desc: "Side-by-side faceted bars" },
-  { type: "lollipop", label: "Lollipop Stem", category: "Bars", desc: "Stems with dot endpoints" },
-  { type: "box", label: "Box & Whisker", category: "Bars", desc: "Quartile spread and median distribution" },
-  { type: "waffle", label: "Waffle Matrix", category: "Bars", desc: "Grid of unit squares for proportions" },
+    // Bars & Distribution (8)
+    { type: "barX", label: "Ranked BarX", category: "Bars", desc: "Horizontal ranked bars sorted by value" },
+    { type: "barY", label: "Column BarY", category: "Bars", desc: "Vertical columns with rounded caps" },
+    { type: "stackedBarY", label: "Stacked BarY", category: "Bars", desc: "Stacked columns by folder" },
+    { type: "stackedBarX", label: "Stacked BarX", category: "Bars", desc: "Horizontal stacked bars" },
+    { type: "groupedBar", label: "Grouped Bar", category: "Bars", desc: "Side-by-side faceted bars" },
+    { type: "lollipop", label: "Lollipop Stem", category: "Bars", desc: "Stems with dot endpoints" },
+    { type: "box", label: "Box & Whisker", category: "Bars", desc: "Quartile spread and median distribution" },
+    { type: "waffle", label: "Waffle Matrix", category: "Bars", desc: "Grid of unit squares for proportions" },
 
-  // Points & Spikes (4)
-  { type: "dot", label: "Scatter Dot", category: "Points", desc: "2D point scatter with opacity" },
-  { type: "bubble", label: "Bubble Chart", category: "Points", desc: "3D scatter with radius mapped to metric" },
-  { type: "tick", label: "1D Ticks", category: "Points", desc: "Distribution tick marks along axis" },
-  { type: "rule", label: "Stem Rules", category: "Points", desc: "Vertical spikes from zero baseline" },
+    // Points & Spikes (4)
+    { type: "dot", label: "Scatter Dot", category: "Points", desc: "2D point scatter with opacity" },
+    { type: "bubble", label: "Bubble Chart", category: "Points", desc: "3D scatter with radius mapped to metric" },
+    { type: "tick", label: "1D Ticks", category: "Points", desc: "Distribution tick marks along axis" },
+    { type: "rule", label: "Stem Rules", category: "Points", desc: "Vertical spikes from zero baseline" },
 
-  // Trends & Regression (6)
-  { type: "line", label: "Smooth Line", category: "Trends", desc: "Natural splined trend curve" },
-  { type: "stepLine", label: "Stepped Line", category: "Trends", desc: "Discrete step function curve" },
-  { type: "multiLine", label: "Multi-Series", category: "Trends", desc: "Comparative lines by collection" },
-  { type: "difference", label: "Envelope Diff", category: "Trends", desc: "Upper/lower variance band" },
-  { type: "linearRegression", label: "Linear Regression", category: "Trends", desc: "Ordinary least-squares trendline & CI" },
-  { type: "bollinger", label: "Bollinger Bands", category: "Trends", desc: "Rolling volatility & moving average bands" },
+    // Trends & Regression (6)
+    { type: "line", label: "Smooth Line", category: "Trends", desc: "Natural splined trend curve" },
+    { type: "stepLine", label: "Stepped Line", category: "Trends", desc: "Discrete step function curve" },
+    { type: "multiLine", label: "Multi-Series", category: "Trends", desc: "Comparative lines by collection" },
+    { type: "difference", label: "Envelope Diff", category: "Trends", desc: "Upper/lower variance band" },
+    { type: "linearRegression", label: "Linear Regression", category: "Trends", desc: "Ordinary least-squares trendline & CI" },
+    { type: "bollinger", label: "Bollinger Bands", category: "Trends", desc: "Rolling volatility & moving average bands" },
 
-  // Areas & Densities (5)
-  { type: "area", label: "Gradient Area", category: "Areas", desc: "Area fill with boundary line" },
-  { type: "stackedArea", label: "Stacked Stream", category: "Areas", desc: "Multi-layer stream area" },
-  { type: "histogram", label: "Histogram", category: "Areas", desc: "Auto-binned numeric distribution" },
-  { type: "density", label: "Kernel Density", category: "Areas", desc: "2D kernel density estimation contours" },
-  { type: "contour", label: "Topographic Contour", category: "Areas", desc: "Isoline level surfaces and contours" },
+    // Areas & Densities (5)
+    { type: "area", label: "Gradient Area", category: "Areas", desc: "Area fill with boundary line" },
+    { type: "stackedArea", label: "Stacked Stream", category: "Areas", desc: "Multi-layer stream area" },
+    { type: "histogram", label: "Histogram", category: "Areas", desc: "Auto-binned numeric distribution" },
+    { type: "density", label: "Kernel Density", category: "Areas", desc: "2D kernel density estimation contours" },
+    { type: "contour", label: "Topographic Contour", category: "Areas", desc: "Isoline level surfaces and contours" },
 
-  // Matrix & Meshes (5)
-  { type: "cell", label: "Heatmap Cells", category: "Matrix", desc: "Discrete 2D color intensity matrix" },
-  { type: "matrix", label: "Cross Matrix", category: "Matrix", desc: "Dimension cross-tabulation table" },
-  { type: "hexbin", label: "Hexagonal Bin", category: "Matrix", desc: "Hexagonal aggregation density mesh" },
-  { type: "delaunay", label: "Delaunay Mesh", category: "Matrix", desc: "Triangular spatial Delaunay graph" },
-  { type: "voronoi", label: "Voronoi Cells", category: "Matrix", desc: "Voronoi planar proximity polygons" },
+    // Matrix & Meshes (5)
+    { type: "cell", label: "Heatmap Cells", category: "Matrix", desc: "Discrete 2D color intensity matrix" },
+    { type: "matrix", label: "Cross Matrix", category: "Matrix", desc: "Dimension cross-tabulation table" },
+    { type: "hexbin", label: "Hexagonal Bin", category: "Matrix", desc: "Hexagonal aggregation density mesh" },
+    { type: "delaunay", label: "Delaunay Mesh", category: "Matrix", desc: "Triangular spatial Delaunay graph" },
+    { type: "voronoi", label: "Voronoi Cells", category: "Matrix", desc: "Voronoi planar proximity polygons" },
 
-  // Specialized & Geometric (6)
-  { type: "arrow", label: "Directed Arrows", category: "Special", desc: "Directed vectors with arrowheads" },
-  { type: "vector", label: "Flow Vectors", category: "Special", desc: "Directional vector displacement field" },
-  { type: "link", label: "Network Links", category: "Special", desc: "Pairwise links connecting data coordinates" },
-  { type: "text", label: "Word Cloud", category: "Special", desc: "Text labels sized by frequency" },
-  { type: "tree", label: "Hierarchy Tree", category: "Special", desc: "Node-link dendritic hierarchical tree" },
-  { type: "auto", label: "Auto Graphic", category: "Special", desc: "Inferred graphical grammar representation" },
-];
+    // Specialized & Geometric (6)
+    { type: "arrow", label: "Directed Arrows", category: "Special", desc: "Directed vectors with arrowheads" },
+    { type: "vector", label: "Flow Vectors", category: "Special", desc: "Directional vector displacement field" },
+    { type: "link", label: "Network Links", category: "Special", desc: "Pairwise links connecting data coordinates" },
+    { type: "text", label: "Word Cloud", category: "Special", desc: "Text labels sized by frequency" },
+    { type: "tree", label: "Hierarchy Tree", category: "Special", desc: "Node-link dendritic hierarchical tree" },
+    { type: "auto", label: "Auto Graphic", category: "Special", desc: "Inferred graphical grammar representation" },
+  ];
 
 const INITIAL_CORE_VISUALS: VizConfig[] = [
   {
@@ -220,7 +220,7 @@ export function VisualsPageView({
           }
         }
         return res;
-      } catch {}
+      } catch { }
     }
     return {};
   });
@@ -229,7 +229,7 @@ export function VisualsPageView({
     setStudioColSpans((prev) => ({ ...prev, [id]: span }));
     try {
       localStorage.setItem("markly_box_colspan_" + id, String(span));
-    } catch {}
+    } catch { }
   };
 
   // Observable Plot Studio state (22 Plot Variations)
@@ -480,7 +480,7 @@ export function VisualsPageView({
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) return parsed;
         }
-      } catch {}
+      } catch { }
     }
     return INITIAL_CORE_VISUALS;
   });
@@ -489,7 +489,7 @@ export function VisualsPageView({
     setCoreVisualsList(updated);
     try {
       localStorage.setItem("markly_core_visuals_list", JSON.stringify(updated));
-    } catch {}
+    } catch { }
   };
 
   const handleDeleteCoreVisual = (id: string) => {
@@ -506,7 +506,7 @@ export function VisualsPageView({
       try {
         const stored = localStorage.getItem("markly_hidden_visual_studio_units");
         if (stored) return JSON.parse(stored);
-      } catch {}
+      } catch { }
     }
     return [];
   });
@@ -516,7 +516,7 @@ export function VisualsPageView({
       const next = [...prev, unitId];
       try {
         localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -525,7 +525,7 @@ export function VisualsPageView({
     setHiddenStudioUnits([]);
     try {
       localStorage.removeItem("markly_hidden_visual_studio_units");
-    } catch {}
+    } catch { }
   };
 
   React.useEffect(() => {
@@ -560,25 +560,40 @@ export function VisualsPageView({
         return;
       }
 
-      const newId = `custom:${visual.kind}_${Date.now()}`;
+      const isStudio = visual.id.startsWith("studio_") || visual.kind.endsWith("_studio");
+      const newId = isStudio ? visual.id : `custom:${visual.kind}_${Date.now()}`;
       const newWidget: HomeWidgetConfig = {
         id: newId,
         label: visual.title,
         visible: true,
-        kind: "custom",
+        kind: isStudio ? "studio" : "custom",
+        category: visual.kind as any,
+        colSpan: visual.kind === "graph" || visual.kind === "wall" || isStudio ? 12 : 6,
+        span: visual.kind === "graph" || visual.kind === "wall" || isStudio ? "2" : "1",
+        rowSpan: visual.kind === "graph" || visual.kind === "wall" || isStudio ? 2 : 1,
+        plotConfig: visual.plotConfig,
+        siteConfig: visual.siteConfig,
+        chartConfig: visual.chartConfig,
+        intelConfig: visual.intelConfig,
         vizConfig: visual.chartConfig || {
           id: newId,
           title: visual.title,
           chartType: visual.kind as any,
           kind: visual.kind,
           plotConfig: visual.plotConfig,
+          siteConfig: visual.siteConfig,
+          intelConfig: visual.intelConfig,
         },
-        colSpan: visual.kind === "graph" || visual.kind === "wall" ? 12 : 6,
-        span: visual.kind === "graph" || visual.kind === "wall" ? "2" : "1",
       };
 
-      const updated = [...current, newWidget];
+      const filtered = current.filter((w: any) => w.id !== newWidget.id);
+      const updated = [newWidget, ...filtered];
       await widgetStore.saveWidgets(updated);
+      try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(updated));
+      } catch {}
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      window.dispatchEvent(new CustomEvent("markly-home-widgets-updated"));
       setCustomWidgets(
         updated.filter(
           (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
@@ -606,12 +621,12 @@ export function VisualsPageView({
         const studioId = uConfig.id.startsWith("studio_")
           ? uConfig.id
           : cat === "plot_studio"
-          ? "studio_observable_plot"
-          : cat === "chart_studio"
-          ? "studio_classic_charts"
-          : cat === "intel_studio"
-          ? "studio_intel_systems"
-          : "studio_sites_matrix";
+            ? "studio_observable_plot"
+            : cat === "chart_studio"
+              ? "studio_classic_charts"
+              : cat === "intel_studio"
+                ? "studio_intel_systems"
+                : "studio_sites_matrix";
 
         try {
           const stored = localStorage.getItem("markly_hidden_visual_studio_units");
@@ -619,7 +634,7 @@ export function VisualsPageView({
             const list = JSON.parse(stored).filter((i: string) => i !== studioId);
             localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(list));
           }
-        } catch {}
+        } catch { }
         setHiddenStudioUnits((prev) => prev.filter((i) => i !== studioId));
         setBuilderOpen(false);
         setEditingConfig(null);
@@ -634,7 +649,7 @@ export function VisualsPageView({
           setCustomWidgets(
             cleaned.filter((w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:")))
           );
-        } catch {}
+        } catch { }
 
         setTimeout(() => {
           const elem = document.getElementById(studioId);
@@ -705,7 +720,7 @@ export function VisualsPageView({
           (w: any) => w.kind === "custom" || (typeof w.id === "string" && w.id.startsWith("custom:"))
         )
       );
-    } catch {}
+    } catch { }
   };
 
   // Export any visual to Folder or Page Section with Tab Selection (Multi-Visual Per Tab)
@@ -718,12 +733,12 @@ export function VisualsPageView({
       const destName = isUniversal
         ? "Universal (All Pages & Folders)"
         : exportDestination === "folder"
-        ? folders.find((f) => f.id === exportFolderId)?.name || "Folder"
-        : exportPageKey === "page_all"
-        ? "All Sites"
-        : exportPageKey === "page_favorites"
-        ? "Favorites"
-        : "Recent";
+          ? folders.find((f) => f.id === exportFolderId)?.name || "Folder"
+          : exportPageKey === "page_all"
+            ? "All Sites"
+            : exportPageKey === "page_favorites"
+              ? "Favorites"
+              : "Recent";
 
       const finalTabName = isNewTab ? newTabInput.trim() || "New Tab" : exportTabName || "Overview";
       const storageKey = isUniversal ? "markly_universal_folder_tabs" : `markly_folder_tabs_${destId}`;
@@ -969,22 +984,20 @@ export function VisualsPageView({
                     <button
                       type="button"
                       onClick={() => setGraphMode("global")}
-                      className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${
-                        graphMode === "global"
-                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                          : "bg-card hover:bg-secondary text-foreground border-border"
-                      }`}
+                      className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${graphMode === "global"
+                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                        : "bg-card hover:bg-secondary text-foreground border-border"
+                        }`}
                     >
                       Global Workspace
                     </button>
                     <button
                       type="button"
                       onClick={() => setGraphMode("folder")}
-                      className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${
-                        graphMode === "folder"
-                          ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                          : "bg-card hover:bg-secondary text-foreground border-border"
-                      }`}
+                      className={`flex-1 py-1 px-2 rounded-md text-xs font-medium border text-center cursor-pointer transition-colors ${graphMode === "folder"
+                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                        : "bg-card hover:bg-secondary text-foreground border-border"
+                        }`}
                     >
                       Folder Filtered
                     </button>
@@ -1042,18 +1055,18 @@ export function VisualsPageView({
 
       {/* 3. CORE SPECIALIZED VISUALS IN RESIZABLE BOXES */}
       {(!hiddenStudioUnits.includes("unit_tags_cloud") || !hiddenStudioUnits.includes("unit_engagement_spectrum") || !hiddenStudioUnits.includes("unit_favicon_wall")) && (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">
-              Workspace Intelligence Units (Resizable & Modular)
-            </h2>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-foreground">
+                Workspace Intelligence Units (Resizable & Modular)
+              </h2>
+            </div>
+            <span className="text-xs text-muted-foreground font-mono">
+              Drag handles to resize
+            </span>
           </div>
-          <span className="text-xs text-muted-foreground font-mono">
-            Drag handles to resize
-          </span>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
           {/* TAGS UNIT */}
@@ -1177,10 +1190,10 @@ export function VisualsPageView({
               </div>
             </div>
           </DashboardWidgetBox>
-          )}
+        )}
 
-          {/* FAVICON WALL UNIT */}
-          {!hiddenStudioUnits.includes("unit_favicon_wall") && (
+        {/* FAVICON WALL UNIT */}
+        {!hiddenStudioUnits.includes("unit_favicon_wall") && (
           <DashboardWidgetBox
             id="unit_favicon_wall"
             tabRef="T4"
@@ -1241,10 +1254,10 @@ export function VisualsPageView({
               </div>
             </div>
           </DashboardWidgetBox>
-          )}
-        </div>
-      </section>
-      )}
+        )}
+      </div>
+    </section>
+  )}
 
       {/* 4. CUSTOM VISUALS LIBRARY IN RESIZABLE BOXES */}
       {customWidgets.length > 0 && (
@@ -1295,8 +1308,8 @@ export function VisualsPageView({
                   siteCfg.limit === "all"
                     ? siteItems.length
                     : typeof siteCfg.limit === "number"
-                    ? siteCfg.limit
-                    : 7;
+                      ? siteCfg.limit
+                      : 7;
                 siteItems = siteItems.slice(0, limitNum);
               }
 
@@ -1355,7 +1368,7 @@ export function VisualsPageView({
                       <BookmarkItemsView
                         items={siteItems}
                         mode={siteCfg.viewMode || "grid"}
-                        onOpenPreview={() => {}}
+                        onOpenPreview={() => { }}
                       />
                     ) : plotCfg ? (
                       <ObservablePlotView
@@ -1525,33 +1538,30 @@ export function VisualsPageView({
                 <button
                   type="button"
                   onClick={() => setExportDestination("universal")}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
-                    exportDestination === "universal"
-                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                      : "bg-secondary text-foreground border-border hover:bg-secondary/80"
-                  }`}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${exportDestination === "universal"
+                    ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                    : "bg-secondary text-foreground border-border hover:bg-secondary/80"
+                    }`}
                 >
                   Universal (All)
                 </button>
                 <button
                   type="button"
                   onClick={() => setExportDestination("folder")}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
-                    exportDestination === "folder"
-                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                      : "bg-secondary text-foreground border-border hover:bg-secondary/80"
-                  }`}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${exportDestination === "folder"
+                    ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                    : "bg-secondary text-foreground border-border hover:bg-secondary/80"
+                    }`}
                 >
                   Folder Only
                 </button>
                 <button
                   type="button"
                   onClick={() => setExportDestination("page")}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${
-                    exportDestination === "page"
-                      ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
-                      : "bg-secondary text-foreground border-border hover:bg-secondary/80"
-                  }`}
+                  className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center cursor-pointer transition-colors ${exportDestination === "page"
+                    ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs"
+                    : "bg-secondary text-foreground border-border hover:bg-secondary/80"
+                    }`}
                 >
                   Main Section
                 </button>

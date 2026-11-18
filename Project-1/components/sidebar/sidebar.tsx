@@ -815,6 +815,7 @@ export function Sidebar({
             onClick={() => {
               onSelectFolder(null);
               onSelectView("feedback");
+              window.dispatchEvent(new CustomEvent("markly-open-user-feedback"));
             }}
             title="Feedback & Support"
             className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
@@ -1470,6 +1471,7 @@ export function Sidebar({
             onClick={() => {
               onSelectFolder(null);
               onSelectView("feedback");
+              window.dispatchEvent(new CustomEvent("markly-open-user-feedback"));
             }}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
               activeView === "feedback" && !activeFolderId

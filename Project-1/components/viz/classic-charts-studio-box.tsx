@@ -177,41 +177,67 @@ export function ClassicChartsStudioBox({
   ]);
 
   const handleSaveAsPreset = () => {
-    try {
-      saveUniversalPreset({
-        id: `preset_box_chart_${Date.now()}`,
-        name: activeMeta.label,
-        description: `T3 Classic Chart (${activeMeta.type}) measuring ${measure} by ${dimension}.`,
-        category: "box",
-        tabRef: "T3",
-        data: {
-          id: `chart_${Date.now()}`,
-          title: activeMeta.label,
-          kind: "chart",
-          category: "chart",
-          chartConfig: currentConfig,
-          colSpan: 12,
-          rowSpan: 2,
+    window.dispatchEvent(
+      new CustomEvent("markly-open-save-preset-dialog", {
+        detail: {
+          name: activeMeta.label,
+          description: `T3 Classic Chart (${activeMeta.type}) measuring ${measure} by ${dimension}.`,
+          category: "box",
+          sourceLocation: "Classic Charts Studio (T3)",
+          data: {
+            id: `chart_${Date.now()}`,
+            title: activeMeta.label,
+            kind: "chart",
+            category: "chart",
+            chartConfig: currentConfig,
+            colSpan: 12,
+            rowSpan: 2,
+          },
         },
-      });
-      setSavedPresetMsg("Saved to preset library!");
-      setTimeout(() => setSavedPresetMsg(null), 3000);
-    } catch {}
+      })
+    );
   };
 
   const handleExecutePinHome = () => {
-    onPinHome?.({
-      id: `home_classic_${Date.now()}`,
-      title: activeMeta.label,
-      kind: "chart",
-      chartConfig: currentConfig,
-    });
+    if (onPinHome) {
+      onPinHome({
+        id: `home_classic_${Date.now()}`,
+        title: activeMeta.label,
+        kind: "chart",
+        chartConfig: currentConfig,
+      });
+    } else {
+      try {
+        const stored = localStorage.getItem("markly_home_widgets");
+        let list = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(list)) list = [];
+        const newId = `custom:chart_${Date.now()}`;
+        list.unshift({
+          id: newId,
+          label: activeMeta.label,
+          visible: true,
+          kind: "custom",
+          category: "chart",
+          colSpan: 12,
+          span: "2",
+          rowSpan: 2,
+          chartConfig: currentConfig,
+        });
+        localStorage.setItem("markly_home_widgets", JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        window.dispatchEvent(new CustomEvent("markly-home-widgets-updated"));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setSavedPresetMsg("Pinned to Dashboard Home!");
+    setTimeout(() => setSavedPresetMsg(null), 3000);
   };
 
   const handleConfirmAddToFolder = () => {
     if (!selectedFolderId) return;
-    const storageKey = `markly_folder_visuals_${selectedFolderId}`;
     try {
+      const storageKey = `markly_folder_visuals_${selectedFolderId}`;
       const stored = localStorage.getItem(storageKey);
       const list = stored ? JSON.parse(stored) : [];
       list.push({
@@ -223,7 +249,27 @@ export function ClassicChartsStudioBox({
         chartConfig: currentConfig,
       });
       localStorage.setItem(storageKey, JSON.stringify(list));
+
+      const tabsKey = `markly_folder_tabs_${selectedFolderId}`;
+      const rawTabs = localStorage.getItem(tabsKey);
+      let tabs = rawTabs ? JSON.parse(rawTabs) : [];
+      if (!Array.isArray(tabs) || tabs.length === 0) {
+        tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+      }
+      tabs[0].visuals = tabs[0].visuals || [];
+      tabs[0].visuals.push({
+        id: `folder_chart_${Date.now()}`,
+        title: activeMeta.label,
+        kind: "chart",
+        colSpan: 12,
+        rowSpan: 2,
+        chartConfig: currentConfig,
+      });
+      localStorage.setItem(tabsKey, JSON.stringify(tabs));
+
       window.dispatchEvent(new CustomEvent("markly-folder-visuals-updated", { detail: { folderId: selectedFolderId } }));
+      window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       setFolderModalOpen(false);
       setSavedPresetMsg(`Added to ${folders.find((f) => f.id === selectedFolderId)?.name || "Folder"}!`);
       setTimeout(() => setSavedPresetMsg(null), 3000);

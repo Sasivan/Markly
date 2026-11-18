@@ -680,10 +680,12 @@ export function WorkspaceHome({
       const filtered = prev.filter((w) => w.id !== widgetId);
       widgetStore.saveWidgets(filtered);
       try {
+        localStorage.setItem("markly_home_widgets", JSON.stringify(filtered));
         localStorage.removeItem("markly_box_colspan_" + widgetId);
         localStorage.removeItem("markly_box_h_" + widgetId);
         localStorage.removeItem("markly_box_collapsed_" + widgetId);
       } catch {}
+      window.dispatchEvent(new CustomEvent("markly-home-widgets-updated"));
       return filtered;
     });
   };
@@ -737,8 +739,10 @@ export function WorkspaceHome({
               });
             }
           }
-          for (const def of DEFAULT_HOME_WIDGETS) {
-            if (!merged.some((m) => m.id === def.id)) merged.push(def);
+          if (merged.length === 0 && (!parsed || parsed.length === 0)) {
+            for (const def of DEFAULT_HOME_WIDGETS) {
+              merged.push(def);
+            }
           }
           setHomeWidgets((prev) => {
             const currentStr = JSON.stringify(prev);

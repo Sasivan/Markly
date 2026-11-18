@@ -28,6 +28,7 @@ import {
   Table as TableIcon,
   BookmarkCheck,
   Box,
+  Pin,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
@@ -237,6 +238,33 @@ export function DashboardWidgetBox({
       localStorage.removeItem("markly_box_custom_default_" + id);
       setHasCustomDefault(false);
     } catch {}
+  };
+
+  const handlePinThisBoxToHome = () => {
+    try {
+      const stored = localStorage.getItem("markly_home_widgets");
+      let list = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(list)) list = [];
+      const isStudio = id.startsWith("studio_") || (badgeText && String(badgeText).toLowerCase().includes("studio"));
+      const targetId = isStudio ? id : `custom:${id}_${Date.now()}`;
+      list = list.filter((w: any) => w.id !== targetId && w.id !== id);
+      list.unshift({
+        id: targetId,
+        label: title,
+        visible: true,
+        kind: isStudio ? "studio" : "custom",
+        category: (resolvedTabRef === "T1" ? "sites_studio" : resolvedTabRef === "T2" ? "plot_studio" : resolvedTabRef === "T3" ? "chart_studio" : "intel_studio") as any,
+        colSpan: colSpanState,
+        rowSpan: rowSpanState,
+      });
+      localStorage.setItem("markly_home_widgets", JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      window.dispatchEvent(new CustomEvent("markly-home-widgets-updated"));
+      setCustomDefaultSavedToast(true);
+      setTimeout(() => setCustomDefaultSavedToast(false), 2500);
+    } catch (e) {
+      console.error("Failed to pin box to home:", e);
+    }
   };
 
   const handleResetBoxDimensions = (e?: React.MouseEvent) => {
@@ -929,27 +957,41 @@ export function DashboardWidgetBox({
                     type="button"
                     onClick={() => {
                       setActionMenuOpen(false);
-                      saveUniversalPreset({
-                        id: `preset_box_${id}_${Date.now()}`,
-                        name: title,
-                        category: "box",
-                        tabRef: (resolvedTabRef as "T1" | "T2" | "T3" | "T4") || undefined,
-                        data: {
-                          id,
-                          title,
-                          colSpan: colSpanState,
-                          rowSpan: rowSpanState,
-                          boxHeight,
-                        },
-                      });
-                      setCustomDefaultSavedToast(true);
-                      setTimeout(() => setCustomDefaultSavedToast(false), 2500);
+                      handlePinThisBoxToHome();
                     }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
-                    title="Save this individual visual box into the Universal Preset Library"
+                    title="Pin this visual box directly onto Dashboard Home"
+                  >
+                    <Pin className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Pin to Dashboard Home</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      window.dispatchEvent(
+                        new CustomEvent("markly-open-save-preset-dialog", {
+                          detail: {
+                            name: title,
+                            category: "box",
+                            sourceLocation: `Visual Box: ${title}`,
+                            data: {
+                              id,
+                              title,
+                              colSpan: colSpanState,
+                              rowSpan: rowSpanState,
+                              boxHeight,
+                            },
+                          },
+                        })
+                      );
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    title="Save this box into the Universal Preset Library with customizable name"
                   >
                     <Box className="h-3.5 w-3.5 text-indigo-500" />
-                    <span>Save as Preset Box</span>
+                    <span>Save as Preset Box...</span>
                   </button>
 
                   <button

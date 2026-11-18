@@ -218,43 +218,67 @@ export function ObservablePlotStudioBox({
   ]);
 
   const handleSaveAsPreset = () => {
-    try {
-      saveUniversalPreset({
-        id: `preset_box_plot_${Date.now()}`,
-        name: `Observable ${activeVariationMeta.label}`,
-        description: `T2 Observable HQ Plot with ${plotColorScheme} scale and ${plotDimension} dimension.`,
-        category: "box",
-        tabRef: "T2",
-        data: {
-          id: `plot_${plotType}_${Date.now()}`,
-          title: `Observable ${activeVariationMeta.label}`,
-          kind: "plot",
-          category: "plot",
-          plotConfig: currentPlotConfig,
-          colSpan: 12,
-          rowSpan: 2,
+    window.dispatchEvent(
+      new CustomEvent("markly-open-save-preset-dialog", {
+        detail: {
+          name: `Observable ${activeVariationMeta.label}`,
+          description: `T2 Observable HQ Plot with ${plotColorScheme} scale and ${plotDimension} dimension.`,
+          category: "box",
+          sourceLocation: "Observable Plot Studio (T2)",
+          data: {
+            id: `plot_${plotType}_${Date.now()}`,
+            title: `Observable ${activeVariationMeta.label}`,
+            kind: "plot",
+            category: "plot",
+            plotConfig: currentPlotConfig,
+            colSpan: 12,
+            rowSpan: 2,
+          },
         },
-      });
-      setSavedPresetMsg("Saved to preset library!");
-      setTimeout(() => setSavedPresetMsg(null), 3000);
-    } catch {}
+      })
+    );
   };
 
   const handleExecutePinHome = () => {
-    onPinHome?.({
-      id: `plot_${plotType}_${Date.now()}`,
-      title: `Observable ${activeVariationMeta.label}`,
-      kind: "plot",
-      plotConfig: currentPlotConfig,
-    });
+    if (onPinHome) {
+      onPinHome({
+        id: `plot_${plotType}_${Date.now()}`,
+        title: `Observable ${activeVariationMeta.label}`,
+        kind: "plot",
+        plotConfig: currentPlotConfig,
+      });
+    } else {
+      try {
+        const stored = localStorage.getItem("markly_home_widgets");
+        let list = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(list)) list = [];
+        const newId = `custom:plot_${Date.now()}`;
+        list.unshift({
+          id: newId,
+          label: `Observable ${activeVariationMeta.label}`,
+          visible: true,
+          kind: "custom",
+          category: "plot",
+          colSpan: 12,
+          span: "2",
+          rowSpan: 2,
+          plotConfig: currentPlotConfig,
+        });
+        localStorage.setItem("markly_home_widgets", JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        window.dispatchEvent(new CustomEvent("markly-home-widgets-updated"));
+      } catch (e) {
+        console.error(e);
+      }
+    }
     setSavedPresetMsg("Pinned to Dashboard Home!");
     setTimeout(() => setSavedPresetMsg(null), 3000);
   };
 
   const handleConfirmAddToFolder = () => {
     if (!selectedFolderId) return;
-    const storageKey = `markly_folder_visuals_${selectedFolderId}`;
     try {
+      const storageKey = `markly_folder_visuals_${selectedFolderId}`;
       const stored = localStorage.getItem(storageKey);
       const list = stored ? JSON.parse(stored) : [];
       list.push({
@@ -266,7 +290,27 @@ export function ObservablePlotStudioBox({
         plotConfig: currentPlotConfig,
       });
       localStorage.setItem(storageKey, JSON.stringify(list));
+
+      const tabsKey = `markly_folder_tabs_${selectedFolderId}`;
+      const rawTabs = localStorage.getItem(tabsKey);
+      let tabs = rawTabs ? JSON.parse(rawTabs) : [];
+      if (!Array.isArray(tabs) || tabs.length === 0) {
+        tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+      }
+      tabs[0].visuals = tabs[0].visuals || [];
+      tabs[0].visuals.push({
+        id: `folder_plot_${Date.now()}`,
+        title: `Observable ${activeVariationMeta.label}`,
+        kind: "plot",
+        colSpan: 12,
+        rowSpan: 2,
+        plotConfig: currentPlotConfig,
+      });
+      localStorage.setItem(tabsKey, JSON.stringify(tabs));
+
       window.dispatchEvent(new CustomEvent("markly-folder-visuals-updated", { detail: { folderId: selectedFolderId } }));
+      window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       setFolderModalOpen(false);
       setSavedPresetMsg(`Added to ${folders.find((f) => f.id === selectedFolderId)?.name || "Folder"}!`);
       setTimeout(() => setSavedPresetMsg(null), 3000);

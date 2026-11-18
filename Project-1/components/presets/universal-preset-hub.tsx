@@ -103,6 +103,22 @@ const DEFAULT_HOME_PRESETS: UniversalPresetItem[] = [
       { id: "folders", visible: true, span: "2", colSpan: 12, rowSpan: 1 },
     ],
   },
+  {
+    id: "preset_home_executive",
+    name: "Executive Command Bento (Curated)",
+    description: "Curated high-utility executive bento: Velocity momentum, ecosystems, starred sites, recent visits, folders, tags, and Observable studio.",
+    category: "home",
+    createdAt: 1700000003000,
+    data: [
+      { id: "analytics_velocity", visible: true, span: "2", colSpan: 12, rowSpan: 1 },
+      { id: "analytics_domains", visible: true, span: "1", colSpan: 4, rowSpan: 1 },
+      { id: "favorites", visible: true, span: "1", colSpan: 4, rowSpan: 1 },
+      { id: "recent", visible: true, span: "1", colSpan: 4, rowSpan: 1 },
+      { id: "folders", visible: true, span: "1", colSpan: 6, rowSpan: 1 },
+      { id: "tags", visible: true, span: "1", colSpan: 6, rowSpan: 1 },
+      { id: "studio_observable_plot", label: "Observable Plot Layered Graphics Studio (22 Variations)", visible: true, span: "2", colSpan: 12, rowSpan: 2, kind: "studio", category: "plot_studio" },
+    ],
+  },
 ];
 
 // Built-in starter presets for Folder Panels
@@ -117,16 +133,71 @@ const DEFAULT_FOLDER_PRESETS: UniversalPresetItem[] = [
     data: null,
   },
   {
+    id: "preset_folder_curated_suite",
+    name: "Research & Intelligence Suite (Curated Universal)",
+    description: "Optimal multi-tab space utilization: 1) Sites Matrix, 2) Knowledge Graph & Spectrum, 3) Observable Graphics & Classic Charts.",
+    category: "folder",
+    createdAt: 1700000001000,
+    data: [
+      {
+        id: "tab_overview",
+        label: "Overview & Reference Matrix",
+        visuals: [
+          { id: "studio_sites_matrix", title: "Sites Matrix Reference Studio", kind: "sites_studio", colSpan: 12, rowSpan: 2 },
+          { id: "sites_quick", title: "Quick Access Sites", kind: "sites", siteFilter: "all", colSpan: 6, rowSpan: 1 },
+          { id: "sites_starred", title: "Starred Folder Sites", kind: "sites", siteFilter: "favorites", colSpan: 6, rowSpan: 1 },
+        ],
+      },
+      {
+        id: "tab_intelligence",
+        label: "Deep Intelligence & Graph",
+        visuals: [
+          { id: "viz_graph", title: "Knowledge Graph Master Suite", kind: "graph", colSpan: 12, rowSpan: 2, intelConfig: { type: "graph", graphDepth: 2 } },
+          { id: "viz_spectrum", title: "Engagement Spectrum", kind: "engagement", colSpan: 6, rowSpan: 1 },
+          { id: "viz_tags", title: "Topic Frequency & Distribution", kind: "tags", colSpan: 6, rowSpan: 1 },
+        ],
+      },
+      {
+        id: "tab_visuals",
+        label: "Observable Studio & Charts",
+        visuals: [
+          { id: "studio_observable_plot", title: "Observable Plot Layered Graphics Studio (22 Variations)", kind: "plot_studio", colSpan: 12, rowSpan: 2 },
+          { id: "studio_classic_charts", title: "Classic Charts Layered Studio (18 Variations)", kind: "chart_studio", colSpan: 12, rowSpan: 2 },
+        ],
+      },
+    ],
+  },
+  {
     id: "preset_folder_graph_heavy",
     name: "Knowledge Graph Matrix",
     description: "Large force-directed Obsidian graph with depth 3 and tag cloud.",
     category: "folder",
-    createdAt: 1700000001000,
+    createdAt: 1700000002000,
     data: [
       { id: "viz_graph", title: "Folder Knowledge Graph", kind: "graph", colSpan: 12, rowSpan: 2 },
       { id: "viz_tags", title: "Tag Cloud Spectrum", kind: "tags", colSpan: 6, rowSpan: 1 },
       { id: "viz_sites", title: "Sites in Collection", kind: "sites", colSpan: 6, rowSpan: 1 },
     ],
+  },
+];
+
+// Built-in starter presets for Search Queries
+const DEFAULT_SEARCH_PRESETS: UniversalPresetItem[] = [
+  {
+    id: "preset_search_starred",
+    name: "Starred Resources & Repositories",
+    description: "Filter all favorite bookmarks and starred tools across workspace.",
+    category: "search",
+    createdAt: 1700000000000,
+    data: { query: "is:favorite" },
+  },
+  {
+    id: "preset_search_docs",
+    name: "Developer Documentation & Specs",
+    description: "Filter all bookmarks tagged with docs, api, or reference.",
+    category: "search",
+    createdAt: 1700000001000,
+    data: { query: "tag:docs" },
   },
 ];
 
@@ -204,6 +275,10 @@ export interface UniversalPresetHubProps {
   activeCategory?: PresetCategory;
   currentFolderId?: string | null;
   folderName?: string;
+  folderTabs?: any[];
+  activeTabId?: string;
+  isFolderCustomScope?: boolean;
+  onApplyFolderTabs?: (tabs: any[]) => void;
   onRunSearch?: (query: string) => void;
 }
 
@@ -213,6 +288,10 @@ export function UniversalPresetHub({
   activeCategory: initialCategory = "home",
   currentFolderId,
   folderName,
+  folderTabs,
+  activeTabId,
+  isFolderCustomScope = false,
+  onApplyFolderTabs,
   onRunSearch,
 }: UniversalPresetHubProps) {
   const [activeTab, setActiveTab] = React.useState<PresetCategory>(initialCategory);
@@ -221,7 +300,14 @@ export function UniversalPresetHub({
   const [statusMsg, setStatusMsg] = React.useState<string | null>(null);
 
   // Folder preset application scope (Universal for all folders vs Custom for this folder)
-  const [folderScope, setFolderScope] = React.useState<"universal" | "custom">("universal");
+  const [folderScope, setFolderScope] = React.useState<"universal" | "custom">(
+    isFolderCustomScope ? "custom" : "universal"
+  );
+  const [folderSaveMode, setFolderSaveMode] = React.useState<"all_tabs" | "active_tab">("all_tabs");
+  const [targetFolderTabId, setTargetFolderTabId] = React.useState<string>(activeTabId || "tab_default");
+  const [searchQueryInput, setSearchQueryInput] = React.useState<string>("");
+  const [sourceContextLabel, setSourceContextLabel] = React.useState<string | null>(null);
+  const [pendingPresetData, setPendingPresetData] = React.useState<any>(null);
 
   // Box preset destination selector
   const [boxTargetPlacement, setBoxTargetPlacement] = React.useState<string>("home");
@@ -247,23 +333,48 @@ export function UniversalPresetHub({
     if (open && initialCategory) {
       setActiveTab(initialCategory);
     }
-  }, [open, initialCategory]);
+    if (activeTabId) {
+      setTargetFolderTabId(activeTabId);
+    }
+  }, [open, initialCategory, activeTabId]);
+
+  // Listen for open save preset dialog event from any button in the app
+  React.useEffect(() => {
+    const handleOpenSaveDialog = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      onOpenChange(true);
+      if (detail.category) setActiveTab(detail.category);
+      if (detail.name) setNewPresetName(detail.name);
+      if (detail.description) setNewPresetDesc(detail.description);
+      if (detail.sourceLocation) setSourceContextLabel(detail.sourceLocation);
+      if (detail.data) setPendingPresetData(detail.data);
+    };
+    window.addEventListener("markly-open-save-preset-dialog", handleOpenSaveDialog);
+    return () => window.removeEventListener("markly-open-save-preset-dialog", handleOpenSaveDialog);
+  }, [onOpenChange]);
 
   // Load custom saved presets from localStorage
   const [savedPresets, setSavedPresets] = React.useState<UniversalPresetItem[]>([]);
 
   const loadPresets = React.useCallback(() => {
     if (typeof window === "undefined") return;
+    const allBuiltIns = [
+      ...DEFAULT_HOME_PRESETS,
+      ...DEFAULT_FOLDER_PRESETS,
+      ...DEFAULT_BOX_PRESETS,
+      ...DEFAULT_SEARCH_PRESETS,
+    ];
     try {
       const stored = localStorage.getItem("markly_universal_presets_hub");
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge with built-in box defaults if missing
+          // Merge with built-in defaults if missing
           const existingIds = new Set(parsed.map((p: any) => p.id));
-          const missingBoxes = DEFAULT_BOX_PRESETS.filter((b) => !existingIds.has(b.id));
-          if (missingBoxes.length > 0) {
-            const merged = [...parsed, ...missingBoxes];
+          const missing = allBuiltIns.filter((b) => !existingIds.has(b.id));
+          if (missing.length > 0) {
+            const merged = [...parsed, ...missing];
             setSavedPresets(merged);
             localStorage.setItem("markly_universal_presets_hub", JSON.stringify(merged));
             return;
@@ -274,10 +385,9 @@ export function UniversalPresetHub({
       }
     } catch {}
     // Seed with defaults
-    const combined = [...DEFAULT_HOME_PRESETS, ...DEFAULT_FOLDER_PRESETS, ...DEFAULT_BOX_PRESETS];
-    setSavedPresets(combined);
+    setSavedPresets(allBuiltIns);
     try {
-      localStorage.setItem("markly_universal_presets_hub", JSON.stringify(combined));
+      localStorage.setItem("markly_universal_presets_hub", JSON.stringify(allBuiltIns));
     } catch {}
   }, []);
 
@@ -303,49 +413,59 @@ export function UniversalPresetHub({
   const handleSaveCurrentAsPreset = () => {
     if (!newPresetName.trim()) return;
 
-    let payload: any = null;
+    let payload: any = pendingPresetData;
     let assignedTabRef: "T1" | "T2" | "T3" | "T4" | undefined = undefined;
 
-    if (activeTab === "home") {
-      try {
-        const stored = localStorage.getItem("markly_home_widgets");
-        payload = stored ? JSON.parse(stored) : null;
-      } catch {}
-    } else if (activeTab === "folder") {
-      try {
-        const key =
-          folderScope === "custom" && currentFolderId
-            ? `markly_folder_tabs_${currentFolderId}`
-            : "markly_universal_folder_tabs";
-        const stored = localStorage.getItem(key);
-        payload = stored ? JSON.parse(stored) : null;
-      } catch {}
-    } else if (activeTab === "visuals") {
-      try {
-        const hidden = localStorage.getItem("markly_hidden_visual_studio_units");
-        payload = { hiddenStudioUnits: hidden ? JSON.parse(hidden) : [] };
-      } catch {}
-    } else if (activeTab === "search") {
-      const input = document.getElementById("markly-home-search-input") as HTMLInputElement;
-      payload = { query: input?.value || newPresetName.trim() };
-    } else if (activeTab === "box") {
-      // Capture the most recently focused or default Studio Box
-      payload = {
-        id: `box_${Date.now()}`,
-        title: newPresetName.trim(),
-        category: "chart_studio",
-        colSpan: 12,
-        rowSpan: 2,
-      };
-      assignedTabRef = "T3";
+    if (!payload) {
+      if (activeTab === "home") {
+        try {
+          const stored = localStorage.getItem("markly_home_widgets");
+          payload = stored ? JSON.parse(stored) : null;
+        } catch {}
+      } else if (activeTab === "folder") {
+        try {
+          if (folderTabs && folderTabs.length > 0) {
+            if (folderSaveMode === "active_tab") {
+              const active = folderTabs.find((t) => t.id === activeTabId) || folderTabs[0];
+              payload = [active];
+            } else {
+              payload = folderTabs;
+            }
+          } else {
+            const key =
+              folderScope === "custom" && currentFolderId
+                ? `markly_folder_tabs_${currentFolderId}`
+                : "markly_universal_folder_tabs";
+            const stored = localStorage.getItem(key);
+            payload = stored ? JSON.parse(stored) : null;
+          }
+        } catch {}
+      } else if (activeTab === "visuals") {
+        try {
+          const hidden = localStorage.getItem("markly_hidden_visual_studio_units");
+          payload = { hiddenStudioUnits: hidden ? JSON.parse(hidden) : [] };
+        } catch {}
+      } else if (activeTab === "search") {
+        const input = document.getElementById("markly-home-search-input") as HTMLInputElement;
+        payload = { query: searchQueryInput.trim() || input?.value || newPresetName.trim() };
+      } else if (activeTab === "box") {
+        payload = {
+          id: `box_${Date.now()}`,
+          title: newPresetName.trim(),
+          category: "chart_studio",
+          colSpan: 12,
+          rowSpan: 2,
+        };
+        assignedTabRef = "T3";
+      }
     }
 
     const newPreset: UniversalPresetItem = {
       id: `preset_${activeTab}_${Date.now()}`,
       name: newPresetName.trim(),
-      description: newPresetDesc.trim() || undefined,
+      description: newPresetDesc.trim() || (sourceContextLabel ? `Captured from: ${sourceContextLabel}` : undefined),
       category: activeTab,
-      tabRef: assignedTabRef,
+      tabRef: assignedTabRef || (activeTab === "box" ? "T3" : undefined),
       isDefault: false,
       createdAt: Date.now(),
       data: payload,
@@ -359,6 +479,9 @@ export function UniversalPresetHub({
 
     setNewPresetName("");
     setNewPresetDesc("");
+    setPendingPresetData(null);
+    setSourceContextLabel(null);
+    setSearchQueryInput("");
     showStatus(`Saved "${newPreset.name}" to your preset library!`);
   };
 
@@ -375,14 +498,19 @@ export function UniversalPresetHub({
       showStatus(`Applied Homepage layout: "${preset.name}"!`);
     } else if (preset.category === "folder") {
       if (preset.data) {
+        const nextTabs = Array.isArray(preset.data)
+          ? preset.data
+          : [{ id: "tab_default", label: "Overview", visuals: preset.data.visuals || [] }];
         if (folderScope === "custom" && currentFolderId) {
-          localStorage.setItem(`markly_folder_tabs_${currentFolderId}`, JSON.stringify(preset.data));
-          showStatus(`Applied "${preset.name}" to current folder only!`);
+          localStorage.setItem(`markly_folder_tabs_${currentFolderId}`, JSON.stringify(nextTabs));
+          onApplyFolderTabs?.(nextTabs);
+          showStatus(`Applied "${preset.name}" to current folder tabs!`);
         } else {
-          localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(preset.data));
-          showStatus(`Applied "${preset.name}" Universally to all folders!`);
+          localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(nextTabs));
+          onApplyFolderTabs?.(nextTabs);
+          showStatus(`Applied "${preset.name}" to Universal folder tabs!`);
         }
-        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: nextTabs }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       } else {
         if (folderScope === "custom" && currentFolderId) {
@@ -405,6 +533,7 @@ export function UniversalPresetHub({
     } else if (preset.category === "search") {
       if (preset.data?.query) {
         onRunSearch?.(preset.data.query);
+        window.dispatchEvent(new CustomEvent("markly-execute-search", { detail: { query: preset.data.query } }));
         onOpenChange(false);
       }
     } else if (preset.category === "box") {
@@ -455,8 +584,10 @@ export function UniversalPresetHub({
         if (!Array.isArray(tabs) || tabs.length === 0) {
           tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
         }
-        tabs[0].visuals = (tabs[0].visuals || []).filter((v: any) => v.id !== boxId);
-        tabs[0].visuals.unshift({
+        let targetTab = tabs.find((t: any) => t.id === targetFolderTabId);
+        if (!targetTab) targetTab = tabs[0];
+        targetTab.visuals = (targetTab.visuals || []).filter((v: any) => v.id !== boxId);
+        targetTab.visuals.unshift({
           id: boxId,
           title: boxTitle,
           kind: kind,
@@ -469,9 +600,10 @@ export function UniversalPresetHub({
           intelConfig: boxData.intelConfig,
         });
         localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(tabs));
-        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+        onApplyFolderTabs?.(tabs);
+        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-        showStatus(`Placed "${boxTitle}" into Universal Folder Tabs!`);
+        showStatus(`Placed "${boxTitle}" into Universal Folder > "${targetTab.label}" tab!`);
       } catch (e) {
         console.error(e);
       }
@@ -479,12 +611,14 @@ export function UniversalPresetHub({
       try {
         const key = `markly_folder_tabs_${currentFolderId}`;
         const raw = localStorage.getItem(key);
-        let tabs = raw ? JSON.parse(raw) : [];
+        let tabs = raw ? JSON.parse(raw) : (folderTabs || []);
         if (!Array.isArray(tabs) || tabs.length === 0) {
           tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
         }
-        tabs[0].visuals = (tabs[0].visuals || []).filter((v: any) => v.id !== boxId);
-        tabs[0].visuals.unshift({
+        let targetTab = tabs.find((t: any) => t.id === targetFolderTabId);
+        if (!targetTab) targetTab = tabs[0];
+        targetTab.visuals = (targetTab.visuals || []).filter((v: any) => v.id !== boxId);
+        targetTab.visuals.unshift({
           id: boxId,
           title: boxTitle,
           kind: kind,
@@ -497,9 +631,10 @@ export function UniversalPresetHub({
           intelConfig: boxData.intelConfig,
         });
         localStorage.setItem(key, JSON.stringify(tabs));
-        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+        onApplyFolderTabs?.(tabs);
+        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-        showStatus(`Placed "${boxTitle}" into current folder tabs!`);
+        showStatus(`Placed "${boxTitle}" into ${folderName || "Folder"} > "${targetTab.label}" tab!`);
       } catch (e) {
         console.error(e);
       }
@@ -507,13 +642,11 @@ export function UniversalPresetHub({
       try {
         const hidden = localStorage.getItem("markly_hidden_visual_studio_units");
         if (hidden) {
-          const parsed = JSON.parse(hidden);
-          const filtered = parsed.filter((id: string) => id !== boxId);
-          localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
-          window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: boxId } }));
+          const list = JSON.parse(hidden).filter((i: string) => i !== boxId);
+          localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(list));
         }
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-        showStatus(`Activated "${boxTitle}" in Visuals Studio!`);
+        showStatus(`Placed "${boxTitle}" onto Visuals Studio page!`);
       } catch (e) {
         console.error(e);
       }
@@ -712,7 +845,7 @@ export function UniversalPresetHub({
                 <Box className="h-3.5 w-3.5 text-indigo-500" />
                 <span>Place Box Into:</span>
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <select
                   value={boxTargetPlacement}
                   onChange={(e) => setBoxTargetPlacement(e.target.value)}
@@ -725,6 +858,24 @@ export function UniversalPresetHub({
                   )}
                   <option value="visuals">Visuals Studio Page</option>
                 </select>
+
+                {(boxTargetPlacement === "universal_folders" || boxTargetPlacement === "current_folder") && folderTabs && folderTabs.length > 0 && (
+                  <div className="flex items-center gap-1.5 bg-background px-2 py-1 rounded-lg border border-border">
+                    <span className="text-[11px] text-muted-foreground font-semibold">Tab:</span>
+                    <select
+                      value={targetFolderTabId}
+                      onChange={(e) => setTargetFolderTabId(e.target.value)}
+                      className="h-6 px-1.5 rounded border border-border/60 bg-secondary/50 text-foreground text-xs cursor-pointer"
+                    >
+                      {folderTabs.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label || t.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <span className="text-[11px] text-muted-foreground font-mono">
                   Click Insert on any box below
                 </span>
@@ -743,6 +894,52 @@ export function UniversalPresetHub({
                 Captures live dimensions, order, and filters
               </span>
             </div>
+
+            {sourceContextLabel && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-[11px] font-mono text-primary">
+                <span className="text-muted-foreground">Captured from:</span>
+                <span className="font-semibold">{sourceContextLabel}</span>
+              </div>
+            )}
+
+            {activeTab === "folder" && folderTabs && folderTabs.length > 1 && (
+              <div className="flex items-center gap-3 text-xs bg-secondary/30 p-2 rounded-lg border border-border/40">
+                <span className="text-muted-foreground font-semibold">Save Scope:</span>
+                <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
+                  <input
+                    type="radio"
+                    name="folderSaveMode"
+                    checked={folderSaveMode === "all_tabs"}
+                    onChange={() => setFolderSaveMode("all_tabs")}
+                    className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
+                  />
+                  <span>All Tabs ({folderTabs.length})</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
+                  <input
+                    type="radio"
+                    name="folderSaveMode"
+                    checked={folderSaveMode === "active_tab"}
+                    onChange={() => setFolderSaveMode("active_tab")}
+                    className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
+                  />
+                  <span>Active Tab Only</span>
+                </label>
+              </div>
+            )}
+
+            {activeTab === "search" && (
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-foreground">Search Query to Save</label>
+                <input
+                  type="text"
+                  value={searchQueryInput}
+                  onChange={(e) => setSearchQueryInput(e.target.value)}
+                  placeholder="e.g. tag:docs is:favorite or github"
+                  className="w-full text-xs rounded-lg border border-border bg-background px-3 py-1.5 text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
               <div className="sm:col-span-6">

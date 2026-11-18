@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   RotateCcw,
   SlidersHorizontal,
+  BookmarkPlus,
   Compass,
   Star,
   History,
@@ -225,7 +226,7 @@ function loadTabs(folderId: string, defaultVisuals: TabVisual[], isCustomScope =
         return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: parsed.map(normalizeVisual) }];
       }
     }
-  } catch {}
+  } catch { }
   return [{ id: "tab_default", label: DEFAULT_TAB_LABEL, visuals: defaultVisuals }];
 }
 
@@ -238,7 +239,7 @@ function persistTabs(folderId: string, tabs: Tab[], isCustomScope = false) {
       window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
     }
     window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
-  } catch {}
+  } catch { }
 }
 
 export function FolderVisualAnalytics({
@@ -262,7 +263,7 @@ export function FolderVisualAnalytics({
     if (typeof window !== "undefined") {
       try {
         return localStorage.getItem(`markly_folder_custom_default_tabs_${folderId}`) !== null;
-      } catch {}
+      } catch { }
     }
     return false;
   });
@@ -274,14 +275,14 @@ export function FolderVisualAnalytics({
       setHasCustomDefaultTabs(true);
       setCustomDefaultSavedToast(true);
       setTimeout(() => setCustomDefaultSavedToast(false), 2500);
-    } catch {}
+    } catch { }
   };
 
   const handleClearCustomDefaultTabs = () => {
     try {
       localStorage.removeItem(`markly_folder_custom_default_tabs_${folderId}`);
       setHasCustomDefaultTabs(false);
-    } catch {}
+    } catch { }
   };
 
   React.useEffect(() => {
@@ -301,7 +302,7 @@ export function FolderVisualAnalytics({
       try {
         const stored = localStorage.getItem(`markly_folder_viz_expanded_${folderId}`);
         if (stored !== null) return stored === "true";
-      } catch {}
+      } catch { }
     }
     return true;
   });
@@ -311,7 +312,7 @@ export function FolderVisualAnalytics({
       const next = !prev;
       try {
         localStorage.setItem(`markly_folder_viz_expanded_${folderId}`, String(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -324,14 +325,14 @@ export function FolderVisualAnalytics({
     setVisualLimits((prev) => ({ ...prev, [vizId]: limit }));
     try {
       localStorage.setItem(`markly_box_item_limit_${vizId}`, String(limit));
-    } catch {}
+    } catch { }
   };
 
   const handleSetVisualViewMode = (vizId: string, mode: WidgetViewMode) => {
     setVisualViewModes((prev) => ({ ...prev, [vizId]: mode }));
     try {
       localStorage.setItem(`markly_widget_view_${vizId}`, mode);
-    } catch {}
+    } catch { }
   };
 
   // Scope: Universal (Synced across folders) vs Folder Custom
@@ -340,7 +341,7 @@ export function FolderVisualAnalytics({
       try {
         const stored = localStorage.getItem(`markly_folder_viz_is_custom_${folderId}`);
         return stored === "true";
-      } catch {}
+      } catch { }
     }
     return false;
   });
@@ -350,7 +351,7 @@ export function FolderVisualAnalytics({
       const next = !prev;
       try {
         localStorage.setItem(`markly_folder_viz_is_custom_${folderId}`, String(next));
-      } catch {}
+      } catch { }
       const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, next), next);
       setTabs(loaded);
       setActiveTabId(loaded[0]?.id ?? "tab_default");
@@ -414,7 +415,7 @@ export function FolderVisualAnalytics({
           return;
         }
       }
-    } catch {}
+    } catch { }
     handleResetToStandardDefaults();
   };
 
@@ -778,11 +779,10 @@ export function FolderVisualAnalytics({
           <button
             type="button"
             onClick={toggleVisualScope}
-            className={`h-6 px-2 rounded-md border flex items-center gap-1.5 cursor-pointer text-[10px] font-mono transition-colors ${
-              isCustomScope
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
-                : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 font-semibold"
-            }`}
+            className={`h-6 px-2 rounded-md border flex items-center gap-1.5 cursor-pointer text-[10px] font-mono transition-colors ${isCustomScope
+              ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+              : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 font-semibold"
+              }`}
             title={
               isCustomScope
                 ? "Folder Custom: Edits only affect this folder. Click to switch to Universal Synced mode."
@@ -917,6 +917,28 @@ export function FolderVisualAnalytics({
                   type="button"
                   onClick={() => {
                     setTabMenuOpen(false);
+                    const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
+                    window.dispatchEvent(
+                      new CustomEvent("markly-open-save-preset-dialog", {
+                        detail: {
+                          name: `${folderName} - ${activeTab?.label || "Tabs"}`,
+                          category: "folder",
+                          sourceLocation: `Folder '${folderName}' > Tab '${activeTab?.label || "Overview"}'`,
+                          data: tabs,
+                        },
+                      })
+                    );
+                  }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-secondary cursor-pointer transition-colors text-left"
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Save Tabs as Preset...</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTabMenuOpen(false);
                     setPresetHubOpen(true);
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 cursor-pointer transition-colors text-left"
@@ -969,11 +991,10 @@ export function FolderVisualAnalytics({
                   type="button"
                   onClick={() => setActiveTabId(tab.id)}
                   onDoubleClick={() => startRename(tab)}
-                  className={`text-xs px-3 py-1.5 rounded-t-md font-medium cursor-pointer transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTabId === tab.id
-                      ? "border-primary text-foreground bg-secondary/60"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/40"
-                  }`}
+                  className={`text-xs px-3 py-1.5 rounded-t-md font-medium cursor-pointer transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTabId === tab.id
+                    ? "border-primary text-foreground bg-secondary/60"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                    }`}
                   title="Double-click to rename"
                 >
                   <span>{tab.label}</span>
@@ -1247,11 +1268,10 @@ export function FolderVisualAnalytics({
                                   key={t.rawName}
                                   type="button"
                                   onClick={() => handleSelectTag(t.rawName)}
-                                  className={`px-2 py-0.5 rounded-md text-[11px] font-mono flex items-center gap-1 cursor-pointer transition-colors ${
-                                    isSel
-                                      ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
-                                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border/60"
-                                  }`}
+                                  className={`px-2 py-0.5 rounded-md text-[11px] font-mono flex items-center gap-1 cursor-pointer transition-colors ${isSel
+                                    ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border/60"
+                                    }`}
                                 >
                                   <span>#{t.rawName}</span>
                                   <span className="text-[10px] opacity-75">({t.count})</span>
@@ -1271,11 +1291,10 @@ export function FolderVisualAnalytics({
                                 key={tier.key}
                                 type="button"
                                 onClick={() => setSelectedEngagementTier((prev) => (prev === tier.key ? null : tier.key))}
-                                className={`p-2 rounded-lg border text-left cursor-pointer transition-colors ${
-                                  selectedEngagementTier === tier.key
-                                    ? "border-primary bg-primary/10 shadow-2xs"
-                                    : "border-border bg-card hover:border-primary/40"
-                                }`}
+                                className={`p-2 rounded-lg border text-left cursor-pointer transition-colors ${selectedEngagementTier === tier.key
+                                  ? "border-primary bg-primary/10 shadow-2xs"
+                                  : "border-border bg-card hover:border-primary/40"
+                                  }`}
                               >
                                 <span className="text-[10px] text-muted-foreground block truncate">{tier.tier}</span>
                                 <span className="text-sm font-bold text-foreground font-mono">{tier.count}</span>
@@ -1415,6 +1434,17 @@ export function FolderVisualAnalytics({
         open={presetHubOpen}
         onOpenChange={setPresetHubOpen}
         activeCategory="folder"
+        currentFolderId={folderId}
+        folderName={folderName}
+        folderTabs={tabs}
+        activeTabId={activeTabId}
+        isFolderCustomScope={isCustomScope}
+        onApplyFolderTabs={(newTabs) => {
+          setTabs(newTabs);
+          if (newTabs.length > 0 && !newTabs.some((t) => t.id === activeTabId)) {
+            setActiveTabId(newTabs[0].id);
+          }
+        }}
       />
     </div>
   );

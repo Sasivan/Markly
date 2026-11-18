@@ -222,8 +222,15 @@ export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
       setIsAdmin(true);
       setMainTab("admin");
     };
+    const handleOpenUser = () => {
+      setMainTab("my");
+    };
     window.addEventListener("markly-open-admin-feedback", handleOpenAdmin);
-    return () => window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
+    window.addEventListener("markly-open-user-feedback", handleOpenUser);
+    return () => {
+      window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
+      window.removeEventListener("markly-open-user-feedback", handleOpenUser);
+    };
   }, []);
 
   React.useEffect(() => {

@@ -48,6 +48,7 @@ import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { CopyBookmarkModal } from "./copy-bookmark-modal";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 
 interface SitePreviewModalProps {
   bookmark: BookmarkWithDetails | null;
@@ -988,26 +989,24 @@ export function SitePreviewModal({
                 </div>
               </div>
 
-              {/* Row 2: Folder Location (2.3: Inline Editable) */}
+              {/* Row 2: Folder Location (2.3: Inline Editable with Universal Tree Picker) */}
               <div className="flex items-center gap-3">
                 <span className="w-16 text-xs font-mono text-muted-foreground flex items-center gap-1.5 shrink-0">
                   <FolderIcon className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>Folder</span>
                 </span>
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <select
-                    value={bookmark.folderId || ""}
-                    onChange={(e) => handleInlineFolderChange(e.target.value)}
-                    disabled={folderSaving}
-                    className="h-7 px-2 rounded-md bg-secondary border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer max-w-xs truncate"
-                  >
-                    <option value="">Unsorted (Inbox)</option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-2 flex-1 min-w-0 max-w-sm">
+                  <div className="flex-1 min-w-0">
+                    <UniversalFolderSelect
+                      folders={folders}
+                      value={bookmark.folderId}
+                      onChange={(id) => handleInlineFolderChange(id || "")}
+                      disabled={folderSaving}
+                      allowRoot={true}
+                      rootLabel="Unsorted (Inbox)"
+                      placeholder="Select destination folder..."
+                    />
+                  </div>
                   {folderSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
                 </div>
               </div>

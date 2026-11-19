@@ -1773,10 +1773,16 @@ export function MarklyWorkspace({
             /* Dedicated Search Reference Results Studio with Presets */
             <SearchResultsView
               query={searchQuery}
+              onQueryChange={(q) => setSearchQuery(q)}
               bookmarks={bookmarks}
               folders={folders}
               initialSnapshot={activeSearchSnapshot}
               onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
+              onToggleFavorite={handleToggleFavoriteOptimistic}
+              onToggleArchive={handleToggleArchiveOptimistic}
+              onDeleteBookmark={handleDeleteBookmarkOptimistic}
+              onRecordVisit={handleBookmarkVisit}
+              onOpenAddModal={() => openAddModal()}
               onSelectFolder={(fid) => {
                 setActiveFolderId(fid);
                 setActiveView("all");

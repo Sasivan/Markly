@@ -877,7 +877,8 @@ export function SearchResultsView({
         ) : (
           <BookmarkItemsView
             items={sortedResults}
-            mode={viewMode === "cards" ? "grid" : viewMode}
+            mode={viewMode}
+            cardCoverStyle={coverStyle}
             limit="all"
             onOpenPreview={onOpenPreview}
             onEditBookmark={onEditBookmark}

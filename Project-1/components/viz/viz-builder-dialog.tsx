@@ -36,6 +36,7 @@ import { DEFAULT_VIZ_CONFIG, VIZ_PALETTE } from "@/lib/viz";
 import { VizChart } from "./viz-chart";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 
 export interface VizBuilderDialogProps {
   open: boolean;
@@ -636,25 +637,19 @@ export function VizBuilderDialog({
                   </button>
                 )}
               </label>
-              <select
-                value={config.filters?.folderId || ""}
-                onChange={(e) =>
+              <UniversalFolderSelect
+                folders={folders}
+                value={config.filters?.folderId}
+                onChange={(id) =>
                   setConfig((p) => ({
                     ...p,
-                    filters: { ...p.filters, folderId: e.target.value || null },
+                    filters: { ...p.filters, folderId: id },
                   }))
                 }
-                className="w-full px-2 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="">All folders (Entire workspace)</option>
-                {folders
-                  .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
-                  .map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-              </select>
+                allowRoot={true}
+                rootLabel="All folders (Entire workspace)"
+                placeholder="All folders..."
+              />
             </div>
           </div>
 

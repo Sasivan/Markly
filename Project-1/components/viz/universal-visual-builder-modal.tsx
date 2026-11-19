@@ -48,10 +48,11 @@ import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/sche
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import { ObservablePlotView, type ObservablePlotType, type ObservableCurveType } from "./observable-plot-view";
 import { VizChart } from "./viz-chart";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
-import { BookmarkItemsView } from "@/components/home/dashboard-widget-box";
+import { BookmarkItemsView, type WidgetViewMode } from "@/components/home/dashboard-widget-box";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { VizConfig, VizChartType, VizDimension, VizMeasure, VizSplitByDimension } from "@/lib/viz";
@@ -89,7 +90,7 @@ export interface UniversalVisualConfig {
     folderId?: string;
     tag?: string;
     limit: number | "all" | "auto";
-    viewMode: "grid" | "list" | "compact" | "table";
+    viewMode: WidgetViewMode;
     sortBy: "recent" | "created" | "visits" | "title";
     accentColor?: string;
     icon?: string;
@@ -349,7 +350,7 @@ export function UniversalVisualBuilderModal({
   const [siteLimit, setSiteLimit] = React.useState<number | "all" | "auto">(
     initialConfig?.siteConfig?.limit || "auto"
   );
-  const [siteViewMode, setSiteViewMode] = React.useState<"grid" | "list" | "compact" | "table">(
+  const [siteViewMode, setSiteViewMode] = React.useState<WidgetViewMode>(
     initialConfig?.siteConfig?.viewMode || "grid"
   );
   const [siteSortBy, setSiteSortBy] = React.useState<"recent" | "created" | "visits" | "title">(
@@ -1408,17 +1409,13 @@ export function UniversalVisualBuilderModal({
                     <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                       Choose Folder Collection
                     </label>
-                    <select
+                    <UniversalFolderSelect
+                      folders={folders}
                       value={selectedFolderId}
-                      onChange={(e) => setSelectedFolderId(e.target.value)}
-                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-foreground text-xs cursor-pointer"
-                    >
-                      {folders.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => setSelectedFolderId(id || (folders[0]?.id ?? ""))}
+                      allowRoot={false}
+                      placeholder="Select a folder..."
+                    />
                   </div>
                 )}
 
@@ -1718,18 +1715,13 @@ export function UniversalVisualBuilderModal({
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">Filter by Folder</label>
-                      <select
-                        value={filterFolderId}
-                        onChange={(e) => setFilterFolderId(e.target.value)}
-                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-[11px] cursor-pointer"
-                      >
-                        <option value="all">All Folders & Inbox</option>
-                        {folders.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.name}
-                          </option>
-                        ))}
-                      </select>
+                      <UniversalFolderSelect
+                        folders={folders}
+                        value={filterFolderId === "all" ? null : filterFolderId}
+                        onChange={(id) => setFilterFolderId(id || "all")}
+                        allowRoot={true}
+                        rootLabel="All Folders & Inbox"
+                      />
                     </div>
 
                     <div>
@@ -2090,18 +2082,13 @@ export function UniversalVisualBuilderModal({
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">Folder Collection Scope</label>
-                      <select
-                        value={chartFilterFolderId}
-                        onChange={(e) => setChartFilterFolderId(e.target.value)}
-                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
-                      >
-                        <option value="all">All Folders (Workspace-wide)</option>
-                        {folders.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            📁 {f.name}
-                          </option>
-                        ))}
-                      </select>
+                      <UniversalFolderSelect
+                        folders={folders}
+                        value={chartFilterFolderId === "all" ? null : chartFilterFolderId}
+                        onChange={(id) => setChartFilterFolderId(id || "all")}
+                        allowRoot={true}
+                        rootLabel="All Folders (Workspace-wide)"
+                      />
                     </div>
 
                     <div>
@@ -2399,18 +2386,13 @@ export function UniversalVisualBuilderModal({
                   <div className="grid grid-cols-2 gap-2.5">
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">Scope Collection</label>
-                      <select
-                        value={intelScopeFolderId}
-                        onChange={(e) => setIntelScopeFolderId(e.target.value)}
-                        className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
-                      >
-                        <option value="all">Entire Workspace (All Collections)</option>
-                        {folders.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            📁 {f.name}
-                          </option>
-                        ))}
-                      </select>
+                      <UniversalFolderSelect
+                        folders={folders}
+                        value={intelScopeFolderId === "all" ? null : intelScopeFolderId}
+                        onChange={(id) => setIntelScopeFolderId(id || "all")}
+                        allowRoot={true}
+                        rootLabel="Entire Workspace (All Collections)"
+                      />
                     </div>
 
                     <div className="flex flex-col justify-end">
@@ -2637,19 +2619,32 @@ export function UniversalVisualBuilderModal({
               Place In:
             </span>
             <select
-              value={targetDestination}
-              onChange={(e) => setTargetDestination(e.target.value)}
+              value={targetDestination.startsWith("folder:") ? "folder" : targetDestination}
+              onChange={(e) => {
+                if (e.target.value === "folder") {
+                  setTargetDestination(`folder:${folders[0]?.id || ""}`);
+                } else {
+                  setTargetDestination(e.target.value);
+                }
+              }}
               className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-semibold text-foreground cursor-pointer shadow-2xs"
             >
               <option value="home">Dashboard Home</option>
               <option value="visuals">Visuals Studio Page</option>
               <option value="universal_folders">All Folders (Universal Sync)</option>
-              {folders.map((f) => (
-                <option key={f.id} value={`folder:${f.id}`}>
-                  Folder: {f.name}
-                </option>
-              ))}
+              <option value="folder">Specific Folder Collection...</option>
             </select>
+            {targetDestination.startsWith("folder:") && (
+              <div className="w-52">
+                <UniversalFolderSelect
+                  folders={folders}
+                  value={targetDestination.replace("folder:", "")}
+                  onChange={(id) => setTargetDestination(`folder:${id || ""}`)}
+                  allowRoot={false}
+                  placeholder="Select target folder..."
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

@@ -407,18 +407,13 @@ export function IntelligenceSystemsStudioBox({
 
           <div>
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Folder Scope</label>
-            <select
-              value={selectedFolderFilter}
-              onChange={(e) => setSelectedFolderFilter(e.target.value)}
-              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer font-medium truncate"
-            >
-              <option value="all">All Folders</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  📁 {f.name}
-                </option>
-              ))}
-            </select>
+            <UniversalFolderSelect
+              folders={folders}
+              value={selectedFolderFilter === "all" ? null : selectedFolderFilter}
+              onChange={(id) => setSelectedFolderFilter(id || "all")}
+              allowRoot={true}
+              rootLabel="All Folders"
+            />
           </div>
 
           {intelType === "graph" && (

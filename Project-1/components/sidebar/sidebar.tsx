@@ -563,15 +563,16 @@ export function Sidebar({
   if (collapsed) {
     return (
       <aside className="w-12 flex-shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar-bg h-full overflow-hidden select-none">
-        {/* Workspace Brand Header - click Markly logo to expand sidebar */}
-        <div className="h-12 border-b border-sidebar-border flex items-center px-2.5 bg-sidebar-bg flex-shrink-0">
+        {/* Workspace Brand Header - click Markly logo or expand icon to expand sidebar */}
+        <div className="h-12 border-b border-sidebar-border flex items-center justify-center bg-sidebar-bg flex-shrink-0">
           <button
             type="button"
             onClick={() => setCollapsed(false)}
             title="Expand Sidebar (Ctrl+\)"
-            className="h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-bold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs shrink-0"
+            className="group h-7 w-7 rounded-md bg-primary hover:bg-primary/90 flex items-center justify-center text-primary-foreground font-bold text-xs cursor-pointer transition-transform active:scale-95 shadow-xs shrink-0"
           >
-            M
+            <span className="group-hover:hidden">M</span>
+            <PanelLeftOpen className="h-4 w-4 hidden group-hover:block" />
           </button>
         </div>
 
@@ -592,6 +593,26 @@ export function Sidebar({
             }`}
           >
             <Compass className="h-4 w-4" />
+          </button>
+
+          {/* 1.1 Unsorted / Inbox */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelectFolder(null);
+              onSelectView("unsorted");
+            }}
+            title={`Unsorted / Inbox (${unsortedCount ?? 0})`}
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors relative ${
+              activeView === "unsorted" && !activeFolderId
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Inbox className="h-4 w-4 text-amber-500/90" />
+            {unsortedCount !== undefined && unsortedCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+            )}
           </button>
 
           {/* 2. Quick Search in Minimized Rail */}

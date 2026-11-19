@@ -489,18 +489,13 @@ export function ClassicChartsStudioBox({
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
               Folder Filter
             </label>
-            <select
-              value={filterFolderId}
-              onChange={(e) => setFilterFolderId(e.target.value)}
-              className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer truncate"
-            >
-              <option value="all">All Folders</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  📁 {f.name}
-                </option>
-              ))}
-            </select>
+            <UniversalFolderSelect
+              folders={folders}
+              value={filterFolderId === "all" ? null : filterFolderId}
+              onChange={(id) => setFilterFolderId(id || "all")}
+              allowRoot={true}
+              rootLabel="All Folders"
+            />
           </div>
 
           <div className="col-span-2 flex items-center gap-3 pt-3 text-[11px]">

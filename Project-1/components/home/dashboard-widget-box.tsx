@@ -35,8 +35,18 @@ import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
 import type { BookmarkWithDetails } from "@/server/db/schema";
 import type { WidgetColSpan } from "./home-layout-modal";
 
-export type WidgetViewMode = "grid" | "list" | "compact" | "table";
+export type WidgetViewMode = "grid" | "list" | "compact" | "table" | "cards";
 export type WidgetItemLimit = number | "all" | "auto";
+
+export function getDomainGradient(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h1 = Math.abs(hash) % 360;
+  const h2 = (h1 + 45) % 360;
+  return `linear-gradient(135deg, hsl(${h1}, 42%, 20%) 0%, hsl(${h2}, 52%, 11%) 100%)`;
+}
 
 export interface WidgetBoxContextType {
   colSpan: WidgetColSpan;
@@ -900,7 +910,9 @@ export function DashboardWidgetBox({
                 title="Switch widget view mode"
               >
                 {viewMode === "grid" && <LayoutGrid className="h-3 w-3 text-primary" />}
+                {viewMode === "cards" && <LayoutGrid className="h-3 w-3 text-primary" />}
                 {viewMode === "list" && <List className="h-3 w-3 text-primary" />}
+                {viewMode === "table" && <TableIcon className="h-3 w-3 text-primary" />}
                 {viewMode === "compact" && <Rows3 className="h-3 w-3 text-primary" />}
                 <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
               </button>
@@ -908,6 +920,7 @@ export function DashboardWidgetBox({
               {viewBoxMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
                   {[
+                    { id: "cards", label: "Visual Cards", icon: LayoutGrid },
                     { id: "grid", label: "Grid Cards", icon: LayoutGrid },
                     { id: "list", label: "Document List", icon: List },
                     { id: "table", label: "Data Table", icon: TableIcon },
@@ -1302,6 +1315,7 @@ export function DashboardWidgetBox({
 export interface BookmarkItemsViewProps {
   items: BookmarkWithDetails[];
   mode: WidgetViewMode;
+  cardCoverStyle?: "thumbnail" | "icon" | "monogram";
   emptyMessage?: string;
   limit?: WidgetItemLimit;
   onOpenPreview?: (bm: BookmarkWithDetails) => void;
@@ -1317,6 +1331,7 @@ export interface BookmarkItemsViewProps {
 export function BookmarkItemsView({
   items,
   mode,
+  cardCoverStyle = "thumbnail",
   emptyMessage = "No bookmarks in this view yet",
   limit = "auto",
   onOpenPreview,
@@ -1382,6 +1397,12 @@ export function BookmarkItemsView({
       const cols = containerWidth >= 1000 ? 4 : containerWidth >= 680 ? 3 : containerWidth >= 400 ? 2 : 1;
       // In grid mode: 52px card + 8px gap = 60px per row. Minus 16px padding.
       const rows = Math.max(1, Math.floor((availableHeight - 16) / 60));
+      return Math.max(cols, cols * rows);
+    }
+
+    if (mode === "cards") {
+      const cols = containerWidth >= 1100 ? 4 : containerWidth >= 750 ? 3 : containerWidth >= 480 ? 2 : 1;
+      const rows = Math.max(1, Math.floor((availableHeight - 16) / 190));
       return Math.max(cols, cols * rows);
     }
 
@@ -1646,7 +1667,152 @@ export function BookmarkItemsView({
     );
   }
 
-  // 4. Compact View (Dense 1-Line Rows)
+  // 4. Cards View (Notion-Style Visual Cards with 3 Cover Variations: Snapshot / Logo / Gradient)
+  if (mode === "cards") {
+    const cover = cardCoverStyle || "thumbnail";
+    return (
+      <div
+        ref={containerRef}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 p-2.5 min-h-0 w-full"
+      >
+        {displayItems.map((bm) => {
+          const gradientBg = getDomainGradient(bm.domain || bm.title || "markly");
+
+          return (
+            <div
+              key={bm.id}
+              onClick={() => handleItemClick(bm)}
+              className="rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer"
+            >
+              {/* Card Cover: Snapshot / Logo / Gradient */}
+              <div className="relative h-28 w-full bg-secondary overflow-hidden border-b border-border/60">
+                {cover === "monogram" ? (
+                  <div
+                    className="w-full h-full flex flex-col items-center justify-center p-3 relative select-none"
+                    style={{ background: gradientBg }}
+                  >
+                    <div className="p-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-1 flex items-center justify-center">
+                      <BookmarkIcon
+                        src={bm.iconUrl}
+                        alt={bm.title}
+                        domain={bm.domain}
+                        className="h-6 w-6 rounded object-contain"
+                      />
+                    </div>
+                    <div className="text-xs font-semibold text-white/95 truncate max-w-[85%] text-center">
+                      {bm.title}
+                    </div>
+                    <div className="text-[10px] font-mono text-white/60 truncate max-w-[80%] text-center">
+                      {bm.domain}
+                    </div>
+                  </div>
+                ) : cover === "icon" ? (
+                  <div className="h-full w-full bg-muted/30 flex flex-col items-center justify-center gap-1.5 p-3">
+                    <div className="p-2.5 rounded-xl bg-card border border-border shadow-xs">
+                      <BookmarkIcon
+                        src={bm.iconUrl}
+                        alt={bm.title}
+                        domain={bm.domain}
+                        className="h-7 w-7 rounded object-contain"
+                      />
+                    </div>
+                    <span className="text-[11px] font-mono text-muted-foreground truncate max-w-[80%]">
+                      {bm.domain}
+                    </span>
+                  </div>
+                ) : (
+                  /* Snapshot: Live screenshot via mshots with microlink fallback */
+                  <div className="relative w-full h-full bg-secondary">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        bm.imageUrl && !bm.imageUrl.includes("avatar-") && !bm.imageUrl.includes("thum.io")
+                          ? bm.imageUrl
+                          : `https://s0.wp.com/mshots/v1/${encodeURIComponent(bm.url)}?w=800`
+                      }
+                      alt={bm.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover object-top relative z-10"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (!target.dataset.fallbackTried) {
+                          target.dataset.fallbackTried = "true";
+                          target.src = `https://api.microlink.io/?url=${encodeURIComponent(bm.url)}&screenshot=true&meta=false&embed=screenshot.url`;
+                        } else {
+                          target.style.display = "none";
+                        }
+                      }}
+                    />
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center p-3 select-none"
+                      style={{ background: gradientBg }}
+                    >
+                      <div className="p-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg mb-1 flex items-center justify-center">
+                        <BookmarkIcon
+                          src={bm.iconUrl}
+                          alt={bm.title}
+                          domain={bm.domain}
+                          className="h-6 w-6 rounded object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate max-w-[85%]">{bm.title}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Card Body */}
+              <div className="p-2.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 truncate min-w-0">
+                  <BookmarkIcon
+                    src={bm.iconUrl}
+                    alt={bm.title}
+                    domain={bm.domain}
+                    className="h-4 w-4 rounded object-contain flex-shrink-0"
+                  />
+                  <div className="truncate min-w-0">
+                    <div className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                      {bm.title}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground font-mono truncate">
+                      {bm.domain}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {onToggleFavorite && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleFavorite(bm)}
+                      className={`h-6 w-6 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                        bm.isFavorite ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title={bm.isFavorite ? "Unstar" : "Star"}
+                    >
+                      <Star className={`h-3 w-3 ${bm.isFavorite ? "fill-amber-500" : ""}`} />
+                    </button>
+                  )}
+                  <a
+                    href={bm.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => handleSiteVisit(bm)}
+                    className="h-6 w-6 rounded bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                    title="Launch site"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // 5. Compact View (Dense 1-Line Rows)
   return (
     <div ref={containerRef} className="divide-y divide-border/60 min-h-0 w-full">
       {displayItems.map((bm) => (

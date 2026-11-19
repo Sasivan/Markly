@@ -19,48 +19,48 @@ export function ModalFormatControls({
   className = "",
 }: ModalFormatControlsProps) {
   return (
-    <div className={`flex items-center gap-1.5 shrink-0 ${className}`}>
-      {/* 2 Format Toggle Buttons (Horizontal side-by-side vs Vertical stacked) */}
-      <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-xs shrink-0">
+    <div className={`flex items-center gap-2 shrink-0 select-none ${className}`}>
+      {/* 2 Format Toggle Buttons Container: Horizontal (columns) vs Vertical (rows) wrt window auto */}
+      <div className="flex items-center p-0.5 rounded-xl border border-border/80 bg-background/60 dark:bg-slate-900/70 backdrop-blur-xs text-xs shrink-0 shadow-2xs">
         <button
           type="button"
           onClick={() => onToggleFormat("horizontal")}
-          title="Horizontal layout (Columns)"
-          aria-label="Horizontal side-by-side layout"
-          className={`h-7 w-7 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+          title="Horizontal side-by-side layout (Columns)"
+          aria-label="Horizontal layout"
+          className={`h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-150 ${
             format === "horizontal"
-              ? "bg-card text-foreground shadow-2xs font-semibold"
+              ? "bg-slate-800 dark:bg-slate-800/90 text-white shadow-xs font-semibold"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Columns2 className="h-3.5 w-3.5" />
+          <Columns2 className="h-4 w-4" strokeWidth={1.85} />
         </button>
 
         <button
           type="button"
           onClick={() => onToggleFormat("vertical")}
-          title="Vertical layout (Rows)"
-          aria-label="Vertical stacked layout"
-          className={`h-7 w-7 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+          title="Vertical stacked layout (Rows)"
+          aria-label="Vertical layout"
+          className={`h-7 w-7 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-150 ${
             format === "vertical"
-              ? "bg-card text-foreground shadow-2xs font-semibold"
+              ? "bg-slate-800 dark:bg-slate-800/90 text-white shadow-xs font-semibold"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Rows3 className="h-3.5 w-3.5" />
+          <Rows3 className="h-4 w-4" strokeWidth={1.85} />
         </button>
       </div>
 
-      {/* Reset Circle button - appears whenever custom size is detected */}
+      {/* Reset Circle button - dynamically appears on any change from window auto */}
       {hasCustomSize && onRestoreDefaults && (
         <button
           type="button"
           onClick={onRestoreDefaults}
-          title="Reset to default dimensions"
-          aria-label="Reset to default dimensions"
-          className="h-7 w-7 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors shrink-0"
+          title="Reset dimensions & format to window defaults"
+          aria-label="Reset dimensions & format to window defaults"
+          className="h-8 w-8 rounded-xl border border-border/80 bg-background/60 dark:bg-slate-900/70 hover:bg-secondary/70 backdrop-blur-xs text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-all duration-150 shadow-2xs shrink-0 active:scale-95"
         >
-          <RotateCcw className="h-3.5 w-3.5" />
+          <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.85} />
         </button>
       )}
     </div>

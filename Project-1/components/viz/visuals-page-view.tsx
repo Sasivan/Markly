@@ -46,6 +46,7 @@ import { DashboardWidgetBox, BookmarkItemsView } from "@/components/home/dashboa
 import { UniversalVisualBuilderModal, type UniversalVisualConfig } from "./universal-visual-builder-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import { ObservablePlotStudioBox } from "./observable-plot-studio-box";
 import { ClassicChartsStudioBox } from "./classic-charts-studio-box";
 import { IntelligenceSystemsStudioBox } from "./intelligence-systems-studio-box";
@@ -1012,18 +1013,13 @@ export function VisualsPageView({
                     <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                       Target Folder
                     </label>
-                    <select
+                    <UniversalFolderSelect
+                      folders={folders}
                       value={selectedGraphFolder}
-                      onChange={(e) => setSelectedGraphFolder(e.target.value)}
-                      className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
-                    >
-                      <option value="">Select a folder...</option>
-                      {folders.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => setSelectedGraphFolder(id || "")}
+                      allowRoot={false}
+                      placeholder="Select a folder..."
+                    />
                   </div>
                 )}
 
@@ -1581,17 +1577,13 @@ export function VisualsPageView({
                 <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                   Select Folder
                 </label>
-                <select
+                <UniversalFolderSelect
+                  folders={folders}
                   value={exportFolderId}
-                  onChange={(e) => setExportFolderId(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded-lg border border-border bg-card text-foreground text-xs cursor-pointer"
-                >
-                  {folders.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(id) => setExportFolderId(id || (folders[0]?.id ?? ""))}
+                  allowRoot={false}
+                  placeholder="Select folder..."
+                />
               </div>
             ) : (
               <div className="space-y-1.5">

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import {
   ResponsiveContainer,
   BarChart,
@@ -515,22 +516,15 @@ export function DomainInsightsView({
 
             <div className="flex items-center flex-wrap gap-2">
               {folders && folders.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <select
-                    value={targetFolderId}
-                    onChange={(e) => setTargetFolderId(e.target.value)}
-                    className="h-7 text-xs rounded-md border border-input bg-background px-2 text-foreground focus:outline-none"
-                  >
-                    <option value="">Move all to...</option>
-                    <option value="__UNSORTED__">Unsorted</option>
-                    {folders
-                      .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
-                      .map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                  </select>
+                <div className="flex items-center gap-1.5 w-52">
+                  <UniversalFolderSelect
+                    folders={folders}
+                    value={targetFolderId === "__UNSORTED__" ? null : targetFolderId}
+                    onChange={(id) => setTargetFolderId(id || "__UNSORTED__")}
+                    allowRoot={true}
+                    rootLabel="Unsorted (Inbox)"
+                    placeholder="Move all to..."
+                  />
                   <Button
                     size="sm"
                     variant="outline"

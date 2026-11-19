@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { GitBranch, Plus, Trash2, Check, Sparkles, Folder as FolderIcon, RotateCcw } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import type { Folder } from "@/server/db/schema";
 
 export interface FolderRoutingRule {
@@ -205,17 +206,15 @@ export function FolderRoutingModal({
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground flex-shrink-0">Routes to:</span>
-            <select
-              value={targetFolderId}
-              onChange={(e) => setTargetFolderId(e.target.value)}
-              className="flex-1 h-8 px-2 rounded-md bg-secondary border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer truncate"
-            >
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex-1 min-w-0">
+              <UniversalFolderSelect
+                folders={folders}
+                value={targetFolderId}
+                onChange={(id) => setTargetFolderId(id || (folders[0]?.id ?? ""))}
+                allowRoot={false}
+                placeholder="Select target folder..."
+              />
+            </div>
 
             <Button
               type="submit"

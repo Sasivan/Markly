@@ -220,7 +220,8 @@ export function useResizableModal({
     maxHeight: "90vh",
   };
 
-  const hasCustomSize = customWidth !== null || customHeight !== null || hasCustomFormat;
+  const autoDefaultFormat = typeof window !== "undefined" && window.innerWidth >= 1024 ? "horizontal" : "vertical";
+  const hasCustomSize = customWidth !== null || customHeight !== null || hasCustomFormat || format !== autoDefaultFormat;
 
   return {
     format,

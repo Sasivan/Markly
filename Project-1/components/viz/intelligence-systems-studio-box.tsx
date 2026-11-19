@@ -502,24 +502,27 @@ export function IntelligenceSystemsStudioBox({
                 />
               </div>
             ) : intelType === "tree" ? (
-              <div className="w-full h-full min-h-[280px] p-4 overflow-y-auto space-y-2">
-                <div className="text-xs font-semibold text-muted-foreground pb-1 border-b border-border">
-                  Folder Hierarchy Dendritic Tree ({folders.length} Collections)
+              <div className="w-full h-full min-h-[240px] p-3 overflow-y-auto space-y-2 min-w-0">
+                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground pb-1.5 border-b border-border">
+                  <span>Folder Collections Hierarchy ({folders.length})</span>
+                  <span className="text-[10px] text-muted-foreground/80 font-mono">
+                    Use dedicated Folder Tree box for interactive visual nesting
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1 min-w-0">
                   {folders.map((f) => {
                     const count = filteredBookmarks.filter((b) => b.folderId === f.id).length;
                     const subfolders = folders.filter((sub) => sub.parentId === f.id);
                     return (
-                      <div key={f.id} className="p-2.5 rounded-xl border border-border bg-card/80 flex flex-col justify-between gap-1 shadow-2xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs truncate">📁 {f.name}</span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-primary font-semibold">
+                      <div key={f.id} className="p-2.5 rounded-xl border border-border bg-card/80 flex flex-col justify-between gap-1 shadow-2xs min-w-0 overflow-hidden">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <span className="font-semibold text-xs truncate">📁 {f.name}</span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-primary font-semibold shrink-0">
                             {count} sites
                           </span>
                         </div>
                         {subfolders.length > 0 && (
-                          <div className="text-[10px] text-muted-foreground pl-3 border-l-2 border-primary/40 truncate">
+                          <div className="text-[10px] text-muted-foreground pl-2.5 border-l-2 border-primary/40 truncate min-w-0">
                             ↳ {subfolders.length} subfolders: {subfolders.map((s) => s.name).join(", ")}
                           </div>
                         )}

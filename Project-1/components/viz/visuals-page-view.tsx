@@ -51,6 +51,7 @@ import { ObservablePlotStudioBox } from "./observable-plot-studio-box";
 import { ClassicChartsStudioBox } from "./classic-charts-studio-box";
 import { IntelligenceSystemsStudioBox } from "./intelligence-systems-studio-box";
 import { SitesMatrixStudioBox } from "./sites-matrix-studio-box";
+import { FolderTreeStudioBox } from "./folder-tree-studio-box";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
 export interface VisualsPageViewProps {
@@ -213,6 +214,7 @@ export function VisualsPageView({
           "studio_classic_charts",
           "studio_intel_systems",
           "studio_sites_matrix",
+          "studio_folder_tree",
           "studio_knowledge_graph",
         ];
         const res: Record<string, WidgetColSpan> = {};
@@ -619,6 +621,7 @@ export function VisualsPageView({
         cat === "chart_studio" ||
         cat === "intel_studio" ||
         cat === "sites_studio" ||
+        cat === "tree_studio" ||
         uConfig.id.startsWith("studio_")
       ) {
         const studioId = uConfig.id.startsWith("studio_")
@@ -629,7 +632,9 @@ export function VisualsPageView({
               ? "studio_classic_charts"
               : cat === "intel_studio"
                 ? "studio_intel_systems"
-                : "studio_sites_matrix";
+                : cat === "tree_studio" || uConfig.id.includes("folder_tree")
+                  ? "studio_folder_tree"
+                  : "studio_sites_matrix";
 
         try {
           const stored = localStorage.getItem("markly_hidden_visual_studio_units");
@@ -928,6 +933,20 @@ export function VisualsPageView({
             onPinHome={handlePinAnyVisual}
             onAddToFolder={(v) => setExportTargetVisual(v)}
             onOpenPreview={onOpenPreview}
+          />
+        )}
+
+        {/* 4.1. FOLDER HIERARCHY & COLLECTIONS TREE STUDIO (T5) */}
+        {!hiddenStudioUnits.includes("studio_folder_tree") && (
+          <FolderTreeStudioBox
+            id="studio_folder_tree"
+            bookmarks={bookmarks}
+            folders={folders}
+            initialColSpan={studioColSpans["studio_folder_tree"] || 12}
+            onColSpanChange={(span) => handleStudioColSpanChange("studio_folder_tree", span)}
+            onDeleteWidget={() => handleHideStudioUnit("studio_folder_tree")}
+            onPinHome={handlePinAnyVisual}
+            onAddToFolder={(v) => setExportTargetVisual(v)}
           />
         )}
 

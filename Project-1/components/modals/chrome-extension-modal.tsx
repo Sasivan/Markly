@@ -23,6 +23,8 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import { useResizableModal } from "@/lib/use-resizable-modal";
 
 interface ChromeExtensionModalProps {
   open: boolean;
@@ -35,6 +37,23 @@ export function ChromeExtensionModal({
 }: ChromeExtensionModalProps) {
   const [downloading, setDownloading] = React.useState(false);
   const [copiedLink, setCopiedLink] = React.useState(false);
+
+  const {
+    format,
+    toggleFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "chrome_extension_modal",
+    defaultVerticalWidth: 620,
+    defaultHorizontalWidth: 780,
+    defaultVerticalHeight: 600,
+    defaultHorizontalHeight: 520,
+    minWidth: 460,
+    minHeight: 400,
+  });
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -73,23 +92,34 @@ export function ChromeExtensionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl p-6 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 border border-primary/20">
-              <Puzzle className="h-5 w-5" />
+      <DialogContent
+        style={modalStyle}
+        className="p-6 max-h-[92vh] overflow-y-auto flex flex-col justify-between transition-none duration-0 select-none relative"
+      >
+        <DialogHeader className="flex-shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 border border-primary/20">
+                <Puzzle className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <span>Markly Chrome Extension</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
+                    Manifest V3 Ready
+                  </span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Save any webpage, article, or site into your Markly library with 1 click from your browser.
+                </DialogDescription>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                <span>Markly Chrome Extension</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
-                  Manifest V3 Ready
-                </span>
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Save any webpage, article, or site into your Markly library with 1 click from your browser.
-              </DialogDescription>
-            </div>
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
         </DialogHeader>
 
@@ -191,6 +221,15 @@ export function ChromeExtensionModal({
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Resizer Handle */}
+        <div
+          onMouseDown={(e) => startResize("corner", e)}
+          className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center text-muted-foreground/40 hover:text-foreground select-none z-50 text-[10px]"
+          title="Drag to resize dialog"
+        >
+          ⋰
         </div>
       </DialogContent>
     </Dialog>

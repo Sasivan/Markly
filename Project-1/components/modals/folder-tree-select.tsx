@@ -357,7 +357,7 @@ export function FolderTreeSelect({
 
       {/* Flyout / Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl overflow-hidden p-2 space-y-2 max-h-80 flex flex-col animate-in zoom-in-95">
+        <div className="absolute left-0 top-full mt-1.5 z-50 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl overflow-hidden p-2 space-y-2 max-h-80 flex flex-col animate-in zoom-in-95 min-w-[280px] sm:min-w-[320px] w-full max-w-[90vw]">
           {/* Search & Action Row */}
           <div className="flex items-center gap-1.5 pb-1 border-b border-border/60 flex-shrink-0">
             <div className="relative flex-1">

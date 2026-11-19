@@ -27,6 +27,8 @@ import {
   setStoredAiApiKey,
   clearStoredAiApiKey,
 } from "@/lib/ai-config";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import { useResizableModal } from "@/lib/use-resizable-modal";
 
 export interface GeminiModelOption {
   id: string;
@@ -80,6 +82,23 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
     success: boolean;
     message: string;
   } | null>(null);
+
+  const {
+    format,
+    toggleFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "api_key_modal",
+    defaultVerticalWidth: 540,
+    defaultHorizontalWidth: 740,
+    defaultVerticalHeight: 620,
+    defaultHorizontalHeight: 520,
+    minWidth: 420,
+    minHeight: 400,
+  });
 
   // Load configuration from browser localStorage on modal open
   React.useEffect(() => {
@@ -206,16 +225,29 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 max-h-[85vh] flex flex-col overflow-hidden border border-slate-200 dark:border-neutral-800 shadow-2xl rounded-2xl bg-white dark:bg-[#151515]">
+      <DialogContent
+        style={modalStyle}
+        className="p-0 max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-neutral-800 shadow-2xl rounded-2xl bg-white dark:bg-[#151515] transition-none duration-0 select-none relative"
+      >
         {/* Header */}
-        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 p-5 text-white text-center relative overflow-hidden flex-shrink-0">
-          <div className="h-9 w-9 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-2 border border-white/20 shadow-xs">
-            <Sparkles className="h-4.5 w-4.5 text-amber-300" />
+        <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 px-5 py-4 text-white relative overflow-hidden flex-shrink-0">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-xs shrink-0">
+                <Sparkles className="h-4 w-4 text-amber-300" />
+              </div>
+              <DialogTitle className="text-base font-bold tracking-tight text-white">
+                Google Gemini AI Settings
+              </DialogTitle>
+            </div>
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
-          <DialogTitle className="text-lg font-bold tracking-tight text-center text-white">
-            Google Gemini AI Settings
-          </DialogTitle>
-          <DialogDescription className="text-xs text-white/80 mt-0.5 max-w-sm mx-auto text-center">
+          <DialogDescription className="text-xs text-white/80">
             Connect your personal Google Gemini API key to unlock automated tag extraction, category classification, and smart bookmark suggestions.
           </DialogDescription>
         </div>
@@ -385,6 +417,15 @@ export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Resizer handle */}
+        <div
+          onMouseDown={(e) => startResize("corner", e)}
+          className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center text-muted-foreground/40 hover:text-foreground select-none z-50 text-[10px]"
+          title="Drag to resize dialog"
+        >
+          ⋰
         </div>
       </DialogContent>
     </Dialog>

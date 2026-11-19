@@ -47,6 +47,7 @@ import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio
 import { ClassicChartsStudioBox } from "@/components/viz/classic-charts-studio-box";
 import { IntelligenceSystemsStudioBox } from "@/components/viz/intelligence-systems-studio-box";
 import { SitesMatrixStudioBox } from "@/components/viz/sites-matrix-studio-box";
+import { FolderTreeStudioBox } from "@/components/viz/folder-tree-studio-box";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 
@@ -66,6 +67,7 @@ export type VisualKind =
   | "chart_studio"
   | "intel_studio"
   | "sites_studio"
+  | "tree_studio"
   | "sites";
 
 export interface TabVisual {
@@ -172,6 +174,9 @@ function normalizeVisual(v: any): TabVisual {
   }
   if (vId === "studio_sites_matrix" || vKind === "sites_studio" || vId.includes("sites_matrix") || vTitle.includes("Sites Matrix")) {
     return { ...v, id: "studio_sites_matrix", title: v.title || "Sites Matrix Reference Studio", kind: "sites_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
+  }
+  if (vId === "studio_folder_tree" || vKind === "tree_studio" || vKind === "tree" || vId.includes("folder_tree") || vTitle.includes("Folder Hierarchy") || vTitle.includes("Folder Tree")) {
+    return { ...v, id: "studio_folder_tree", title: v.title || "Folder Hierarchy & Collections Tree", kind: "tree_studio", colSpan: v.colSpan || 12, rowSpan: v.rowSpan || 2 };
   }
 
   if (v.kind) return v;
@@ -396,12 +401,19 @@ export function FolderVisualAnalytics({
         }
       }
     };
+    const handleFolderTabSwitched = (e?: any) => {
+      if (e?.detail?.tabId) {
+        setActiveTabId(e.detail.tabId);
+      }
+    };
     window.addEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
     window.addEventListener("markly-folder-tabs-updated", handleFolderTabsUpdate);
+    window.addEventListener("markly-folder-tab-switched", handleFolderTabSwitched);
     window.addEventListener("storage", handleUniversalUpdate);
     return () => {
       window.removeEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
       window.removeEventListener("markly-folder-tabs-updated", handleFolderTabsUpdate);
+      window.removeEventListener("markly-folder-tab-switched", handleFolderTabSwitched);
       window.removeEventListener("storage", handleUniversalUpdate);
     };
   }, [folderId, isCustomScope]);
@@ -531,6 +543,8 @@ export function FolderVisualAnalytics({
       kind = "intel_studio";
     } else if (cat === "sites_studio" || cfgId === "studio_sites_matrix" || cfgTitle.includes("Sites Matrix")) {
       kind = "sites_studio";
+    } else if (cat === "tree_studio" || cfgId === "studio_folder_tree" || cfgTitle.includes("Folder Hierarchy") || cfgTitle.includes("Folder Tree")) {
+      kind = "tree_studio";
     } else if (cat === "sites") {
       kind = "sites";
     } else if (cat === "plot") {
@@ -539,7 +553,7 @@ export function FolderVisualAnalytics({
       kind = (config.intelConfig?.type as any) || "tags";
     }
 
-    const isStudio = kind === "plot_studio" || kind === "chart_studio" || kind === "intel_studio" || kind === "sites_studio";
+    const isStudio = kind === "plot_studio" || kind === "chart_studio" || kind === "intel_studio" || kind === "sites_studio" || kind === "tree_studio";
 
     const updatedTabVisual: TabVisual = {
       id: isStudio ? (config.id.startsWith("studio_") ? config.id : `studio_${kind}`) : config.id,
@@ -1148,6 +1162,24 @@ export function FolderVisualAnalytics({
                   );
                 }
 
+                // 5. Folder Hierarchy Tree Studio Box
+                if (vId === "studio_folder_tree" || vKind === "tree_studio" || vKind === "tree" || vId.includes("folder_tree") || vTitle.includes("Folder Hierarchy") || vTitle.includes("Folder Tree")) {
+                  return (
+                    <FolderTreeStudioBox
+                      key={viz.id}
+                      id={viz.id}
+                      bookmarks={bookmarks}
+                      folders={folders}
+                      initialColSpan={viz.colSpan || 12}
+                      rowSpan={viz.rowSpan || 2}
+                      onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}
+                      onDeleteWidget={() => handleDeleteVisual(viz.id)}
+                      onPinHome={handlePinStudioToHome}
+                      onAddToFolder={handlePinStudioToFolder}
+                    />
+                  );
+                }
+
                 const currentSpan = viz.colSpan || (viz.kind === "graph" || viz.kind === "wall" ? 12 : 6);
                 const isSiteKind = viz.kind === "sites" || Boolean(viz.siteConfig);
                 const sitesList = isSiteKind ? getSitesListForVisual(viz.siteConfig?.source || viz.siteFilter) : [];
@@ -1456,7 +1488,7 @@ export function FolderVisualAnalytics({
         folderTabs={tabs}
         activeTabId={activeTabId}
         isFolderCustomScope={isCustomScope}
-        onApplyFolderTabs={(newTabs, appliedScope) => {
+        onApplyFolderTabs={(newTabs, appliedScope, targetTabId) => {
           const isCustom = appliedScope ? appliedScope === "custom" : isCustomScope;
           if (appliedScope && (appliedScope === "custom") !== isCustomScope) {
             setIsCustomScope(appliedScope === "custom");
@@ -1466,7 +1498,9 @@ export function FolderVisualAnalytics({
           }
           setTabs(newTabs);
           persistTabs(folderId, newTabs, isCustom);
-          if (newTabs.length > 0 && !newTabs.some((t) => t.id === activeTabId)) {
+          if (targetTabId && newTabs.some((t) => t.id === targetTabId)) {
+            setActiveTabId(targetTabId);
+          } else if (newTabs.length > 0 && !newTabs.some((t) => t.id === activeTabId)) {
             setActiveTabId(newTabs[0].id);
           }
         }}

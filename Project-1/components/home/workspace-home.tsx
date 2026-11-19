@@ -59,6 +59,7 @@ import { ObservablePlotStudioBox } from "@/components/viz/observable-plot-studio
 import { ClassicChartsStudioBox } from "@/components/viz/classic-charts-studio-box";
 import { IntelligenceSystemsStudioBox } from "@/components/viz/intelligence-systems-studio-box";
 import { SitesMatrixStudioBox } from "@/components/viz/sites-matrix-studio-box";
+import { FolderTreeStudioBox } from "@/components/viz/folder-tree-studio-box";
 import { KnowledgeGraph } from "@/components/graph/knowledge-graph";
 import { ObservablePlotView } from "@/components/viz/observable-plot-view";
 import { computePlotData } from "@/lib/viz/plot-engine";
@@ -144,7 +145,10 @@ export function WorkspaceHome({
                 pLabel.includes("Studio (18 Variations)") ||
                 pLabel.includes("Studio (22 Variations)") ||
                 pLabel.includes("Intelligence Systems Studio") ||
-                pLabel.includes("Sites Matrix Reference")
+                pLabel.includes("Sites Matrix Reference") ||
+                pLabel.includes("Folder Hierarchy") ||
+                pLabel.includes("Folder Tree") ||
+                pId.includes("folder_tree")
               ) {
                 const cleanId = pId.replace(/^custom:/, "");
                 const cat =
@@ -154,6 +158,8 @@ export function WorkspaceHome({
                     ? "chart_studio"
                     : cleanId.includes("intel_systems") || cleanId.includes("intel_suite") || pLabel.includes("Intelligence Systems")
                     ? "intel_studio"
+                    : cleanId.includes("folder_tree") || pLabel.includes("Folder Hierarchy") || pLabel.includes("Folder Tree")
+                    ? "tree_studio"
                     : "sites_studio";
                 return {
                   ...p,
@@ -1412,6 +1418,22 @@ export function WorkspaceHome({
     if (wId === "studio_sites_matrix" || wCat === "sites_studio" || wId.includes("sites_matrix") || wLabel.includes("Sites Matrix")) {
       return (
         <SitesMatrixStudioBox
+          key={widget.id}
+          id={widget.id}
+          bookmarks={bookmarks}
+          folders={folders}
+          initialColSpan={widget.colSpan || 12}
+          rowSpan={widget.rowSpan || 2}
+          onColSpanChange={(span) => handleWidgetColSpanChange(widget.id, span)}
+          onRowSpanChange={(span) => handleWidgetRowSpanChange(widget.id, span as 1 | 2)}
+          onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+        />
+      );
+    }
+
+    if (wId === "studio_folder_tree" || wCat === "tree_studio" || wId.includes("folder_tree") || wLabel.includes("Folder Hierarchy") || wLabel.includes("Folder Tree")) {
+      return (
+        <FolderTreeStudioBox
           key={widget.id}
           id={widget.id}
           bookmarks={bookmarks}

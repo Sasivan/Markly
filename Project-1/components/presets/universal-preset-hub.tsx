@@ -293,6 +293,22 @@ const DEFAULT_BOX_PRESETS: UniversalPresetItem[] = [
       rowSpan: 2,
     },
   },
+  {
+    id: "preset_box_t5_tree",
+    name: "Folder Hierarchy & Collections Tree",
+    description: "T5 Universal resizable collections tree: full hierarchy, site counts, search, and navigation.",
+    category: "box",
+    tabRef: "T1",
+    createdAt: 1700000004000,
+    data: {
+      id: "studio_folder_tree",
+      title: "Folder Hierarchy & Collections Tree",
+      category: "tree_studio",
+      kind: "tree_studio",
+      colSpan: 12,
+      rowSpan: 2,
+    },
+  },
 ];
 
 export interface UniversalPresetHubProps {
@@ -304,7 +320,7 @@ export interface UniversalPresetHubProps {
   folderTabs?: any[];
   activeTabId?: string;
   isFolderCustomScope?: boolean;
-  onApplyFolderTabs?: (tabs: any[], appliedScope?: "universal" | "custom") => void;
+  onApplyFolderTabs?: (tabs: any[], appliedScope?: "universal" | "custom", targetTabId?: string) => void;
   onRunSearch?: (query: string) => void;
 }
 
@@ -343,6 +359,33 @@ export function UniversalPresetHub({
 
   // Box preset destination selector
   const [boxTargetPlacement, setBoxTargetPlacement] = React.useState<string>("home");
+
+  // Available folder tabs computed dynamically from props or local storage fallback
+  const availableTargetTabs = React.useMemo(() => {
+    if (folderTabs && folderTabs.length > 0) return folderTabs;
+    if (typeof window !== "undefined") {
+      try {
+        const key =
+          (folderScope === "custom" || boxTargetPlacement === "current_folder") && currentFolderId
+            ? `markly_folder_tabs_${currentFolderId}`
+            : "markly_universal_folder_tabs";
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [{ id: "tab_default", label: "Overview", visuals: [] }];
+  }, [folderTabs, folderScope, boxTargetPlacement, currentFolderId]);
+
+  const getBoxInsertLabel = () => {
+    if (boxTargetPlacement === "home") return "Insert to Home";
+    if (boxTargetPlacement === "visuals") return "Insert to Visuals";
+    if (targetFolderTabId === "__NEW_TAB__") return "+ Insert to New Tab";
+    const found = availableTargetTabs.find((t: any) => t.id === targetFolderTabId);
+    return `Insert to Tab: ${found?.label || "Overview"}`;
+  };
 
   // Resizable Modal Hook with Cross-Session Persistence
   const {
@@ -581,12 +624,21 @@ export function UniversalPresetHub({
     } else if (preset.category === "folder") {
       if (preset.data) {
         let nextTabs: any[];
-        if (folderApplyMode === "active_tab" && folderTabs && folderTabs.length > 0) {
+        let activeTargetId: string | undefined = undefined;
+
+        let baseTabs = folderTabs && folderTabs.length > 0 ? folderTabs : availableTargetTabs;
+        if (!baseTabs || !Array.isArray(baseTabs) || baseTabs.length === 0) {
+          baseTabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
+        }
+
+        if (folderApplyMode === "active_tab") {
+          const currentActive = activeTabId || baseTabs[0]?.id || "tab_default";
+          activeTargetId = currentActive;
           const presetVisuals = Array.isArray(preset.data)
             ? (preset.data[0]?.visuals || [])
             : (preset.data.visuals || []);
-          nextTabs = folderTabs.map((t) =>
-            t.id === (activeTabId || folderTabs[0].id)
+          nextTabs = baseTabs.map((t: any) =>
+            t.id === currentActive
               ? { ...t, visuals: presetVisuals }
               : t
           );
@@ -594,27 +646,47 @@ export function UniversalPresetHub({
           nextTabs = Array.isArray(preset.data)
             ? preset.data
             : [{ id: "tab_default", label: "Overview", visuals: preset.data.visuals || [] }];
+          activeTargetId = nextTabs[0]?.id || "tab_default";
         }
 
         if (folderScope === "custom" && currentFolderId) {
           localStorage.setItem(`markly_folder_tabs_${currentFolderId}`, JSON.stringify(nextTabs));
-          onApplyFolderTabs?.(nextTabs, "custom");
+          onApplyFolderTabs?.(nextTabs, "custom", activeTargetId);
           showStatus(`Applied "${preset.name}" to ${folderApplyMode === "active_tab" ? "active tab" : "all tabs"} (${folderName || "Folder"})!`);
         } else {
           localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(nextTabs));
-          onApplyFolderTabs?.(nextTabs, "universal");
+          onApplyFolderTabs?.(nextTabs, "universal", activeTargetId);
           showStatus(`Applied "${preset.name}" to Universal ${folderApplyMode === "active_tab" ? "active tab" : "all tabs"}!`);
+        }
+        if (activeTargetId) {
+          window.dispatchEvent(new CustomEvent("markly-folder-tab-switched", { detail: { tabId: activeTargetId } }));
         }
         window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: nextTabs }));
         window.dispatchEvent(new CustomEvent("markly-folder-tabs-updated", { detail: { folderId: currentFolderId, tabs: nextTabs, scope: folderScope } }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       } else {
+        // DEFAULT PRESET (data === null)
+        const defaultTabs = [
+          {
+            id: "tab_default",
+            label: "Overview",
+            visuals: [
+              { id: "studio_observable_plot", title: "Observable Plot Layered Graphics Studio (22 Variations)", kind: "plot_studio", colSpan: 12, rowSpan: 2 },
+              { id: "studio_intel_systems", title: "Workspace Intelligence Systems Studio (7 Variations)", kind: "intel_studio", colSpan: 12, rowSpan: 2 },
+              { id: "studio_classic_charts", title: "Classic Charts Layered Studio (18 Variations)", kind: "chart_studio", colSpan: 12, rowSpan: 2 },
+              { id: "studio_sites_matrix", title: "Sites Matrix Reference Studio", kind: "sites_studio", colSpan: 12, rowSpan: 2 },
+            ],
+          },
+        ];
         if (folderScope === "custom" && currentFolderId) {
           localStorage.removeItem(`markly_folder_tabs_${currentFolderId}`);
         } else {
           localStorage.removeItem("markly_universal_folder_tabs");
         }
-        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+        onApplyFolderTabs?.(defaultTabs, folderScope, "tab_default");
+        window.dispatchEvent(new CustomEvent("markly-folder-tab-switched", { detail: { tabId: "tab_default" } }));
+        window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: defaultTabs }));
+        window.dispatchEvent(new CustomEvent("markly-folder-tabs-updated", { detail: { folderId: currentFolderId, tabs: defaultTabs, scope: folderScope } }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         showStatus(`Restored standard folder defaults!`);
       }
@@ -676,12 +748,21 @@ export function UniversalPresetHub({
     } else if (target === "universal_folders") {
       try {
         const raw = localStorage.getItem("markly_universal_folder_tabs");
-        let tabs = raw ? JSON.parse(raw) : [];
+        let tabs = raw ? JSON.parse(raw) : (folderTabs && folderTabs.length > 0 ? folderTabs : availableTargetTabs);
         if (!Array.isArray(tabs) || tabs.length === 0) {
           tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
         }
-        let targetTab = tabs.find((t: any) => t.id === targetFolderTabId);
-        if (!targetTab) targetTab = tabs[0];
+        let targetTab: any;
+        if (targetFolderTabId === "__NEW_TAB__") {
+          targetTab = {
+            id: `tab_${Date.now()}`,
+            label: boxTitle.slice(0, 20),
+            visuals: [],
+          };
+          tabs.push(targetTab);
+        } else {
+          targetTab = tabs.find((t: any) => t.id === targetFolderTabId) || tabs[0];
+        }
         targetTab.visuals = (targetTab.visuals || []).filter((v: any) => v.id !== boxId);
         targetTab.visuals.unshift({
           id: boxId,
@@ -696,7 +777,8 @@ export function UniversalPresetHub({
           intelConfig: boxData.intelConfig,
         });
         localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(tabs));
-        onApplyFolderTabs?.(tabs);
+        onApplyFolderTabs?.(tabs, "universal", targetTab.id);
+        window.dispatchEvent(new CustomEvent("markly-folder-tab-switched", { detail: { tabId: targetTab.id } }));
         window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         showStatus(`Placed "${boxTitle}" into Universal Folder > "${targetTab.label}" tab!`);
@@ -707,12 +789,21 @@ export function UniversalPresetHub({
       try {
         const key = `markly_folder_tabs_${currentFolderId}`;
         const raw = localStorage.getItem(key);
-        let tabs = raw ? JSON.parse(raw) : (folderTabs || []);
+        let tabs = raw ? JSON.parse(raw) : (folderTabs && folderTabs.length > 0 ? folderTabs : availableTargetTabs);
         if (!Array.isArray(tabs) || tabs.length === 0) {
           tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
         }
-        let targetTab = tabs.find((t: any) => t.id === targetFolderTabId);
-        if (!targetTab) targetTab = tabs[0];
+        let targetTab: any;
+        if (targetFolderTabId === "__NEW_TAB__") {
+          targetTab = {
+            id: `tab_${Date.now()}`,
+            label: boxTitle.slice(0, 20),
+            visuals: [],
+          };
+          tabs.push(targetTab);
+        } else {
+          targetTab = tabs.find((t: any) => t.id === targetFolderTabId) || tabs[0];
+        }
         targetTab.visuals = (targetTab.visuals || []).filter((v: any) => v.id !== boxId);
         targetTab.visuals.unshift({
           id: boxId,
@@ -727,7 +818,9 @@ export function UniversalPresetHub({
           intelConfig: boxData.intelConfig,
         });
         localStorage.setItem(key, JSON.stringify(tabs));
-        onApplyFolderTabs?.(tabs);
+        onApplyFolderTabs?.(tabs, "custom", targetTab.id);
+        window.dispatchEvent(new CustomEvent("markly-folder-tab-switched", { detail: { tabId: targetTab.id } }));
+        window.dispatchEvent(new CustomEvent("markly-folder-tabs-updated", { detail: { folderId: currentFolderId, tabs: tabs, scope: "custom" } }));
         window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         showStatus(`Placed "${boxTitle}" into ${folderName || "Folder"} > "${targetTab.label}" tab!`);
@@ -986,19 +1079,20 @@ export function UniversalPresetHub({
                   <option value="visuals">Visuals Studio Page</option>
                 </select>
 
-                {(boxTargetPlacement === "universal_folders" || boxTargetPlacement === "current_folder") && folderTabs && folderTabs.length > 0 && (
+                {(boxTargetPlacement === "universal_folders" || boxTargetPlacement === "current_folder") && (
                   <div className="flex items-center gap-1.5 bg-background px-2 py-1 rounded-lg border border-border">
                     <span className="text-[11px] text-muted-foreground font-semibold">Tab:</span>
                     <select
                       value={targetFolderTabId}
                       onChange={(e) => setTargetFolderTabId(e.target.value)}
-                      className="h-6 px-1.5 rounded border border-border/60 bg-secondary/50 text-foreground text-xs cursor-pointer"
+                      className="h-6 px-1.5 rounded border border-border/60 bg-secondary/50 text-foreground text-xs cursor-pointer font-medium"
                     >
-                      {folderTabs.map((t) => (
+                      {availableTargetTabs.map((t: any) => (
                         <option key={t.id} value={t.id}>
                           {t.label || t.id}
                         </option>
                       ))}
+                      <option value="__NEW_TAB__">+ Create New Tab with Box</option>
                     </select>
                   </div>
                 )}
@@ -1227,7 +1321,7 @@ export function UniversalPresetHub({
                               className="h-7 px-3 text-xs cursor-pointer gap-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs"
                             >
                               <Send className="h-3 w-3" />
-                              <span>Insert Box</span>
+                              <span>{getBoxInsertLabel()}</span>
                             </Button>
                           ) : (
                             <Button

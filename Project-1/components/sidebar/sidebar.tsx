@@ -32,6 +32,8 @@ import {
   Sparkles,
   ShieldCheck,
   BarChart3,
+  FolderTree,
+  Network,
 } from "lucide-react";
 import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
 import { Badge } from "@/components/ui/badge";
@@ -744,6 +746,23 @@ export function Sidebar({
             <Folder className="h-4 w-4" />
           </button>
 
+          {/* 9.1 Dedicated Folder Tree Page Switcher */}
+          <button
+            type="button"
+            onClick={() => {
+              setSidebarPage("folders");
+              setCollapsed(false);
+            }}
+            title="Open Folder Tree Hierarchy (Page 2)"
+            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+              sidebarPage === "folders"
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <FolderTree className="h-4 w-4 text-emerald-500" />
+          </button>
+
           {/* 10. Visuals & Analytics Option */}
           <button
             type="button"
@@ -775,7 +794,7 @@ export function Sidebar({
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
-            <Layers className="h-4 w-4" />
+            <Network className="h-4 w-4 text-indigo-400" />
           </button>
 
           {/* 12. Archive Option */}
@@ -875,6 +894,17 @@ export function Sidebar({
               <User className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
+
+          {user && (
+            <button
+              type="button"
+              onClick={signOut}
+              title="Sign out of Markly"
+              className="h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </aside>
     );

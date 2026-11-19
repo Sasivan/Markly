@@ -766,30 +766,18 @@ export function SearchResultsView({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* 1-Click Card Cover Style Switcher when in Cards Mode */}
+          {/* Card Cover Style Dropdown when in Cards Mode */}
           {viewMode === "cards" && (
-            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] shrink-0">
-              {[
-                { id: "thumbnail" as const, label: "Snapshot", icon: Camera },
-                { id: "monogram" as const, label: "Gradient", icon: Sparkles },
-                { id: "icon" as const, label: "Logo", icon: Globe },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setCoverStyle(s.id)}
-                  className={`h-6 px-2 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-                    coverStyle === s.id
-                      ? "bg-card text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title={`Card Cover Style: ${s.label}`}
-                >
-                  <s.icon className="h-3 w-3" />
-                  <span className="hidden md:inline">{s.label}</span>
-                </button>
-              ))}
-            </div>
+            <select
+              value={coverStyle}
+              onChange={(e) => setCoverStyle(e.target.value as CardCoverStyle)}
+              className="h-7 px-2 rounded-lg border border-border bg-card text-foreground text-xs font-medium cursor-pointer"
+              title="Card Cover Style"
+            >
+              <option value="thumbnail">Cover: Snapshot</option>
+              <option value="monogram">Cover: Gradient</option>
+              <option value="icon">Cover: Logo</option>
+            </select>
           )}
 
           {/* 5 View Variations Switcher: Cards | Grid | List | Table | Compact */}

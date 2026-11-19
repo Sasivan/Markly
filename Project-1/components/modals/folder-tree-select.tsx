@@ -10,15 +10,25 @@ import {
   Inbox,
   Folder as FolderDefaultIcon,
   ChevronsUpDown,
+  Globe,
 } from "lucide-react";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import type { Folder, FolderTreeNode } from "@/server/db/schema";
 
-interface FolderTreeSelectProps {
+export interface FolderTreeSelectProps {
   folders: Folder[];
   folderTree?: FolderTreeNode[];
-  selectedFolderId: string;
-  onSelectFolder: (folderId: string) => void;
+  selectedFolderId?: string | null;
+  value?: string | null;
+  onSelectFolder?: (folderId: string) => void;
+  onChange?: (folderId: string | null) => void;
+  allowAll?: boolean;
+  allLabel?: string;
+  allowUnsorted?: boolean;
+  unsortedLabel?: string;
+  allowRoot?: boolean;
+  rootLabel?: string;
+  placeholder?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -27,7 +37,16 @@ export function FolderTreeSelect({
   folders,
   folderTree,
   selectedFolderId,
+  value,
   onSelectFolder,
+  onChange,
+  allowAll = false,
+  allLabel = "All Folders (Full Library)",
+  allowUnsorted,
+  unsortedLabel,
+  allowRoot,
+  rootLabel,
+  placeholder = "Select a folder...",
   disabled = false,
   className = "",
 }: FolderTreeSelectProps) {
@@ -36,6 +55,17 @@ export function FolderTreeSelect({
   const [expandedFolderIds, setExpandedFolderIds] = React.useState<Set<string>>(new Set());
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Normalize effective value
+  const effectiveId = value !== undefined ? value : selectedFolderId;
+  const showUnsorted = allowUnsorted ?? allowRoot ?? true;
+  const effectiveUnsortedLabel = unsortedLabel || rootLabel || "Unsorted (Inbox)";
+
+  const handleSelect = (id: string | null) => {
+    onSelectFolder?.(id || "");
+    onChange?.(id);
+    setIsOpen(false);
+  };
 
   // Build tree if folderTree not provided (guarantee Unsorted is never duplicated in tree)
   const computedTree = React.useMemo(() => {
@@ -132,19 +162,22 @@ export function FolderTreeSelect({
 
   // Find currently selected folder object and its breadcrumb path
   const selectedFolder = React.useMemo(() => {
-    if (!selectedFolderId) return null;
-    return folders.find((f) => f.id === selectedFolderId) || null;
-  }, [folders, selectedFolderId]);
+    if (!effectiveId || effectiveId === "all" || effectiveId === "__UNSORTED__" || effectiveId.startsWith("fld_unsorted_")) return null;
+    return folders.find((f) => f.id === effectiveId) || null;
+  }, [folders, effectiveId]);
 
   const unsortedFolder = React.useMemo(() => {
     return folders.find((f) => f.id === "__UNSORTED__" || f.id.startsWith("fld_unsorted_")) || null;
   }, [folders]);
 
+  const isAllSelected = Boolean(allowAll && (effectiveId === null || effectiveId === "all" || effectiveId === ""));
   const isUnsortedSelected = Boolean(
-    !selectedFolderId ||
-    selectedFolderId === "__UNSORTED__" ||
-    selectedFolderId.startsWith("fld_unsorted_") ||
-    (selectedFolder && (selectedFolder.id === "__UNSORTED__" || selectedFolder.id.startsWith("fld_unsorted_")))
+    !isAllSelected && (
+      !effectiveId ||
+      effectiveId === "__UNSORTED__" ||
+      effectiveId.startsWith("fld_unsorted_") ||
+      (selectedFolder && (selectedFolder.id === "__UNSORTED__" || selectedFolder.id.startsWith("fld_unsorted_")))
+    )
   );
 
   const selectedBreadcrumb = React.useMemo(() => {
@@ -193,18 +226,15 @@ export function FolderTreeSelect({
   const renderTreeNode = (node: FolderTreeNode, depth: number = 0) => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedFolderIds.has(node.id) || searchQuery.trim().length > 0;
-    const isSelected = selectedFolderId === node.id;
+    const isSelected = effectiveId === node.id;
 
     return (
       <div key={node.id} className="select-none">
         <div
-          onClick={() => {
-            onSelectFolder(node.id);
-            setIsOpen(false);
-          }}
+          onClick={() => handleSelect(node.id)}
           className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors text-xs ${
             isSelected
-              ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 font-semibold"
+              ? "bg-primary/15 text-primary font-semibold"
               : "hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-800 dark:text-neutral-200"
           }`}
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
@@ -266,12 +296,21 @@ export function FolderTreeSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-input bg-background hover:bg-secondary transition-colors text-xs focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer shadow-xs ${
+        className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 min-h-[32px] rounded-lg border border-input bg-background hover:bg-secondary transition-colors text-xs focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer shadow-xs ${
           disabled ? "opacity-50 cursor-not-allowed" : ""
         } ${isOpen ? "ring-1 ring-ring border-primary" : ""}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {!isUnsortedSelected && selectedFolder ? (
+          {isAllSelected ? (
+            <>
+              <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+                <Globe className="h-3.5 w-3.5" />
+              </div>
+              <span className="font-medium text-foreground truncate">
+                {allLabel}
+              </span>
+            </>
+          ) : !isUnsortedSelected && selectedFolder ? (
             <>
               <div
                 className="h-5 w-5 rounded flex items-center justify-center flex-shrink-0"
@@ -307,10 +346,7 @@ export function FolderTreeSelect({
                 />
               </div>
               <span className="font-medium text-foreground truncate">
-                {unsortedFolder?.name || "Unsorted"}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono">
-                (Inbox)
+                {effectiveUnsortedLabel}
               </span>
             </>
           )}
@@ -321,7 +357,7 @@ export function FolderTreeSelect({
 
       {/* Flyout / Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border border-border bg-popover text-popover-foreground shadow-md overflow-hidden p-2 space-y-2 max-h-80 flex flex-col">
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl overflow-hidden p-2 space-y-2 max-h-80 flex flex-col animate-in zoom-in-95">
           {/* Search & Action Row */}
           <div className="flex items-center gap-1.5 pb-1 border-b border-border/60 flex-shrink-0">
             <div className="relative flex-1">
@@ -332,7 +368,7 @@ export function FolderTreeSelect({
                 placeholder="Search collections..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-7 pr-6 py-1.5 text-xs rounded-md bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full pl-7 pr-6 py-1 text-xs rounded-md bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               {searchQuery && (
                 <button
@@ -349,7 +385,7 @@ export function FolderTreeSelect({
               <button
                 type="button"
                 onClick={expandAll}
-                className="px-1.5 py-1 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
+                className="px-1.5 py-0.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
                 title="Expand All"
               >
                 Expand
@@ -357,7 +393,7 @@ export function FolderTreeSelect({
               <button
                 type="button"
                 onClick={collapseAll}
-                className="px-1.5 py-1 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
+                className="px-1.5 py-0.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
                 title="Collapse All"
               >
                 Collapse
@@ -367,31 +403,49 @@ export function FolderTreeSelect({
 
           {/* Scrollable Tree View List */}
           <div className="overflow-y-auto overflow-x-hidden space-y-0.5 max-h-60 pr-1">
-            {/* Root Option: Unsorted (Inbox) */}
-            <div
-              onClick={() => {
-                onSelectFolder(unsortedFolder ? unsortedFolder.id : "");
-                setIsOpen(false);
-              }}
-              className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors text-xs ${
-                isUnsortedSelected
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover:bg-secondary text-foreground"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <FolderIconRenderer
-                  icon={unsortedFolder?.icon || "inbox"}
-                  color={unsortedFolder?.color || "#8b5cf6"}
-                  className="h-4 w-4 flex-shrink-0"
-                />
-                <span className="font-medium text-xs">{unsortedFolder?.name || "Unsorted"}</span>
-                <span className="text-xs text-muted-foreground font-mono">(Inbox)</span>
+            {/* Optional: All Folders */}
+            {allowAll && (
+              <div
+                onClick={() => handleSelect(null)}
+                className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors text-xs ${
+                  isAllSelected
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover:bg-secondary text-foreground"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="font-medium text-xs">{allLabel}</span>
+                </div>
+                {isAllSelected && (
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                )}
               </div>
-              {isUnsortedSelected && (
-                <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-              )}
-            </div>
+            )}
+
+            {/* Root Option: Unsorted (Inbox) */}
+            {showUnsorted && (
+              <div
+                onClick={() => handleSelect(unsortedFolder ? unsortedFolder.id : "")}
+                className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors text-xs ${
+                  isUnsortedSelected
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover:bg-secondary text-foreground"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FolderIconRenderer
+                    icon={unsortedFolder?.icon || "inbox"}
+                    color={unsortedFolder?.color || "#8b5cf6"}
+                    className="h-4 w-4 flex-shrink-0"
+                  />
+                  <span className="font-medium text-xs">{effectiveUnsortedLabel}</span>
+                </div>
+                {isUnsortedSelected && (
+                  <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                )}
+              </div>
+            )}
 
             {/* Folder Trees */}
             {displayTree.length > 0 ? (
@@ -407,4 +461,3 @@ export function FolderTreeSelect({
     </div>
   );
 }
-

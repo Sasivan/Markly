@@ -305,6 +305,7 @@ export function UniversalPresetHub({
     isFolderCustomScope ? "custom" : "universal"
   );
   const [folderSaveMode, setFolderSaveMode] = React.useState<"all_tabs" | "active_tab">("all_tabs");
+  const [folderApplyMode, setFolderApplyMode] = React.useState<"all_tabs" | "active_tab">("all_tabs");
   const [targetFolderTabId, setTargetFolderTabId] = React.useState<string>(activeTabId || "tab_default");
   const [searchQueryInput, setSearchQueryInput] = React.useState<string>("");
   const [sourceContextLabel, setSourceContextLabel] = React.useState<string | null>(null);
@@ -501,17 +502,30 @@ export function UniversalPresetHub({
       showStatus(`Applied Homepage layout: "${preset.name}"!`);
     } else if (preset.category === "folder") {
       if (preset.data) {
-        const nextTabs = Array.isArray(preset.data)
-          ? preset.data
-          : [{ id: "tab_default", label: "Overview", visuals: preset.data.visuals || [] }];
+        let nextTabs: any[];
+        if (folderApplyMode === "active_tab" && folderTabs && folderTabs.length > 0) {
+          const presetVisuals = Array.isArray(preset.data)
+            ? (preset.data[0]?.visuals || [])
+            : (preset.data.visuals || []);
+          nextTabs = folderTabs.map((t) =>
+            t.id === (activeTabId || folderTabs[0].id)
+              ? { ...t, visuals: presetVisuals }
+              : t
+          );
+        } else {
+          nextTabs = Array.isArray(preset.data)
+            ? preset.data
+            : [{ id: "tab_default", label: "Overview", visuals: preset.data.visuals || [] }];
+        }
+
         if (folderScope === "custom" && currentFolderId) {
           localStorage.setItem(`markly_folder_tabs_${currentFolderId}`, JSON.stringify(nextTabs));
           onApplyFolderTabs?.(nextTabs);
-          showStatus(`Applied "${preset.name}" to current folder tabs!`);
+          showStatus(`Applied "${preset.name}" to ${folderApplyMode === "active_tab" ? "active tab" : "all tabs"} (${folderName || "Folder"})!`);
         } else {
           localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(nextTabs));
           onApplyFolderTabs?.(nextTabs);
-          showStatus(`Applied "${preset.name}" to Universal folder tabs!`);
+          showStatus(`Applied "${preset.name}" to Universal ${folderApplyMode === "active_tab" ? "active tab" : "all tabs"}!`);
         }
         window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: nextTabs }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
@@ -805,35 +819,70 @@ export function UniversalPresetHub({
         <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Scope Selector for Folder Presets */}
           {activeTab === "folder" && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-secondary/40 rounded-xl border border-border text-xs">
-              <span className="font-semibold text-foreground flex items-center gap-1.5">
-                <Folder className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Target Folder Scope:</span>
-              </span>
-              <div className="flex items-center gap-1 bg-background p-0.5 rounded-lg border border-border">
-                <button
-                  type="button"
-                  onClick={() => setFolderScope("universal")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                    folderScope === "universal"
-                      ? "bg-primary text-primary-foreground shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Universal (All Folders Synced)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFolderScope("custom")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                    folderScope === "custom"
-                      ? "bg-amber-500 text-white shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Custom: {folderName || "Current Folder"}
-                </button>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-2.5 bg-secondary/40 rounded-xl border border-border text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Folder className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Scope:</span>
+                </span>
+                <div className="flex items-center gap-1 bg-background p-0.5 rounded-lg border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setFolderScope("universal")}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors ${
+                      folderScope === "universal"
+                        ? "bg-primary text-primary-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Universal (All Folders)
+                  </button>
+                  {currentFolderId && (
+                    <button
+                      type="button"
+                      onClick={() => setFolderScope("custom")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors ${
+                        folderScope === "custom"
+                          ? "bg-amber-500 text-white shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Custom: {folderName || "Current Folder"}
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Apply Mode: All Tabs vs Single Active Tab */}
+              {folderTabs && folderTabs.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-foreground">Apply To:</span>
+                  <div className="flex items-center gap-1 bg-background p-0.5 rounded-lg border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setFolderApplyMode("all_tabs")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors ${
+                        folderApplyMode === "all_tabs"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      All Tabs ({folderTabs.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFolderApplyMode("active_tab")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors ${
+                        folderApplyMode === "active_tab"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Active Tab ({folderTabs.find((t) => t.id === activeTabId)?.label || "Current"})
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -1953,32 +1953,6 @@ function getDomainGradient(str: string): string {
             )}
           </div>
 
-          {/* 1-Click Card Cover Style Switcher for Cards View */}
-          {viewMode === "cards" && (
-            <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] shrink-0">
-              {[
-                { id: "thumbnail", label: "Snapshot", icon: Camera },
-                { id: "monogram", label: "Gradient", icon: Sparkles },
-                { id: "icon", label: "Logo", icon: Globe },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setCardFallback(s.id as any)}
-                  className={`h-7 px-2 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-                    cardFallbackMode === s.id
-                      ? "bg-card text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  title={`Switch card cover style to ${s.label}`}
-                >
-                  <s.icon className="h-3 w-3" />
-                  <span>{s.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Column Visibility Menu (Persisted across refreshes) */}
           <div className="relative" ref={colMenuRef}>
             <Button

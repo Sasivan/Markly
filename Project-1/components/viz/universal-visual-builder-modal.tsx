@@ -768,7 +768,7 @@ export function UniversalVisualBuilderModal({
         localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
         window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_observable_plot" } }));
       }
-    } catch {}
+    } catch { }
     onOpenChange(false);
   };
 
@@ -790,7 +790,7 @@ export function UniversalVisualBuilderModal({
         localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
         window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_classic_charts" } }));
       }
-    } catch {}
+    } catch { }
     onOpenChange(false);
   };
 
@@ -812,7 +812,7 @@ export function UniversalVisualBuilderModal({
         localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
         window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_intel_systems" } }));
       }
-    } catch {}
+    } catch { }
     onOpenChange(false);
   };
 
@@ -834,7 +834,7 @@ export function UniversalVisualBuilderModal({
         localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(filtered));
         window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: "studio_sites_matrix" } }));
       }
-    } catch {}
+    } catch { }
     onOpenChange(false);
   };
 
@@ -1335,17 +1335,16 @@ export function UniversalVisualBuilderModal({
                     }`}
                 >
                   <span
-                    className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border shadow-2xs tracking-wider shrink-0 ${
-                      isSelected
-                        ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30"
-                        : cat.tabRef === "T1"
+                    className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border shadow-2xs tracking-wider shrink-0 ${isSelected
+                      ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30"
+                      : cat.tabRef === "T1"
                         ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
                         : cat.tabRef === "T2"
-                        ? "bg-cyan-500/15 text-cyan-500 border-cyan-500/30"
-                        : cat.tabRef === "T3"
-                        ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
-                        : "bg-purple-500/15 text-purple-500 border-purple-500/30"
-                    }`}
+                          ? "bg-cyan-500/15 text-cyan-500 border-cyan-500/30"
+                          : cat.tabRef === "T3"
+                            ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
+                            : "bg-purple-500/15 text-purple-500 border-purple-500/30"
+                      }`}
                   >
                     {cat.tabRef}
                   </span>
@@ -1359,11 +1358,10 @@ export function UniversalVisualBuilderModal({
 
         {/* Modal Body: Left Controls & Right Live Preview */}
         <div
-          className={`flex-1 overflow-y-auto p-4 sm:p-6 min-h-0 ${
-            modalFormat === "vertical"
-              ? "flex flex-col gap-6"
-              : "grid grid-cols-1 lg:grid-cols-12 gap-6"
-          }`}
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 min-h-0 ${modalFormat === "vertical"
+            ? "flex flex-col gap-6"
+            : "grid grid-cols-1 lg:grid-cols-12 gap-6"
+            }`}
         >
           {/* Left Column: Category Specific Configuration Controls */}
           <div className={modalFormat === "vertical" ? "w-full space-y-4" : "lg:col-span-5 space-y-4 pr-1"}>

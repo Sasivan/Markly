@@ -376,10 +376,14 @@ export function FolderVisualAnalytics({
 
   // Synchronize Universal tabs in real-time across all views, folders, and windows
   React.useEffect(() => {
-    const handleUniversalUpdate = (e?: Event) => {
+    const handleUniversalUpdate = (e?: any) => {
       if (!isCustomScope) {
-        const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, false), false);
-        setTabs(loaded);
+        if (e?.detail && Array.isArray(e.detail)) {
+          setTabs(e.detail);
+        } else {
+          const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, false), false);
+          setTabs(loaded);
+        }
       }
     };
     window.addEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
@@ -1440,7 +1444,7 @@ export function FolderVisualAnalytics({
         activeTabId={activeTabId}
         isFolderCustomScope={isCustomScope}
         onApplyFolderTabs={(newTabs) => {
-          setTabs(newTabs);
+          updateTabs(newTabs);
           if (newTabs.length > 0 && !newTabs.some((t) => t.id === activeTabId)) {
             setActiveTabId(newTabs[0].id);
           }

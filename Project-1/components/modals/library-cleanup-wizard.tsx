@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { UniversalFolderSelect } from "@/components/ui/universal-folder-select";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 
 interface LibraryCleanupWizardProps {
@@ -526,21 +527,20 @@ export function LibraryCleanupWizard({
                     <label className="text-[11px] text-muted-foreground font-medium block">
                       Target Scope
                     </label>
-                    <select
-                      value={duplicateScopeFolderId}
-                      onChange={(e) => setDuplicateScopeFolderId(e.target.value)}
-                      className="w-full h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="all">Entire Workspace Library</option>
-                      <option value="unsorted">Inbox / Unsorted Only</option>
-                      {folders
-                        .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
-                        .map((f) => (
-                          <option key={f.id} value={f.id}>
-                            Folder: {f.name}
-                          </option>
-                        ))}
-                    </select>
+                    <UniversalFolderSelect
+                      folders={folders}
+                      value={duplicateScopeFolderId === "all" ? null : duplicateScopeFolderId === "unsorted" ? "__UNSORTED__" : duplicateScopeFolderId}
+                      onChange={(id) => {
+                        if (!id || id === "__ALL__") setDuplicateScopeFolderId("all");
+                        else if (id === "__UNSORTED__" || id.startsWith("fld_unsorted_")) setDuplicateScopeFolderId("unsorted");
+                        else setDuplicateScopeFolderId(id);
+                      }}
+                      allowAll={true}
+                      allLabel="Entire Workspace Library"
+                      allowUnsorted={true}
+                      unsortedLabel="Inbox / Unsorted Only"
+                      placeholder="Select target scope..."
+                    />
                   </div>
 
                   {/* Matching Algorithm */}
@@ -581,21 +581,20 @@ export function LibraryCleanupWizard({
                     <label className="text-[11px] text-muted-foreground font-medium block">
                       Survivor Destination
                     </label>
-                    <select
-                      value={destinationFolderId}
-                      onChange={(e) => setDestinationFolderId(e.target.value)}
-                      className="w-full h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="keep_original">Keep in Original Folder</option>
-                      <option value="unsorted">Move to Inbox / Unsorted</option>
-                      {folders
-                        .filter((f) => f.id !== "__UNSORTED__" && !f.id.startsWith("fld_unsorted_"))
-                        .map((f) => (
-                          <option key={f.id} value={f.id}>
-                            Move to: {f.name}
-                          </option>
-                        ))}
-                    </select>
+                    <UniversalFolderSelect
+                      folders={folders}
+                      value={destinationFolderId === "keep_original" ? null : destinationFolderId === "unsorted" ? "__UNSORTED__" : destinationFolderId}
+                      onChange={(id) => {
+                        if (!id || id === "__ROOT__") setDestinationFolderId("keep_original");
+                        else if (id === "__UNSORTED__" || id.startsWith("fld_unsorted_")) setDestinationFolderId("unsorted");
+                        else setDestinationFolderId(id);
+                      }}
+                      allowRoot={true}
+                      rootLabel="Keep in Original Folder"
+                      allowUnsorted={true}
+                      unsortedLabel="Move to Inbox / Unsorted"
+                      placeholder="Survivor destination..."
+                    />
                   </div>
                 </div>
               </div>

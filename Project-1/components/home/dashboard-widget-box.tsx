@@ -93,6 +93,7 @@ interface DashboardWidgetBoxProps {
   showItemLimitPicker?: boolean;
   itemLimit?: WidgetItemLimit;
   onItemLimitChange?: (limit: WidgetItemLimit) => void;
+  widgetConfig?: any;
   children: React.ReactNode;
 }
 
@@ -129,8 +130,28 @@ export function DashboardWidgetBox({
   showItemLimitPicker,
   itemLimit,
   onItemLimitChange,
+  widgetConfig,
   children,
 }: DashboardWidgetBoxProps) {
+  // User-Customizable Card Cover Style (Persisted in localStorage, housed in view dropdown)
+  const [boxCoverStyle, setBoxCoverStyle] = React.useState<"thumbnail" | "icon" | "monogram">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_card_cover_style_" + id);
+        if (stored === "thumbnail" || stored === "icon" || stored === "monogram") return stored;
+      } catch {}
+    }
+    return "thumbnail";
+  });
+
+  const handleSetBoxCoverStyle = (style: "thumbnail" | "icon" | "monogram") => {
+    setBoxCoverStyle(style);
+    try {
+      localStorage.setItem("markly_card_cover_style_" + id, style);
+    } catch {}
+    window.dispatchEvent(new CustomEvent("markly-card-cover-changed", { detail: { id, style } }));
+  };
+
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -918,7 +939,10 @@ export function DashboardWidgetBox({
               </button>
 
               {viewBoxMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-border bg-card p-1.5 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                    View Mode
+                  </div>
                   {[
                     { id: "cards", label: "Visual Cards", icon: LayoutGrid },
                     { id: "grid", label: "Grid Cards", icon: LayoutGrid },
@@ -947,6 +971,35 @@ export function DashboardWidgetBox({
                         </button>
                       );
                     })}
+
+                  {/* Card Cover Variation Selector (Housed cleanly inside view dropdown, no toolbar clutter) */}
+                  {(viewMode === "cards" || viewMode === "grid") && (
+                    <div className="border-t border-border/60 pt-1.5 mt-1 px-1 space-y-1">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Cover Variation
+                      </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        {[
+                          { id: "thumbnail", label: "Snapshot" },
+                          { id: "monogram", label: "Gradient" },
+                          { id: "icon", label: "Logo" },
+                        ].map((cv) => (
+                          <button
+                            key={cv.id}
+                            type="button"
+                            onClick={() => handleSetBoxCoverStyle(cv.id as any)}
+                            className={`px-1 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-colors ${
+                              boxCoverStyle === cv.id
+                                ? "bg-primary text-primary-foreground border-primary font-semibold"
+                                : "bg-secondary/40 text-foreground border-border/60 hover:bg-secondary"
+                            }`}
+                          >
+                            {cv.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -983,6 +1036,7 @@ export function DashboardWidgetBox({
                     type="button"
                     onClick={() => {
                       setActionMenuOpen(false);
+                      const baseConfig = widgetConfig || {};
                       window.dispatchEvent(
                         new CustomEvent("markly-open-save-preset-dialog", {
                           detail: {
@@ -990,11 +1044,21 @@ export function DashboardWidgetBox({
                             category: "box",
                             sourceLocation: `Visual Box: ${title}`,
                             data: {
+                              ...baseConfig,
                               id,
                               title,
                               colSpan: colSpanState,
                               rowSpan: rowSpanState,
                               boxHeight,
+                              itemLimit: activeLimit,
+                              viewMode: viewMode || baseConfig.viewMode,
+                              cardCoverStyle: boxCoverStyle,
+                              category: baseConfig.category || baseConfig.kind || "chart_studio",
+                              kind: baseConfig.kind || baseConfig.category || "custom",
+                              siteConfig: baseConfig.siteConfig,
+                              plotConfig: baseConfig.plotConfig,
+                              chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
+                              intelConfig: baseConfig.intelConfig,
                             },
                           },
                         })

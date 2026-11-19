@@ -676,21 +676,20 @@ export function AddBookmarkModal({
                     {folderSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Create"}
                   </Button>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                  <Layers className="h-3 w-3" />
-                  <span>Nest inside:</span>
-                  <select
-                    value={newFolderParentId}
-                    onChange={(e) => setNewFolderParentId(e.target.value)}
-                    className="h-6 text-xs rounded-md border border-input bg-background px-1.5 text-foreground focus:outline-none"
-                  >
-                    <option value="">Root (Top-Level)</option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        ↳ {f.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground w-full">
+                  <Layers className="h-3 w-3 shrink-0" />
+                  <span className="shrink-0">Nest inside:</span>
+                  <div className="flex-1 min-w-0">
+                    <FolderTreeSelect
+                      folders={folders}
+                      folderTree={folderTree}
+                      selectedFolderId={newFolderParentId || null}
+                      onSelectFolder={(id) => setNewFolderParentId(id || "")}
+                      allowRoot={true}
+                      rootLabel="Root (Top-Level)"
+                      placeholder="Select parent folder..."
+                    />
+                  </div>
                 </div>
               </div>
             ) : (

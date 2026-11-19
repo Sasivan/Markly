@@ -374,7 +374,7 @@ export function FolderVisualAnalytics({
     setActiveTabId(loaded[0]?.id ?? "tab_default");
   }, [folderId, isCustomScope]);
 
-  // Synchronize Universal tabs in real-time across all views, folders, and windows
+  // Synchronize Universal and Custom tabs in real-time across all views, folders, and windows
   React.useEffect(() => {
     const handleUniversalUpdate = (e?: any) => {
       if (!isCustomScope) {
@@ -386,10 +386,22 @@ export function FolderVisualAnalytics({
         }
       }
     };
+    const handleFolderTabsUpdate = (e?: any) => {
+      if (e?.detail?.folderId === folderId) {
+        if (e.detail.tabs && Array.isArray(e.detail.tabs)) {
+          setTabs(e.detail.tabs);
+        } else {
+          const loaded = loadTabs(folderId, makeDefaultVisuals(folderId, isCustomScope), isCustomScope);
+          setTabs(loaded);
+        }
+      }
+    };
     window.addEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
+    window.addEventListener("markly-folder-tabs-updated", handleFolderTabsUpdate);
     window.addEventListener("storage", handleUniversalUpdate);
     return () => {
       window.removeEventListener("markly-universal-tabs-updated", handleUniversalUpdate);
+      window.removeEventListener("markly-folder-tabs-updated", handleFolderTabsUpdate);
       window.removeEventListener("storage", handleUniversalUpdate);
     };
   }, [folderId, isCustomScope]);
@@ -1159,6 +1171,7 @@ export function FolderVisualAnalytics({
                     viewMode={isSiteKind ? (visualViewModes[viz.id] ?? viz.siteConfig?.viewMode ?? "grid") : undefined}
                     availableViews={isSiteKind ? ["grid", "list", "table", "compact"] : undefined}
                     onViewModeChange={isSiteKind ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
+                    widgetConfig={viz}
                   >
                     <div className="p-2 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
                       {/* 1. SITES PRESET (Quick Access / Favorites / Recent) */}
@@ -1443,8 +1456,16 @@ export function FolderVisualAnalytics({
         folderTabs={tabs}
         activeTabId={activeTabId}
         isFolderCustomScope={isCustomScope}
-        onApplyFolderTabs={(newTabs) => {
-          updateTabs(newTabs);
+        onApplyFolderTabs={(newTabs, appliedScope) => {
+          const isCustom = appliedScope ? appliedScope === "custom" : isCustomScope;
+          if (appliedScope && (appliedScope === "custom") !== isCustomScope) {
+            setIsCustomScope(appliedScope === "custom");
+            try {
+              localStorage.setItem(`markly_folder_viz_is_custom_${folderId}`, String(appliedScope === "custom"));
+            } catch {}
+          }
+          setTabs(newTabs);
+          persistTabs(folderId, newTabs, isCustom);
           if (newTabs.length > 0 && !newTabs.some((t) => t.id === activeTabId)) {
             setActiveTabId(newTabs[0].id);
           }

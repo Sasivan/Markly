@@ -29,6 +29,9 @@ import {
   Send,
   Pin,
   ExternalLink,
+  Pencil,
+  X,
+  Clock,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import { ModalFormatControls } from "@/components/ui/modal-format-controls";
@@ -44,7 +47,29 @@ export interface UniversalPresetItem {
   tabRef?: "T1" | "T2" | "T3" | "T4";
   isDefault?: boolean;
   createdAt: number;
+  updatedAt?: number;
+  sourceContext?: {
+    surface?: string;
+    folderName?: string;
+    tabName?: string;
+    folderScope?: string;
+    captureMode?: "all_tabs" | "active_tab" | string;
+  };
   data: any;
+}
+
+function formatPresetTimestamp(timestamp?: number): string {
+  if (!timestamp) return "Default template";
+  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}h ago`;
+  const diffDays = Math.floor(diffHour / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  const date = new Date(timestamp);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 // Global helper to save any preset from anywhere in the application
@@ -279,7 +304,7 @@ export interface UniversalPresetHubProps {
   folderTabs?: any[];
   activeTabId?: string;
   isFolderCustomScope?: boolean;
-  onApplyFolderTabs?: (tabs: any[]) => void;
+  onApplyFolderTabs?: (tabs: any[], appliedScope?: "universal" | "custom") => void;
   onRunSearch?: (query: string) => void;
 }
 
@@ -299,6 +324,11 @@ export function UniversalPresetHub({
   const [newPresetName, setNewPresetName] = React.useState("");
   const [newPresetDesc, setNewPresetDesc] = React.useState("");
   const [statusMsg, setStatusMsg] = React.useState<string | null>(null);
+
+  // Preset In-Place Edit State (Rename / Edit Description)
+  const [editingPresetId, setEditingPresetId] = React.useState<string | null>(null);
+  const [editingPresetName, setEditingPresetName] = React.useState<string>("");
+  const [editingPresetDesc, setEditingPresetDesc] = React.useState<string>("");
 
   // Folder preset application scope (Universal for all folders vs Custom for this folder)
   const [folderScope, setFolderScope] = React.useState<"universal" | "custom">(
@@ -332,15 +362,14 @@ export function UniversalPresetHub({
     minHeight: 440,
   });
 
-  // Sync tab when modal opens
+  // Sync tab & folder scope when modal opens
   React.useEffect(() => {
-    if (open && initialCategory) {
-      setActiveTab(initialCategory);
+    if (open) {
+      if (initialCategory) setActiveTab(initialCategory);
+      setFolderScope(isFolderCustomScope ? "custom" : "universal");
+      if (activeTabId) setTargetFolderTabId(activeTabId);
     }
-    if (activeTabId) {
-      setTargetFolderTabId(activeTabId);
-    }
-  }, [open, initialCategory, activeTabId]);
+  }, [open, initialCategory, activeTabId, isFolderCustomScope]);
 
   // Listen for open save preset dialog event from any button in the app
   React.useEffect(() => {
@@ -353,6 +382,9 @@ export function UniversalPresetHub({
       if (detail.description) setNewPresetDesc(detail.description);
       if (detail.sourceLocation) setSourceContextLabel(detail.sourceLocation);
       if (detail.data) setPendingPresetData(detail.data);
+      if (detail.folderScope) setFolderScope(detail.folderScope);
+      if (detail.folderSaveMode) setFolderSaveMode(detail.folderSaveMode);
+      if (detail.activeTabId) setTargetFolderTabId(detail.activeTabId);
     };
     window.addEventListener("markly-open-save-preset-dialog", handleOpenSaveDialog);
     return () => window.removeEventListener("markly-open-save-preset-dialog", handleOpenSaveDialog);
@@ -413,6 +445,41 @@ export function UniversalPresetHub({
     setTimeout(() => setStatusMsg(null), 3000);
   };
 
+  // Preset In-Place Edit Actions
+  const handleStartEditPreset = (preset: UniversalPresetItem) => {
+    setEditingPresetId(preset.id);
+    setEditingPresetName(preset.name);
+    setEditingPresetDesc(preset.description || "");
+  };
+
+  const handleSaveEditPreset = () => {
+    if (!editingPresetId || !editingPresetName.trim()) return;
+    const updated = savedPresets.map((p) => {
+      if (p.id === editingPresetId) {
+        return {
+          ...p,
+          name: editingPresetName.trim(),
+          description: editingPresetDesc.trim() || undefined,
+          updatedAt: Date.now(),
+        };
+      }
+      return p;
+    });
+    setSavedPresets(updated);
+    try {
+      localStorage.setItem("markly_universal_presets_hub", JSON.stringify(updated));
+    } catch {}
+    window.dispatchEvent(new CustomEvent("markly-preset-hub-updated"));
+    showStatus(`Updated preset "${editingPresetName.trim()}"!`);
+    setEditingPresetId(null);
+  };
+
+  const handleCancelEditPreset = () => {
+    setEditingPresetId(null);
+    setEditingPresetName("");
+    setEditingPresetDesc("");
+  };
+
   // 1. SAVE CURRENT SETUP AS A PRESET
   const handleSaveCurrentAsPreset = () => {
     if (!newPresetName.trim()) return;
@@ -420,29 +487,31 @@ export function UniversalPresetHub({
     let payload: any = pendingPresetData;
     let assignedTabRef: "T1" | "T2" | "T3" | "T4" | undefined = undefined;
 
-    if (!payload) {
+    if (activeTab === "folder") {
+      let baseTabs = pendingPresetData;
+      if (!baseTabs || !Array.isArray(baseTabs)) {
+        if (folderTabs && folderTabs.length > 0) {
+          baseTabs = folderTabs;
+        } else {
+          const key =
+            folderScope === "custom" && currentFolderId
+              ? `markly_folder_tabs_${currentFolderId}`
+              : "markly_universal_folder_tabs";
+          const stored = localStorage.getItem(key);
+          baseTabs = stored ? JSON.parse(stored) : null;
+        }
+      }
+      if (folderSaveMode === "active_tab") {
+        const active = (baseTabs || []).find((t: any) => t.id === activeTabId) || (baseTabs || [])[0];
+        payload = active ? [active] : baseTabs;
+      } else {
+        payload = baseTabs;
+      }
+    } else if (!payload) {
       if (activeTab === "home") {
         try {
           const stored = localStorage.getItem("markly_home_widgets");
           payload = stored ? JSON.parse(stored) : null;
-        } catch {}
-      } else if (activeTab === "folder") {
-        try {
-          if (folderTabs && folderTabs.length > 0) {
-            if (folderSaveMode === "active_tab") {
-              const active = folderTabs.find((t) => t.id === activeTabId) || folderTabs[0];
-              payload = [active];
-            } else {
-              payload = folderTabs;
-            }
-          } else {
-            const key =
-              folderScope === "custom" && currentFolderId
-                ? `markly_folder_tabs_${currentFolderId}`
-                : "markly_universal_folder_tabs";
-            const stored = localStorage.getItem(key);
-            payload = stored ? JSON.parse(stored) : null;
-          }
         } catch {}
       } else if (activeTab === "visuals") {
         try {
@@ -472,6 +541,14 @@ export function UniversalPresetHub({
       tabRef: assignedTabRef || (activeTab === "box" ? "T3" : undefined),
       isDefault: false,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
+      sourceContext: {
+        surface: activeTab,
+        folderName: folderName,
+        tabName: folderTabs?.find((t) => t.id === activeTabId)?.label,
+        folderScope: activeTab === "folder" ? folderScope : undefined,
+        captureMode: activeTab === "folder" ? folderSaveMode : undefined,
+      },
       data: payload,
     };
 
@@ -480,6 +557,7 @@ export function UniversalPresetHub({
     try {
       localStorage.setItem("markly_universal_presets_hub", JSON.stringify(updated));
     } catch {}
+    window.dispatchEvent(new CustomEvent("markly-preset-hub-updated"));
 
     setNewPresetName("");
     setNewPresetDesc("");
@@ -520,14 +598,15 @@ export function UniversalPresetHub({
 
         if (folderScope === "custom" && currentFolderId) {
           localStorage.setItem(`markly_folder_tabs_${currentFolderId}`, JSON.stringify(nextTabs));
-          onApplyFolderTabs?.(nextTabs);
+          onApplyFolderTabs?.(nextTabs, "custom");
           showStatus(`Applied "${preset.name}" to ${folderApplyMode === "active_tab" ? "active tab" : "all tabs"} (${folderName || "Folder"})!`);
         } else {
           localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(nextTabs));
-          onApplyFolderTabs?.(nextTabs);
+          onApplyFolderTabs?.(nextTabs, "universal");
           showStatus(`Applied "${preset.name}" to Universal ${folderApplyMode === "active_tab" ? "active tab" : "all tabs"}!`);
         }
         window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: nextTabs }));
+        window.dispatchEvent(new CustomEvent("markly-folder-tabs-updated", { detail: { folderId: currentFolderId, tabs: nextTabs, scope: folderScope } }));
         window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       } else {
         if (folderScope === "custom" && currentFolderId) {
@@ -950,7 +1029,7 @@ export function UniversalPresetHub({
               </div>
             )}
 
-            {activeTab === "folder" && folderTabs && folderTabs.length > 1 && (
+            {activeTab === "folder" && ((folderTabs && folderTabs.length > 0) || (Array.isArray(pendingPresetData) && pendingPresetData.length > 0)) && (
               <div className="flex items-center gap-3 text-xs bg-secondary/30 p-2 rounded-lg border border-border/40">
                 <span className="text-muted-foreground font-semibold">Save Scope:</span>
                 <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
@@ -961,7 +1040,7 @@ export function UniversalPresetHub({
                     onChange={() => setFolderSaveMode("all_tabs")}
                     className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
                   />
-                  <span>All Tabs ({folderTabs.length})</span>
+                  <span>All Tabs ({folderTabs?.length || (Array.isArray(pendingPresetData) ? pendingPresetData.length : 1)})</span>
                 </label>
                 <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
                   <input
@@ -971,7 +1050,7 @@ export function UniversalPresetHub({
                     onChange={() => setFolderSaveMode("active_tab")}
                     className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
                   />
-                  <span>Active Tab Only</span>
+                  <span>Active Tab Only ({folderTabs?.find((t) => t.id === activeTabId)?.label || "Active Tab"})</span>
                 </label>
               </div>
             )}
@@ -1040,87 +1119,163 @@ export function UniversalPresetHub({
                     key={preset.id}
                     className="p-3 rounded-xl border border-border bg-card hover:border-primary/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors shadow-2xs group"
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        {/* Tab Reference Tag if available */}
-                        {preset.tabRef && (
-                          <span
-                            className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-bold ${
-                              preset.tabRef === "T1"
-                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                : preset.tabRef === "T2"
-                                ? "bg-cyan-500/10 text-cyan-500 border-cyan-500/30"
-                                : preset.tabRef === "T3"
-                                ? "bg-blue-500/10 text-blue-500 border-blue-500/30"
-                                : "bg-purple-500/10 text-purple-500 border-purple-500/30"
-                            }`}
+                    {editingPresetId === preset.id ? (
+                      <div className="flex-1 space-y-2 w-full">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingPresetName}
+                            onChange={(e) => setEditingPresetName(e.target.value)}
+                            placeholder="Preset Name..."
+                            className="h-7 text-xs bg-background flex-1"
+                            autoFocus
+                          />
+                        </div>
+                        <Input
+                          value={editingPresetDesc}
+                          onChange={(e) => setEditingPresetDesc(e.target.value)}
+                          placeholder="Optional description / note..."
+                          className="h-7 text-xs bg-background"
+                        />
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            onClick={handleSaveEditPreset}
+                            disabled={!editingPresetName.trim()}
+                            className="h-6 px-2.5 text-xs cursor-pointer gap-1"
                           >
-                            {preset.tabRef}
-                          </span>
-                        )}
-                        <span className="text-xs font-bold text-foreground truncate">
-                          {preset.name}
-                        </span>
-                        {preset.isDefault && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 font-semibold flex items-center gap-1">
-                            <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
-                            Default
-                          </span>
-                        )}
+                            <Check className="h-3 w-3" />
+                            <span>Save Changes</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCancelEditPreset}
+                            className="h-6 px-2 text-xs cursor-pointer"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
-                      {preset.description && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-1">
-                          {preset.description}
-                        </p>
-                      )}
-                    </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Tab Reference Tag if available */}
+                            {preset.tabRef && (
+                              <span
+                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-bold ${
+                                  preset.tabRef === "T1"
+                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                                    : preset.tabRef === "T2"
+                                    ? "bg-cyan-500/10 text-cyan-500 border-cyan-500/30"
+                                    : preset.tabRef === "T3"
+                                    ? "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                                    : "bg-purple-500/10 text-purple-500 border-purple-500/30"
+                                }`}
+                              >
+                                {preset.tabRef}
+                              </span>
+                            )}
+                            <span className="text-xs font-bold text-foreground truncate">
+                              {preset.name}
+                            </span>
+                            {preset.isDefault && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 font-semibold flex items-center gap-1">
+                                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                                Default
+                              </span>
+                            )}
+                            {/* Metadata Badges */}
+                            {preset.sourceContext?.captureMode && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/60">
+                                {preset.sourceContext.captureMode === "active_tab" ? "Single Tab" : "All Tabs"}
+                              </span>
+                            )}
+                            {preset.sourceContext?.folderScope && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/60 capitalize">
+                                {preset.sourceContext.folderScope}
+                              </span>
+                            )}
+                            {preset.category === "folder" && Array.isArray(preset.data) && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
+                                {preset.data.length} {preset.data.length === 1 ? "Tab" : "Tabs"}
+                              </span>
+                            )}
+                          </div>
+                          {preset.description && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">
+                              {preset.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/75 font-mono">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5" />
+                              Last edited: {formatPresetTimestamp(preset.updatedAt || preset.createdAt)}
+                            </span>
+                            {preset.sourceContext?.folderName && (
+                              <span>• Source: {preset.sourceContext.folderName}</span>
+                            )}
+                          </div>
+                        </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                      {activeTab === "box" ? (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => handleInsertBoxPreset(preset, boxTargetPlacement)}
-                          className="h-7 px-3 text-xs cursor-pointer gap-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs"
-                        >
-                          <Send className="h-3 w-3" />
-                          <span>Insert Box</span>
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => handleApplyPreset(preset)}
-                          className="h-7 px-3 text-xs cursor-pointer gap-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs"
-                        >
-                          <ArrowRight className="h-3 w-3" />
-                          <span>Apply</span>
-                        </Button>
-                      )}
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          {activeTab === "box" ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleInsertBoxPreset(preset, boxTargetPlacement)}
+                              className="h-7 px-3 text-xs cursor-pointer gap-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs"
+                            >
+                              <Send className="h-3 w-3" />
+                              <span>Insert Box</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleApplyPreset(preset)}
+                              className="h-7 px-3 text-xs cursor-pointer gap-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs"
+                            >
+                              <ArrowRight className="h-3 w-3" />
+                              <span>Apply</span>
+                            </Button>
+                          )}
 
-                      {activeTab !== "box" && activeTab !== "search" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSetAsDefault(preset)}
-                          disabled={preset.isDefault}
-                          title="Set as Custom Default"
-                          className="h-7 px-2 text-xs cursor-pointer gap-1"
-                        >
-                          <Star className={`h-3 w-3 ${preset.isDefault ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
-                          <span className="hidden sm:inline">Set Default</span>
-                        </Button>
-                      )}
+                          {/* Edit Preset Name & Description */}
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditPreset(preset)}
+                            title="Edit preset details"
+                            className="h-7 w-7 rounded-lg border border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePreset(preset.id, preset.name)}
-                        title="Delete preset"
-                        className="h-7 w-7 rounded-lg border border-border/60 hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
+                          {activeTab !== "box" && activeTab !== "search" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSetAsDefault(preset)}
+                              disabled={preset.isDefault}
+                              title="Set as Custom Default"
+                              className="h-7 px-2 text-xs cursor-pointer gap-1"
+                            >
+                              <Star className={`h-3 w-3 ${preset.isDefault ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
+                              <span className="hidden sm:inline">Set Default</span>
+                            </Button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePreset(preset.id, preset.name)}
+                            title="Delete preset"
+                            className="h-7 w-7 rounded-lg border border-border/60 hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

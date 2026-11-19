@@ -1475,6 +1475,7 @@ export function WorkspaceHome({
           onEditWidget={() => handleEditCustomWidget(widget)}
           onDuplicateWidget={() => handleDuplicateCustomWidget(widget)}
           onDeleteWidget={() => handleDeleteCustomWidget(widget.id)}
+          widgetConfig={widget}
         >
           <div className="p-3 flex-1 flex flex-col min-h-0">
             {vKind === "sites" || siteCfg ? (

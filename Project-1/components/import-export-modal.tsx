@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Download, Upload, Activity, FileText, Check, AlertCircle, Loader2, Bookmark, Puzzle, Sparkles, Copy, RotateCcw } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 
 interface ImportExportModalProps {
   open: boolean;
@@ -15,6 +16,8 @@ interface ImportExportModalProps {
 
 export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportExportModalProps) {
   const {
+    format,
+    toggleFormat,
     modalStyle,
     hasCustomSize,
     handleRestoreDefaults,
@@ -101,16 +104,12 @@ export function ImportExportModal({ open, onOpenChange, onRefreshData }: ImportE
               </DialogDescription>
             </div>
 
-            {hasCustomSize && (
-              <button
-                type="button"
-                onClick={handleRestoreDefaults}
-                title="Restore default modal size"
-                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
         </DialogHeader>
 

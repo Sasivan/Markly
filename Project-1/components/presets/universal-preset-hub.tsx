@@ -31,6 +31,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 import type { HomeWidgetConfig } from "@/components/home/home-layout-modal";
 
 export type PresetCategory = "home" | "folder" | "visuals" | "search" | "box";
@@ -314,6 +315,8 @@ export function UniversalPresetHub({
 
   // Resizable Modal Hook with Cross-Session Persistence
   const {
+    format,
+    toggleFormat,
     modalStyle,
     hasCustomSize,
     handleRestoreDefaults,
@@ -714,16 +717,12 @@ export function UniversalPresetHub({
             </div>
 
             <div className="flex items-center gap-2">
-              {hasCustomSize && (
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaults}
-                  className="h-7 px-2 rounded-lg border border-border/80 text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer transition-colors"
-                  title="Reset dialog dimensions to standard size"
-                >
-                  Reset Size
-                </button>
-              )}
+              <ModalFormatControls
+                format={format}
+                onToggleFormat={toggleFormat}
+                hasCustomSize={hasCustomSize}
+                onRestoreDefaults={handleRestoreDefaults}
+              />
               {statusMsg && (
                 <span className="text-xs text-emerald-500 font-semibold flex items-center gap-1 animate-in fade-in">
                   <CheckCircle2 className="h-3.5 w-3.5" />

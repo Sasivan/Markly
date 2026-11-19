@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { GitBranch, Plus, Trash2, Check, Sparkles, Folder as FolderIcon, RotateCcw } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 import type { Folder } from "@/server/db/schema";
 
 export interface FolderRoutingRule {
@@ -89,6 +90,8 @@ export function FolderRoutingModal({
   folders,
 }: FolderRoutingModalProps) {
   const {
+    format,
+    toggleFormat,
     modalStyle,
     hasCustomSize,
     handleRestoreDefaults,
@@ -166,16 +169,12 @@ export function FolderRoutingModal({
               </DialogTitle>
             </div>
 
-            {hasCustomSize && (
-              <button
-                type="button"
-                onClick={handleRestoreDefaults}
-                title="Restore default modal size"
-                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
             Automatically organize incoming bookmarks into target folders by matching domains or keywords.

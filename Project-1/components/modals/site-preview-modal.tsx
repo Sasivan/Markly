@@ -47,6 +47,7 @@ import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { CopyBookmarkModal } from "./copy-bookmark-modal";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 
 interface SitePreviewModalProps {
   bookmark: BookmarkWithDetails | null;
@@ -303,7 +304,7 @@ export function SitePreviewModal({
   const snapshotUrl =
     bookmark.imageUrl && !bookmark.imageUrl.includes("avatar-") && !snapshotError
       ? bookmark.imageUrl
-      : `https://api.microlink.io/?url=${encodeURIComponent(bookmark.url)}&screenshot=true&meta=false&embed=screenshot.url`;
+      : `https://s0.wp.com/mshots/v1/${encodeURIComponent(bookmark.url)}?w=800`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(bookmark.url);
@@ -713,45 +714,13 @@ export function SitePreviewModal({
                 <span className="hidden sm:inline">Open Site</span>
               </a>
 
-              {/* Format Toggle (Vertical vs Horizontal) */}
-              <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-xs shrink-0">
-                <button
-                  type="button"
-                  onClick={() => toggleFormat("horizontal")}
-                  title="Horizontal Layout"
-                  className={`h-7 px-2 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-                    format === "horizontal"
-                      ? "bg-card text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Columns2 className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleFormat("vertical")}
-                  title="Vertical Layout"
-                  className={`h-7 px-2 rounded-md font-medium flex items-center gap-1 cursor-pointer transition-colors ${
-                    format === "vertical"
-                      ? "bg-card text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Rows3 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {/* Reset to Default Dimensions */}
-              {hasCustomSize && (
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaults}
-                  title="Reset to default dimensions"
-                  className="h-8 px-2 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer flex items-center gap-1 transition-colors shrink-0"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </button>
-              )}
+              {/* Format Toggle (Vertical vs Horizontal) & Reset Controls */}
+              <ModalFormatControls
+                format={format}
+                onToggleFormat={toggleFormat}
+                hasCustomSize={hasCustomSize}
+                onRestoreDefaults={handleRestoreDefaults}
+              />
 
               {/* Dedicated Close Button */}
               <Button

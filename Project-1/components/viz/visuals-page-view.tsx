@@ -59,6 +59,7 @@ export interface VisualsPageViewProps {
   onSelectTag?: (tag: string) => void;
   onSelectFolder?: (folderId: string | null) => void;
   onNavigateHome?: () => void;
+  onOpenPreview?: (bm: BookmarkWithDetails) => void;
 }
 
 const PLOT_VARIATIONS: Array<{
@@ -196,6 +197,7 @@ export function VisualsPageView({
   onSelectTag,
   onSelectFolder,
   onNavigateHome,
+  onOpenPreview,
 }: VisualsPageViewProps) {
   const [builderOpen, setBuilderOpen] = React.useState(false);
   const [editingConfig, setEditingConfig] = React.useState<UniversalVisualConfig | null>(null);
@@ -924,6 +926,7 @@ export function VisualsPageView({
             onDeleteWidget={() => handleHideStudioUnit("studio_sites_matrix")}
             onPinHome={handlePinAnyVisual}
             onAddToFolder={(v) => setExportTargetVisual(v)}
+            onOpenPreview={onOpenPreview}
           />
         )}
 
@@ -1368,7 +1371,7 @@ export function VisualsPageView({
                       <BookmarkItemsView
                         items={siteItems}
                         mode={siteCfg.viewMode || "grid"}
-                        onOpenPreview={() => { }}
+                        onOpenPreview={onOpenPreview}
                       />
                     ) : plotCfg ? (
                       <ObservablePlotView

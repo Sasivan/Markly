@@ -24,6 +24,7 @@ interface CommandPaletteProps {
   onSelectFolder: (folderId: string | null) => void;
   onSelectView: (view: "home" | "all" | "collections" | "favorites" | "recent" | "unsorted" | "archive") => void;
   onOpenAddModal: (prefilledUrl?: string) => void;
+  onOpenSearchResults?: (query: string) => void;
 }
 
 export function CommandPalette({
@@ -34,6 +35,7 @@ export function CommandPalette({
   onSelectFolder,
   onSelectView,
   onOpenAddModal,
+  onOpenSearchResults,
 }: CommandPaletteProps) {
   const [search, setSearch] = React.useState("");
 
@@ -84,16 +86,21 @@ export function CommandPalette({
       />
 
       <div className="relative z-50 w-full max-w-xl rounded-lg border border-border bg-popover shadow-xl overflow-hidden text-popover-foreground">
-        <Command
-          className="w-full"
-          value={search}
-          onValueChange={setSearch}
-        >
+        <Command className="w-full">
           {/* Search Input */}
           <div className="flex items-center border-b border-border px-3.5">
             <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
             <Command.Input
-              placeholder="Search bookmarks, folders, or type a URL to add..."
+              value={search}
+              onValueChange={setSearch}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && search.trim()) {
+                  e.preventDefault();
+                  onOpenChange(false);
+                  onOpenSearchResults?.(search.trim());
+                }
+              }}
+              placeholder="Search bookmarks, folders, or press Enter to view all results..."
               className="w-full h-11 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
               autoFocus
             />
@@ -104,6 +111,25 @@ export function CommandPalette({
 
           {/* List Results */}
           <Command.List className="max-h-80 overflow-y-auto p-2 text-xs">
+            {search.trim() && (
+              <Command.Group heading="Reference Results">
+                <Command.Item
+                  onSelect={() => {
+                    onOpenChange(false);
+                    onOpenSearchResults?.(search.trim());
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-secondary cursor-pointer text-foreground font-medium"
+                >
+                  <Search className="h-4 w-4 text-primary shrink-0" />
+                  <span className="flex-1 truncate">
+                    Open full reference results for &quot;<strong className="text-primary">{search.trim()}</strong>&quot;
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+                    ↵ Enter
+                  </span>
+                </Command.Item>
+              </Command.Group>
+            )}
             <Command.Empty className="py-6 text-center text-muted-foreground">
               {search.startsWith("http") || search.includes(".") ? (
                 <div className="space-y-2">

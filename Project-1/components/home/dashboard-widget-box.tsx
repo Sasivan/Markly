@@ -1403,6 +1403,19 @@ export function BookmarkItemsView({
     ? items.slice(0, limit)
     : items.slice(0, adaptiveCount);
 
+  const handleItemClick = (bm: BookmarkWithDetails) => {
+    if (onOpenPreview) {
+      onOpenPreview(bm);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("markly-open-preview", { detail: bm }));
+    }
+    if (onEditBookmark) {
+      onEditBookmark(bm);
+    }
+  };
+
   if (displayItems.length === 0) {
     return (
       <div className="p-8 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
@@ -1419,7 +1432,7 @@ export function BookmarkItemsView({
         {displayItems.map((bm) => (
           <div
             key={bm.id}
-            onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+            onClick={() => handleItemClick(bm)}
             className="h-[52px] min-h-[52px] max-h-[52px] rounded-xl border border-border bg-card hover:bg-secondary/30 px-2.5 py-1.5 shadow-xs hover:border-border-hover transition-colors flex items-center justify-between gap-2 group cursor-pointer overflow-hidden"
           >
             <div className="flex items-center gap-2 truncate min-w-0">
@@ -1492,7 +1505,7 @@ export function BookmarkItemsView({
           return (
             <div
               key={bm.id}
-              onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+              onClick={() => handleItemClick(bm)}
               className="h-[42px] min-h-[42px] px-3.5 py-1.5 flex items-center justify-between gap-2.5 hover:bg-muted/40 transition-colors cursor-pointer group text-xs overflow-hidden"
             >
               <div className="flex items-center gap-2.5 min-w-0 truncate">
@@ -1575,7 +1588,7 @@ export function BookmarkItemsView({
             {displayItems.map((bm) => (
               <tr
                 key={bm.id}
-                onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+                onClick={() => handleItemClick(bm)}
                 className="hover:bg-muted/30 transition-colors cursor-pointer group"
               >
                 <td className="py-2 px-3 max-w-[260px] truncate">
@@ -1639,7 +1652,7 @@ export function BookmarkItemsView({
       {displayItems.map((bm) => (
         <div
           key={bm.id}
-          onClick={() => (onOpenPreview ? onOpenPreview(bm) : onEditBookmark?.(bm))}
+          onClick={() => handleItemClick(bm)}
           className="h-[34px] min-h-[34px] px-3.5 py-1 flex items-center justify-between gap-2.5 hover:bg-muted/30 transition-colors cursor-pointer group text-xs overflow-hidden"
         >
           <div className="flex items-center gap-2 truncate min-w-0">

@@ -35,6 +35,7 @@ import type {
 import { DEFAULT_VIZ_CONFIG, VIZ_PALETTE } from "@/lib/viz";
 import { VizChart } from "./viz-chart";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 
 export interface VizBuilderDialogProps {
   open: boolean;
@@ -222,7 +223,7 @@ export function VizBuilderDialog({
   const [activePreset, setActivePreset] = React.useState<string | null>(null);
 
   // Modal resizing
-  const { modalStyle, hasCustomSize, handleRestoreDefaults, startResize } = useResizableModal({
+  const { format, toggleFormat, modalStyle, hasCustomSize, handleRestoreDefaults, startResize } = useResizableModal({
     modalId: "viz_builder_dialog",
     defaultVerticalWidth: 720,
     defaultHorizontalWidth: 1040,
@@ -381,16 +382,12 @@ export function VizBuilderDialog({
               </div>
             </div>
 
-            {hasCustomSize && (
-              <button
-                type="button"
-                onClick={handleRestoreDefaults}
-                title="Restore default dialog dimensions"
-                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
 
           {/* Quick Preset Gallery */}
@@ -404,11 +401,10 @@ export function VizBuilderDialog({
                   key={preset.id}
                   type="button"
                   onClick={() => applyPreset(preset)}
-                  className={`px-2 py-1 rounded-md text-[11px] font-medium border cursor-pointer transition-colors flex items-center gap-1.5 ${
-                    activePreset === preset.id
-                      ? "bg-primary/10 border-primary text-primary"
-                      : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  }`}
+                  className={`px-2 py-1 rounded-md text-[11px] font-medium border cursor-pointer transition-colors flex items-center gap-1.5 ${activePreset === preset.id
+                    ? "bg-primary/10 border-primary text-primary"
+                    : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    }`}
                   title={preset.description}
                 >
                   <Sparkles className="h-3 w-3 text-primary shrink-0" />
@@ -468,11 +464,10 @@ export function VizBuilderDialog({
                       key={item.type}
                       type="button"
                       onClick={() => handleChartTypeSelect(item.type)}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border text-[11px] font-medium cursor-pointer transition-colors ${
-                        isSel
-                          ? "bg-primary text-primary-foreground border-primary shadow-2xs"
-                          : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
-                      }`}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border text-[11px] font-medium cursor-pointer transition-colors ${isSel
+                        ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                        : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        }`}
                     >
                       <Icon className="h-4 w-4 mb-0.5" />
                       <span>{item.label}</span>
@@ -708,11 +703,10 @@ export function VizBuilderDialog({
                       }))
                     }
                     style={{ backgroundColor: c }}
-                    className={`h-5 w-5 rounded-full transition-transform cursor-pointer flex items-center justify-center ${
-                      (config.displayOptions?.colorAccent || VIZ_PALETTE[0]) === c
-                        ? "ring-2 ring-foreground scale-110"
-                        : "hover:scale-105"
-                    }`}
+                    className={`h-5 w-5 rounded-full transition-transform cursor-pointer flex items-center justify-center ${(config.displayOptions?.colorAccent || VIZ_PALETTE[0]) === c
+                      ? "ring-2 ring-foreground scale-110"
+                      : "hover:scale-105"
+                      }`}
                   >
                     {(config.displayOptions?.colorAccent || VIZ_PALETTE[0]) === c && (
                       <Check className="h-2.5 w-2.5 text-white" />

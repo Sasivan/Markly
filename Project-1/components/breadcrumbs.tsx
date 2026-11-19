@@ -7,12 +7,12 @@ import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 
 interface BreadcrumbsProps {
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions";
+  activeView: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions" | "search";
   folders: Folder[];
   includeSubfolders: boolean;
   onToggleIncludeSubfolders: (val: boolean) => void;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions" | "search") => void;
   totalBookmarksCount: number;
   onOpenSearch?: () => void;
   onShareFolder?: (folder: Folder) => void;
@@ -141,6 +141,10 @@ export function Breadcrumbs({
               ) : activeView === "sessions" ? (
                 <>
                   <Layers className="h-3.5 w-3.5 text-blue-400" /> Tab Sessions & Stash
+                </>
+              ) : activeView === "search" ? (
+                <>
+                  <Search className="h-3.5 w-3.5 text-primary" /> Search Results
                 </>
               ) : (
                 <>

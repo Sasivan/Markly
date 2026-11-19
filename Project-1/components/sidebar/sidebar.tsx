@@ -50,11 +50,11 @@ interface SidebarProps {
   folderTree: FolderTreeNode[];
   folders: FolderType[];
   activeFolderId: string | null;
-  activeView: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions";
+  activeView: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions" | "search";
   totalBookmarksCount: number;
   unsortedCount?: number;
   onSelectFolder: (folderId: string | null, isParent?: boolean) => void;
-  onSelectView: (view: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions") => void;
+  onSelectView: (view: "home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions" | "search") => void;
   onRefreshData: () => void;
   onOpenSearch?: () => void;
   onOpenAddBookmarkToFolder?: (folderId: string) => void;

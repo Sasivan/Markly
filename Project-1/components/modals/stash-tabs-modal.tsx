@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 
@@ -165,29 +166,12 @@ export function StashTabsModal({ isOpen, onClose, onSuccess }: StashTabsModalPro
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              {/* Format Toggle (Vertical vs Horizontal) */}
-              <button
-                type="button"
-                onClick={() => toggleFormat(format === "horizontal" ? "vertical" : "horizontal")}
-                title={`Switch to ${format === "horizontal" ? "Vertical" : "Horizontal"} popup`}
-                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
-              >
-                <Columns3 className="h-3.5 w-3.5" />
-              </button>
-
-              {/* Restore Defaults Button */}
-              {hasCustomSize && (
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaults}
-                  title="Restore default popup size"
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
         </DialogHeader>
 

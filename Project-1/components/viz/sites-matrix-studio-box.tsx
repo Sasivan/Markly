@@ -53,6 +53,7 @@ export interface SitesMatrixStudioBoxProps {
     kind: "sites";
     siteConfig: any;
   }) => void;
+  onOpenPreview?: (bm: BookmarkWithDetails) => void;
 }
 
 export function SitesMatrixStudioBox({
@@ -66,6 +67,7 @@ export function SitesMatrixStudioBox({
   onDeleteWidget,
   onPinHome,
   onAddToFolder,
+  onOpenPreview,
 }: SitesMatrixStudioBoxProps) {
   const [activeCategory, setActiveCategory] = React.useState<"All" | "Layouts" | "Sources" | "Clustered">("All");
   const [variationType, setVariationType] = React.useState<SitesVariationType>("all_grid");
@@ -471,6 +473,7 @@ export function SitesMatrixStudioBox({
               items={targetBookmarks}
               mode={activeViewMode}
               limit={itemLimit}
+              onOpenPreview={onOpenPreview}
             />
           </div>
         </div>

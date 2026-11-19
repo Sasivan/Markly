@@ -36,6 +36,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 import { UniversalPresetHub } from "@/components/presets/universal-preset-hub";
 
 export type HomeWidgetKey =
@@ -110,7 +111,7 @@ export function HomeLayoutModal({
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
 
   // Adaptive Resizable Modal state with custom width & height persisted
-  const { modalStyle, hasCustomSize, handleRestoreDefaults, startResize } = useResizableModal({
+  const { format, toggleFormat, modalStyle, hasCustomSize, handleRestoreDefaults, startResize } = useResizableModal({
     modalId: "home_layout",
     defaultVerticalWidth: 640,
     defaultHorizontalWidth: 980,
@@ -422,16 +423,12 @@ export function HomeLayoutModal({
             </div>
 
             <div className="flex items-center gap-2">
-              {hasCustomSize && (
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaults}
-                  title="Restore default modal size"
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <ModalFormatControls
+                format={format}
+                onToggleFormat={toggleFormat}
+                hasCustomSize={hasCustomSize}
+                onRestoreDefaults={handleRestoreDefaults}
+              />
 
               <span className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-secondary border border-border hidden sm:inline-block">
                 {localWidgets.filter((w) => w.visible).length} / {localWidgets.length} visible

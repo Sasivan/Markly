@@ -21,6 +21,7 @@ interface UseResizableModalOptions {
   defaultHorizontalHeight?: number;
   minWidth?: number;
   minHeight?: number;
+  forceFixedDefaultHeight?: boolean;
 }
 
 export function useResizableModal({
@@ -31,17 +32,27 @@ export function useResizableModal({
   defaultHorizontalHeight = 540,
   minWidth = 380,
   minHeight = 320,
+  forceFixedDefaultHeight = false,
 }: UseResizableModalOptions) {
-  // 1. Format: vertical vs horizontal
+  // 1. Format: vertical vs horizontal (default wrt window auto)
   const [format, setFormat] = React.useState<"vertical" | "horizontal">(() => {
     if (typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem(`markly_modal_format_${modalId}`);
         if (stored === "vertical" || stored === "horizontal") return stored;
         return window.innerWidth >= 1024 ? "horizontal" : "vertical";
-      } catch {}
+      } catch { }
     }
     return "horizontal";
+  });
+
+  const [hasCustomFormat, setHasCustomFormat] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return Boolean(localStorage.getItem(`markly_modal_format_${modalId}`));
+      } catch { }
+    }
+    return false;
   });
 
   // 2. Custom dimensions stored in localStorage
@@ -53,7 +64,7 @@ export function useResizableModal({
           const parsed = parseInt(stored, 10);
           if (!isNaN(parsed) && parsed >= minWidth) return parsed;
         }
-      } catch {}
+      } catch { }
     }
     return null;
   });
@@ -66,7 +77,7 @@ export function useResizableModal({
           const parsed = parseInt(stored, 10);
           if (!isNaN(parsed) && parsed >= minHeight) return parsed;
         }
-      } catch {}
+      } catch { }
     }
     return null;
   });
@@ -74,19 +85,25 @@ export function useResizableModal({
   // Change format and persist
   const toggleFormat = (newFormat: "vertical" | "horizontal") => {
     setFormat(newFormat);
+    setHasCustomFormat(true);
     try {
       localStorage.setItem(`markly_modal_format_${modalId}`, newFormat);
-    } catch {}
+    } catch { }
   };
 
-  // Restore defaults
+  // Restore defaults wrt window auto
   const handleRestoreDefaults = () => {
     setCustomWidth(null);
     setCustomHeight(null);
+    setHasCustomFormat(false);
     try {
       localStorage.removeItem(`markly_modal_w_${modalId}`);
       localStorage.removeItem(`markly_modal_h_${modalId}`);
-    } catch {}
+      localStorage.removeItem(`markly_modal_format_${modalId}`);
+    } catch { }
+    if (typeof window !== "undefined") {
+      setFormat(window.innerWidth >= 1024 ? "horizontal" : "vertical");
+    }
   };
 
   // Drag Resizing State
@@ -172,7 +189,7 @@ export function useResizableModal({
         if (w !== null) {
           try {
             localStorage.setItem(`markly_modal_w_${modalId}`, String(w));
-          } catch {}
+          } catch { }
         }
         return w;
       });
@@ -180,7 +197,7 @@ export function useResizableModal({
         if (h !== null) {
           try {
             localStorage.setItem(`markly_modal_h_${modalId}`, String(h));
-          } catch {}
+          } catch { }
         }
         return h;
       });
@@ -196,12 +213,14 @@ export function useResizableModal({
 
   const modalStyle: React.CSSProperties = {
     width: typeof window !== "undefined" ? `min(${effectiveWidth}px, 94vw)` : `${effectiveWidth}px`,
-    height: typeof window !== "undefined" ? `min(${effectiveHeight}px, 90vh)` : `${effectiveHeight}px`,
+    ...(customHeight !== null || forceFixedDefaultHeight
+      ? { height: typeof window !== "undefined" ? `min(${effectiveHeight}px, 90vh)` : `${effectiveHeight}px` }
+      : {}),
     maxWidth: "94vw",
     maxHeight: "90vh",
   };
 
-  const hasCustomSize = customWidth !== null || customHeight !== null;
+  const hasCustomSize = customWidth !== null || customHeight !== null || hasCustomFormat;
 
   return {
     format,

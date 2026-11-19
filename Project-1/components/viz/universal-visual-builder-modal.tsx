@@ -43,6 +43,7 @@ import {
   Rows2,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 import type { BookmarkWithDetails, Folder as FolderType } from "@/server/db/schema";
 import type { WidgetColSpan } from "@/components/home/home-layout-modal";
 import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
@@ -1298,43 +1299,12 @@ export function UniversalVisualBuilderModal({
                 <span>{rowSpan === 2 ? "2x Tall (Bento)" : "1x Standard"}</span>
               </button>
 
-              {/* Restore size button */}
-              {hasCustomSize && (
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaults}
-                  title="Restore default modal size"
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-              )}
-
-              {/* Layout format toggle */}
-              <div className="flex items-center gap-0.5 bg-secondary/80 p-0.5 rounded-lg border border-border/60">
-                <button
-                  type="button"
-                  onClick={() => toggleModalFormat("vertical")}
-                  title="Vertical stacked layout"
-                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${modalFormat === "vertical"
-                    ? "bg-card text-foreground shadow-2xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  <Rows2 className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleModalFormat("horizontal")}
-                  title="Horizontal side-by-side layout"
-                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${modalFormat === "horizontal"
-                    ? "bg-card text-foreground shadow-2xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  <Columns2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <ModalFormatControls
+                format={modalFormat}
+                onToggleFormat={toggleModalFormat}
+                hasCustomSize={hasCustomSize}
+                onRestoreDefaults={handleRestoreDefaults}
+              />
             </div>
           </div>
 

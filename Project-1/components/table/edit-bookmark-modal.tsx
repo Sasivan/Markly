@@ -21,6 +21,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
 import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
 import { useAuth } from "@/components/auth/auth-context";
@@ -44,6 +45,8 @@ export function EditBookmarkModal({
   const { user } = useAuth();
 
   const {
+    format,
+    toggleFormat,
     modalStyle,
     hasCustomSize,
     handleRestoreDefaults,
@@ -236,16 +239,12 @@ export function EditBookmarkModal({
               </div>
             </div>
 
-            {hasCustomSize && (
-              <button
-                type="button"
-                onClick={handleRestoreDefaults}
-                title="Restore default modal size"
-                className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60 shrink-0"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
           </div>
         </DialogHeader>
 

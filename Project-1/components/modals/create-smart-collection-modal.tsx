@@ -15,6 +15,7 @@ import { UniversalColorPicker } from "@/components/ui/universal-color-picker";
 import { UniversalIconPicker } from "@/components/ui/universal-icon-picker";
 import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
 
 interface CreateSmartCollectionModalProps {
   isOpen: boolean;
@@ -184,47 +185,13 @@ export function CreateSmartCollectionModal({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0 ml-3">
-              {/* Restore size button */}
-              {hasCustomSize && (
-                <button
-                  type="button"
-                  onClick={handleRestoreDefaults}
-                  title="Restore default modal size"
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer transition-colors border border-border/60"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-              )}
-
-              {/* Layout format toggle button */}
-              <div className="flex items-center bg-secondary/80 p-0.5 rounded-lg border border-border text-[11px] font-medium">
-                <button
-                  type="button"
-                  onClick={() => toggleModalFormat("vertical")}
-                  title="Vertical stacked layout"
-                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                    modalFormat === "vertical"
-                      ? "bg-card text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Rows2 className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggleModalFormat("horizontal")}
-                  title="Horizontal side-by-side layout"
-                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                    modalFormat === "horizontal"
-                      ? "bg-card text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Columns2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            <ModalFormatControls
+              format={modalFormat}
+              onToggleFormat={toggleModalFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+              className="ml-3"
+            />
           </div>
         </DialogHeader>
 

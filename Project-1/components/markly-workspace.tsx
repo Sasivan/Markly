@@ -49,6 +49,7 @@ import { SharedLinksView } from "@/components/shared/shared-links-view";
 import { SmartCollectionsView } from "@/components/collections/smart-collections-view";
 import { SessionsView } from "@/components/sessions/sessions-view";
 import { VisualsPageView } from "@/components/viz/visuals-page-view";
+import { SearchResultsView } from "@/components/search/search-results-view";
 import { useAuth } from "@/components/auth/auth-context";
 import type { Folder as FolderType, FolderTreeNode, BookmarkWithDetails } from "@/server/db/schema";
 
@@ -141,7 +142,7 @@ export function MarklyWorkspace({
 
   // Active filter state directly matching SSR state to eliminate home page glimpse on refresh!
   const [activeFolderId, setActiveFolderId] = React.useState<string | null>(initialFolderId);
-  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions">(
+  const [activeView, setActiveView] = React.useState<"home" | "all" | "collections" | "visuals" | "favorites" | "recent" | "unsorted" | "archive" | "trash" | "graph" | "insights" | "database" | "profile" | "feedback" | "shared" | "smart-collections" | "sessions" | "search">(
     initialFolderId ? "all" : (initialView || "home")
   );
   const [activeDomain, setActiveDomain] = React.useState<string | null>(null);
@@ -212,6 +213,33 @@ export function MarklyWorkspace({
 
   // Universal Notion-Style Site Peek / Preview Modal state
   const [sitePreviewBookmark, setSitePreviewBookmark] = React.useState<BookmarkWithDetails | null>(null);
+
+  // Dedicated Search Reference Results Studio with Presets State
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [activeSearchSnapshot, setActiveSearchSnapshot] = React.useState<any>(null);
+
+  const handleOpenSearchResults = React.useCallback((q: string, snapshot?: any) => {
+    setSearchQuery(q || "");
+    setActiveSearchSnapshot(snapshot || null);
+    setActiveView("search" as any);
+    setActiveFolderId(null);
+    setActiveDomain(null);
+    setActiveDomainFilter(null);
+    setActiveTagFilter(null);
+  }, []);
+
+  // Universal event listener for opening site peeks from anywhere in the application
+  React.useEffect(() => {
+    const handleOpenPreview = (e: any) => {
+      if (e.detail) {
+        setSitePreviewBookmark(e.detail);
+      }
+    };
+    window.addEventListener("markly-open-preview", handleOpenPreview as EventListener);
+    return () => {
+      window.removeEventListener("markly-open-preview", handleOpenPreview as EventListener);
+    };
+  }, []);
 
   // Keyboard Shortcuts Cheatsheet modal state
   const [shortcutsModalOpen, setShortcutsModalOpen] = React.useState(false);
@@ -1187,6 +1215,7 @@ export function MarklyWorkspace({
         onOpenChange={setCommandPaletteOpen}
         folders={folders}
         bookmarks={bookmarks}
+        onOpenSearchResults={handleOpenSearchResults}
         onSelectFolder={(id) => {
           setActiveFolderId(id);
           setActiveView("all");
@@ -1661,6 +1690,7 @@ export function MarklyWorkspace({
             <VisualsPageView
               bookmarks={bookmarks}
               folders={folders}
+              onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
               onSelectDomain={(domain) => {
                 setActiveDomainFilter(domain);
                 setActiveView("all");
@@ -1738,6 +1768,23 @@ export function MarklyWorkspace({
                 setActiveView("all");
               }}
               onOpenStashModal={() => setStashTabsOpen(true)}
+            />
+          ) : activeView === "search" ? (
+            /* Dedicated Search Reference Results Studio with Presets */
+            <SearchResultsView
+              query={searchQuery}
+              bookmarks={bookmarks}
+              folders={folders}
+              initialSnapshot={activeSearchSnapshot}
+              onOpenPreview={(bm) => setSitePreviewBookmark(bm)}
+              onSelectFolder={(fid) => {
+                setActiveFolderId(fid);
+                setActiveView("all");
+              }}
+              onNavigateHome={() => {
+                setActiveFolderId(null);
+                setActiveView("home");
+              }}
             />
           ) : (
             <>

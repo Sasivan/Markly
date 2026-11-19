@@ -2394,14 +2394,21 @@ function getDomainGradient(str: string): string {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={
-                          bm.imageUrl ||
-                          `https://api.microlink.io/?url=${encodeURIComponent(bm.url)}&screenshot=true&meta=false&embed=screenshot.url`
+                          bm.imageUrl && !bm.imageUrl.includes("avatar-")
+                            ? bm.imageUrl
+                            : `https://s0.wp.com/mshots/v1/${encodeURIComponent(bm.url)}?w=800`
                         }
                         alt={bm.title}
                         loading="lazy"
                         className="w-full h-full object-cover object-top relative z-10"
                         onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = "none";
+                          const target = e.currentTarget as HTMLImageElement;
+                          if (!target.dataset.fallbackTried) {
+                            target.dataset.fallbackTried = "true";
+                            target.src = `https://api.microlink.io/?url=${encodeURIComponent(bm.url)}&screenshot=true&meta=false&embed=screenshot.url`;
+                          } else {
+                            target.style.display = "none";
+                          }
                         }}
                       />
                       <div

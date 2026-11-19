@@ -2411,6 +2411,7 @@ export function WorkspaceHome({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName="Dashboard Home"
+        destinationType="home"
       />
 
       {/* Universal Preset & Layout Hub */}

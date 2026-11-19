@@ -597,26 +597,6 @@ export function Sidebar({
             <Compass className="h-4 w-4" />
           </button>
 
-          {/* 1.1 Unsorted / Inbox */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectFolder(null);
-              onSelectView("unsorted");
-            }}
-            title={`Unsorted / Inbox (${unsortedCount ?? 0})`}
-            className={`h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors relative ${
-              activeView === "unsorted" && !activeFolderId
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            <Inbox className="h-4 w-4 text-amber-500/90" />
-            {unsortedCount !== undefined && unsortedCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
-            )}
-          </button>
-
           {/* 2. Quick Search in Minimized Rail */}
           <button
             type="button"

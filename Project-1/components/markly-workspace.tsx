@@ -642,15 +642,12 @@ export function MarklyWorkspace({
   React.useEffect(() => {
     const handleExecuteSearch = (e: any) => {
       const query = e.detail?.query ?? "";
-      setGlobalSearch(query);
-      setActiveView("all");
-      setActiveFolderId(null);
-      setActiveTagFilter(null);
-      setActiveDomainFilter(null);
+      const snapshot = e.detail?.snapshot || e.detail;
+      handleOpenSearchResults(query, snapshot);
     };
     window.addEventListener("markly-execute-search", handleExecuteSearch);
     return () => window.removeEventListener("markly-execute-search", handleExecuteSearch);
-  }, []);
+  }, [handleOpenSearchResults]);
 
   const handleBookmarkAdded = (newBookmark: BookmarkWithDetails) => {
     setBookmarks((prev) => [newBookmark, ...prev]);

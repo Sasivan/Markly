@@ -539,8 +539,52 @@ export function VisualsPageView({
         setHiddenStudioUnits((prev) => prev.filter((id) => id !== e.detail.id));
       }
     };
+
+    const handleVisualsPresetApplied = (e: any) => {
+      const data = e.detail;
+      const hidden = data?.hiddenStudioUnits ?? [];
+      setHiddenStudioUnits(hidden);
+      if (data?.studioColSpans) {
+        setStudioColSpans((prev) => ({ ...prev, ...data.studioColSpans }));
+      }
+    };
+
+    const handleWorkspaceUpdated = () => {
+      try {
+        const stored = localStorage.getItem("markly_hidden_visual_studio_units");
+        setHiddenStudioUnits(stored ? JSON.parse(stored) : []);
+
+        const keys = [
+          "studio_observable_plot",
+          "studio_classic_charts",
+          "studio_intel_systems",
+          "studio_sites_matrix",
+          "studio_folder_tree",
+          "studio_knowledge_graph",
+        ];
+        const res: Record<string, WidgetColSpan> = {};
+        for (const k of keys) {
+          const val = localStorage.getItem("markly_box_colspan_" + k);
+          if (val && [2, 3, 4, 6, 8, 9, 12].includes(Number(val))) {
+            res[k] = Number(val) as WidgetColSpan;
+          }
+        }
+        if (Object.keys(res).length > 0) {
+          setStudioColSpans((prev) => ({ ...prev, ...res }));
+        }
+      } catch {}
+    };
+
     window.addEventListener("markly-unhide-studio-unit", handleUnhide);
-    return () => window.removeEventListener("markly-unhide-studio-unit", handleUnhide);
+    window.addEventListener("markly-visuals-preset-applied", handleVisualsPresetApplied);
+    window.addEventListener("markly-workspace-updated", handleWorkspaceUpdated);
+    window.addEventListener("storage", handleWorkspaceUpdated);
+    return () => {
+      window.removeEventListener("markly-unhide-studio-unit", handleUnhide);
+      window.removeEventListener("markly-visuals-preset-applied", handleVisualsPresetApplied);
+      window.removeEventListener("markly-workspace-updated", handleWorkspaceUpdated);
+      window.removeEventListener("storage", handleWorkspaceUpdated);
+    };
   }, []);
 
   // Pin ANY visual to Homepage Dashboard
@@ -1690,6 +1734,7 @@ export function VisualsPageView({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName="Visuals Studio Page"
+        destinationType="visuals"
       />
 
       {/* Universal Preset & Layout Hub */}

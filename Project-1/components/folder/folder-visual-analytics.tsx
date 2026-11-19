@@ -1476,6 +1476,8 @@ export function FolderVisualAnalytics({
         folders={folders}
         onSave={handleSaveUniversalVisual}
         destinationName={folderName}
+        destinationType={isCustomScope ? "folder" : "universal_folders"}
+        currentFolderId={folderId}
       />
 
       {/* Universal Preset & Layout Hub */}

@@ -279,6 +279,8 @@ export interface UniversalVisualBuilderModalProps {
   folders: FolderType[];
   onSave: (config: UniversalVisualConfig) => void;
   destinationName?: string;
+  destinationType?: "home" | "visuals" | "folder" | "universal_folders";
+  currentFolderId?: string | null;
 }
 
 export function UniversalVisualBuilderModal({
@@ -289,6 +291,8 @@ export function UniversalVisualBuilderModal({
   folders,
   onSave,
   destinationName = "current view",
+  destinationType,
+  currentFolderId,
 }: UniversalVisualBuilderModalProps) {
   // Category tab
   const [activeTab, setActiveTab] = React.useState<VisualCategory>(() => {
@@ -320,30 +324,45 @@ export function UniversalVisualBuilderModal({
     minHeight: 420,
   });
 
+  // Resolve initial destination based on caller's context and constraints
+  const resolveInitialDestination = React.useCallback((): string => {
+    if (destinationType === "folder" && currentFolderId) return `folder:${currentFolderId}`;
+    if (destinationType === "universal_folders") return "universal_folders";
+    if (destinationType === "visuals") return "visuals";
+    if (destinationType === "home") return "home";
+
+    if (currentFolderId) return `folder:${currentFolderId}`;
+    const dLower = (destinationName || "").toLowerCase();
+    if (dLower.includes("home")) return "home";
+    if (dLower.includes("visual")) return "visuals";
+    if (dLower.includes("universal")) return "universal_folders";
+    const matchedFolder = folders.find((f) => f.name.toLowerCase() === dLower || f.id === destinationName);
+    if (matchedFolder) return `folder:${matchedFolder.id}`;
+    return "home";
+  }, [destinationType, currentFolderId, destinationName, folders]);
+
   // Target Destination Selector State (defaulted to caller's context)
-  const [targetDestination, setTargetDestination] = React.useState<string>(() => {
-    if (destinationName?.toLowerCase().includes("home")) return "home";
-    if (destinationName?.toLowerCase().includes("visual")) return "visuals";
-    if (destinationName?.toLowerCase().includes("universal")) return "universal_folders";
-    return destinationName || "home";
-  });
+  const [targetDestination, setTargetDestination] = React.useState<string>(resolveInitialDestination);
 
   React.useEffect(() => {
     if (open) {
-      if (destinationName?.toLowerCase().includes("home")) setTargetDestination("home");
-      else if (destinationName?.toLowerCase().includes("visual")) setTargetDestination("visuals");
-      else if (destinationName?.toLowerCase().includes("universal")) setTargetDestination("universal_folders");
-      else setTargetDestination(destinationName || "home");
+      setTargetDestination(resolveInitialDestination());
     }
-  }, [open, destinationName]);
+  }, [open, resolveInitialDestination]);
 
   // 1. Site Box State
   const [siteSource, setSiteSource] = React.useState<"all" | "favorites" | "recent" | "unsorted" | "folder" | "tag">(
-    initialConfig?.siteConfig?.source || "all"
+    initialConfig?.siteConfig?.source || (currentFolderId ? "folder" : "all")
   );
   const [selectedFolderId, setSelectedFolderId] = React.useState<string>(
-    initialConfig?.siteConfig?.folderId || (folders[0]?.id || "")
+    initialConfig?.siteConfig?.folderId || currentFolderId || (folders[0]?.id || "")
   );
+
+  React.useEffect(() => {
+    if (open && currentFolderId) {
+      setSelectedFolderId(currentFolderId);
+    }
+  }, [open, currentFolderId]);
   const [selectedTag, setSelectedTag] = React.useState<string>(
     initialConfig?.siteConfig?.tag || ""
   );
@@ -739,8 +758,23 @@ export function UniversalVisualBuilderModal({
           };
 
           updateFolderTabs(`markly_folder_tabs_${folderId}`);
-          updateFolderTabs("markly_universal_folder_tabs");
+          window.dispatchEvent(
+            new CustomEvent("markly-folder-tabs-updated", {
+              detail: { folderId, scope: "custom" },
+            })
+          );
           window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
+          window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+        } else if (targetDestination === "visuals") {
+          try {
+            const hidden = localStorage.getItem("markly_hidden_visual_studio_units");
+            if (hidden) {
+              const list = JSON.parse(hidden).filter((i: string) => i !== targetId && i !== config.id);
+              localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(list));
+            }
+          } catch {}
+          window.dispatchEvent(new CustomEvent("markly-unhide-studio-unit", { detail: { id: targetId } }));
+          window.dispatchEvent(new CustomEvent("markly-visuals-preset-applied", { detail: { unhiddenId: targetId } }));
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         }
       } catch (err) {

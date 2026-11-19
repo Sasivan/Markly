@@ -387,7 +387,21 @@ export function AppHeader({
       </div>
 
       {/* Universal Preset Hub Modal */}
-      <UniversalPresetHub open={presetHubOpen} onOpenChange={setPresetHubOpen} />
+      <UniversalPresetHub
+        open={presetHubOpen}
+        onOpenChange={setPresetHubOpen}
+        activeCategory={
+          activeFolder
+            ? "folder"
+            : activeView === "visuals"
+            ? "visuals"
+            : activeView === "search"
+            ? "search"
+            : "home"
+        }
+        currentFolderId={activeFolder?.id}
+        folderName={activeFolder?.name}
+      />
     </header>
   );
 }

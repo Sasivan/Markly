@@ -227,6 +227,40 @@ const DEFAULT_SEARCH_PRESETS: UniversalPresetItem[] = [
   },
 ];
 
+// Built-in starter presets for Visuals Studio Page
+const DEFAULT_VISUALS_PRESETS: UniversalPresetItem[] = [
+  {
+    id: "preset_visuals_full",
+    name: "Full Analytics & Studios Suite",
+    description: "Complete studio lineup: Observable Plot, Classic Charts, Intelligence Systems, Sites Matrix, and Folder Tree.",
+    category: "visuals",
+    createdAt: 1700000000000,
+    data: {
+      hiddenStudioUnits: [],
+    },
+  },
+  {
+    id: "preset_visuals_charts",
+    name: "Pure Data & Charts Focus",
+    description: "Focus purely on quantitative metrics: Observable Plot and Classic Charts layered variations.",
+    category: "visuals",
+    createdAt: 1700000001000,
+    data: {
+      hiddenStudioUnits: ["studio_intel_systems", "studio_knowledge_graph"],
+    },
+  },
+  {
+    id: "preset_visuals_hierarchy",
+    name: "Intelligence & Tree Structure",
+    description: "Hierarchy and relations focused: Folder Collections Tree, Obsidian Knowledge Graph, and Matrix.",
+    category: "visuals",
+    createdAt: 1700000002000,
+    data: {
+      hiddenStudioUnits: ["studio_classic_charts"],
+    },
+  },
+];
+
 // Built-in starter presets for Individual Boxes (Universal reusable units)
 const DEFAULT_BOX_PRESETS: UniversalPresetItem[] = [
   {
@@ -360,6 +394,23 @@ export function UniversalPresetHub({
   // Box preset destination selector
   const [boxTargetPlacement, setBoxTargetPlacement] = React.useState<string>("home");
 
+  // Keep active category and default placement synchronized with calling page surface
+  React.useEffect(() => {
+    if (open) {
+      setActiveTab(initialCategory);
+      if (initialCategory === "folder") {
+        setFolderScope(isFolderCustomScope ? "custom" : "universal");
+        setBoxTargetPlacement(currentFolderId ? "current_folder" : "universal_folders");
+      } else if (initialCategory === "visuals") {
+        setBoxTargetPlacement("visuals");
+      } else if (initialCategory === "home") {
+        setBoxTargetPlacement("home");
+      } else if (initialCategory === "search") {
+        setBoxTargetPlacement("home");
+      }
+    }
+  }, [open, initialCategory, currentFolderId, isFolderCustomScope]);
+
   // Available folder tabs computed dynamically from props or local storage fallback
   const availableTargetTabs = React.useMemo(() => {
     if (folderTabs && folderTabs.length > 0) return folderTabs;
@@ -443,6 +494,7 @@ export function UniversalPresetHub({
       ...DEFAULT_FOLDER_PRESETS,
       ...DEFAULT_BOX_PRESETS,
       ...DEFAULT_SEARCH_PRESETS,
+      ...DEFAULT_VISUALS_PRESETS,
     ];
     try {
       const stored = localStorage.getItem("markly_universal_presets_hub");
@@ -559,10 +611,26 @@ export function UniversalPresetHub({
       } else if (activeTab === "visuals") {
         try {
           const hidden = localStorage.getItem("markly_hidden_visual_studio_units");
-          payload = { hiddenStudioUnits: hidden ? JSON.parse(hidden) : [] };
+          const keys = [
+            "studio_observable_plot",
+            "studio_classic_charts",
+            "studio_intel_systems",
+            "studio_sites_matrix",
+            "studio_folder_tree",
+            "studio_knowledge_graph",
+          ];
+          const colSpans: Record<string, number> = {};
+          for (const k of keys) {
+            const val = localStorage.getItem("markly_box_colspan_" + k);
+            if (val) colSpans[k] = Number(val);
+          }
+          payload = {
+            hiddenStudioUnits: hidden ? JSON.parse(hidden) : [],
+            studioColSpans: colSpans,
+          };
         } catch {}
       } else if (activeTab === "search") {
-        const input = document.getElementById("markly-home-search-input") as HTMLInputElement;
+        const input = (document.getElementById("markly-home-search-input") || document.querySelector("input[placeholder*='Search']")) as HTMLInputElement;
         payload = { query: searchQueryInput.trim() || input?.value || newPresetName.trim() };
       } else if (activeTab === "box") {
         payload = {
@@ -691,19 +759,27 @@ export function UniversalPresetHub({
         showStatus(`Restored standard folder defaults!`);
       }
     } else if (preset.category === "visuals") {
-      if (preset.data?.hiddenStudioUnits) {
-        localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(preset.data.hiddenStudioUnits));
-      } else {
-        localStorage.removeItem("markly_hidden_visual_studio_units");
+      const hidden = preset.data?.hiddenStudioUnits || [];
+      localStorage.setItem("markly_hidden_visual_studio_units", JSON.stringify(hidden));
+      if (preset.data?.studioColSpans) {
+        Object.entries(preset.data.studioColSpans).forEach(([k, v]) => {
+          localStorage.setItem("markly_box_colspan_" + k, String(v));
+        });
       }
+      window.dispatchEvent(new CustomEvent("markly-visuals-preset-applied", { detail: preset.data || { hiddenStudioUnits: hidden } }));
       window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
       showStatus(`Applied Visuals studio setup: "${preset.name}"!`);
     } else if (preset.category === "search") {
-      if (preset.data?.query) {
-        onRunSearch?.(preset.data.query);
-        window.dispatchEvent(new CustomEvent("markly-execute-search", { detail: { query: preset.data.query } }));
-        onOpenChange(false);
-      }
+      const query = preset.data?.query || "";
+      const snapshot = preset.data?.snapshot || preset.data;
+      onRunSearch?.(query);
+      window.dispatchEvent(
+        new CustomEvent("markly-execute-search", {
+          detail: { query, snapshot, ...preset.data },
+        })
+      );
+      onOpenChange(false);
+      showStatus(`Applied search preset: "${preset.name}"!`);
     } else if (preset.category === "box") {
       handleInsertBoxPreset(preset, boxTargetPlacement);
     }

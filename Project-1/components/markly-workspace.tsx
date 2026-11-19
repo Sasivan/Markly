@@ -1447,6 +1447,7 @@ export function MarklyWorkspace({
           onOpenChromeExtension={() => setChromeExtensionOpen(true)}
           onOpenStashTabs={() => setStashTabsOpen(true)}
           onOpenSearch={() => setCommandPaletteOpen(true)}
+          onOpenSearchResults={handleOpenSearchResults}
           onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
           onOpenShortcuts={() => setShortcutsModalOpen(true)}
           onOpenProfile={() => {

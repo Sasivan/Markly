@@ -33,6 +33,7 @@ interface AppHeaderProps {
   onOpenChromeExtension?: () => void;
   onOpenStashTabs?: () => void;
   onOpenSearch?: () => void;
+  onOpenSearchResults?: (query: string, snapshot?: any) => void;
   onOpenApiKeyModal?: () => void;
   onOpenProfile?: () => void;
   onNavigateHome?: () => void;
@@ -49,6 +50,7 @@ export function AppHeader({
   onOpenChromeExtension,
   onOpenStashTabs,
   onOpenSearch,
+  onOpenSearchResults,
   onOpenApiKeyModal,
   onOpenProfile,
   onNavigateHome,
@@ -401,6 +403,7 @@ export function AppHeader({
         }
         currentFolderId={activeFolder?.id}
         folderName={activeFolder?.name}
+        onRunSearch={(q, s) => onOpenSearchResults?.(q, s)}
       />
     </header>
   );

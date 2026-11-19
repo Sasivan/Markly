@@ -1514,7 +1514,7 @@ export function WorkspaceHome({
                 />
               </div>
             ) : vKind === "graph" || intelCfg?.type === "graph" ? (
-              <div className="w-full h-full min-h-[300px] flex-1 rounded-lg overflow-hidden border border-border">
+              <div className="w-full h-full min-h-[380px] flex-1 rounded-lg overflow-hidden border border-border">
                 <KnowledgeGraph
                   mode={widget.vizConfig?.intelConfig?.folderId || intelCfg?.folderId ? "folder" : "global"}
                   folderId={widget.vizConfig?.intelConfig?.folderId || intelCfg?.folderId}

@@ -66,6 +66,8 @@ interface DashboardWidgetBoxProps {
   icon: React.ReactNode;
   badgeText?: string | number;
   tabRef?: "T1" | "T2" | "T3" | "T4" | string;
+  isPinned?: boolean;
+  onPinToggle?: (pinned: boolean) => void;
   span?: "1" | "2";
   colSpan?: WidgetColSpan;
   initialColSpan?: WidgetColSpan;
@@ -103,6 +105,8 @@ export function DashboardWidgetBox({
   icon,
   badgeText,
   tabRef,
+  isPinned: propsIsPinned,
+  onPinToggle,
   span = "1",
   colSpan,
   initialColSpan,
@@ -226,7 +230,50 @@ export function DashboardWidgetBox({
     }
   }, [rowSpan, hasCustomDimensions]);
 
+  // Box Pinning: When pinned, user cannot change format or resize, but can delete and use presets
+  const [isPinned, setIsPinned] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("markly_box_pinned_" + id);
+        if (stored !== null) return stored === "true";
+      } catch {}
+    }
+    return Boolean(propsIsPinned);
+  });
+
+  React.useEffect(() => {
+    if (propsIsPinned !== undefined) {
+      setIsPinned(propsIsPinned);
+    }
+  }, [propsIsPinned]);
+
+  const handleTogglePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = !isPinned;
+    setIsPinned(next);
+    onPinToggle?.(next);
+    try {
+      localStorage.setItem("markly_box_pinned_" + id, String(next));
+    } catch {}
+  };
+
+  // Hover details state for box title
+  const [isTitleHovered, setIsTitleHovered] = React.useState(false);
+  const hoverTimeoutRef = React.useRef<any>(null);
+
+  const handleTitleMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsTitleHovered(true);
+  };
+
+  const handleTitleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsTitleHovered(false);
+    }, 250);
+  };
+
   const toggleRowSpan = () => {
+    if (isPinned) return;
     const next: 1 | 2 = rowSpanState === 1 ? 2 : 1;
     setRowSpanState(next);
     setHasCustomDimensions(true);
@@ -417,6 +464,7 @@ export function DashboardWidgetBox({
       direction: "width" | "height" | "both" | "e" | "w" | "s" | "n" | "se" | "sw" | "ne" | "nw",
       startEvent: React.MouseEvent
     ) => {
+      if (isPinned) return;
       startEvent.preventDefault();
       startEvent.stopPropagation();
       setIsResizing(direction);
@@ -568,6 +616,7 @@ export function DashboardWidgetBox({
   };
 
   const handleCycleColSpan = () => {
+    if (isPinned) return;
     const cycleOrder: WidgetColSpan[] = [12, 6, 4, 3];
     const currentIdx = cycleOrder.indexOf(colSpanState);
     const nextSpan = currentIdx !== -1 && currentIdx < cycleOrder.length - 1 ? cycleOrder[currentIdx + 1] : cycleOrder[0];
@@ -679,6 +728,21 @@ export function DashboardWidgetBox({
     return null;
   }, [tabRef, id, title, badgeText]);
 
+  const resolvedTabCategoryName = React.useMemo(() => {
+    switch (resolvedTabRef) {
+      case "T1":
+        return "T1: Sites Reference Matrix";
+      case "T2":
+        return "T2: ObservableHQ Plot Graphics";
+      case "T3":
+        return "T3: Classic Charts Studio";
+      case "T4":
+        return "T4: Workspace Intelligence Systems";
+      default:
+        return "Universal Visual Studio";
+    }
+  }, [resolvedTabRef]);
+
   return (
     <div
       ref={boxRef}
@@ -714,10 +778,14 @@ export function DashboardWidgetBox({
             )}
           </button>
           <div
-            draggable={!isResizing}
-            onDragStart={onDragStart}
-            className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-0.5 rounded hover:bg-secondary transition-colors"
-            title="Drag to place section anywhere in N rows / N cols"
+            draggable={!isResizing && !isPinned}
+            onDragStart={isPinned ? undefined : onDragStart}
+            className={`p-0.5 rounded transition-colors ${
+              isPinned
+                ? "text-muted-foreground/20 cursor-not-allowed"
+                : "cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground hover:bg-secondary"
+            }`}
+            title={isPinned ? "Box is pinned: unpin to reorder" : "Drag to place section anywhere in N rows / N cols"}
           >
             <GripVertical className="h-3.5 w-3.5" />
           </div>
@@ -725,37 +793,24 @@ export function DashboardWidgetBox({
             {icon}
           </div>
           <div
-            className="flex items-center gap-1.5 truncate cursor-pointer select-text"
+            className="relative flex items-center gap-1.5 truncate cursor-pointer select-text group/title"
             onClick={toggleCollapsed}
+            onMouseEnter={handleTitleMouseEnter}
+            onMouseLeave={handleTitleMouseLeave}
           >
-            {resolvedTabRef && (
-              <span
-                className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border shadow-2xs tracking-wider shrink-0 select-none ${
-                  resolvedTabRef === "T1"
-                    ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
-                    : resolvedTabRef === "T2"
-                    ? "bg-cyan-500/15 text-cyan-500 border-cyan-500/30"
-                    : resolvedTabRef === "T3"
-                    ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
-                    : "bg-purple-500/15 text-purple-500 border-purple-500/30"
-                }`}
-                title={
-                  resolvedTabRef === "T1"
-                    ? "T1: Sites Reference Matrix (Tab 1)"
-                    : resolvedTabRef === "T2"
-                    ? "T2: Observable Plot Layered Graphics (Tab 2)"
-                    : resolvedTabRef === "T3"
-                    ? "T3: Classic Charts Studio (Tab 3)"
-                    : "T4: Workspace Intelligence Systems (Tab 4)"
-                }
-              >
-                {resolvedTabRef}
-              </span>
-            )}
-            <h2 className="text-xs font-semibold text-foreground truncate">{title}</h2>
+            <h2 className="text-xs font-semibold text-foreground truncate group-hover/title:text-primary transition-colors">{title}</h2>
             {badgeText !== undefined && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border/60 tabular-nums">
                 {badgeText}
+              </span>
+            )}
+            {isPinned && (
+              <span
+                className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30 font-semibold flex items-center gap-1 shrink-0"
+                title="Pinned: resizing and format changes locked"
+              >
+                <Pin className="h-2.5 w-2.5 fill-amber-500" />
+                <span>Pinned</span>
               </span>
             )}
             {customDefaultSavedToast && (
@@ -764,12 +819,173 @@ export function DashboardWidgetBox({
                 <span>Default Saved</span>
               </span>
             )}
+
+            {/* Hover Details Popover Card: Displays Tn, configured constraints, and Add Visuals sync */}
+            {isTitleHovered && (
+              <div
+                className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-border bg-card/95 backdrop-blur-md p-3 shadow-2xl z-50 text-xs text-foreground animate-in fade-in zoom-in-95 pointer-events-auto select-none"
+                onClick={(e) => e.stopPropagation()}
+                onMouseEnter={handleTitleMouseEnter}
+                onMouseLeave={handleTitleMouseLeave}
+              >
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {resolvedTabRef && (
+                      <span
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border tracking-wider shrink-0 ${
+                          resolvedTabRef === "T1"
+                            ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                            : resolvedTabRef === "T2"
+                            ? "bg-cyan-500/15 text-cyan-500 border-cyan-500/30"
+                            : resolvedTabRef === "T3"
+                            ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
+                            : "bg-purple-500/15 text-purple-500 border-purple-500/30"
+                        }`}
+                      >
+                        {resolvedTabRef}
+                      </span>
+                    )}
+                    <span className="font-semibold text-xs text-foreground truncate">{title}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                    {resolvedTabRef === "T1"
+                      ? "Sites Reference"
+                      : resolvedTabRef === "T2"
+                      ? "Observable Plot"
+                      : resolvedTabRef === "T3"
+                      ? "Classic Charts"
+                      : "Intelligence"}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Category Studio:</span>
+                    <span className="font-mono text-foreground font-medium">{resolvedTabCategoryName}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Column Width:</span>
+                    <span className="font-mono text-foreground">{colSpanState}/12 cols ({spanLabel})</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Box Height:</span>
+                    <span className="font-mono text-foreground">
+                      {boxHeight ? `${boxHeight}px custom` : rowSpanState === 2 ? "2x Bento Tall" : "1x Standard"}
+                    </span>
+                  </div>
+                  {activeLimit && (
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Item Limit:</span>
+                      <span className="font-mono text-foreground">
+                        {activeLimit === "auto" ? "Adaptive Auto-Fit" : activeLimit === "all" ? "All Sites" : `${activeLimit} sites`}
+                      </span>
+                    </div>
+                  )}
+                  {viewMode && (
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>View Format:</span>
+                      <span className="font-mono text-foreground capitalize">{viewMode}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsTitleHovered(false);
+                      window.dispatchEvent(
+                        new CustomEvent("markly-open-visual-builder", {
+                          detail: {
+                            activeCategory:
+                              resolvedTabRef === "T1"
+                                ? "sites"
+                                : resolvedTabRef === "T2"
+                                ? "plot"
+                                : resolvedTabRef === "T3"
+                                ? "chart"
+                                : "intel",
+                            widgetId: id,
+                            editConfig: widgetConfig,
+                          },
+                        })
+                      );
+                    }}
+                    className="flex-1 py-1 px-2 rounded-md bg-secondary hover:bg-secondary/80 text-[10px] font-semibold text-foreground flex items-center justify-center gap-1 cursor-pointer transition-colors border border-border/60"
+                  >
+                    <Sparkles className="h-2.5 w-2.5 text-primary" />
+                    <span>Edit in Add Visuals</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsTitleHovered(false);
+                      const baseConfig = widgetConfig || {};
+                      window.dispatchEvent(
+                        new CustomEvent("markly-open-save-preset-dialog", {
+                          detail: {
+                            name: title,
+                            category: "box",
+                            sourceLocation: `Visual Box: ${title}`,
+                            data: {
+                              ...baseConfig,
+                              id,
+                              title,
+                              colSpan: colSpanState,
+                              rowSpan: rowSpanState,
+                              boxHeight,
+                              itemLimit: activeLimit,
+                              viewMode: viewMode || baseConfig.viewMode,
+                              tabRef: resolvedTabRef,
+                              category:
+                                baseConfig.category ||
+                                (resolvedTabRef === "T1"
+                                  ? "sites_studio"
+                                  : resolvedTabRef === "T2"
+                                  ? "plot_studio"
+                                  : resolvedTabRef === "T3"
+                                  ? "chart_studio"
+                                  : "intel_studio"),
+                            },
+                          },
+                        })
+                      );
+                    }}
+                    className="flex-1 py-1 px-2 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    <Box className="h-2.5 w-2.5" />
+                    <span>Save as Preset</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right: View Switcher, Adaptive Column Width Popover, Extra Actions, Icon-Only > Link */}
+        {/* Right: View Switcher, Adaptive Column Width Popover, Extra Actions, Pin Button, Icon-Only > Link */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
+
+          {/* Pin Box Button */}
+          <button
+            type="button"
+            onClick={handleTogglePin}
+            className={`h-6 w-6 rounded border transition-colors flex items-center justify-center cursor-pointer shadow-2xs ${
+              isPinned
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25"
+                : "border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+            title={
+              isPinned
+                ? "Pinned: Cannot resize or change layout format. Click to unpin."
+                : "Pin box: Lock size and format (delete and presets remain active)"
+            }
+          >
+            <Pin className={`h-3 w-3 ${isPinned ? "fill-amber-500 text-amber-500" : ""}`} />
+          </button>
 
           {/* Site Limit Selector (Auto-Fit, Stepper, Slider, Presets, All) */}
           {(showItemLimitPicker || availableViews) && (
@@ -1233,144 +1449,149 @@ export function DashboardWidgetBox({
         </div>
       )}
 
-      {/* Right Edge: Horizontal Width Resize Handle (East) */}
-      <div
-        onMouseDown={(e) => startResize("e", e)}
-        onDoubleClick={handleCycleColSpan}
-        className="absolute top-2 -right-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-        title="Drag right edge to resize column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
-      >
-        <div
-          className={`w-1 h-14 rounded-full transition-all ${
-            isResizing === "width" || isResizing === "both" || isResizing === "e" || isResizing === "se" || isResizing === "ne"
-              ? "bg-primary w-1.5 shadow-sm"
-              : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
-          }`}
-        />
-      </div>
-
-      {/* Left Edge: Horizontal Width Resize Handle (West) */}
-      <div
-        onMouseDown={(e) => startResize("w", e)}
-        onDoubleClick={handleCycleColSpan}
-        className="absolute top-2 -left-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-        title="Drag left edge to resize column width"
-      >
-        <div
-          className={`w-1 h-14 rounded-full transition-all ${
-            isResizing === "w" || isResizing === "sw" || isResizing === "nw"
-              ? "bg-primary w-1.5 shadow-sm"
-              : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
-          }`}
-        />
-      </div>
-
-      {/* Bottom Edge: Height Resize Handle (South) */}
-      {!isCollapsed && (
-        <div
-          onMouseDown={(e) => startResize("s", e)}
-          onDoubleClick={toggleRowSpan}
-          className="absolute -bottom-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag bottom edge to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
-        >
+      {/* Resizing Handles (East, West, South, North, Corners) - Hidden when Box is Pinned */}
+      {!isPinned && (
+        <>
+          {/* Right Edge: Horizontal Width Resize Handle (East) */}
           <div
-            className={`h-1 w-20 rounded-full transition-all ${
-              isResizing === "height" || isResizing === "both" || isResizing === "s" || isResizing === "se" || isResizing === "sw"
-                ? "bg-primary h-1.5 shadow-sm"
-                : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
-            }`}
-          />
-        </div>
-      )}
+            onMouseDown={(e) => startResize("e", e)}
+            onDoubleClick={handleCycleColSpan}
+            className="absolute top-2 -right-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+            title="Drag right edge to resize column width (Double-click to cycle 1/4 -> 1/3 -> 1/2 -> Full)"
+          >
+            <div
+              className={`w-1 h-14 rounded-full transition-all ${
+                isResizing === "width" || isResizing === "both" || isResizing === "e" || isResizing === "se" || isResizing === "ne"
+                  ? "bg-primary w-1.5 shadow-sm"
+                  : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
+              }`}
+            />
+          </div>
 
-      {/* Top Edge: Height Resize Handle (North) */}
-      {!isCollapsed && (
-        <div
-          onMouseDown={(e) => startResize("n", e)}
-          onDoubleClick={toggleRowSpan}
-          className="absolute -top-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag top edge to resize box height"
-        >
+          {/* Left Edge: Horizontal Width Resize Handle (West) */}
           <div
-            className={`h-1 w-20 rounded-full transition-all ${
-              isResizing === "n" || isResizing === "ne" || isResizing === "nw"
-                ? "bg-primary h-1.5 shadow-sm"
-                : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
-            }`}
-          />
-        </div>
-      )}
+            onMouseDown={(e) => startResize("w", e)}
+            onDoubleClick={handleCycleColSpan}
+            className="absolute top-2 -left-2 bottom-2 w-4 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+            title="Drag left edge to resize column width"
+          >
+            <div
+              className={`w-1 h-14 rounded-full transition-all ${
+                isResizing === "w" || isResizing === "sw" || isResizing === "nw"
+                  ? "bg-primary w-1.5 shadow-sm"
+                  : "bg-muted-foreground/40 hover:bg-primary hover:w-1.5"
+              }`}
+            />
+          </div>
 
-      {/* Bottom-Right Corner (South-East) */}
-      {!isCollapsed && (
-        <div
-          onMouseDown={(e) => startResize("se", e)}
-          className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-30 flex items-end justify-end p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag bottom-right corner to freely resize width and height"
-        >
-          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="14" cy="14" r="1.5" />
-            <circle cx="9" cy="14" r="1.5" />
-            <circle cx="4" cy="14" r="1.5" />
-            <circle cx="14" cy="9" r="1.5" />
-            <circle cx="9" cy="9" r="1.5" />
-            <circle cx="14" cy="4" r="1.5" />
-          </svg>
-        </div>
-      )}
+          {/* Bottom Edge: Height Resize Handle (South) */}
+          {!isCollapsed && (
+            <div
+              onMouseDown={(e) => startResize("s", e)}
+              onDoubleClick={toggleRowSpan}
+              className="absolute -bottom-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+              title="Drag bottom edge to resize box height (Double click to toggle 1x standard / 2x Bento tall)"
+            >
+              <div
+                className={`h-1 w-20 rounded-full transition-all ${
+                  isResizing === "height" || isResizing === "both" || isResizing === "s" || isResizing === "se" || isResizing === "sw"
+                    ? "bg-primary h-1.5 shadow-sm"
+                    : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
+                }`}
+              />
+            </div>
+          )}
 
-      {/* Bottom-Left Corner (South-West) */}
-      {!isCollapsed && (
-        <div
-          onMouseDown={(e) => startResize("sw", e)}
-          className="absolute -bottom-1 -left-1 w-6 h-6 cursor-nesw-resize z-30 flex items-end justify-start p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag bottom-left corner to freely resize width and height"
-        >
-          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="2" cy="14" r="1.5" />
-            <circle cx="7" cy="14" r="1.5" />
-            <circle cx="12" cy="14" r="1.5" />
-            <circle cx="2" cy="9" r="1.5" />
-            <circle cx="7" cy="9" r="1.5" />
-            <circle cx="2" cy="4" r="1.5" />
-          </svg>
-        </div>
-      )}
+          {/* Top Edge: Height Resize Handle (North) */}
+          {!isCollapsed && (
+            <div
+              onMouseDown={(e) => startResize("n", e)}
+              onDoubleClick={toggleRowSpan}
+              className="absolute -top-2 left-2 right-2 h-4 cursor-ns-resize z-20 flex items-center justify-center opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+              title="Drag top edge to resize box height"
+            >
+              <div
+                className={`h-1 w-20 rounded-full transition-all ${
+                  isResizing === "n" || isResizing === "ne" || isResizing === "nw"
+                    ? "bg-primary h-1.5 shadow-sm"
+                    : "bg-muted-foreground/40 hover:bg-primary hover:h-1.5"
+                }`}
+              />
+            </div>
+          )}
 
-      {/* Top-Right Corner (North-East) */}
-      {!isCollapsed && (
-        <div
-          onMouseDown={(e) => startResize("ne", e)}
-          className="absolute -top-1 -right-1 w-6 h-6 cursor-nesw-resize z-30 flex items-start justify-end p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag top-right corner to freely resize width and height"
-        >
-          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="14" cy="2" r="1.5" />
-            <circle cx="9" cy="2" r="1.5" />
-            <circle cx="4" cy="2" r="1.5" />
-            <circle cx="14" cy="7" r="1.5" />
-            <circle cx="9" cy="7" r="1.5" />
-            <circle cx="14" cy="12" r="1.5" />
-          </svg>
-        </div>
-      )}
+          {/* Bottom-Right Corner (South-East) */}
+          {!isCollapsed && (
+            <div
+              onMouseDown={(e) => startResize("se", e)}
+              className="absolute -bottom-1 -right-1 w-6 h-6 cursor-nwse-resize z-30 flex items-end justify-end p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+              title="Drag bottom-right corner to freely resize width and height"
+            >
+              <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="14" cy="14" r="1.5" />
+                <circle cx="9" cy="14" r="1.5" />
+                <circle cx="4" cy="14" r="1.5" />
+                <circle cx="14" cy="9" r="1.5" />
+                <circle cx="9" cy="9" r="1.5" />
+                <circle cx="14" cy="4" r="1.5" />
+              </svg>
+            </div>
+          )}
 
-      {/* Top-Left Corner (North-West) */}
-      {!isCollapsed && (
-        <div
-          onMouseDown={(e) => startResize("nw", e)}
-          className="absolute -top-1 -left-1 w-6 h-6 cursor-nwse-resize z-30 flex items-start justify-start p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
-          title="Drag top-left corner to freely resize width and height"
-        >
-          <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="2" cy="2" r="1.5" />
-            <circle cx="7" cy="2" r="1.5" />
-            <circle cx="12" cy="2" r="1.5" />
-            <circle cx="2" cy="7" r="1.5" />
-            <circle cx="7" cy="7" r="1.5" />
-            <circle cx="2" cy="12" r="1.5" />
-          </svg>
-        </div>
+          {/* Bottom-Left Corner (South-West) */}
+          {!isCollapsed && (
+            <div
+              onMouseDown={(e) => startResize("sw", e)}
+              className="absolute -bottom-1 -left-1 w-6 h-6 cursor-nesw-resize z-30 flex items-end justify-start p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+              title="Drag bottom-left corner to freely resize width and height"
+            >
+              <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="2" cy="14" r="1.5" />
+                <circle cx="7" cy="14" r="1.5" />
+                <circle cx="12" cy="14" r="1.5" />
+                <circle cx="2" cy="9" r="1.5" />
+                <circle cx="7" cy="9" r="1.5" />
+                <circle cx="2" cy="4" r="1.5" />
+              </svg>
+            </div>
+          )}
+
+          {/* Top-Right Corner (North-East) */}
+          {!isCollapsed && (
+            <div
+              onMouseDown={(e) => startResize("ne", e)}
+              className="absolute -top-1 -right-1 w-6 h-6 cursor-nesw-resize z-30 flex items-start justify-end p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+              title="Drag top-right corner to freely resize width and height"
+            >
+              <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="14" cy="2" r="1.5" />
+                <circle cx="9" cy="2" r="1.5" />
+                <circle cx="4" cy="2" r="1.5" />
+                <circle cx="14" cy="7" r="1.5" />
+                <circle cx="9" cy="7" r="1.5" />
+                <circle cx="14" cy="12" r="1.5" />
+              </svg>
+            </div>
+          )}
+
+          {/* Top-Left Corner (North-West) */}
+          {!isCollapsed && (
+            <div
+              onMouseDown={(e) => startResize("nw", e)}
+              className="absolute -top-1 -left-1 w-6 h-6 cursor-nwse-resize z-30 flex items-start justify-start p-1 opacity-0 group-hover/box:opacity-100 hover:!opacity-100 transition-opacity select-none"
+              title="Drag top-left corner to freely resize width and height"
+            >
+              <svg className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="2" cy="2" r="1.5" />
+                <circle cx="7" cy="2" r="1.5" />
+                <circle cx="12" cy="2" r="1.5" />
+                <circle cx="2" cy="7" r="1.5" />
+                <circle cx="7" cy="7" r="1.5" />
+                <circle cx="2" cy="12" r="1.5" />
+              </svg>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

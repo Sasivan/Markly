@@ -355,7 +355,7 @@ export interface UniversalPresetHubProps {
   activeTabId?: string;
   isFolderCustomScope?: boolean;
   onApplyFolderTabs?: (tabs: any[], appliedScope?: "universal" | "custom", targetTabId?: string) => void;
-  onRunSearch?: (query: string) => void;
+  onRunSearch?: (query: string, snapshot?: any) => void;
 }
 
 export function UniversalPresetHub({
@@ -456,6 +456,25 @@ export function UniversalPresetHub({
     minHeight: 440,
   });
 
+  // Separate Resizable Save Preset Modal per Tab
+  const [saveModalOpen, setSaveModalOpen] = React.useState(false);
+  const {
+    format: saveModalFormat,
+    toggleFormat: toggleSaveModalFormat,
+    modalStyle: saveModalStyle,
+    hasCustomSize: saveModalHasCustomSize,
+    handleRestoreDefaults: handleRestoreSaveModalDefaults,
+    startResize: startSaveModalResize,
+  } = useResizableModal({
+    modalId: `markly_save_preset_modal_${activeTab}`,
+    defaultVerticalWidth: 560,
+    defaultHorizontalWidth: 680,
+    defaultVerticalHeight: 460,
+    defaultHorizontalHeight: 440,
+    minWidth: 400,
+    minHeight: 340,
+  });
+
   // Sync tab & folder scope when modal opens
   React.useEffect(() => {
     if (open) {
@@ -479,6 +498,7 @@ export function UniversalPresetHub({
       if (detail.folderScope) setFolderScope(detail.folderScope);
       if (detail.folderSaveMode) setFolderSaveMode(detail.folderSaveMode);
       if (detail.activeTabId) setTargetFolderTabId(detail.activeTabId);
+      setSaveModalOpen(true);
     };
     window.addEventListener("markly-open-save-preset-dialog", handleOpenSaveDialog);
     return () => window.removeEventListener("markly-open-save-preset-dialog", handleOpenSaveDialog);
@@ -675,6 +695,7 @@ export function UniversalPresetHub({
     setPendingPresetData(null);
     setSourceContextLabel(null);
     setSearchQueryInput("");
+    setSaveModalOpen(false);
     showStatus(`Saved "${newPreset.name}" to your preset library!`);
   };
 
@@ -772,7 +793,7 @@ export function UniversalPresetHub({
     } else if (preset.category === "search") {
       const query = preset.data?.query || "";
       const snapshot = preset.data?.snapshot || preset.data;
-      onRunSearch?.(query);
+      onRunSearch?.(query, snapshot);
       window.dispatchEvent(
         new CustomEvent("markly-execute-search", {
           detail: { query, snapshot, ...preset.data },
@@ -951,7 +972,8 @@ export function UniversalPresetHub({
   const currentTabPresets = savedPresets.filter((p) => p.category === activeTab);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         style={modalStyle}
         className="relative p-0 overflow-hidden bg-card border-border shadow-2xl rounded-2xl flex flex-col max-w-[96vw] max-h-[94vh]"
@@ -1180,93 +1202,40 @@ export function UniversalPresetHub({
             </div>
           )}
 
-          {/* Section A: Create New Preset From Current State */}
-          <div className="p-3.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span>Save Current {activeTab.toUpperCase()} Configuration as Preset</span>
+          {/* Header Action Bar: Category Info + Distinct '+ Save [Tab] Preset' Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-secondary/40 border border-border">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-foreground">
+                {activeTab === "home"
+                  ? "Homepage Layout Presets"
+                  : activeTab === "folder"
+                  ? "Folder Tab Presets"
+                  : activeTab === "box"
+                  ? "Saved Visual Studio Boxes"
+                  : activeTab === "visuals"
+                  ? "Visual Studio Setups"
+                  : "Search Presets"}
               </span>
-              <span className="text-[11px] text-muted-foreground font-mono">
-                Captures live dimensions, order, and filters
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-background border border-border text-muted-foreground">
+                {currentTabPresets.length} presets
               </span>
             </div>
 
-            {sourceContextLabel && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-[11px] font-mono text-primary">
-                <span className="text-muted-foreground">Captured from:</span>
-                <span className="font-semibold">{sourceContextLabel}</span>
-              </div>
-            )}
-
-            {activeTab === "folder" && ((folderTabs && folderTabs.length > 0) || (Array.isArray(pendingPresetData) && pendingPresetData.length > 0)) && (
-              <div className="flex items-center gap-3 text-xs bg-secondary/30 p-2 rounded-lg border border-border/40">
-                <span className="text-muted-foreground font-semibold">Save Scope:</span>
-                <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
-                  <input
-                    type="radio"
-                    name="folderSaveMode"
-                    checked={folderSaveMode === "all_tabs"}
-                    onChange={() => setFolderSaveMode("all_tabs")}
-                    className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
-                  />
-                  <span>All Tabs ({folderTabs?.length || (Array.isArray(pendingPresetData) ? pendingPresetData.length : 1)})</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
-                  <input
-                    type="radio"
-                    name="folderSaveMode"
-                    checked={folderSaveMode === "active_tab"}
-                    onChange={() => setFolderSaveMode("active_tab")}
-                    className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
-                  />
-                  <span>Active Tab Only ({folderTabs?.find((t) => t.id === activeTabId)?.label || "Active Tab"})</span>
-                </label>
-              </div>
-            )}
-
-            {activeTab === "search" && (
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">Search Query to Save</label>
-                <input
-                  type="text"
-                  value={searchQueryInput}
-                  onChange={(e) => setSearchQueryInput(e.target.value)}
-                  placeholder="e.g. tag:docs is:favorite or github"
-                  className="w-full text-xs rounded-lg border border-border bg-background px-3 py-1.5 text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-              <div className="sm:col-span-6">
-                <Input
-                  value={newPresetName}
-                  onChange={(e) => setNewPresetName(e.target.value)}
-                  placeholder={`Preset Name (e.g. My Custom ${activeTab})...`}
-                  className="h-8 text-xs bg-background"
-                />
-              </div>
-              <div className="sm:col-span-4">
-                <Input
-                  value={newPresetDesc}
-                  onChange={(e) => setNewPresetDesc(e.target.value)}
-                  placeholder="Optional note / tag..."
-                  className="h-8 text-xs bg-background"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Button
-                  size="sm"
-                  onClick={handleSaveCurrentAsPreset}
-                  disabled={!newPresetName.trim()}
-                  className="h-8 w-full text-xs cursor-pointer gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Save</span>
-                </Button>
-              </div>
-            </div>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!newPresetName) {
+                  setNewPresetName(`My ${activeTab === "home" ? "Homepage" : activeTab === "folder" ? "Folder Tabs" : activeTab === "box" ? "Visual Box" : activeTab === "visuals" ? "Studio" : "Search"} Preset`);
+                }
+                setSaveModalOpen(true);
+              }}
+              className="h-7 px-3 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Plus className="h-3 w-3" />
+              <span>
+                Save {activeTab === "home" ? "Homepage" : activeTab === "folder" ? "Folder Tabs" : activeTab === "box" ? "Visual Box" : activeTab === "visuals" ? "Visuals" : "Search"} Preset...
+              </span>
+            </Button>
           </div>
 
           {/* Section B: Preset Cards List */}
@@ -1454,5 +1423,261 @@ export function UniversalPresetHub({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Separate Contextual Resizable Save Modal per Tab */}
+    <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
+      <DialogContent
+        style={saveModalStyle}
+        className="relative p-0 overflow-hidden bg-card border-border shadow-2xl rounded-2xl flex flex-col max-w-[95vw] max-h-[92vh] z-60"
+      >
+        <ModalResizeHandles onStartResize={startSaveModalResize} />
+
+        {/* Header */}
+        <DialogHeader className="p-4 sm:px-6 border-b border-border bg-secondary/30 flex-shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shadow-2xs">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <span>Save {activeTab === "home" ? "Homepage" : activeTab === "folder" ? "Folder Tabs" : activeTab === "box" ? "Visual Box" : activeTab === "visuals" ? "Visual Studio" : "Search"} Preset</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Configure contextual parameters and required fields for this {activeTab} preset.
+                </DialogDescription>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <ModalFormatControls
+                format={saveModalFormat}
+                onToggleFormat={toggleSaveModalFormat}
+                hasCustomSize={saveModalHasCustomSize}
+                onRestoreDefaults={handleRestoreSaveModalDefaults}
+              />
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Form Body - Format Adaptive (Horizontal two-column or Vertical stacked) */}
+        <div className={`p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 ${saveModalFormat === "horizontal" ? "grid grid-cols-2 gap-4 space-y-0" : ""}`}>
+          {/* Preset Details */}
+          <div className="space-y-3.5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Preset Name *</label>
+              <Input
+                value={newPresetName}
+                onChange={(e) => setNewPresetName(e.target.value)}
+                placeholder={`e.g. My ${activeTab} Setup`}
+                className="h-8 text-xs bg-background"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Description / Note (Optional)</label>
+              <Input
+                value={newPresetDesc}
+                onChange={(e) => setNewPresetDesc(e.target.value)}
+                placeholder="e.g. Optimized 6-box bento overview"
+                className="h-8 text-xs bg-background"
+              />
+            </div>
+
+            {sourceContextLabel && (
+              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-[11px] font-mono text-primary flex items-center gap-1.5">
+                <span className="text-muted-foreground">Source:</span>
+                <span className="font-semibold truncate">{sourceContextLabel}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tab Specific Required Fields */}
+          <div className="space-y-3.5">
+            {activeTab === "home" && (
+              <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-2 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Home className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Homepage Layout Snapshot</span>
+                </span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Captures all active widgets on your dashboard home, including order, column spans (1/4, 1/3, 1/2, Full), row heights, and site limit filters.
+                </p>
+              </div>
+            )}
+
+            {activeTab === "folder" && (
+              <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-3 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Folder className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Folder Tab Scope &amp; Target</span>
+                </span>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-muted-foreground">Scope:</label>
+                  <div className="flex items-center gap-1.5 bg-background p-1 rounded-lg border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setFolderScope("universal")}
+                      className={`flex-1 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors ${
+                        folderScope === "universal" ? "bg-primary text-primary-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Universal (All Folders)
+                    </button>
+                    {currentFolderId && (
+                      <button
+                        type="button"
+                        onClick={() => setFolderScope("custom")}
+                        className={`flex-1 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors ${
+                          folderScope === "custom" ? "bg-amber-500 text-white shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Custom: {folderName || "Current"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-muted-foreground">Capture Mode:</label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-foreground">
+                      <input
+                        type="radio"
+                        name="modalFolderSaveMode"
+                        checked={folderSaveMode === "all_tabs"}
+                        onChange={() => setFolderSaveMode("all_tabs")}
+                        className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
+                      />
+                      <span>All Tabs ({folderTabs?.length || (Array.isArray(pendingPresetData) ? pendingPresetData.length : 1)})</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-foreground">
+                      <input
+                        type="radio"
+                        name="modalFolderSaveMode"
+                        checked={folderSaveMode === "active_tab"}
+                        onChange={() => setFolderSaveMode("active_tab")}
+                        className="h-3.5 w-3.5 text-primary accent-primary cursor-pointer"
+                      />
+                      <span>Active Tab Only</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "box" && (
+              <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-3 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Box className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Visual Studio Box Configuration</span>
+                </span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Target Tab:</label>
+                    <select
+                      value={pendingPresetData?.tabRef || "T3"}
+                      onChange={(e) => {
+                        const nextTab = e.target.value as "T1" | "T2" | "T3" | "T4";
+                        setPendingPresetData((prev: any) => ({
+                          ...(prev || {}),
+                          tabRef: nextTab,
+                          category: nextTab === "T1" ? "sites_studio" : nextTab === "T2" ? "plot_studio" : nextTab === "T3" ? "chart_studio" : "intel_studio",
+                        }));
+                      }}
+                      className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs"
+                    >
+                      <option value="T1">T1: Sites Reference Matrix</option>
+                      <option value="T2">T2: ObservableHQ Plot</option>
+                      <option value="T3">T3: Classic Charts Studio</option>
+                      <option value="T4">T4: Intelligence Systems</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Default Width:</label>
+                    <select
+                      value={pendingPresetData?.colSpan || 12}
+                      onChange={(e) => {
+                        const span = Number(e.target.value);
+                        setPendingPresetData((prev: any) => ({
+                          ...(prev || {}),
+                          colSpan: span,
+                        }));
+                      }}
+                      className="w-full h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs"
+                    >
+                      <option value={12}>12 cols - Full width</option>
+                      <option value={6}>6 cols - Half (50%)</option>
+                      <option value={4}>4 cols - 1/3 width</option>
+                      <option value={3}>3 cols - 1/4 width</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "visuals" && (
+              <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-2 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <BarChart3 className="h-3.5 w-3.5 text-purple-500" />
+                  <span>Visual Studio Setup Capture</span>
+                </span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Captures your complete Visual Studio workspace, including hidden/visible studio units and custom column spans.
+                </p>
+              </div>
+            )}
+
+            {activeTab === "search" && (
+              <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-2 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Search className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Search Query &amp; Parameters</span>
+                </span>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">Query String *</label>
+                  <Input
+                    type="text"
+                    value={searchQueryInput}
+                    onChange={(e) => setSearchQueryInput(e.target.value)}
+                    placeholder="e.g. tag:reference is:favorite or github"
+                    className="h-8 text-xs bg-background"
+                  />
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    Applying this search preset will execute search and open Results immediately.
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 sm:px-6 border-t border-border bg-secondary/20 flex items-center justify-end gap-2 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSaveModalOpen(false)}
+            className="h-8 px-3 text-xs cursor-pointer"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSaveCurrentAsPreset}
+            disabled={!newPresetName.trim() || (activeTab === "search" && !searchQueryInput.trim())}
+            className="h-8 px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs cursor-pointer flex items-center gap-1.5"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Save Preset</span>
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

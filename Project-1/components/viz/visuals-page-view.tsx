@@ -1041,8 +1041,8 @@ export function VisualsPageView({
               </div>
             }
           >
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border">
+            <div className="p-4 space-y-4 flex flex-col flex-1 h-full min-h-[460px]">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-xl border border-border shrink-0">
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                     Graph Scope
@@ -1101,7 +1101,7 @@ export function VisualsPageView({
                 </div>
               </div>
 
-              <div className="h-80 w-full rounded-xl overflow-hidden border border-border bg-card shadow-inner">
+              <div className="w-full flex-1 min-h-[380px] rounded-xl overflow-hidden border border-border bg-card shadow-inner">
                 <KnowledgeGraph
                   mode={graphMode}
                   folderId={graphMode === "folder" && selectedGraphFolder ? selectedGraphFolder : undefined}

@@ -490,11 +490,11 @@ export function IntelligenceSystemsStudioBox({
           </div>
 
           <div
-            className="min-h-[300px] w-full flex-1 rounded-xl border border-border/80 bg-background/50 p-2 overflow-hidden flex flex-col items-center justify-center transition-colors"
+            className="w-full h-full min-h-[380px] flex-1 rounded-xl border border-border/80 bg-background/50 p-2 overflow-hidden flex flex-col items-center justify-center transition-colors"
             style={{ borderColor: `${accentColor}30` }}
           >
             {intelType === "graph" ? (
-              <div className="w-full h-full min-h-[320px] flex-1">
+              <div className="w-full h-full min-h-[360px] flex-1 flex flex-col">
                 <KnowledgeGraph
                   mode={selectedFolderFilter !== "all" ? "folder" : "global"}
                   folderId={selectedFolderFilter !== "all" ? selectedFolderFilter : undefined}

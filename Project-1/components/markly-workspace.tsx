@@ -1501,6 +1501,8 @@ export function MarklyWorkspace({
               ? "overflow-hidden p-0"
               : activeView === "home"
               ? "overflow-y-auto p-3.5 sm:p-4 space-y-3.5"
+              : activeView === "graph"
+              ? "flex flex-col h-full overflow-hidden p-4 sm:p-6"
               : "overflow-y-auto p-6 space-y-6"
           }`}
         >
@@ -1527,8 +1529,8 @@ export function MarklyWorkspace({
             />
           ) : activeView === "graph" && !activeFolderId ? (
             /* Dedicated Obsidian Knowledge Graph View (Global) */
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="flex-1 flex flex-col h-full min-h-0 space-y-3">
+              <div className="flex items-center justify-between shrink-0">
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                     Obsidian Knowledge Graph
@@ -1538,27 +1540,29 @@ export function MarklyWorkspace({
                   </p>
                 </div>
               </div>
-              <KnowledgeGraph
-                mode="global"
-                onSelectDomain={(dom) => {
-                setActiveDomainFilter(dom);
-                setActiveView("all");
-                setActiveFolderId(null);
-              }}
-                onSelectFolder={(fId) => {
-                  setActiveFolderId(fId);
-                  setActiveView("all");
-                }}
-                onEditBookmark={(bm) => setEditingBookmark(bm)}
-                onToggleFavorite={async (bm) => {
-                  await fetch(`/api/bookmarks/${bm.id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ isFavorite: !bm.isFavorite }),
-                  });
-                  refreshData();
-                }}
-              />
+              <div className="flex-1 w-full h-[calc(100vh-210px)] min-h-[550px]">
+                <KnowledgeGraph
+                  mode="global"
+                  onSelectDomain={(dom) => {
+                    setActiveDomainFilter(dom);
+                    setActiveView("all");
+                    setActiveFolderId(null);
+                  }}
+                  onSelectFolder={(fId) => {
+                    setActiveFolderId(fId);
+                    setActiveView("all");
+                  }}
+                  onEditBookmark={(bm) => setEditingBookmark(bm)}
+                  onToggleFavorite={async (bm) => {
+                    await fetch(`/api/bookmarks/${bm.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ isFavorite: !bm.isFavorite }),
+                    });
+                    refreshData();
+                  }}
+                />
+              </div>
             </div>
           ) : activeView === "insights" && !activeFolderId ? (
             /* Dedicated Library Insights & Analytics Hub */

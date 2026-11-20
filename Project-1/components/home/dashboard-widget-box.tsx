@@ -31,6 +31,7 @@ import {
   Pin,
   Folder,
   Globe,
+  Save,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
@@ -793,11 +794,15 @@ export function DashboardWidgetBox({
           >
             <GripVertical className="h-3.5 w-3.5" />
           </div>
-          <div className="h-6 w-6 rounded-md bg-secondary text-foreground flex items-center justify-center flex-shrink-0 border border-border/60">
+          <div
+            className="h-6 w-6 rounded-md bg-secondary text-foreground flex items-center justify-center flex-shrink-0 border border-border/60 cursor-pointer"
+            onMouseEnter={handleTitleMouseEnter}
+            onMouseLeave={handleTitleMouseLeave}
+          >
             {icon}
           </div>
           <div
-            className="relative flex items-center gap-1.5 truncate cursor-pointer select-text group/title"
+            className="relative flex items-center gap-1.5 cursor-pointer select-text group/title max-w-[280px] sm:max-w-[360px]"
             onClick={toggleCollapsed}
             onMouseEnter={handleTitleMouseEnter}
             onMouseLeave={handleTitleMouseLeave}
@@ -975,26 +980,47 @@ export function DashboardWidgetBox({
           </div>
         </div>
 
-        {/* Right: View Switcher, Adaptive Column Width Popover, Extra Actions, Pin Button, Icon-Only > Link */}
+        {/* Right: Save Preset, View Switcher, Adaptive Column Width Popover, Extra Actions, Icon-Only > Link */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
 
-          {/* Pin Box Button */}
+          {/* Quick Save Visual Box Button (Left of top size/limit buttons) */}
           <button
             type="button"
-            onClick={handleTogglePin}
-            className={`h-6 w-6 rounded border transition-colors flex items-center justify-center cursor-pointer shadow-2xs ${
-              isPinned
-                ? "bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25"
-                : "border-border/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-            title={
-              isPinned
-                ? "Pinned: Cannot resize or change layout format. Click to unpin."
-                : "Pin box: Lock size and format (delete and presets remain active)"
-            }
+            onClick={(e) => {
+              e.stopPropagation();
+              const baseConfig = widgetConfig || {};
+              window.dispatchEvent(
+                new CustomEvent("markly-open-save-preset-dialog", {
+                  detail: {
+                    name: title,
+                    category: "box",
+                    sourceLocation: `Visual Box: ${title}`,
+                    data: {
+                      ...baseConfig,
+                      id,
+                      title,
+                      colSpan: colSpanState,
+                      rowSpan: rowSpanState,
+                      boxHeight,
+                      itemLimit: activeLimit,
+                      viewMode: viewMode || baseConfig.viewMode,
+                      cardCoverStyle: boxCoverStyle,
+                      category: baseConfig.category || baseConfig.kind || "chart_studio",
+                      kind: baseConfig.kind || baseConfig.category || "custom",
+                      siteConfig: baseConfig.siteConfig,
+                      plotConfig: baseConfig.plotConfig,
+                      chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
+                      intelConfig: baseConfig.intelConfig,
+                    },
+                  },
+                })
+              );
+            }}
+            className="h-6 w-6 rounded border border-border/60 hover:bg-secondary text-muted-foreground hover:text-primary flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+            title="Save this visual box as a preset"
           >
-            <Pin className={`h-3 w-3 ${isPinned ? "fill-amber-500 text-amber-500" : ""}`} />
+            <Save className="h-3 w-3" />
           </button>
 
           {/* Site Limit Selector (Auto-Fit, Stepper, Slider, Presets, All) */}
@@ -1245,6 +1271,19 @@ export function DashboardWidgetBox({
 
               {actionMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      setActionMenuOpen(false);
+                      handleTogglePin(e);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    title={isPinned ? "Unpin box: unlock resizing and format controls" : "Pin box: lock size and format controls"}
+                  >
+                    <Pin className={`h-3.5 w-3.5 ${isPinned ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
+                    <span>{isPinned ? "Unpin Box" : "Pin Box (Lock Size)"}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {

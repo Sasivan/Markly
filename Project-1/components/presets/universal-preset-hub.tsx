@@ -1572,12 +1572,12 @@ export function UniversalPresetHub({
               <div className="p-3 rounded-xl border border-border bg-secondary/30 space-y-3 text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <Box className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Visual Studio Box Configuration</span>
+                  <span>Visual Studio Box Configuration &amp; Tab Placement</span>
                 </span>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] text-muted-foreground block mb-1">Target Tab:</label>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Target Studio:</label>
                     <select
                       value={pendingPresetData?.tabRef || "T3"}
                       onChange={(e) => {
@@ -1616,6 +1616,68 @@ export function UniversalPresetHub({
                       <option value={3}>3 cols - 1/4 width</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t border-border/50">
+                  <label className="text-[11px] text-muted-foreground block">Destination / Tab Placement:</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setBoxTargetPlacement("home")}
+                      className={`py-1.5 px-2 rounded-md text-[11px] font-medium border text-center cursor-pointer transition-colors ${
+                        boxTargetPlacement === "home" ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs" : "bg-background text-foreground border-border hover:bg-secondary"
+                      }`}
+                    >
+                      Home
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBoxTargetPlacement("universal_folders")}
+                      className={`py-1.5 px-2 rounded-md text-[11px] font-medium border text-center cursor-pointer transition-colors ${
+                        boxTargetPlacement === "universal_folders" ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs" : "bg-background text-foreground border-border hover:bg-secondary"
+                      }`}
+                    >
+                      Universal Tab
+                    </button>
+                    {currentFolderId && (
+                      <button
+                        type="button"
+                        onClick={() => setBoxTargetPlacement("current_folder")}
+                        className={`py-1.5 px-2 rounded-md text-[11px] font-medium border text-center cursor-pointer transition-colors ${
+                          boxTargetPlacement === "current_folder" ? "bg-amber-500 text-white border-amber-500 font-bold shadow-2xs" : "bg-background text-foreground border-border hover:bg-secondary"
+                        }`}
+                      >
+                        Custom Tab
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setBoxTargetPlacement("visuals")}
+                      className={`py-1.5 px-2 rounded-md text-[11px] font-medium border text-center cursor-pointer transition-colors ${
+                        boxTargetPlacement === "visuals" ? "bg-primary text-primary-foreground border-primary font-bold shadow-2xs" : "bg-background text-foreground border-border hover:bg-secondary"
+                      }`}
+                    >
+                      Visuals
+                    </button>
+                  </div>
+
+                  {(boxTargetPlacement === "universal_folders" || boxTargetPlacement === "current_folder") && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-[11px] text-muted-foreground font-semibold">Target Tab:</span>
+                      <select
+                        value={targetFolderTabId}
+                        onChange={(e) => setTargetFolderTabId(e.target.value)}
+                        className="flex-1 h-7 px-2 rounded-md border border-border bg-background text-foreground text-xs cursor-pointer"
+                      >
+                        {availableTargetTabs.map((t: any) => (
+                          <option key={t.id} value={t.id}>
+                            {t.label || t.id}
+                          </option>
+                        ))}
+                        <option value="__NEW_TAB__">+ Create New Custom Tab</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

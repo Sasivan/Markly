@@ -344,9 +344,42 @@ export function UniversalVisualBuilderModal({
   // Target Destination Selector State (defaulted to caller's context)
   const [targetDestination, setTargetDestination] = React.useState<string>(resolveInitialDestination);
 
+  // Tab Placement State for Visual Box (Existing Tab vs Custom Tab)
+  const [targetTabMode, setTargetTabMode] = React.useState<"existing" | "custom_new">("existing");
+  const [selectedTargetTabId, setSelectedTargetTabId] = React.useState<string>("tab_default");
+  const [customTabName, setCustomTabName] = React.useState<string>("");
+
+  // Compute available tabs for the selected destination
+  const availableDestinationTabs = React.useMemo(() => {
+    if (typeof window === "undefined") return [{ id: "tab_default", label: "Overview" }];
+    try {
+      if (targetDestination === "universal_folders") {
+        const raw = localStorage.getItem("markly_universal_folder_tabs");
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } else if (targetDestination.startsWith("folder:")) {
+        const fid = targetDestination.replace("folder:", "");
+        const raw = localStorage.getItem(`markly_folder_tabs_${fid}`) || localStorage.getItem("markly_universal_folder_tabs");
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [{ id: "tab_default", label: "Overview" }];
+  }, [targetDestination]);
+
+  React.useEffect(() => {
+    if (availableDestinationTabs.length > 0) {
+      if (!availableDestinationTabs.some((t: any) => t.id === selectedTargetTabId)) {
+        setSelectedTargetTabId(availableDestinationTabs[0].id);
+      }
+    }
+  }, [availableDestinationTabs, selectedTargetTabId]);
+
   React.useEffect(() => {
     if (open) {
       setTargetDestination(resolveInitialDestination());
+      setTargetTabMode("existing");
+      setCustomTabName("");
     }
   }, [open, resolveInitialDestination]);
 
@@ -705,8 +738,16 @@ export function UniversalVisualBuilderModal({
           if (!Array.isArray(tabs) || tabs.length === 0) {
             tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
           }
-          tabs[0].visuals = (tabs[0].visuals || []).filter((v: any) => v.id !== targetId && v.id !== `custom:${targetId}` && v.id !== config.id);
-          tabs[0].visuals.unshift({
+          let targetTab: any;
+          if (targetTabMode === "custom_new" && customTabName.trim()) {
+            const newTabId = `tab_custom_${Date.now()}`;
+            targetTab = { id: newTabId, label: customTabName.trim(), visuals: [] };
+            tabs.push(targetTab);
+          } else {
+            targetTab = tabs.find((t: any) => t.id === selectedTargetTabId) || tabs[0];
+          }
+          targetTab.visuals = (targetTab.visuals || []).filter((v: any) => v.id !== targetId && v.id !== `custom:${targetId}` && v.id !== config.id);
+          targetTab.visuals.unshift({
             id: targetId,
             title: config.title,
             kind: targetKind,
@@ -732,17 +773,27 @@ export function UniversalVisualBuilderModal({
           });
           localStorage.setItem("markly_universal_folder_tabs", JSON.stringify(tabs));
           window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated", { detail: tabs }));
+          window.dispatchEvent(new CustomEvent("markly-folder-tab-switched", { detail: { tabId: targetTab.id } }));
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         } else if (targetDestination.startsWith("folder:")) {
           const folderId = targetDestination.replace("folder:", "");
           const updateFolderTabs = (key: string) => {
-            const raw = localStorage.getItem(key);
+            const raw = localStorage.getItem(key) || localStorage.getItem("markly_universal_folder_tabs");
             let tabs = raw ? JSON.parse(raw) : [];
             if (!Array.isArray(tabs) || tabs.length === 0) {
               tabs = [{ id: "tab_default", label: "Overview", visuals: [] }];
             }
-            tabs[0].visuals = (tabs[0].visuals || []).filter((v: any) => v.id !== targetId && v.id !== `custom:${targetId}` && v.id !== config.id);
-            tabs[0].visuals.unshift({
+            let targetTab: any;
+            if (targetTabMode === "custom_new" && customTabName.trim()) {
+              const newTabId = `tab_custom_${Date.now()}`;
+              targetTab = { id: newTabId, label: customTabName.trim(), visuals: [] };
+              tabs.push(targetTab);
+              localStorage.setItem(`markly_folder_viz_is_custom_${folderId}`, "true");
+            } else {
+              targetTab = tabs.find((t: any) => t.id === selectedTargetTabId) || tabs[0];
+            }
+            targetTab.visuals = (targetTab.visuals || []).filter((v: any) => v.id !== targetId && v.id !== `custom:${targetId}` && v.id !== config.id);
+            targetTab.visuals.unshift({
               id: targetId,
               title: config.title,
               kind: targetKind,
@@ -755,14 +806,18 @@ export function UniversalVisualBuilderModal({
               siteConfig: config.siteConfig,
             });
             localStorage.setItem(key, JSON.stringify(tabs));
+            return targetTab;
           };
 
-          updateFolderTabs(`markly_folder_tabs_${folderId}`);
+          const targetTab = updateFolderTabs(`markly_folder_tabs_${folderId}`);
           window.dispatchEvent(
             new CustomEvent("markly-folder-tabs-updated", {
-              detail: { folderId, scope: "custom" },
+              detail: { folderId, scope: "custom", activeTabId: targetTab?.id },
             })
           );
+          if (targetTab?.id) {
+            window.dispatchEvent(new CustomEvent("markly-folder-tab-switched", { detail: { tabId: targetTab.id } }));
+          }
           window.dispatchEvent(new CustomEvent("markly-universal-tabs-updated"));
           window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
         } else if (targetDestination === "visuals") {
@@ -2645,8 +2700,8 @@ export function UniversalVisualBuilderModal({
         </div>
 
         {/* Modal Footer with Destination Selector */}
-        <div className="p-3.5 sm:px-6 border-t border-border bg-secondary/30 flex items-center justify-between gap-3 flex-shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="p-3.5 sm:px-6 border-t border-border bg-secondary/30 flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden sm:inline">
               Place In:
             </span>
@@ -2664,7 +2719,7 @@ export function UniversalVisualBuilderModal({
               <option value="home">Dashboard Home</option>
               <option value="visuals">Visuals Studio Page</option>
               <option value="universal_folders">All Folders (Universal Sync)</option>
-              <option value="folder">Specific Folder Collection...</option>
+              <option value="folder">Custom Tab (Folder Collection)...</option>
             </select>
             {targetDestination.startsWith("folder:") && (
               <div className="w-52">
@@ -2675,6 +2730,43 @@ export function UniversalVisualBuilderModal({
                   allowRoot={false}
                   placeholder="Select target folder..."
                 />
+              </div>
+            )}
+
+            {/* Target Tab Selector / Custom Tab Option */}
+            {(targetDestination === "universal_folders" || targetDestination.startsWith("folder:")) && (
+              <div className="flex items-center gap-1.5 bg-background/80 px-2 py-1 rounded-lg border border-border">
+                <span className="text-[11px] text-muted-foreground font-semibold">Tab:</span>
+                <select
+                  value={targetTabMode === "custom_new" ? "__NEW_CUSTOM_TAB__" : selectedTargetTabId}
+                  onChange={(e) => {
+                    if (e.target.value === "__NEW_CUSTOM_TAB__") {
+                      setTargetTabMode("custom_new");
+                    } else {
+                      setTargetTabMode("existing");
+                      setSelectedTargetTabId(e.target.value);
+                    }
+                  }}
+                  className="h-6 px-1.5 rounded border border-border/60 bg-secondary/50 text-foreground text-xs cursor-pointer font-medium"
+                >
+                  {availableDestinationTabs.map((t: any) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label || t.id}
+                    </option>
+                  ))}
+                  <option value="__NEW_CUSTOM_TAB__">+ Create Custom Tab</option>
+                </select>
+
+                {targetTabMode === "custom_new" && (
+                  <input
+                    type="text"
+                    value={customTabName}
+                    onChange={(e) => setCustomTabName(e.target.value)}
+                    placeholder="New Tab Name..."
+                    className="h-6 w-32 px-2 text-xs rounded border border-primary/50 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    autoFocus
+                  />
+                )}
               </div>
             )}
           </div>

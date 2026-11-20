@@ -29,6 +29,8 @@ import {
   BookmarkCheck,
   Box,
   Pin,
+  Folder,
+  Globe,
 } from "lucide-react";
 import { BookmarkIcon } from "@/components/ui/bookmark-icon";
 import { saveUniversalPreset } from "@/components/presets/universal-preset-hub";
@@ -66,6 +68,7 @@ interface DashboardWidgetBoxProps {
   icon: React.ReactNode;
   badgeText?: string | number;
   tabRef?: "T1" | "T2" | "T3" | "T4" | string;
+  tabScope?: "universal" | "custom";
   isPinned?: boolean;
   onPinToggle?: (pinned: boolean) => void;
   span?: "1" | "2";
@@ -105,6 +108,7 @@ export function DashboardWidgetBox({
   icon,
   badgeText,
   tabRef,
+  tabScope,
   isPinned: propsIsPinned,
   onPinToggle,
   span = "1",
@@ -887,6 +891,12 @@ export function DashboardWidgetBox({
                       <span className="font-mono text-foreground capitalize">{viewMode}</span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Tab Scope:</span>
+                    <span className="font-mono text-foreground">
+                      {tabScope === "custom" ? "Custom Tab" : tabScope === "universal" ? "Universal Tab" : "Adaptive"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-2.5 pt-2 border-t border-border/60 flex items-center justify-between gap-2">
@@ -1246,6 +1256,45 @@ export function DashboardWidgetBox({
                   >
                     <Pin className="h-3.5 w-3.5 text-amber-500" />
                     <span>Pin to Dashboard Home</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      const baseConfig = widgetConfig || {};
+                      window.dispatchEvent(
+                        new CustomEvent("markly-open-save-preset-dialog", {
+                          detail: {
+                            name: title,
+                            category: "box",
+                            sourceLocation: `Visual Box: ${title}`,
+                            data: {
+                              ...baseConfig,
+                              id,
+                              title,
+                              colSpan: colSpanState,
+                              rowSpan: rowSpanState,
+                              boxHeight,
+                              itemLimit: activeLimit,
+                              viewMode: viewMode || baseConfig.viewMode,
+                              cardCoverStyle: boxCoverStyle,
+                              category: baseConfig.category || baseConfig.kind || "chart_studio",
+                              kind: baseConfig.kind || baseConfig.category || "custom",
+                              siteConfig: baseConfig.siteConfig,
+                              plotConfig: baseConfig.plotConfig,
+                              chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
+                              intelConfig: baseConfig.intelConfig,
+                            },
+                          },
+                        })
+                      );
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    title="Place or allocate this box into a Universal or Custom Tab"
+                  >
+                    <Folder className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Place into Tab...</span>
                   </button>
 
                   <button

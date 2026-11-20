@@ -1190,6 +1190,7 @@ export function FolderVisualAnalytics({
                     key={viz.id}
                     id={viz.id}
                     title={viz.title}
+                    tabScope={isCustomScope ? "custom" : "universal"}
                     icon={getVisualIcon(viz.kind)}
                     initialColSpan={currentSpan}
                     onColSpanChange={(span) => handleVisualColSpanChange(viz.id, span)}

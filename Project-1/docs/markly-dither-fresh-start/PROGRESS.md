@@ -64,6 +64,7 @@ Every route, feature, and data model described in the fresh-start blueprints has
 - Scope selector: Entire Archive vs By Folder.
 - Dither `AreaChart` (capture density by weekday), `BarChart` (top domains & folder distribution), and `Sparkline` KPI summaries.
 - "Add Visual Box" modal and "Save Board" persistence.
+- **Interactive Knowledge Relationship Graph View**: SVG-based network canvas connecting Folders, Saved Bookmarks, and Category Tags with hover inspector card.
 
 ### Stage 7: Feedback, Profile, Settings & Portability
 - `/feedback`: Local outbox feedback with category selector and draft status.

@@ -38,7 +38,18 @@ export default function AppShell(props: AppShellProps) {
       }
     }
     window.addEventListener('keydown', handleGlobalKeys)
-    onCleanup(() => window.removeEventListener('keydown', handleGlobalKeys))
+
+    // Edit bookmark global event listener
+    const handleEditBookmarkEvent = (e: CustomEvent<Bookmark>) => {
+      setEditingBookmark(e.detail)
+      setBookmarkDialogOpen(true)
+    }
+    window.addEventListener('markly:open-edit-bookmark', handleEditBookmarkEvent as EventListener)
+
+    onCleanup(() => {
+      window.removeEventListener('keydown', handleGlobalKeys)
+      window.removeEventListener('markly:open-edit-bookmark', handleEditBookmarkEvent as EventListener)
+    })
   })
 
   // Re-load folders on route change

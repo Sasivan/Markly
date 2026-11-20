@@ -153,7 +153,7 @@ export default function FolderView() {
                 bookmark={bookmark}
                 folderName={folder()?.name}
                 onToggleFavorite={handleToggleFavorite}
-                onEdit={() => {}}
+                onEdit={(bm) => window.dispatchEvent(new CustomEvent('markly:open-edit-bookmark', { detail: bm }))}
                 onDelete={handleDelete}
                 onOpen={handleOpen}
               />

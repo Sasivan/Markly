@@ -63,7 +63,7 @@ export default function Recent() {
               bookmark={bookmark}
               folderName={bookmark.folderId ? folderMap().get(bookmark.folderId) : undefined}
               onToggleFavorite={handleToggleFavorite}
-              onEdit={() => {}}
+              onEdit={(bm) => window.dispatchEvent(new CustomEvent('markly:open-edit-bookmark', { detail: bm }))}
               onDelete={handleDelete}
               onOpen={handleOpen}
             />

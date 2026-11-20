@@ -1,0 +1,494 @@
+"use client";
+
+import * as React from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Star,
+  Folder as FolderIcon,
+  Tag as TagIcon,
+  ExternalLink,
+  Globe,
+  Activity,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Upload,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
+import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import type { BookmarkWithDetails, Folder } from "@/server/db/schema";
+import { FolderTreeSelect } from "@/components/modals/folder-tree-select";
+import { useAuth } from "@/components/auth/auth-context";
+import { getAiRequestHeaders } from "@/lib/ai-config";
+
+interface EditBookmarkModalProps {
+  bookmark: BookmarkWithDetails | null;
+  folders: Folder[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (id: string, updates: any) => Promise<void>;
+}
+
+export function EditBookmarkModal({
+  bookmark,
+  folders,
+  open,
+  onOpenChange,
+  onSave,
+}: EditBookmarkModalProps) {
+  const { user } = useAuth();
+
+  const {
+    format,
+    toggleFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "edit_bookmark",
+    defaultVerticalWidth: 580,
+    defaultHorizontalWidth: 680,
+    defaultVerticalHeight: 600,
+    defaultHorizontalHeight: 600,
+    minWidth: 420,
+    minHeight: 440,
+  });
+  const [title, setTitle] = React.useState("");
+  const [url, setUrl] = React.useState("");
+  const [imageUrl, setImageUrl] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [folderId, setFolderId] = React.useState<string>("");
+  const [isFavorite, setIsFavorite] = React.useState(false);
+  const [isArchived, setIsArchived] = React.useState(false);
+  const [status, setStatus] = React.useState<"alive" | "dead">("alive");
+  const [tagsInput, setTagsInput] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  // Re-scrape and Upload state
+  const [isScraping, setIsScraping] = React.useState(false);
+  const [scrapeNotice, setScrapeNotice] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (bookmark) {
+      setTitle(bookmark.title);
+      setUrl(bookmark.url);
+      setImageUrl(bookmark.imageUrl || "");
+      setDescription(bookmark.description || "");
+      setFolderId(bookmark.folderId || "");
+      setIsFavorite(bookmark.isFavorite);
+      setIsArchived(bookmark.isArchived);
+      setStatus(bookmark.status === "dead" ? "dead" : "alive");
+      setTagsInput(bookmark.tags.map((t) => t.name).join(", "));
+      setScrapeNotice(null);
+    }
+  }, [bookmark]);
+
+  if (!bookmark) return null;
+
+  // Re-scrape metadata and site image
+  const handleRescrape = async () => {
+    const targetUrl = url.trim() || bookmark.url;
+    if (!targetUrl) return;
+
+    setIsScraping(true);
+    setScrapeNotice(null);
+
+    try {
+      const res = await fetch("/api/scrape", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAiRequestHeaders(user?.id),
+        },
+        body: JSON.stringify({
+          url: targetUrl,
+          saveImmediately: false,
+        }),
+      });
+
+      const data = await res.json();
+      const meta = data.scraped || data.metadata;
+      if (data.success && meta) {
+        const newImg = meta.ogImage || meta.imageUrl;
+        if (newImg) {
+          setImageUrl(newImg);
+        }
+        if (meta.title) {
+          setTitle(meta.title);
+        }
+        if (meta.description) {
+          setDescription(meta.description);
+        }
+        setScrapeNotice({
+          type: "success",
+          text: newImg
+            ? "Successfully re-scraped preview image & metadata!"
+            : "Re-scraped page metadata.",
+        });
+      } else {
+        setScrapeNotice({
+          type: "error",
+          text: data.error || data.message || "Failed to re-scrape site.",
+        });
+      }
+    } catch (err: any) {
+      setScrapeNotice({
+        type: "error",
+        text: err.message || "Failed to connect to scraper.",
+      });
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  // Upload image handler
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setScrapeNotice({ type: "error", text: "Please select an image file (PNG, JPG, WebP, SVG)." });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setImageUrl(reader.result);
+        setScrapeNotice({ type: "success", text: "Custom image uploaded successfully!" });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    setSaving(true);
+    try {
+      const parsedTags = tagsInput
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean);
+
+      await onSave(bookmark.id, {
+        title: title.trim(),
+        url: url.trim() || bookmark.url,
+        imageUrl: imageUrl.trim() || null,
+        description: description.trim() || null,
+        folderId: folderId || null,
+        isFavorite,
+        isArchived,
+        status,
+        tagNames: parsedTags,
+      });
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        style={modalStyle}
+        className="relative max-w-[95vw] p-5 max-h-[92vh] overflow-y-auto rounded-xl border border-border bg-card shadow-overlay"
+      >
+        <ModalResizeHandles onStartResize={startResize} />
+
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {bookmark.iconUrl ? (
+                <img
+                  src={bookmark.iconUrl}
+                  alt={bookmark.domain}
+                  className="h-8 w-8 rounded-lg object-contain border border-border bg-background flex-shrink-0 p-0.5"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center font-semibold text-xs text-muted-foreground">
+                  {bookmark.domain.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="truncate flex-1">
+                <DialogTitle className="text-sm font-semibold text-foreground truncate">
+                  Edit Bookmark
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground truncate flex items-center gap-1.5 mt-0.5">
+                  <Globe className="h-3 w-3" />
+                  <span>{bookmark.domain}</span>
+                  <span>•</span>
+                  <a
+                    href={bookmark.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:underline text-primary inline-flex items-center gap-0.5 font-medium"
+                  >
+                    Visit Link <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </DialogDescription>
+              </div>
+            </div>
+
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
+          </div>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mt-3 text-xs">
+          {/* Title input */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">
+              Title
+            </label>
+            <Input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-8 text-xs bg-secondary"
+              required
+            />
+          </div>
+
+          {/* Website URL section */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground flex items-center gap-1">
+              <LinkIcon className="h-3 w-3 text-muted-foreground" />
+              <span>Website URL</span>
+            </label>
+            <Input
+              type="url"
+              placeholder="https://example.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="h-8 text-xs bg-secondary font-mono"
+              required
+            />
+          </div>
+
+          {/* Site Image & Preview Section */}
+          <div className="space-y-2 p-3 rounded-xl border border-border bg-secondary">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="font-semibold text-foreground flex items-center gap-1.5">
+                <ImageIcon className="h-3.5 w-3.5 text-primary" />
+                <span>Site Preview Image</span>
+              </label>
+
+              <div className="flex items-center gap-1.5">
+                {/* Re-scrape Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRescrape}
+                  disabled={isScraping}
+                  className="text-xs h-7 px-2.5 gap-1 cursor-pointer"
+                  title="Re-scrape image and metadata directly from the live webpage"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isScraping ? "animate-spin text-primary" : ""}`} />
+                  <span>{isScraping ? "Scraping..." : "Scrape Again"}</span>
+                </Button>
+
+                {/* Upload Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs h-7 px-2.5 gap-1 cursor-pointer"
+                  title="Upload a custom preview image from your computer"
+                >
+                  <Upload className="h-3 w-3" />
+                  <span>Upload</span>
+                </Button>
+
+                {imageUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setImageUrl("")}
+                    className="text-xs h-7 px-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    title="Remove image"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {/* Image Preview Box */}
+            <div className="relative rounded-lg overflow-hidden border border-border bg-secondary min-h-24 max-h-36 flex items-center justify-center">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="Site preview"
+                  className="w-full h-36 object-cover"
+                  onError={() => {
+                    setScrapeNotice({ type: "error", text: "Image URL failed to load. You can re-scrape or upload an image." });
+                  }}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4 text-muted-foreground">
+                  <ImageIcon className="h-6 w-6 stroke-1 mb-1" />
+                  <span className="text-xs">No preview image attached</span>
+                  <span className="text-xs text-muted-foreground">Click &quot;Scrape Again&quot; or &quot;Upload&quot; to add one</span>
+                </div>
+              )}
+            </div>
+
+            {/* Manual Image URL Input */}
+            <Input
+              type="text"
+              placeholder="Or paste direct image URL (e.g. https://... image.png)"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              className="h-8 text-xs bg-secondary"
+            />
+
+            {/* Scrape Notice Banner */}
+            {scrapeNotice && (
+              <div
+                className={`p-2 rounded-lg text-xs flex items-center gap-1.5 ${
+                  scrapeNotice.type === "success"
+                    ? "bg-secondary text-foreground border border-border"
+                    : "bg-destructive/10 text-destructive border border-destructive/20"
+                }`}
+              >
+                {scrapeNotice.type === "success" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                )}
+                <span>{scrapeNotice.text}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Description input */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-foreground">
+              Description / Notes
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+              placeholder="Add optional notes or description..."
+            />
+          </div>
+
+          {/* Folder & Tags Grid */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground flex items-center gap-1">
+                <FolderIcon className="h-3 w-3 text-muted-foreground" /> Folder Location
+              </label>
+              <FolderTreeSelect
+                folders={folders}
+                selectedFolderId={folderId}
+                onSelectFolder={setFolderId}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground flex items-center gap-1">
+                <TagIcon className="h-3 w-3 text-muted-foreground" /> Tags (comma-separated)
+              </label>
+              <Input
+                type="text"
+                placeholder="dev, react, tools"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                className="h-8 text-xs bg-secondary"
+              />
+            </div>
+          </div>
+
+          {/* Health & Flags */}
+          <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground flex items-center gap-1">
+                <Activity className="h-3 w-3 text-muted-foreground" /> Link Health Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as "alive" | "dead")}
+                className="w-full h-8 text-xs rounded-md border border-border bg-secondary px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="alive">Reachable</option>
+                <option value="dead">Unreachable (Broken link)</option>
+              </select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:pt-5">
+              <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                <input
+                  type="checkbox"
+                  checked={isFavorite}
+                  onChange={(e) => setIsFavorite(e.target.checked)}
+                  className="rounded text-amber-500 h-3.5 w-3.5"
+                />
+                <Star className={`h-3.5 w-3.5 ${isFavorite ? "text-amber-500 fill-amber-500" : ""}`} />
+                <span className="font-medium">Favorite</span>
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground">
+                <input
+                  type="checkbox"
+                  checked={isArchived}
+                  onChange={(e) => setIsArchived(e.target.checked)}
+                  className="rounded text-primary h-3.5 w-3.5"
+                />
+                <span className="font-medium">Archived</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="text-xs h-8 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving || !title.trim()}
+              className="text-xs h-8 bg-primary hover:bg-primary text-white cursor-pointer active:translate-y-0.5"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

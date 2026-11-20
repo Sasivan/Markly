@@ -1,0 +1,441 @@
+"use client";
+
+import * as React from "react";
+import { ChevronRight, ChevronDown, MoreHorizontal, Plus, Edit2, Palette, Copy, Trash2, GripVertical, FolderInput, Share2 } from "lucide-react";
+import type { FolderTreeNode } from "@/server/db/schema";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+
+interface FolderTreeNodeProps {
+  node: FolderTreeNode;
+  depth?: number;
+  activeFolderId: string | null;
+  forceExpanded?: boolean | null;
+  onSelect: (folderId: string, isParent?: boolean) => void;
+  onNewSubfolder: (parentId: string) => void;
+  onAddBookmarkToFolder?: (folderId: string) => void;
+  onRename: (folderId: string, newName: string) => void;
+  onCustomize: (node: FolderTreeNode) => void;
+  onDuplicate: (folderId: string) => void;
+  onDelete: (node: FolderTreeNode) => void;
+  onMove?: (node: FolderTreeNode) => void;
+  onCopy?: (node: FolderTreeNode) => void;
+  onShare?: (node: FolderTreeNode) => void;
+  onDropFolder: (draggedFolderId: string, targetFolderId: string, position: "inside" | "before" | "after") => void;
+}
+
+export function FolderTreeNodeComponent({
+  node,
+  depth = 0,
+  activeFolderId,
+  forceExpanded,
+  onSelect,
+  onNewSubfolder,
+  onAddBookmarkToFolder,
+  onRename,
+  onCustomize,
+  onDuplicate,
+  onDelete,
+  onMove,
+  onCopy,
+  onShare,
+  onDropFolder,
+}: FolderTreeNodeProps) {
+  const [expanded, setExpanded] = React.useState(true);
+
+  React.useEffect(() => {
+    if (forceExpanded !== undefined && forceExpanded !== null) {
+      setExpanded(forceExpanded);
+    }
+  }, [forceExpanded]);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editName, setEditName] = React.useState(node.name);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [dropIndicator, setDropIndicator] = React.useState<"inside" | "before" | "after" | null>(null);
+
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [menuOpen]);
+
+  const handleRenameSubmit = () => {
+    if (editName.trim() && editName.trim() !== node.name) {
+      onRename(node.id, editName.trim());
+    } else {
+      setEditName(node.name);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleRenameSubmit();
+    } else if (e.key === "Escape") {
+      setEditName(node.name);
+      setIsEditing(false);
+    }
+  };
+
+  // Drag and drop events using HTML5 DnD (lightweight, zero bundle friction)
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData("text/plain", node.id);
+    e.dataTransfer.setData("application/x-markly-folder", node.id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.dataTransfer.types.includes("application/x-markly-bookmarks")) {
+      setDropIndicator("inside");
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+
+    if (y < height * 0.25) {
+      setDropIndicator("before");
+    } else if (y > height * 0.75) {
+      setDropIndicator("after");
+    } else {
+      setDropIndicator("inside");
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropIndicator(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = dropIndicator || "inside";
+    setDropIndicator(null);
+
+    // 4.3: Batch move bookmarks into folder
+    const bookmarksJson = e.dataTransfer.getData("application/x-markly-bookmarks");
+    if (bookmarksJson) {
+      try {
+        const ids = JSON.parse(bookmarksJson);
+        if (Array.isArray(ids) && ids.length > 0) {
+          const res = await fetch("/api/bookmarks/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "move",
+              ids,
+              folderId: node.id,
+            }),
+          });
+          if (res.ok) {
+            window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to move bookmarks via drag and drop:", err);
+      }
+      return;
+    }
+
+    const draggedFolderId =
+      e.dataTransfer.getData("application/x-markly-folder") || e.dataTransfer.getData("text/plain");
+    if (!draggedFolderId || draggedFolderId === node.id) return;
+
+    onDropFolder(draggedFolderId, node.id, pos);
+  };
+
+  const isActive = activeFolderId === node.id;
+  const hasChildren = node.children && node.children.length > 0;
+
+  return (
+    <div className="space-y-0.5 select-none">
+      <div
+        draggable={!isEditing}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenuOpen(true);
+        }}
+        onClick={() => !isEditing && onSelect(node.id, hasChildren)}
+        style={{ paddingLeft: `${depth * 14 + 6}px` }}
+        className={`group relative flex items-center gap-1.5 py-1 pr-2 rounded-md cursor-pointer transition-colors duration-150 ease-out text-xs ${
+          isActive
+            ? "bg-accent font-medium text-accent-foreground"
+            : "hover:bg-accent/70 text-muted-foreground hover:text-foreground"
+        } ${
+          dropIndicator === "inside"
+            ? "ring-1 ring-primary bg-primary/10"
+            : dropIndicator === "before"
+            ? "border-t border-primary"
+            : dropIndicator === "after"
+            ? "border-b border-primary"
+            : ""
+        }`}
+      >
+        {/* Expand / Collapse Chevron */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
+          aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
+          aria-expanded={expanded}
+          className={`h-4 w-4 rounded flex items-center justify-center hover:bg-background/60 text-muted-foreground transition-opacity ${
+            hasChildren ? "opacity-100" : "opacity-0 group-hover:opacity-30 cursor-default"
+          }`}
+        >
+          {hasChildren ? (
+            expanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )
+          ) : (
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+          )}
+        </button>
+
+        {/* Folder Icon / Emoji */}
+        <FolderIconRenderer icon={node.icon} className="h-3.5 w-3.5" color={node.color} />
+
+        {/* Folder Name / Inline Editor */}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={handleRenameSubmit}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 bg-background border border-primary px-1.5 py-0.5 text-xs rounded text-foreground focus:outline-none"
+          />
+        ) : (
+          <span
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+            className="truncate flex-1 font-medium"
+          >
+            {node.name}
+          </span>
+        )}
+
+        {/* Bookmark Count badge */}
+        {!isEditing && (
+          <span className="text-xs text-muted-foreground opacity-60 group-hover:opacity-100 font-mono tabular-nums">
+            {node.totalDescendantBookmarkCount}
+          </span>
+        )}
+
+        {/* Action Menu Trigger (...) & Quick Add Bookmark */}
+        {!isEditing && (
+          <div className="flex items-center gap-0.5">
+            {onAddBookmarkToFolder && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddBookmarkToFolder(node.id);
+                }}
+                title={`Add Bookmark to ${node.name}`}
+                className="h-5 w-5 rounded flex items-center justify-center hover:bg-background/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(!menuOpen);
+                }}
+                aria-label={`Actions for ${node.name}`}
+                aria-haspopup="menu"
+                className="h-5 w-5 rounded flex items-center justify-center hover:bg-background/70 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+
+              {/* Context Dropdown Menu */}
+              {menuOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-full mt-1 w-52 mk-menu z-50 text-xs"
+                >
+                  {onAddBookmarkToFolder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onAddBookmarkToFolder(node.id);
+                      }}
+                      className="mk-menu-item font-medium"
+                    >
+                      <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span>Add bookmark</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onNewSubfolder(node.id);
+                    }}
+                    className="mk-menu-item font-medium"
+                  >
+                    <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>New subfolder</span>
+                  </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setIsEditing(true);
+                  }}
+                  className="mk-menu-item font-medium"
+                >
+                  <Edit2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Rename</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onMove?.(node);
+                  }}
+                  className="mk-menu-item font-medium"
+                >
+                  <FolderInput className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Move folder</span>
+                </button>
+
+                {onCopy && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onCopy(node);
+                    }}
+                    className="mk-menu-item font-medium"
+                  >
+                    <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>Copy to...</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onCustomize(node);
+                  }}
+                  className="mk-menu-item font-medium"
+                >
+                  <Palette className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Change icon & color</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDuplicate(node.id);
+                  }}
+                  className="mk-menu-item font-medium"
+                >
+                  <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span>Duplicate folder</span>
+                </button>
+
+                {onShare && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onShare(node);
+                    }}
+                    className="mk-menu-item font-medium"
+                  >
+                    <Share2 className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span>Share Public Collection</span>
+                  </button>
+                )}
+
+                <div className="mk-divider" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete(node);
+                  }}
+                  className="mk-menu-item font-medium" data-destructive="true"
+                >
+                  <Trash2 className="h-4 w-4 flex-shrink-0" />
+                  <span>Delete folder</span>
+                </button>
+              </div>
+            )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nested Subfolders Render */}
+      {hasChildren && expanded && (
+        <div className="space-y-0.5">
+          {node.children.map((child) => (
+            <FolderTreeNodeComponent
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              activeFolderId={activeFolderId}
+              forceExpanded={forceExpanded}
+              onSelect={onSelect}
+              onNewSubfolder={onNewSubfolder}
+              onAddBookmarkToFolder={onAddBookmarkToFolder}
+              onRename={onRename}
+              onCustomize={onCustomize}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onMove={onMove}
+              onCopy={onCopy}
+              onShare={onShare}
+              onDropFolder={onDropFolder}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

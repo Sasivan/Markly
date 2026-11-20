@@ -1,0 +1,433 @@
+"use client";
+
+import * as React from "react";
+import { useAuth } from "@/components/auth/auth-context";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  KeyRound,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Trash2,
+  Loader2,
+  Cpu,
+} from "lucide-react";
+import {
+  getStoredAiApiKey,
+  setStoredAiApiKey,
+  clearStoredAiApiKey,
+} from "@/lib/ai-config";
+import { ModalFormatControls } from "@/components/ui/modal-format-controls";
+import { useResizableModal } from "@/lib/use-resizable-modal";
+
+export interface GeminiModelOption {
+  id: string;
+  label: string;
+  desc: string;
+}
+
+const GEMINI_MODELS: GeminiModelOption[] = [
+  {
+    id: "gemini-flash-latest",
+    label: "gemini-flash-latest (Recommended)",
+    desc: "Fast, accurate, Google's latest active Flash model (Free Tier)",
+  },
+  {
+    id: "gemini-2.5-flash",
+    label: "gemini-2.5-flash (Next-Gen Flash)",
+    desc: "Google's updated multimodal Flash model",
+  },
+  {
+    id: "gemini-2.5-pro",
+    label: "gemini-2.5-pro (Deep Reasoning)",
+    desc: "High reasoning capacity and extensive context window",
+  },
+  {
+    id: "gemini-flash-lite",
+    label: "gemini-flash-lite (Ultra Fast)",
+    desc: "Lightweight, ultra low-latency Flash model",
+  },
+  {
+    id: "custom",
+    label: "Custom Gemini Model...",
+    desc: "Type custom Google Gemini model ID",
+  },
+];
+
+interface ApiKeyModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ApiKeyModal({ open, onOpenChange }: ApiKeyModalProps) {
+  const { user } = useAuth();
+  const [apiKey, setApiKey] = React.useState("");
+  const [model, setModel] = React.useState("gemini-flash-latest");
+  const [customModelInput, setCustomModelInput] = React.useState("");
+
+  const [showKey, setShowKey] = React.useState(false);
+  const [isSaved, setIsSaved] = React.useState(false);
+  const [isTesting, setIsTesting] = React.useState(false);
+  const [testStatus, setTestStatus] = React.useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  const {
+    format,
+    toggleFormat,
+    modalStyle,
+    hasCustomSize,
+    handleRestoreDefaults,
+    startResize,
+  } = useResizableModal({
+    modalId: "api_key_modal",
+    defaultVerticalWidth: 540,
+    defaultHorizontalWidth: 740,
+    defaultVerticalHeight: 620,
+    defaultHorizontalHeight: 520,
+    minWidth: 420,
+    minHeight: 400,
+  });
+
+  // Load configuration from browser localStorage on modal open
+  React.useEffect(() => {
+    if (open) {
+      setTestStatus(null);
+
+      // Clean default state
+      setApiKey("");
+      setIsSaved(false);
+
+      if (typeof window !== "undefined") {
+        const savedKey = getStoredAiApiKey(user?.id);
+        if (savedKey) {
+          setApiKey(savedKey);
+          setIsSaved(true);
+        }
+      }
+    }
+  }, [open, user?.id]);
+
+  const effectiveModel = React.useMemo(() => {
+    if (model === "custom") {
+      return customModelInput.trim() || "gemini-flash-latest";
+    }
+    return model || "gemini-flash-latest";
+  }, [model, customModelInput]);
+
+  // Save config to browser localStorage ONLY (never stored server-side)
+  const handleSave = (closeImmediately: boolean = true) => {
+    const trimmedKey = apiKey.trim();
+
+    if (typeof window !== "undefined") {
+      if (trimmedKey) {
+        setStoredAiApiKey(trimmedKey, user?.id);
+
+        setIsSaved(true);
+        setTestStatus({
+          success: true,
+          message: `Google Gemini (${effectiveModel}) configured and saved in your browser!`,
+        });
+
+        if (closeImmediately) {
+          onOpenChange(false);
+        }
+      } else {
+        handleClear();
+        if (closeImmediately) {
+          onOpenChange(false);
+        }
+      }
+    }
+  };
+
+  // Clear config from browser localStorage
+  const handleClear = () => {
+    if (typeof window !== "undefined") {
+      clearStoredAiApiKey(user?.id);
+      setApiKey("");
+      setIsSaved(false);
+      setTestStatus({
+        success: false,
+        message: "API key removed. Using built-in offline classification engine.",
+      });
+    }
+  };
+
+  // Live Test Key directly against Google AI Studio API
+  const handleTestKey = async () => {
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey) {
+      setTestStatus({
+        success: false,
+        message: "Please enter your Google Gemini API key first.",
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestStatus(null);
+
+    try {
+      let cleanModel = effectiveModel.replace(/^models\//, "");
+      if (cleanModel === "gemini-1.5-flash" || cleanModel === "gemini-1.5-pro") {
+        cleanModel = "gemini-flash-latest";
+      }
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": trimmedKey,
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: "Say 'Ready'" }] }],
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        setTestStatus({
+          success: true,
+          message: `Verified! Google Gemini API key is valid and connected to ${cleanModel}.`,
+        });
+        handleSave(false);
+      } else {
+        const errMsg = data.error?.message || "Invalid Gemini API key or quota exceeded.";
+        setTestStatus({
+          success: false,
+          message: `Gemini verification failed: ${errMsg}`,
+        });
+      }
+    } catch (err: any) {
+      setTestStatus({
+        success: false,
+        message: `Network error connecting to Google Gemini: ${err.message || "Please check connection"}`,
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        style={modalStyle}
+        className="p-0 max-h-[92vh] flex flex-col overflow-hidden border border-border shadow-overlay rounded-xl bg-card transition-none duration-0 select-none relative"
+      >
+        {/* Header */}
+        <div className="relative flex-shrink-0 overflow-hidden border-b border-border bg-secondary/60 px-5 py-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-md bg-card flex items-center justify-center border border-border shadow-surface shrink-0">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <DialogTitle className="text-base font-semibold tracking-[-0.02em] text-foreground">
+                Google Gemini AI Settings
+              </DialogTitle>
+            </div>
+            <ModalFormatControls
+              format={format}
+              onToggleFormat={toggleFormat}
+              hasCustomSize={hasCustomSize}
+              onRestoreDefaults={handleRestoreDefaults}
+            />
+          </div>
+          <DialogDescription className="text-xs text-muted-foreground">
+            Connect your personal Google Gemini API key to unlock automated tag extraction, category classification, and smart bookmark suggestions.
+          </DialogDescription>
+        </div>
+
+        <div className="mk-scroll flex-1 space-y-4 overflow-y-auto p-5">
+          {/* Status Indicator */}
+          <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary text-xs">
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  isSaved
+                    ? "bg-emerald-500"
+                    : "bg-amber-500"
+                }`}
+              />
+              <span className="font-medium text-muted-foreground">
+                {isSaved
+                  ? "Google Gemini AI Active"
+                  : "Offline Engine (Heuristic)"}
+              </span>
+            </div>
+            <span className="text-3xs font-mono px-2 py-0.5 rounded bg-secondary text-muted-foreground truncate max-w-44">
+              {isSaved ? effectiveModel : "free taxonomy"}
+            </span>
+          </div>
+
+          {/* API Key Input */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <KeyRound className="h-3.5 w-3.5 text-primary" />
+                <span>Google Gemini API Key</span>
+              </label>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="text-2xs text-primary hover:underline flex items-center gap-0.5 font-medium"
+              >
+                <span>Get free Gemini key from Google AI Studio</span>
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            </div>
+
+            <div className="relative">
+              <input
+                type={showKey ? "text" : "password"}
+                placeholder="AIzaSy... or AQ.Ab8..."
+                value={apiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setIsSaved(false);
+                  setTestStatus(null);
+                }}
+                className="w-full h-10 px-3.5 pr-20 text-xs rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/30 font-mono"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="p-1.5 text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground rounded-md cursor-pointer"
+                  title={showKey ? "Hide key" : "Show key"}
+                >
+                  {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+            <p className="text-3xs text-muted-foreground">
+              Every user provides their own key. Your key is stored securely in your browser and used only to categorize your bookmarks.
+            </p>
+          </div>
+
+          {/* Model Selector Dropdown */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Cpu className="h-3.5 w-3.5 text-primary" />
+              <span>Gemini Model</span>
+            </label>
+            <select
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setIsSaved(false);
+                setTestStatus(null);
+              }}
+              className="w-full h-9 px-3 text-xs rounded-xl border border-border bg-background text-foreground cursor-pointer focus:ring-2 focus:ring-primary/30"
+            >
+              {GEMINI_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
+            {model === "custom" && (
+              <input
+                type="text"
+                placeholder="Enter custom Gemini model (e.g. gemini-2.0-flash)"
+                value={customModelInput}
+                onChange={(e) => {
+                  setCustomModelInput(e.target.value);
+                  setIsSaved(false);
+                }}
+                className="w-full h-8 px-3 text-xs rounded-xl border border-border bg-background text-foreground font-mono mt-1.5"
+              />
+            )}
+          </div>
+
+          {/* Test Status Feedback Banner */}
+          {testStatus && (
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 mk-fade-in ${
+                testStatus.success
+                  ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-300"
+                  : "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/50 text-rose-800 dark:text-rose-300"
+              }`}
+            >
+              {testStatus.success ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 mt-0.5 flex-shrink-0" />
+              )}
+              <div className="flex-1 font-medium">{testStatus.message}</div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="pt-2 flex items-center justify-between border-t border-border">
+            {apiKey.trim() || isSaved ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="text-xs text-rose-600 hover:text-rose-700 dark:hover:text-rose-400 cursor-pointer flex items-center gap-1 font-medium"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Remove</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestKey}
+                disabled={!apiKey.trim() || isTesting}
+                className="h-8 text-xs cursor-pointer gap-1.5"
+              >
+                {isTesting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Cpu className="h-3 w-3 text-primary" />
+                )}
+                <span>Test Connection</span>
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleSave(true)}
+                disabled={!apiKey.trim()}
+                className="h-8 text-xs bg-primary hover:bg-primary text-white cursor-pointer shadow-surface"
+              >
+                Save Settings
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Resizer handle */}
+        <div
+          onMouseDown={(e) => startResize("corner", e)}
+          className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center text-muted-foreground/40 hover:text-foreground select-none z-50 text-3xs"
+          title="Drag to resize dialog"
+        >
+          ⋰
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

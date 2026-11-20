@@ -1,0 +1,578 @@
+@import "tailwindcss";
+@import "skullet/styles.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ------------------------------------------------------------------
+     Color roles
+     ------------------------------------------------------------------ */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+
+  /* ------------------------------------------------------------------
+     Typography — one deliberate scale, no arbitrary pixel sizes needed.
+     ------------------------------------------------------------------ */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-stack), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+
+  --text-3xs: 0.625rem; /* 10px — stamps, counters */
+  --text-3xs--line-height: 0.9375rem;
+  --text-2xs: 0.6875rem; /* 11px — metadata */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px — dense UI text */
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem; /* 13px — body */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem; /* 14px — reading body */
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: 1.625rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.875rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+
+  /* ------------------------------------------------------------------
+     Shape & elevation
+     ------------------------------------------------------------------ */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1rem;
+
+  --shadow-surface: 0 1px 2px rgba(20, 18, 14, 0.04),
+    0 1px 1px rgba(20, 18, 14, 0.03);
+  --shadow-raised: 0 1px 2px rgba(20, 18, 14, 0.05),
+    0 6px 16px -6px rgba(20, 18, 14, 0.14), 0 16px 36px -20px rgba(20, 18, 14, 0.2);
+  --shadow-overlay: 0 2px 6px rgba(20, 18, 14, 0.06),
+    0 18px 44px -16px rgba(20, 18, 14, 0.28), 0 36px 80px -40px rgba(20, 18, 14, 0.36);
+
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@layer base {
+  :root {
+    /* Warm stone paper + graphite ink */
+    --background: #f7f6f2;
+    --foreground: #1b1a17;
+
+    --card: #fffefb;
+    --card-foreground: #1b1a17;
+    --popover: #fffefb;
+    --popover-foreground: #1b1a17;
+
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #efede7;
+    --secondary-foreground: #26241f;
+    --muted: #f1efe9;
+    --muted-foreground: #6e6a60;
+    --accent: #eae7df;
+    --accent-foreground: #1b1a17;
+    --destructive: #b3261e;
+    --destructive-foreground: #ffffff;
+
+    --border: #e3e0d8;
+    --border-strong: #d3cfc4;
+    --input: #dcd8ce;
+    --ring: #2563eb;
+
+    --radius: 0.625rem;
+    --sidebar-bg: #f2f0ea;
+    --sidebar-border: #e2ded5;
+
+    --surface-raised: #ffffff;
+    --surface-sunken: #efede6;
+
+    --scrollbar-thumb: rgba(27, 26, 23, 0.18);
+    --scrollbar-thumb-hover: rgba(27, 26, 23, 0.34);
+
+    /* Data visualization roles — restrained, single-family rank ramp */
+    --chart-1: #2f5fb3;
+    --chart-2: #4c7a63;
+    --chart-3: #9a7b3f;
+    --chart-4: #8d5a68;
+    --chart-5: #5c6270;
+    --chart-grid: rgba(27, 26, 23, 0.1);
+    --chart-axis: #6e6a60;
+
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: #0e0e0d;
+    --foreground: #eae8e2;
+
+    --card: #151513;
+    --card-foreground: #eae8e2;
+    --popover: #191917;
+    --popover-foreground: #eae8e2;
+
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #1d1d1a;
+    --secondary-foreground: #e3e1da;
+    --muted: #1a1a18;
+    --muted-foreground: #9d998e;
+    --accent: #24241f;
+    --accent-foreground: #f3f1ea;
+    --destructive: #e5534b;
+    --destructive-foreground: #ffffff;
+
+    --border: #262622;
+    --border-strong: #35352f;
+    --input: #2b2b26;
+    --ring: #3b82f6;
+
+    --sidebar-bg: #0b0b0a;
+    --sidebar-border: #201f1c;
+
+    --surface-raised: #1a1a18;
+    --surface-sunken: #121211;
+
+    --scrollbar-thumb: rgba(234, 232, 226, 0.18);
+    --scrollbar-thumb-hover: rgba(234, 232, 226, 0.34);
+
+    --chart-1: #7aa2e3;
+    --chart-2: #7fae94;
+    --chart-3: #c7a86a;
+    --chart-4: #c08e9c;
+    --chart-5: #9aa1af;
+    --chart-grid: rgba(234, 232, 226, 0.1);
+    --chart-axis: #9d998e;
+
+    color-scheme: dark;
+  }
+
+  /* Custom Theme Accents (8.3) */
+  html[data-accent="emerald"], :root[data-accent="emerald"] {
+    --primary: #047857;
+    --ring: #047857;
+  }
+  html[data-accent="indigo"], :root[data-accent="indigo"] {
+    --primary: #4338ca;
+    --ring: #4338ca;
+  }
+  html[data-accent="amber"], :root[data-accent="amber"] {
+    --primary: #b45309;
+    --ring: #b45309;
+  }
+  html[data-accent="slate"], :root[data-accent="slate"] {
+    --primary: #475569;
+    --ring: #475569;
+  }
+  html[data-accent="blue"], :root[data-accent="blue"] {
+    --primary: #2563eb;
+    --ring: #2563eb;
+  }
+
+  html.dark[data-accent="emerald"], .dark[data-accent="emerald"], [data-accent="emerald"] .dark, html[data-accent="emerald"] .dark {
+    --primary: #34d399;
+    --primary-foreground: #06110c;
+    --ring: #34d399;
+  }
+  html.dark[data-accent="indigo"], .dark[data-accent="indigo"], [data-accent="indigo"] .dark, html[data-accent="indigo"] .dark {
+    --primary: #818cf8;
+    --primary-foreground: #0b0a1a;
+    --ring: #818cf8;
+  }
+  html.dark[data-accent="amber"], .dark[data-accent="amber"], [data-accent="amber"] .dark, html[data-accent="amber"] .dark {
+    --primary: #f5b545;
+    --primary-foreground: #17110a;
+    --ring: #f5b545;
+  }
+  html.dark[data-accent="slate"], .dark[data-accent="slate"], [data-accent="slate"] .dark, html[data-accent="slate"] .dark {
+    --primary: #a8b3c4;
+    --primary-foreground: #10141a;
+    --ring: #a8b3c4;
+  }
+  html.dark[data-accent="blue"], .dark[data-accent="blue"], [data-accent="blue"] .dark, html[data-accent="blue"] .dark {
+    --primary: #60a5fa;
+    --primary-foreground: #08111f;
+    --ring: #60a5fa;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.011em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 22%, transparent);
+    color: inherit;
+  }
+
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* Numeric UI (counters, dates, IDs) is always tabular. */
+  code, kbd, samp, pre, .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------
+   Scrollbars — thin, trackless, capsule thumb that only gains contrast
+   when the pointer is inside the scroll region. Works in light and dark,
+   and in nested scroll areas (sidebar, trees, tables, modals, graphs).
+   -------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  transition: background-color 140ms ease-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* A dedicated class for scroll panels keeps overscroll from chaining. */
+.mk-scroll {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.mk-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* --------------------------------------------------------------------
+   Shared surface / typography primitives
+   -------------------------------------------------------------------- */
+.mk-panel {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-surface);
+}
+
+.mk-page {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .mk-page {
+    padding: 1.75rem 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .mk-page {
+    padding: 2rem 2.5rem;
+  }
+}
+
+/* Page / section hierarchy, one per level. */
+.mk-page-title {
+  font-size: 1.3125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.021em;
+  color: var(--foreground);
+}
+
+.mk-section-title {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--foreground);
+}
+
+.mk-eyebrow {
+  font-size: 0.625rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.mk-meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.mk-lede {
+  font-size: 0.8125rem;
+  line-height: 1.375rem;
+  color: var(--muted-foreground);
+  max-width: 62ch;
+}
+
+/* Row treatment shared by sidebars, trees, menus and table lists. */
+.mk-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.875rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  transition: background-color 120ms var(--ease-out-soft),
+    color 120ms var(--ease-out-soft);
+  cursor: pointer;
+}
+
+.mk-row:hover {
+  background-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+  color: var(--foreground);
+}
+
+.mk-row[data-active="true"] {
+  background-color: var(--accent);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+/* Menu surface used by every dropdown / select / context menu. */
+.mk-menu {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-raised);
+  padding: 0.3125rem;
+  animation: mk-menu-in 120ms var(--ease-out-soft);
+}
+
+.mk-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 110ms ease-out;
+}
+
+.mk-menu-item:hover,
+.mk-menu-item[data-highlighted="true"] {
+  background-color: var(--accent);
+}
+
+.mk-menu-item[data-destructive="true"] {
+  color: var(--destructive);
+}
+
+.mk-menu-item[data-destructive="true"]:hover {
+  background-color: color-mix(in srgb, var(--destructive) 10%, transparent);
+}
+
+.mk-divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 0.25rem 0;
+}
+
+@keyframes mk-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mk-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mk-fade-in {
+  animation: mk-fade-in 180ms var(--ease-out-soft);
+}
+
+/* --------------------------------------------------------------------
+   Charts / graphs
+   -------------------------------------------------------------------- */
+svg:focus,
+svg *:focus,
+.recharts-wrapper,
+.recharts-wrapper:focus,
+.recharts-surface,
+.recharts-surface:focus,
+.recharts-sector,
+.recharts-sector:focus,
+.recharts-rectangle,
+.recharts-rectangle:focus,
+.recharts-curve,
+.recharts-curve:focus,
+.recharts-dot,
+.recharts-dot:focus,
+.recharts-layer:focus {
+  outline: none !important;
+}
+
+.recharts-cartesian-axis-tick text,
+.recharts-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--chart-axis);
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Native range input — used by recency sliders and graph physics. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1.25rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 9999px;
+  background-color: var(--border-strong);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 13px;
+  width: 13px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  background-color: var(--primary);
+  border: 2px solid var(--card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+input[type="range"]:focus-visible {
+  outline-offset: 4px;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 9999px;
+  background-color: var(--border-strong);
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 13px;
+  width: 13px;
+  border-radius: 9999px;
+  background-color: var(--primary);
+  border: 2px solid var(--card);
+}
+
+/* --------------------------------------------------------------------
+   Reduced motion: honor the OS preference across the entire app.
+   -------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,498 @@
+"use client";
+
+import * as React from "react";
+import {
+  Sparkles,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Search,
+  Filter,
+  CheckCircle2,
+  AlertCircle,
+  Folder as FolderIcon,
+  Star,
+  Globe,
+  Tag as TagIcon,
+  StickyNote,
+  Eye,
+  Loader2,
+  ArrowRight,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { BookmarkIcon } from "@/components/ui/bookmark-icon";
+import { CreateSmartCollectionModal } from "@/components/modals/create-smart-collection-modal";
+import { FolderIconRenderer } from "@/components/icons/folder-icon-renderer";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import type { BookmarkWithDetails, SmartCollection } from "@/server/db/schema";
+
+interface SmartCollectionsViewProps {
+  bookmarks: BookmarkWithDetails[];
+  onOpenPreview?: (bm: BookmarkWithDetails) => void;
+  onNavigateHome?: () => void;
+  onSelectFolder?: (folderId: string) => void;
+  onSelectView?: (view: any) => void;
+}
+
+interface SmartRule {
+  field: "tags" | "favorite" | "domain" | "status" | "notes" | "visitCount" | "recency" | "description" | "title" | "url";
+  operator?: string;
+  value: string;
+}
+
+function matchBookmarkToRules(bm: BookmarkWithDetails, rules: SmartRule[], matchMode: "all" | "any" = "all"): boolean {
+  if (!rules || rules.length === 0) return true;
+
+  const results = rules.map((rule) => {
+    switch (rule.field) {
+      case "description":
+        return (bm.description || "").toLowerCase().includes((rule.value || "").toLowerCase());
+      case "title":
+        return (bm.title || "").toLowerCase().includes((rule.value || "").toLowerCase());
+      case "url":
+        return (bm.url || "").toLowerCase().includes((rule.value || "").toLowerCase());
+      case "favorite":
+        return rule.value === "starred" ? Boolean(bm.isFavorite) : !bm.isFavorite;
+      case "domain":
+        return (bm.domain || "").toLowerCase().includes((rule.value || "").toLowerCase());
+      case "tags":
+        return (bm.tags || []).some((t) => {
+          const tName = typeof t === "string" ? t : t.name;
+          return tName.toLowerCase().includes((rule.value || "").toLowerCase());
+        });
+      case "status":
+        return rule.value === "dead" ? bm.status === "dead" : bm.status !== "dead";
+      case "notes":
+        return rule.value === "has_notes"
+          ? Boolean(bm.notes && bm.notes.trim().length > 0)
+          : !bm.notes || bm.notes.trim().length === 0;
+      case "visitCount": {
+        const threshold = parseInt(rule.value, 10) || 1;
+        return (bm.visitCount || 0) >= threshold;
+      }
+      case "recency": {
+        const days = parseInt(rule.value, 10) || 7;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        return new Date(bm.createdAt) >= cutoff;
+      }
+      default:
+        return true;
+    }
+  });
+
+  return matchMode === "any" ? results.some(Boolean) : results.every(Boolean);
+}
+
+export function SmartCollectionsView({
+  bookmarks,
+  onOpenPreview,
+  onNavigateHome,
+  onSelectFolder,
+  onSelectView,
+}: SmartCollectionsViewProps) {
+  const [collections, setCollections] = React.useState<SmartCollection[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [createdFolderId, setCreatedFolderId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; name: string } | null>(null);
+
+  const fetchCollections = React.useCallback(async (newId?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/smart-collections");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.collections)) {
+        setCollections(json.collections);
+        if (newId) {
+          setSelectedCollectionId(newId);
+        } else if (json.collections.length > 0 && !selectedCollectionId) {
+          setSelectedCollectionId(json.collections[0].id);
+        }
+      }
+    } catch {
+      setError("Failed to load smart collections");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCollectionId]);
+
+  React.useEffect(() => {
+    fetchCollections();
+  }, [fetchCollections]);
+
+  const [isConverting, setIsConverting] = React.useState(false);
+  const [convertSuccess, setConvertSuccess] = React.useState(false);
+
+  const handleConvertToFolder = async () => {
+    if (!selectedCollection || matchingBookmarks.length === 0) return;
+    setIsConverting(true);
+    setConvertSuccess(false);
+
+    try {
+      // 1. Create a real static folder
+      const res = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${selectedCollection.name} (Folder)`,
+          color: selectedCollection.color || "#8b5cf6",
+          icon: selectedCollection.icon || "Folder",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.folder) {
+        throw new Error(data.error || "Failed to create folder");
+      }
+
+      // 2. Copy matching bookmarks into the new folder
+      const ids = matchingBookmarks.map((b) => b.id);
+      await fetch("/api/bookmarks/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "copy",
+          ids,
+          folderId: data.folder.id,
+        }),
+      });
+
+      setCreatedFolderId(data.folder.id);
+      setConvertSuccess(true);
+      window.dispatchEvent(new CustomEvent("markly-workspace-updated"));
+      setTimeout(() => setConvertSuccess(false), 5000);
+    } catch (err: any) {
+      console.error("Convert to folder error:", err);
+      setError(err.message || "Failed to convert collection to folder");
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handleDelete = (id: string, name: string) => {
+    setDeleteTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/smart-collections?id=${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        setCollections((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        if (selectedCollectionId === deleteTarget.id) {
+          setSelectedCollectionId(null);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to delete smart collection:", e);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
+  // Filter collections by search query
+  const filteredCollections = React.useMemo(() => {
+    if (!searchQuery.trim()) return collections;
+    const q = searchQuery.toLowerCase();
+    return collections.filter((c) => c.name.toLowerCase().includes(q));
+  }, [collections, searchQuery]);
+
+  // Selected collection and its matching bookmarks
+  const selectedCollection = React.useMemo(() => {
+    return collections.find((c) => c.id === selectedCollectionId) || null;
+  }, [collections, selectedCollectionId]);
+
+  const matchingBookmarks = React.useMemo(() => {
+    if (!selectedCollection) return [];
+    try {
+      const rules = JSON.parse(selectedCollection.rulesJson) as SmartRule[];
+      return bookmarks.filter((bm) => matchBookmarkToRules(bm, rules));
+    } catch {
+      return [];
+    }
+  }, [selectedCollection, bookmarks]);
+
+  return (
+    <div className="mk-fade-in space-y-5 pb-12">
+      {/* Create Smart Collection Modal */}
+      <CreateSmartCollectionModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={(newId) => fetchCollections(newId)}
+        bookmarks={bookmarks}
+      />
+
+      {/* Masthead */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+        <div className="space-y-2 min-w-0">
+          <div className="mk-eyebrow flex items-center gap-2">
+            <Sparkles className="h-3 w-3" />
+            <span>Dynamic collections</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground">Smart collections</h1>
+            <span className="mk-meta rounded-sm border border-border bg-muted/60 px-1.5 py-0.5 text-2xs">
+              {collections.length} {collections.length === 1 ? "collection" : "collections"}
+            </span>
+          </div>
+          <p className="mk-lede">
+            Virtual folders that repopulate from multi-criteria rules — no duplicated links.
+          </p>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={() => setIsCreateOpen(true)}
+          className="h-8 gap-1.5 px-3 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span>New smart collection</span>
+        </Button>
+      </div>
+
+      {/* Main Grid & Master-Detail Area */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground space-y-2">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="text-xs">Loading smart collections...</span>
+        </div>
+      ) : collections.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border-strong bg-card/50 p-10 text-center space-y-3">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">No smart collections yet</h3>
+            <p className="mx-auto max-w-md text-xs leading-5 text-muted-foreground">
+              Aggregate bookmarks automatically by starred status, domain, tag, visit frequency or notes — without duplicating any links.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+            className="h-8 text-xs bg-primary text-primary-foreground gap-1.5 cursor-pointer mt-2"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Create First Smart Collection</span>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left Column: Smart Collections List */}
+          <div className="space-y-3 lg:col-span-5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search smart collections..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-2">
+              {filteredCollections.map((col) => {
+                const isSelected = selectedCollectionId === col.id;
+                let parsedRules: SmartRule[] = [];
+                try {
+                  parsedRules = JSON.parse(col.rulesJson);
+                } catch {}
+
+                const count = bookmarks.filter((bm) => matchBookmarkToRules(bm, parsedRules)).length;
+
+                return (
+                  <div
+                    key={col.id}
+                    onClick={() => setSelectedCollectionId(col.id)}
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-colors space-y-2 ${
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-surface"
+                        : "border-border bg-card hover:bg-secondary/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="h-6 w-6 rounded-md flex items-center justify-center shrink-0 border border-border/60"
+                          style={{ backgroundColor: `${col.color || "#8b5cf6"}20` }}
+                        >
+                          <FolderIconRenderer
+                            icon={col.icon || "Sparkles"}
+                            color={col.color || "#8b5cf6"}
+                            className="h-3.5 w-3.5"
+                          />
+                        </div>
+                        <span className="font-semibold text-xs text-foreground truncate">{col.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-3xs font-mono px-2 py-0.5 rounded-full bg-secondary font-medium text-foreground border border-border/60">
+                          {count} {count === 1 ? "site" : "sites"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(col.id, col.name);
+                          }}
+                          className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Delete collection"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Rule Tags */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {parsedRules.map((r, i) => (
+                        <span
+                          key={i}
+                          className="text-3xs font-mono px-2 py-0.5 rounded bg-secondary text-muted-foreground border border-border/40"
+                        >
+                          {r.field}: {r.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right Column: Collection Matches Inspector */}
+          <div className="lg:col-span-7">
+            {selectedCollection ? (
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-surface">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border border-border/60"
+                      style={{ backgroundColor: `${selectedCollection.color || "#8b5cf6"}20` }}
+                    >
+                      <FolderIconRenderer
+                        icon={selectedCollection.icon || "Sparkles"}
+                        color={selectedCollection.color || "#8b5cf6"}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-foreground">{selectedCollection.name}</h2>
+                      <span className="text-xs text-muted-foreground">
+                        {matchingBookmarks.length} dynamic {matchingBookmarks.length === 1 ? "match" : "matches"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleConvertToFolder}
+                      disabled={isConverting || matchingBookmarks.length === 0}
+                      className="h-7 text-xs border-border hover:bg-secondary cursor-pointer gap-1.5"
+                      title="Create real static folder in folder tree with copies of these matching bookmarks"
+                    >
+                      {isConverting ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                      ) : convertSuccess ? (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <FolderIcon className="h-3 w-3 text-primary" />
+                      )}
+                      <span>{convertSuccess ? "Folder Created!" : "Create as Real Folder"}</span>
+                    </Button>
+
+                    {convertSuccess && createdFolderId && onSelectFolder && onSelectView && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          onSelectFolder(createdFolderId);
+                          onSelectView("collections");
+                        }}
+                        className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer gap-1 shadow-surface"
+                      >
+                        <span>Open in Folders</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (onNavigateHome) onNavigateHome();
+                      }}
+                      className="h-7 text-xs border-border hover:bg-secondary cursor-pointer"
+                    >
+                      <span>View in Table</span>
+                      <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+
+                {matchingBookmarks.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-muted-foreground space-y-1">
+                    <Filter className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
+                    <p className="font-medium text-foreground">No bookmarks currently match these rules.</p>
+                    <p>Bookmarks that meet the conditions will automatically appear here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-[500px] overflow-y-auto mk-scroll pr-1">
+                    {matchingBookmarks.map((bm) => (
+                      <div
+                        key={bm.id}
+                        onClick={() => onOpenPreview?.(bm)}
+                        className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-secondary/30 hover:bg-secondary cursor-pointer transition-colors text-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <BookmarkIcon
+                            src={bm.iconUrl}
+                            alt={bm.title}
+                            domain={bm.domain}
+                            className="h-4 w-4 shrink-0"
+                          />
+                          <div className="truncate">
+                            <div className="font-semibold text-foreground truncate">{bm.title}</div>
+                            <div className="text-2xs text-muted-foreground font-mono truncate">{bm.url}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                          {bm.isFavorite && <Star className="h-3 w-3 text-amber-400 fill-amber-400" />}
+                          <span className="text-3xs font-mono text-muted-foreground">
+                            {bm.visitCount || 0} visits
+                          </span>
+                          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-card/40 p-12 text-center text-xs text-muted-foreground">
+                Select a smart collection to preview its live dynamic bookmark items.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modern In-App Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Smart Collection"
+        itemName={deleteTarget?.name}
+        description={`Are you sure you want to delete smart collection "${deleteTarget?.name}"? This action cannot be undone.`}
+        onConfirm={executeDelete}
+      />
+    </div>
+  );
+}
+

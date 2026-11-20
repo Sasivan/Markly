@@ -1,0 +1,956 @@
+"use client";
+
+import * as React from "react";
+import {
+  MessageSquarePlus,
+  Send,
+  Sparkles,
+  Bug,
+  TrendingUp,
+  MessageCircle,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  User as UserIcon,
+  Search,
+  Trash2,
+  X,
+  Archive,
+  Check,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { useAuth } from "@/components/auth/auth-context";
+import type { FeedbackWithReplies } from "@/server/db/schema";
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; border: string; darkBg: string }
+> = {
+  received: {
+    label: "Received",
+    color: "text-muted-foreground",
+    bg: "bg-secondary",
+    darkBg: "",
+    border: "border-border",
+  },
+  under_review: {
+    label: "Under Review",
+    color: "text-amber-700 dark:text-amber-400",
+    bg: "bg-amber-500/10",
+    darkBg: "",
+    border: "border-amber-500/30",
+  },
+  processing: {
+    label: "In Processing",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    darkBg: "",
+    border: "border-primary/30",
+  },
+  fixed: {
+    label: "Fixed",
+    color: "text-emerald-700 dark:text-emerald-400",
+    bg: "bg-emerald-500/10",
+    darkBg: "",
+    border: "border-emerald-500/30",
+  },
+  planned: {
+    label: "Planned",
+    color: "text-foreground",
+    bg: "bg-secondary",
+    darkBg: "",
+    border: "border-border-strong",
+  },
+  closed: {
+    label: "Closed",
+    color: "text-foreground",
+    bg: "bg-secondary",
+    darkBg: "",
+    border: "border-border",
+  },
+};
+
+const CATEGORIES = [
+  { id: "general", label: "General", icon: MessageSquarePlus },
+  { id: "feature", label: "Feature Idea", icon: Sparkles },
+  { id: "bug", label: "Bug Report", icon: Bug },
+  { id: "improvement", label: "Improvement", icon: TrendingUp },
+];
+
+interface FeedbackViewProps {
+  onNavigateHome?: () => void;
+}
+
+export function FeedbackView({ onNavigateHome }: FeedbackViewProps) {
+  const { user } = useAuth();
+
+  // Client-side admin check from user session
+  const clientAdmin = React.useMemo(() => {
+    if (!user) return false;
+    const adminEnv = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+    const uEmail = (user.email || user.user_metadata?.email || "").replace(/[\r\n"']/g, "").trim().toLowerCase();
+
+    // Explicit administrator recognition
+    if (uEmail.startsWith("sasivan177@") || uEmail.includes("sasivan177")) {
+      return true;
+    }
+
+    if (adminEnv && uEmail && (adminEnv === uEmail || adminEnv.includes(uEmail) || uEmail.includes(adminEnv))) {
+      return true;
+    }
+
+    if (
+      user.app_metadata?.role === "admin" ||
+      user.user_metadata?.role === "admin" ||
+      user.role === "admin" ||
+      user.app_metadata?.is_admin === true ||
+      user.user_metadata?.is_admin === true
+    ) {
+      return true;
+    }
+
+    return false;
+  }, [user]);
+
+  const [isAdmin, setIsAdmin] = React.useState(false);
+  const [mainTab, setMainTab] = React.useState<"my" | "submit" | "admin">("my");
+  const [myFeedback, setMyFeedback] = React.useState<FeedbackWithReplies[]>([]);
+  const [allFeedback, setAllFeedback] = React.useState<FeedbackWithReplies[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (user?.email) {
+      try {
+        localStorage.setItem("markly_user_email", user.email);
+      } catch {}
+    }
+  }, [user?.email]);
+
+  React.useEffect(() => {
+    if (clientAdmin) {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+      setMainTab("my");
+    }
+  }, [clientAdmin]);
+
+  React.useEffect(() => {
+    const handleOpenAdmin = () => {
+      if (clientAdmin) {
+        setIsAdmin(true);
+        setMainTab("admin");
+      }
+    };
+    window.addEventListener("markly-open-admin-feedback", handleOpenAdmin);
+    return () => window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
+  }, [clientAdmin]);
+
+  // Form State
+  const [title, setTitle] = React.useState("");
+  const [message, setMessage] = React.useState("");
+  const [category, setCategory] = React.useState<"general" | "feature" | "bug" | "improvement">("general");
+  const [formError, setFormError] = React.useState("");
+  const [formSuccess, setFormSuccess] = React.useState("");
+
+  // Thread Reply State
+  const [activeReplyId, setActiveReplyId] = React.useState<string | null>(null);
+  const [replyMessage, setReplyMessage] = React.useState("");
+  const [isReplying, setIsReplying] = React.useState(false);
+
+  // Delete Ticket State (Admin)
+  const [ticketToDelete, setTicketToDelete] = React.useState<FeedbackWithReplies | null>(null);
+
+  // Expanded cards
+  const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
+
+  // History / Status Filter Tabs
+  const [userTab, setUserTab] = React.useState<"active" | "history" | "all">("active");
+  const [adminTab, setAdminTab] = React.useState<"active" | "history" | "all">("active");
+  const [adminSearch, setAdminSearch] = React.useState("");
+
+  const toggleExpand = (id: string) => {
+    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const loadFeedbacks = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/feedback", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        const userIsAdmin = Boolean(data.isAdmin || clientAdmin);
+        setIsAdmin(userIsAdmin);
+        if (userIsAdmin) {
+          setMainTab("admin");
+        }
+        setMyFeedback(data.myFeedback || []);
+        setAllFeedback(data.allFeedback || []);
+      } else if (clientAdmin) {
+        setIsAdmin(true);
+        setMainTab("admin");
+      }
+    } catch (e) {
+      console.error("Failed to load feedbacks:", e);
+      if (clientAdmin) {
+        setIsAdmin(true);
+        setMainTab("admin");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (clientAdmin) {
+      setIsAdmin(true);
+      setMainTab("admin");
+    }
+  }, [clientAdmin]);
+
+  React.useEffect(() => {
+    const handleOpenAdmin = () => {
+      setIsAdmin(true);
+      setMainTab("admin");
+    };
+    const handleOpenUser = () => {
+      setMainTab("my");
+    };
+    window.addEventListener("markly-open-admin-feedback", handleOpenAdmin);
+    window.addEventListener("markly-open-user-feedback", handleOpenUser);
+    return () => {
+      window.removeEventListener("markly-open-admin-feedback", handleOpenAdmin);
+      window.removeEventListener("markly-open-user-feedback", handleOpenUser);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    loadFeedbacks();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    setFormSuccess("");
+
+    if (!title.trim() || title.trim().length < 3) {
+      setFormError("Please enter a title (at least 3 characters).");
+      return;
+    }
+    if (!message.trim() || message.trim().length < 5) {
+      setFormError("Please enter detailed feedback (at least 5 characters).");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, message, category }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setFormError(data.error || "Failed to submit feedback.");
+        return;
+      }
+
+      setFormSuccess("Thank you! Your feedback has been sent directly to our team.");
+      setTitle("");
+      setMessage("");
+      setCategory("general");
+      await loadFeedbacks();
+    } catch {
+      setFormError("Network error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSendReply = async (feedbackId: string) => {
+    if (!replyMessage.trim()) return;
+
+    try {
+      setIsReplying(true);
+      const res = await fetch(`/api/feedback/${feedbackId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: replyMessage }),
+      });
+
+      if (res.ok) {
+        setReplyMessage("");
+        setActiveReplyId(null);
+        await loadFeedbacks();
+      }
+    } catch (e) {
+      console.error("Failed to send reply:", e);
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const handleStatusChange = async (feedbackId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/feedback/${feedbackId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (res.ok) {
+        await loadFeedbacks();
+      }
+    } catch (e) {
+      console.error("Failed to update status:", e);
+    }
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete) return;
+    try {
+      const res = await fetch(`/api/feedback/${ticketToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setTicketToDelete(null);
+        await loadFeedbacks();
+      }
+    } catch (e) {
+      console.error("Failed to delete feedback ticket:", e);
+    }
+  };
+
+  // Filtered User Feedback (Active vs History)
+  const filteredUserFeedback = React.useMemo(() => {
+    if (userTab === "active") {
+      return myFeedback.filter((f) => f.status !== "closed" && f.status !== "fixed");
+    }
+    if (userTab === "history") {
+      return myFeedback.filter((f) => f.status === "closed" || f.status === "fixed");
+    }
+    return myFeedback;
+  }, [myFeedback, userTab]);
+
+  // Filtered Admin Feedback (Search + Active vs History)
+  const filteredAdminFeedback = React.useMemo(() => {
+    let list = allFeedback;
+
+    if (adminTab === "active") {
+      list = list.filter((f) => f.status !== "closed" && f.status !== "fixed");
+    } else if (adminTab === "history") {
+      list = list.filter((f) => f.status === "closed" || f.status === "fixed");
+    }
+
+    if (adminSearch.trim()) {
+      const query = adminSearch.toLowerCase().trim();
+      list = list.filter(
+        (f) =>
+          f.title.toLowerCase().includes(query) ||
+          f.message.toLowerCase().includes(query) ||
+          (f.userEmail && f.userEmail.toLowerCase().includes(query)) ||
+          (f.userName && f.userName.toLowerCase().includes(query)) ||
+          f.category.toLowerCase().includes(query) ||
+          f.status.toLowerCase().includes(query)
+      );
+    }
+
+    return list;
+  }, [allFeedback, adminTab, adminSearch]);
+
+  const userActiveCount = myFeedback.filter((f) => f.status !== "closed" && f.status !== "fixed").length;
+  const userHistoryCount = myFeedback.filter((f) => f.status === "closed" || f.status === "fixed").length;
+
+  const adminActiveCount = allFeedback.filter((f) => f.status !== "closed" && f.status !== "fixed").length;
+  const adminHistoryCount = allFeedback.filter((f) => f.status === "closed" || f.status === "fixed").length;
+
+  const renderFeedbackItem = (item: FeedbackWithReplies, showUser = false) => {
+    const isExpanded = expandedCards[item.id] ?? true;
+    const repliesCount = item.replies?.length || 0;
+    const statusCfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.received;
+    const isClosed = item.status === "closed";
+
+    return (
+      <div
+        key={item.id}
+        className={`rounded-lg border bg-card p-4 shadow-surface space-y-3 transition-colors ${
+          isClosed
+            ? "border-border/60 opacity-90"
+            : "border-border"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-mono font-medium border ${statusCfg.color} ${statusCfg.bg} ${statusCfg.darkBg} ${statusCfg.border}`}
+            >
+              {statusCfg.label}
+            </span>
+            <Badge
+              variant="outline"
+              className="text-xs font-mono capitalize border-border text-muted-foreground"
+            >
+              {item.category}
+            </Badge>
+            <span className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {new Date(item.createdAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+          </div>
+
+          {isAdmin && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-mono text-muted-foreground mr-0.5">Tag:</span>
+              {["received", "under_review", "processing", "fixed", "planned"].map((st) => {
+                const cfg = STATUS_CONFIG[st];
+                const active = item.status === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => handleStatusChange(item.id, st)}
+                    className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors font-medium ${
+                      active
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                    }`}
+                  >
+                    {cfg.label}
+                  </button>
+                );
+              })}
+
+              {/* Close / Reopen Ticket Button */}
+              {isClosed ? (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(item.id, "under_review")}
+                  className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100"
+                  title="Reopen ticket"
+                >
+                  Reopen
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(item.id, "closed")}
+                  className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors font-medium bg-muted text-muted-foreground border border-border hover:bg-destructive/10 hover:text-destructive"
+                  title="Close ticket and move to history"
+                >
+                  Close
+                </button>
+              )}
+
+              {/* Admin Delete Ticket Option */}
+              <button
+                type="button"
+                onClick={() => setTicketToDelete(item)}
+                className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors ml-1"
+                title="Permanently delete ticket"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h4 className="text-sm font-semibold text-foreground flex items-center justify-between">
+            <span className={isClosed ? "line-through text-muted-foreground" : ""}>{item.title}</span>
+            <button
+              type="button"
+              onClick={() => toggleExpand(item.id)}
+              className="text-muted-foreground hover:text-foreground cursor-pointer p-1"
+            >
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </h4>
+          <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap leading-relaxed">
+            {item.message}
+          </p>
+
+          {showUser && (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50 text-xs text-muted-foreground font-mono">
+              <UserIcon className="h-3 w-3" />
+              <span className="font-medium text-foreground">{item.userName || "User"}</span>
+              {item.userEmail && <span>({item.userEmail})</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Reply Threads */}
+        {isExpanded && (
+          <div className="pt-2 border-t border-border/60 space-y-2.5">
+            {repliesCount > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 font-mono">
+                  <MessageCircle className="h-3 w-3" />
+                  Conversation Thread ({repliesCount})
+                </span>
+                <div className="space-y-2 pl-3 border-l-2 border-primary/30 ml-1">
+                  {item.replies.map((reply) => (
+                    <div
+                      key={reply.id}
+                      className={`p-2.5 rounded-lg text-xs space-y-1 ${
+                        reply.isAdmin
+                          ? "bg-primary/5 border border-primary/20"
+                          : "bg-muted/50 border border-border"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-foreground">
+                            {reply.userName || (reply.isAdmin ? "Admin (Sasivan)" : "User")}
+                          </span>
+                          {reply.isAdmin && (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-primary text-primary-foreground flex items-center gap-0.5">
+                              <ShieldCheck className="h-3 w-3" />
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {new Date(reply.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-foreground/90 whitespace-pre-wrap">
+                        {reply.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Reply Form */}
+            {activeReplyId === item.id ? (
+              <div className="pt-1 space-y-2">
+                <textarea
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder={isAdmin ? "Type your official admin response..." : "Add a reply to this thread..."}
+                  rows={2}
+                  className="w-full text-xs rounded-lg border border-input bg-background p-2.5 text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setActiveReplyId(null);
+                      setReplyMessage("");
+                    }}
+                    className="h-7 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSendReply(item.id)}
+                    disabled={isReplying || !replyMessage.trim()}
+                    className="h-7 text-xs"
+                  >
+                    {isReplying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+                    Reply
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveReplyId(item.id);
+                  setReplyMessage("");
+                }}
+                className="text-xs font-medium text-primary hover:underline cursor-pointer flex items-center gap-1 font-mono"
+              >
+                <MessageSquarePlus className="h-3 w-3" />
+                {isAdmin ? "Write back as Admin" : "Reply to thread"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="mk-fade-in mx-auto max-w-4xl space-y-5 pb-12">
+      {/* Masthead */}
+      <div className="flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-end">
+        <div className="space-y-2 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mk-eyebrow flex items-center gap-1.5">
+              <MessageSquarePlus className="h-3 w-3" />
+              <span>Community & support</span>
+            </span>
+            {isAdmin && (
+              <Badge className="border-emerald-600/20 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 text-2xs">
+                <ShieldCheck className="h-3 w-3" />
+                Admin console
+              </Badge>
+            )}
+          </div>
+          <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground">
+            Feedback
+          </h1>
+          <p className="mk-lede">
+            Share an idea, report a bug or request a feature — submissions are reviewed by the team.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {isAdmin && (
+            <div className="flex items-center gap-1 rounded-md border border-border bg-muted/70 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setMainTab("admin")}
+                className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  mainTab === "admin"
+                    ? "bg-emerald-600 text-white shadow-surface font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Admin Moderation</span>
+                <span className="font-mono text-3xs px-1 py-0.5 rounded bg-black/20">
+                  {allFeedback.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainTab("my")}
+                className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                  mainTab === "my"
+                    ? "bg-card text-foreground shadow-surface font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>My Tickets</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainTab("submit")}
+                className={`px-3 py-1 rounded-md font-medium cursor-pointer transition-colors ${
+                  mainTab === "submit"
+                    ? "bg-card text-foreground shadow-surface font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span>New Ticket</span>
+              </button>
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={loadFeedbacks}
+            disabled={isLoading}
+            className="h-8 text-xs cursor-pointer flex items-center gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Submission Box */}
+      {(!isAdmin || mainTab === "submit") && (
+      <div className="rounded-xl border border-border bg-card p-5 shadow-surface space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Send className="h-4 w-4 text-primary" />
+            Send New Feedback
+          </h2>
+          <span className="text-xs text-muted-foreground font-mono">
+            Directly stored in database
+          </span>
+        </div>
+
+        {formError && (
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{formError}</span>
+          </div>
+        )}
+
+        {formSuccess && (
+          <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{formSuccess}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* Category Selector */}
+          <div>
+            <label className="text-xs font-medium text-foreground block mb-1.5">
+              Select Category
+            </label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                const isSelected = category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategory(cat.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors border ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-surface"
+                        : "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="text-xs font-medium text-foreground block mb-1">
+              Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g., Folder tree drag & drop performance or custom icons"
+              className="w-full text-xs rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="text-xs font-medium text-foreground block mb-1">
+              Description & Details
+            </label>
+            <textarea
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Provide as much context as possible. Include steps to reproduce for bugs, or use cases for feature ideas..."
+              className="w-full text-xs rounded-lg border border-input bg-background p-3 text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+            />
+          </div>
+
+          <div className="flex items-center justify-end">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-8 px-4 rounded-lg shadow-surface cursor-pointer flex items-center gap-1.5 text-xs"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              <span>Submit Feedback</span>
+            </Button>
+          </div>
+        </form>
+      </div>
+      )}
+
+      {/* Admin Review Dashboard (Visible only to authorized admin) */}
+      {isAdmin && (mainTab === "admin" || !mainTab) && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/10 dark:bg-emerald-950/20 p-5 shadow-surface space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/40 dark:border-emerald-800/40 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <h3 className="text-sm font-semibold text-foreground">
+                  Admin Feedback Moderation (All Users)
+                </h3>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Triage incoming feedback, reply to user threads, close tickets, or delete spam.
+              </p>
+            </div>
+            <Badge className="bg-emerald-600 text-white text-xs font-mono self-start sm:self-auto">
+              {allFeedback.length} Total Tickets
+            </Badge>
+          </div>
+
+          {/* Admin Controls: Live Search & History Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            {/* Filter Tabs for Admin */}
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-muted border border-border text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setAdminTab("active")}
+                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                  adminTab === "active"
+                    ? "bg-background text-foreground shadow-surface font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Needs Attention ({adminActiveCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminTab("history")}
+                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                  adminTab === "history"
+                    ? "bg-background text-foreground shadow-surface font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Resolved / Closed History ({adminHistoryCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminTab("all")}
+                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                  adminTab === "all"
+                    ? "bg-background text-foreground shadow-surface font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All ({allFeedback.length})
+              </button>
+            </div>
+
+            {/* Admin Live Search Bar */}
+            <div className="relative w-full sm:w-64">
+              <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
+              <Input
+                type="text"
+                placeholder="Search user, title, content..."
+                value={adminSearch}
+                onChange={(e) => setAdminSearch(e.target.value)}
+                className="h-8 pl-8 pr-7 text-xs rounded-lg border-input bg-background"
+              />
+              {adminSearch && (
+                <button
+                  type="button"
+                  onClick={() => setAdminSearch("")}
+                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredAdminFeedback.length === 0 ? (
+            <div className="text-center py-8 text-xs text-muted-foreground">
+              {adminSearch ? "No matching tickets found for this query." : "No tickets in this tab."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredAdminFeedback.map((item) => renderFeedbackItem(item, true))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* User's Submitted Feedback & History */}
+      {(!isAdmin || mainTab === "my") && (
+      <div className="rounded-xl border border-border bg-card p-5 shadow-surface space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-primary" />
+              My Feedback History
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Track the status of your active tickets and review past conversation history.
+            </p>
+          </div>
+
+          {/* User History Tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-muted border border-border text-xs font-medium self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setUserTab("active")}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                userTab === "active"
+                  ? "bg-background text-foreground shadow-surface font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Active ({userActiveCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setUserTab("history")}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                userTab === "history"
+                  ? "bg-background text-foreground shadow-surface font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Closed History ({userHistoryCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setUserTab("all")}
+              className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                userTab === "all"
+                  ? "bg-background text-foreground shadow-surface font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All ({myFeedback.length})
+            </button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="py-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span>Loading submissions...</span>
+          </div>
+        ) : filteredUserFeedback.length === 0 ? (
+          <div className="text-center py-8 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {userTab === "history"
+                ? "You have no closed or resolved tickets yet."
+                : userTab === "active"
+                ? "You have no active pending tickets."
+                : "You haven't submitted any feedback yet. We'd love to hear your thoughts!"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredUserFeedback.map((item) => renderFeedbackItem(item, false))}
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* Delete Confirmation Modal for Admin */}
+      <ConfirmDeleteModal
+        open={Boolean(ticketToDelete)}
+        onOpenChange={(open) => !open && setTicketToDelete(null)}
+        onConfirm={handleDeleteTicket}
+        title="Delete Feedback Ticket"
+        description="Permanently delete this feedback ticket and all of its conversation replies from the database? This action cannot be undone."
+        itemName={ticketToDelete?.title}
+      />
+    </div>
+  );
+}

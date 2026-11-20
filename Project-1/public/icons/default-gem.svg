@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="gem-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#gem-grad)" />
+  <!-- Gem / Diamond -->
+  <polygon points="22,26 32,18 42,26 32,46" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />
+  <line x1="22" y1="26" x2="42" y2="26" stroke="#ffffff" stroke-width="2.5" />
+  <line x1="32" y1="18" x2="32" y2="46" stroke="#ffffff" stroke-width="2.5" />
+</svg>
+

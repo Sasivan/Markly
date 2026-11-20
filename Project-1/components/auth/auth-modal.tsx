@@ -1,0 +1,498 @@
+"use client";
+
+import * as React from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/components/auth/auth-context";
+import { Sparkles, AlertCircle, RefreshCw, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Loader2, Eye, EyeOff } from "lucide-react";
+
+export function AuthModal() {
+  const {
+    isAuthModalOpen,
+    closeAuthModal,
+    authModalMode,
+    openAuthModal,
+    signInWithPassword,
+    signUpWithEmail,
+    signInWithOAuth,
+  } = useAuth();
+
+  const [mode, setMode] = React.useState<"login" | "signup">(authModalMode);
+  const [emailOrUser, setEmailOrUser] = React.useState("");
+  const [signupUsername, setSignupUsername] = React.useState("");
+  const [signupEmail, setSignupEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [displayName, setDisplayName] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+
+  // Real-time username verification state
+  const [usernameStatus, setUsernameStatus] = React.useState<{
+    state: "idle" | "checking" | "available" | "unavailable";
+    message?: string;
+  }>({ state: "idle" });
+
+  React.useEffect(() => {
+    setMode(authModalMode);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setPassword("");
+    setUsernameStatus({ state: "idle" });
+  }, [authModalMode, isAuthModalOpen]);
+
+  // Real-time debounce check for username uniqueness
+  React.useEffect(() => {
+    if (mode !== "signup") {
+      setUsernameStatus({ state: "idle" });
+      return;
+    }
+
+    const clean = signupUsername.trim().toLowerCase();
+    if (!clean) {
+      setUsernameStatus({ state: "idle" });
+      return;
+    }
+
+    if (clean.length < 3) {
+      setUsernameStatus({
+        state: "unavailable",
+        message: "Username must be at least 3 characters.",
+      });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(clean)) {
+      setUsernameStatus({
+        state: "unavailable",
+        message: "Only letters, numbers, underscores, dots, or hyphens.",
+      });
+      return;
+    }
+
+    setUsernameStatus({ state: "checking", message: "Verifying uniqueness..." });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(clean)}`);
+        const data = await res.json();
+        if (data.available) {
+          setUsernameStatus({ state: "available", message: `@${clean} is available!` });
+        } else {
+          setUsernameStatus({
+            state: "unavailable",
+            message: data.error || "Username is already taken.",
+          });
+        }
+      } catch {
+        setUsernameStatus({ state: "idle" });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [signupUsername, mode]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (mode === "login") {
+      if (!emailOrUser.trim() || !password.trim()) {
+        setErrorMessage("Please fill in your username/email and password.");
+        return;
+      }
+    } else {
+      if (!signupUsername.trim() || !signupEmail.trim() || !password.trim()) {
+        setErrorMessage("Please enter a username, email, and password.");
+        return;
+      }
+
+      if (usernameStatus.state === "unavailable") {
+        setErrorMessage(usernameStatus.message || "Please choose an available username.");
+        return;
+      }
+
+      if (usernameStatus.state === "checking") {
+        setErrorMessage("Please wait while we verify your username...");
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(signupUsername.trim())) {
+        setErrorMessage("Username must be 3-30 characters (letters, numbers, underscores, dots, hyphens).");
+        return;
+      }
+    }
+
+    if (password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (mode === "login") {
+        const res = await signInWithPassword(emailOrUser.trim(), password);
+        if (!res.success) {
+          setErrorMessage(res.error || "Failed to log in.");
+        } else {
+          closeAuthModal();
+        }
+      } else {
+        const res = await signUpWithEmail(signupEmail.trim(), password, signupUsername.trim(), displayName.trim());
+        if (!res.success) {
+          setErrorMessage(res.error || "Failed to sign up.");
+        } else {
+          setSuccessMessage("Account created successfully! Your library is now synced with Supabase.");
+          setTimeout(() => {
+            closeAuthModal();
+          }, 1500);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOAuth = async (provider: "google" | "github") => {
+    setErrorMessage(null);
+    setIsLoading(true);
+    try {
+      const res = await signInWithOAuth(provider);
+      if (!res.success) {
+        const err = res.error || "";
+        if (err.includes("provider is not enabled") || err.includes("Unsupported provider") || err.includes("validation_failed")) {
+          setErrorMessage(
+            `${provider === "google" ? "Google" : "GitHub"} OAuth is not enabled in your Supabase project yet. Please use Email & Password above, or toggle on ${provider} in Supabase Dashboard > Authentication > Providers.`
+          );
+        } else {
+          setErrorMessage(err || `Failed to sign in with ${provider}`);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isAuthModalOpen} onOpenChange={closeAuthModal}>
+      <DialogContent className="w-[min(28rem,94vw)] max-w-md p-0 overflow-hidden bg-card border-border shadow-overlay rounded-xl">
+        {/* Top Header */}
+        <div className="border-b border-border bg-secondary/40 px-6 pb-5 pt-6 text-foreground text-center relative">
+          <div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-base font-semibold text-primary">
+            M
+          </div>
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground">
+            {mode === "login" ? "Welcome Back to Markly" : "Create Your Markly Account"}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+            {mode === "login"
+              ? "Sign in to access and sync your bookmarks in real-time."
+              : "Sign up to get your own cloud database with real-time Supabase sync."}
+          </p>
+
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center justify-center mt-4">
+            <div className="flex w-full max-w-xs rounded-md border border-border bg-muted/70 p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setPassword("");
+                  setErrorMessage(null);
+                }}
+                className={`flex-1 py-1 text-xs font-medium rounded-sm cursor-pointer transition-colors ${
+                  mode === "login"
+                    ? "bg-background text-foreground shadow-surface"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setPassword("");
+                  setErrorMessage(null);
+                }}
+                className={`flex-1 py-1 text-xs font-medium rounded-sm cursor-pointer transition-colors ${
+                  mode === "signup"
+                    ? "bg-background text-foreground shadow-surface"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Form Body */}
+        <div className="px-6 py-5 space-y-4">
+          {/* Social OAuth Buttons */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleOAuth("google")}
+              disabled={isLoading}
+              className="h-9 cursor-pointer gap-2 text-xs font-medium border-border hover:bg-secondary"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Google</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleOAuth("github")}
+              disabled={isLoading}
+              className="h-9 cursor-pointer gap-2 text-xs font-medium border-border hover:bg-secondary"
+            >
+              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+              </svg>
+              <span>GitHub</span>
+            </Button>
+          </div>
+
+          <div className="relative my-3">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs font-mono">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or with username & password
+              </span>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {mode === "signup" ? (
+              <>
+                {/* Unique Username Field with Real-Time Verification */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-foreground">
+                      Unique Username
+                    </label>
+                    <span className="text-xs text-muted-foreground font-mono">Used to log in</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-medium text-muted-foreground">@</span>
+                    <Input
+                      type="text"
+                      placeholder="e.g. alexrivera"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                      className={`pl-7 pr-8 h-8 text-xs bg-background font-mono transition-colors ${
+                        usernameStatus.state === "available"
+                          ? "border-emerald-500 focus-visible:ring-emerald-500/30"
+                          : usernameStatus.state === "unavailable"
+                          ? "border-rose-500 focus-visible:ring-rose-500/30"
+                          : ""
+                      }`}
+                      required
+                    />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      {usernameStatus.state === "checking" && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      )}
+                      {usernameStatus.state === "available" && (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      )}
+                      {usernameStatus.state === "unavailable" && (
+                        <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                      )}
+                    </div>
+                  </div>
+                  {usernameStatus.message && (
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-mono pt-0.5 ${
+                        usernameStatus.state === "available"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : usernameStatus.state === "unavailable"
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-primary"
+                      }`}
+                    >
+                      {usernameStatus.state === "checking" && (
+                        <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                      )}
+                      {usernameStatus.state === "available" && (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                      )}
+                      {usernameStatus.state === "unavailable" && (
+                        <XCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
+                      )}
+                      <span className="truncate">{usernameStatus.message}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Email Address */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-foreground">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-background"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Optional Display Name */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-foreground">
+                    Display Name (Optional)
+                  </label>
+                  <div className="relative">
+                    <UserIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="e.g. Alex Rivera"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-background"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Sign In Identifier: Username or Email */
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">
+                  Username or Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Enter your username or email"
+                    value={emailOrUser}
+                    onChange={(e) => setEmailOrUser(e.target.value)}
+                    className="pl-8 h-8 text-xs bg-background"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-8 pr-8 h-8 text-xs bg-background"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+                {errorMessage.includes("already exists") && mode === "signup" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("login");
+                      setErrorMessage(null);
+                    }}
+                    className="text-xs text-primary font-medium underline text-left cursor-pointer hover:opacity-80 ml-6"
+                  >
+                    Click here to Sign In instead &rarr;
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Success Message */}
+            {successMessage && (
+              <div className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-9 mt-2 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-surface gap-1.5"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>{mode === "login" ? "Signing In..." : "Creating Account..."}</span>
+                </>
+              ) : (
+                <>
+                  <span>{mode === "login" ? "Sign In to Markly" : "Create Account & Sync Library"}</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Privacy & Cloud Notice */}
+          <div className="pt-2 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>Supabase Cloud Database & 100% Offline Local Backup</span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

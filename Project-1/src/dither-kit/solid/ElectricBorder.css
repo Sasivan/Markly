@@ -1,5 +1,0 @@
-@media (prefers-reduced-motion: reduce) {
-  .dk-electric-border > div[aria-hidden] {
-    filter: none !important;
-  }
-}

@@ -1,0 +1,258 @@
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import * as schema from "./schema";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+
+// Detect serverless environment (Vercel, AWS Lambda, etc.)
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+let dbPath: string;
+if (process.env.DATABASE_SQLITE_PATH) {
+  dbPath = process.env.DATABASE_SQLITE_PATH;
+} else if (isServerless) {
+  // In Vercel / serverless lambda, ONLY /tmp is writable
+  dbPath = path.join(os.tmpdir(), "markly.db");
+} else {
+  dbPath = path.join(process.cwd(), "data", "markly.db");
+}
+
+const dbDir = path.dirname(dbPath);
+
+try {
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+} catch {
+  // If filesystem is read-only, switch to os.tmpdir
+  dbPath = path.join(os.tmpdir(), "markly.db");
+}
+
+// Single database connection instance with safe in-memory fallback
+let sqlite: Database.Database;
+
+try {
+  sqlite = new Database(dbPath);
+  try {
+    sqlite.pragma("journal_mode = WAL");
+  } catch {}
+  try {
+    sqlite.pragma("foreign_keys = ON");
+  } catch {}
+} catch (error) {
+  console.warn("Failed to open SQLite database at:", dbPath, "falling back to in-memory:", error);
+  try {
+    sqlite = new Database(":memory:");
+  } catch (memErr) {
+    console.error("Critical: SQLite memory fallback failed:", memErr);
+    sqlite = {} as any;
+  }
+}
+
+// Initialize tables if they don't exist
+export function initDbSchema() {
+  try {
+    if (!sqlite || typeof sqlite.exec !== "function") return;
+
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        username TEXT UNIQUE,
+        display_name TEXT,
+        avatar_url TEXT,
+        last_login_at INTEGER,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS folders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        parent_id TEXT,
+        name TEXT NOT NULL,
+        icon TEXT NOT NULL DEFAULT '📁',
+        color TEXT NOT NULL DEFAULT 'gray',
+        position INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS folders_user_parent_idx ON folders(user_id, parent_id);
+      CREATE INDEX IF NOT EXISTS folders_user_pos_idx ON folders(user_id, position);
+
+      CREATE TABLE IF NOT EXISTS bookmarks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        folder_id TEXT,
+        url TEXT NOT NULL,
+        canonical_url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        icon_url TEXT,
+        image_url TEXT,
+        domain TEXT NOT NULL,
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'alive',
+        visit_count INTEGER NOT NULL DEFAULT 0,
+        last_visited_at INTEGER,
+        last_clicked_at INTEGER,
+        created_at INTEGER NOT NULL,
+        search_text TEXT,
+        FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS bookmarks_user_folder_idx ON bookmarks(user_id, folder_id);
+      CREATE INDEX IF NOT EXISTS bookmarks_domain_idx ON bookmarks(domain);
+      DROP INDEX IF EXISTS bookmarks_user_canonical_idx;
+      CREATE INDEX IF NOT EXISTS bookmarks_user_canonical_idx ON bookmarks(user_id, canonical_url);
+
+      CREATE TABLE IF NOT EXISTS tags (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS tags_user_name_idx ON tags(user_id, name);
+
+      CREATE TABLE IF NOT EXISTS bookmark_tags (
+        bookmark_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        PRIMARY KEY (bookmark_id, tag_id),
+        FOREIGN KEY (bookmark_id) REFERENCES bookmarks(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS bookmark_tags_tag_idx ON bookmark_tags(tag_id);
+
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS deleted_folders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS deleted_bookmarks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS recycle_bin (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        item_type TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        original_folder_id TEXT,
+        original_folder_name TEXT,
+        icon TEXT,
+        color TEXT,
+        item_data TEXT NOT NULL,
+        deleted_at INTEGER NOT NULL,
+        retention_days INTEGER NOT NULL DEFAULT 30
+      );
+
+      CREATE INDEX IF NOT EXISTS recycle_bin_user_idx ON recycle_bin(user_id);
+      CREATE INDEX IF NOT EXISTS recycle_bin_deleted_at_idx ON recycle_bin(deleted_at);
+
+      CREATE TABLE IF NOT EXISTS feedbacks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_email TEXT,
+        user_name TEXT,
+        user_avatar TEXT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'feedback',
+        status TEXT NOT NULL DEFAULT 'received',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS feedbacks_user_idx ON feedbacks(user_id);
+      CREATE INDEX IF NOT EXISTS feedbacks_created_idx ON feedbacks(created_at);
+
+      CREATE TABLE IF NOT EXISTS feedback_replies (
+        id TEXT PRIMARY KEY,
+        feedback_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        user_email TEXT,
+        user_name TEXT,
+        user_avatar TEXT,
+        is_admin INTEGER NOT NULL DEFAULT 0,
+        message TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (feedback_id) REFERENCES feedbacks(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS feedback_replies_fid_idx ON feedback_replies(feedback_id);
+
+      CREATE TABLE IF NOT EXISTS smart_collections (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        icon TEXT NOT NULL DEFAULT 'Sparkles',
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        rules_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS smart_collections_user_idx ON smart_collections(user_id);
+
+      CREATE TABLE IF NOT EXISTS shares (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        folder_id TEXT NOT NULL,
+        share_token TEXT NOT NULL UNIQUE,
+        password_hash TEXT,
+        expires_at INTEGER,
+        view_count INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS shares_token_idx ON shares(share_token);
+      CREATE INDEX IF NOT EXISTS shares_user_folder_idx ON shares(user_id, folder_id);
+    `);
+
+    // Ensure dynamic columns exist in bookmarks and users table
+    try {
+      const bmCols = sqlite.prepare("PRAGMA table_info(bookmarks)").all() as any[];
+      if (!bmCols.some((c) => c.name === "notes")) {
+        sqlite.exec("ALTER TABLE bookmarks ADD COLUMN notes TEXT;");
+      }
+      if (!bmCols.some((c) => c.name === "cached_content")) {
+        sqlite.exec("ALTER TABLE bookmarks ADD COLUMN cached_content TEXT;");
+      }
+    } catch {}
+
+    try {
+      const userCols = sqlite.prepare("PRAGMA table_info(users)").all() as any[];
+      if (!userCols.some((c) => c.name === "username")) {
+        sqlite.exec("ALTER TABLE users ADD COLUMN username TEXT;");
+        sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users(username);");
+      }
+      if (!userCols.some((c) => c.name === "last_login_at")) {
+        sqlite.exec("ALTER TABLE users ADD COLUMN last_login_at INTEGER;");
+      }
+    } catch {}
+  } catch (schemaErr) {
+    console.warn("Schema initialization warning:", schemaErr);
+  }
+}
+
+// Run schema initialization safely
+initDbSchema();
+
+export const db = drizzle(sqlite, { schema });
+export { sqlite };

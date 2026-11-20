@@ -52,11 +52,11 @@ Every route, feature, and data model described in the fresh-start blueprints has
 - Clicking brand name always returns here.
 
 ### Stage 5: Core Archive Routes
-- `/library`: Canonical saved-link list with search, folder filter, tag filter, and sort options.
-- `/favorites`: Starred bookmarks view.
-- `/recent`: Recently visited links ordered by visit timestamp.
+- `/library`: Canonical saved-link list with search, folder filter, tag filter, status filter (Reading Queue / Active / Archived), and sort options. Fully wired edit bookmark workflow.
+- `/favorites`: Starred bookmarks view with inline favorite toggling and editing.
+- `/recent`: Recently visited links ordered by visit timestamp with editing.
 - `/stash`: Stash sessions view with "Open All" and "Copy URLs" actions.
-- `/folders/:folderId`: Folder view with breadcrumbs, subfolders grid, and bookmarks list.
+- `/folders/:folderId`: Folder view with breadcrumbs, subfolders grid, bookmarks list, and "Analyze this folder" deep-link.
 - `/trash`: Recycle bin with soft-delete restore and permanent deletion confirmation.
 
 ### Stage 6: Visual Analytics (`/analytics`)

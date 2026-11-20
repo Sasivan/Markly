@@ -87,8 +87,11 @@ Every route, feature, and data model described in the fresh-start blueprints has
 ### Stage 9 & 10: Quality Gates, A11y & Release Readiness
 - Automated unit tests passing: `vitest run` (16 passed across 2 test files covering catalogue reconciliation, IndexedDB CRUD, search filtering, recursive folder tree, stash sessions, analytics, and data import/export with error rejection).
 - TypeScript check passing: `tsc --noEmit` (0 errors).
-- Production build passing: `vite build` (158 modules, 10.21s).
+- Production build passing: `vite build` (158 modules, 7.55s).
 - Browser verification suite: all 11 routes verified and screenshotted across viewports (390px mobile, 768px tablet, 1024px laptop, 1440px desktop).
+- **Rich Seed Data Integration**: 16 multi-level folders and 126 categorized bookmarks extracted from `seed-rich-hierarchy.ts` and `seed.ts` integrated into `src/data/sample-data.ts` and auto-seeded via `db.seedIfEmpty()`.
+- **Git Push**: Committed as `ee9fd1a` and pushed to `origin/ui-v2` (`https://github.com/Sasivan/Markly.git`).
+- **Live Server**: Actively running at `http://localhost:3000/`.
 
 ---
 

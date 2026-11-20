@@ -131,7 +131,9 @@
     "docs/markly-dither-fresh-start/screenshots/mobile-390-home.png"
   ],
   "knownIssues": [],
-  "lastVerifiedCommit": "ecaee9c",
-  "nextExactAction": "All 10 stages completed successfully. Ready for user inspection.",
-  "updatedAt": "2026-11-21T03:20:00Z"
+  "lastVerifiedCommit": "ee9fd1a",
+  "pushedBranch": "ui-v2",
+  "runningServer": "http://localhost:3000/",
+  "nextExactAction": "Markly UI v2 with rich seed data successfully committed, pushed to origin/ui-v2, and running live on http://localhost:3000/.",
+  "updatedAt": "2026-11-21T04:35:00Z"
 }

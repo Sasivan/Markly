@@ -39,6 +39,7 @@ import type { BookmarkWithDetails } from "@/server/db/schema";
 import type { WidgetColSpan } from "./home-layout-modal";
 
 export type WidgetViewMode = "grid" | "list" | "compact" | "table" | "cards";
+export const UNIVERSAL_BOX_VIEWS: WidgetViewMode[] = ["cards", "grid", "list", "table", "compact"];
 export type WidgetItemLimit = number | "all" | "auto";
 
 export function getDomainGradient(str: string): string {
@@ -980,48 +981,9 @@ export function DashboardWidgetBox({
           </div>
         </div>
 
-        {/* Right: Save Preset, View Switcher, Adaptive Column Width Popover, Extra Actions, Icon-Only > Link */}
+        {/* Right: Site Limit, View Switcher, 3-Dots Menu, Icon-Only > Link */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {extraHeaderAction}
-
-          {/* Quick Save Visual Box Button (Left of top size/limit buttons) */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              const baseConfig = widgetConfig || {};
-              window.dispatchEvent(
-                new CustomEvent("markly-open-save-preset-dialog", {
-                  detail: {
-                    name: title,
-                    category: "box",
-                    sourceLocation: `Visual Box: ${title}`,
-                    data: {
-                      ...baseConfig,
-                      id,
-                      title,
-                      colSpan: colSpanState,
-                      rowSpan: rowSpanState,
-                      boxHeight,
-                      itemLimit: activeLimit,
-                      viewMode: viewMode || baseConfig.viewMode,
-                      cardCoverStyle: boxCoverStyle,
-                      category: baseConfig.category || baseConfig.kind || "chart_studio",
-                      kind: baseConfig.kind || baseConfig.category || "custom",
-                      siteConfig: baseConfig.siteConfig,
-                      plotConfig: baseConfig.plotConfig,
-                      chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
-                      intelConfig: baseConfig.intelConfig,
-                    },
-                  },
-                })
-              );
-            }}
-            className="h-6 w-6 rounded border border-border/60 hover:bg-secondary text-muted-foreground hover:text-primary flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
-            title="Save this visual box as a preset"
-          >
-            <Save className="h-3 w-3" />
-          </button>
 
           {/* Site Limit Selector (Auto-Fit, Stepper, Slider, Presets, All) */}
           {(showItemLimitPicker || availableViews) && (
@@ -1270,7 +1232,47 @@ export function DashboardWidgetBox({
               </button>
 
               {actionMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-border bg-card p-1 shadow-lg z-50 text-xs text-foreground animate-in zoom-in-95 space-y-0.5">
+                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-card p-1.5 shadow-xl z-50 text-xs text-foreground animate-in zoom-in-95 space-y-1">
+                  {/* Presets & Placement */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(false);
+                      const baseConfig = widgetConfig || {};
+                      window.dispatchEvent(
+                        new CustomEvent("markly-open-save-preset-dialog", {
+                          detail: {
+                            name: title,
+                            category: "box",
+                            sourceLocation: `Visual Box: ${title}`,
+                            data: {
+                              ...baseConfig,
+                              id,
+                              title,
+                              colSpan: colSpanState,
+                              rowSpan: rowSpanState,
+                              boxHeight,
+                              itemLimit: activeLimit,
+                              viewMode: viewMode || baseConfig.viewMode,
+                              cardCoverStyle: boxCoverStyle,
+                              category: baseConfig.category || baseConfig.kind || "chart_studio",
+                              kind: baseConfig.kind || baseConfig.category || "custom",
+                              siteConfig: baseConfig.siteConfig,
+                              plotConfig: baseConfig.plotConfig,
+                              chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
+                              intelConfig: baseConfig.intelConfig,
+                            },
+                          },
+                        })
+                      );
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                    title="Save this box into the Universal Preset Library with customizable name and placement"
+                  >
+                    <Box className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>Save as Preset Box...</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1297,189 +1299,119 @@ export function DashboardWidgetBox({
                     <span>Pin to Dashboard Home</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      const baseConfig = widgetConfig || {};
-                      window.dispatchEvent(
-                        new CustomEvent("markly-open-save-preset-dialog", {
-                          detail: {
-                            name: title,
-                            category: "box",
-                            sourceLocation: `Visual Box: ${title}`,
-                            data: {
-                              ...baseConfig,
-                              id,
-                              title,
-                              colSpan: colSpanState,
-                              rowSpan: rowSpanState,
-                              boxHeight,
-                              itemLimit: activeLimit,
-                              viewMode: viewMode || baseConfig.viewMode,
-                              cardCoverStyle: boxCoverStyle,
-                              category: baseConfig.category || baseConfig.kind || "chart_studio",
-                              kind: baseConfig.kind || baseConfig.category || "custom",
-                              siteConfig: baseConfig.siteConfig,
-                              plotConfig: baseConfig.plotConfig,
-                              chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
-                              intelConfig: baseConfig.intelConfig,
-                            },
-                          },
-                        })
-                      );
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
-                    title="Place or allocate this box into a Universal or Custom Tab"
-                  >
-                    <Folder className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>Place into Tab...</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      const baseConfig = widgetConfig || {};
-                      window.dispatchEvent(
-                        new CustomEvent("markly-open-save-preset-dialog", {
-                          detail: {
-                            name: title,
-                            category: "box",
-                            sourceLocation: `Visual Box: ${title}`,
-                            data: {
-                              ...baseConfig,
-                              id,
-                              title,
-                              colSpan: colSpanState,
-                              rowSpan: rowSpanState,
-                              boxHeight,
-                              itemLimit: activeLimit,
-                              viewMode: viewMode || baseConfig.viewMode,
-                              cardCoverStyle: boxCoverStyle,
-                              category: baseConfig.category || baseConfig.kind || "chart_studio",
-                              kind: baseConfig.kind || baseConfig.category || "custom",
-                              siteConfig: baseConfig.siteConfig,
-                              plotConfig: baseConfig.plotConfig,
-                              chartConfig: baseConfig.chartConfig || baseConfig.vizConfig,
-                              intelConfig: baseConfig.intelConfig,
-                            },
-                          },
-                        })
-                      );
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
-                    title="Save this box into the Universal Preset Library with customizable name"
-                  >
-                    <Box className="h-3.5 w-3.5 text-indigo-500" />
-                    <span>Save as Preset Box...</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      toggleRowSpan();
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
-                  >
-                    <Columns3 className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{rowSpanState === 2 ? "Standard 1x Height" : "Bento 2x Tall (1:2)"}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      handleSetCustomDefault();
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
-                    title="Remember this box's current width, height, and limits as your personal default"
-                  >
-                    <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
-                    <span>Set as custom default</span>
-                  </button>
-
-                  {hasCustomDefault && (
+                  {/* Sizing & Dimensions */}
+                  <div className="border-t border-border/60 my-1 pt-1 space-y-0.5">
                     <button
                       type="button"
                       onClick={() => {
                         setActionMenuOpen(false);
-                        handleResetBoxDimensions();
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      <span>Reset to custom default</span>
-                    </button>
-                  )}
-
-                  {hasCustomDefault && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActionMenuOpen(false);
-                        handleClearCustomDefault();
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer text-[11px]"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Clear custom default</span>
-                    </button>
-                  )}
-
-                  {!hasCustomDefault && hasCustomDimensions && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActionMenuOpen(false);
-                        handleResetBoxDimensions();
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      <span>Reset default size</span>
-                    </button>
-                  )}
-
-                  {onEditWidget && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActionMenuOpen(false);
-                        onEditWidget();
+                        toggleRowSpan();
                       }}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
                     >
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>Edit visual</span>
+                      <Columns3 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{rowSpanState === 2 ? "Standard 1x Height" : "Bento 2x Tall (1:2)"}</span>
                     </button>
-                  )}
-                  {onDuplicateWidget && (
+
                     <button
                       type="button"
                       onClick={() => {
                         setActionMenuOpen(false);
-                        onDuplicateWidget();
+                        handleSetCustomDefault();
                       }}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                      title="Remember this box's current width, height, and limits as your personal default"
                     >
-                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>Duplicate visual</span>
+                      <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
+                      <span>Set as custom default</span>
                     </button>
-                  )}
-                  {onDeleteWidget && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActionMenuOpen(false);
-                        onDeleteWidget();
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-destructive hover:bg-destructive/10 transition-colors cursor-pointer text-[11px]"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Delete visual</span>
-                    </button>
+
+                    {hasCustomDefault && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          handleResetBoxDimensions();
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>Reset to custom default</span>
+                      </button>
+                    )}
+
+                    {hasCustomDefault && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          handleClearCustomDefault();
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer text-[11px]"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Clear custom default</span>
+                      </button>
+                    )}
+
+                    {!hasCustomDefault && hasCustomDimensions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          handleResetBoxDimensions();
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-primary hover:bg-primary/10 transition-colors cursor-pointer text-[11px]"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span>Reset default size</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Widget Lifecycle Actions */}
+                  {(onEditWidget || onDuplicateWidget || onDeleteWidget) && (
+                    <div className="border-t border-border/60 my-1 pt-1 space-y-0.5">
+                      {onEditWidget && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionMenuOpen(false);
+                            onEditWidget();
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>Edit visual</span>
+                        </button>
+                      )}
+                      {onDuplicateWidget && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionMenuOpen(false);
+                            onDuplicateWidget();
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
+                        >
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>Duplicate visual</span>
+                        </button>
+                      )}
+                      {onDeleteWidget && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionMenuOpen(false);
+                            onDeleteWidget();
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-destructive hover:bg-destructive/10 transition-colors cursor-pointer text-[11px]"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Delete visual</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

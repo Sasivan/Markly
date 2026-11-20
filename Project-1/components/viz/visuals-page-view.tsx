@@ -1101,7 +1101,7 @@ export function VisualsPageView({
                 </div>
               </div>
 
-              <div className="w-full flex-1 min-h-[380px] rounded-xl overflow-hidden border border-border bg-card shadow-inner">
+              <div className="w-full flex-1 h-full min-h-0 flex flex-col rounded-xl overflow-hidden border border-border bg-card shadow-inner">
                 <KnowledgeGraph
                   mode={graphMode}
                   folderId={graphMode === "folder" && selectedGraphFolder ? selectedGraphFolder : undefined}
@@ -1385,7 +1385,7 @@ export function VisualsPageView({
                   minHeight={280}
                   badgeText={String(widget.category || (siteCfg ? "sites" : plotCfg ? "plot" : intelCfg ? "intel" : "chart")).toUpperCase()}
                   viewMode={siteCfg ? (siteCfg.viewMode || "grid") : undefined}
-                  availableViews={siteCfg ? ["grid", "list", "table", "compact"] : undefined}
+                  availableViews={siteCfg ? ["cards", "grid", "list", "table", "compact"] : undefined}
                   onDeleteWidget={() => handleDeleteWidget(widget.id)}
                   onEditWidget={() => {
                     setEditingConfig({

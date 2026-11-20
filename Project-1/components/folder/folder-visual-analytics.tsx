@@ -1202,11 +1202,11 @@ export function FolderVisualAnalytics({
                     itemLimit={activeLimit}
                     onItemLimitChange={(lim) => handleSetVisualLimit(viz.id, lim)}
                     viewMode={isSiteKind ? (visualViewModes[viz.id] ?? viz.siteConfig?.viewMode ?? "grid") : undefined}
-                    availableViews={isSiteKind ? ["grid", "list", "table", "compact"] : undefined}
+                    availableViews={isSiteKind ? ["cards", "grid", "list", "table", "compact"] : undefined}
                     onViewModeChange={isSiteKind ? (m) => handleSetVisualViewMode(viz.id, m) : undefined}
                     widgetConfig={viz}
                   >
-                    <div className="p-2 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
+                    <div className="p-2 flex-1 min-h-0 h-full flex flex-col overflow-hidden">
                       {/* 1. SITES PRESET (Quick Access / Favorites / Recent) */}
                       {isSiteKind && (
                         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
@@ -1427,7 +1427,7 @@ export function FolderVisualAnalytics({
 
                       {/* 6. KNOWLEDGE GRAPH VISUAL */}
                       {viz.kind === "graph" && (
-                        <div className="w-full h-full min-h-[300px] rounded-lg overflow-hidden border border-border bg-card flex-1">
+                        <div className="w-full h-full min-h-0 flex-1 flex flex-col rounded-lg overflow-hidden border border-border bg-card">
                           <KnowledgeGraph
                             mode={folderId.startsWith("page_") ? "global" : "folder"}
                             folderId={folderId.startsWith("page_") ? undefined : folderId}

@@ -54,6 +54,7 @@ interface KnowledgeGraphProps {
   domain?: string | null;
   depth?: number;
   showControls?: boolean;
+  className?: string;
   onSelectBookmark?: (bm: any) => void;
   onSelectFolder?: (folderId: string) => void;
   onSelectDomain?: (domain: string) => void;
@@ -68,6 +69,7 @@ export function KnowledgeGraph({
   domain,
   depth: initialDepth = 2,
   showControls = true,
+  className,
   onSelectBookmark,
   onSelectFolder,
   onSelectDomain,
@@ -598,9 +600,9 @@ export function KnowledgeGraph({
   }, [nodes]);
 
   return (
-    <div className="relative flex flex-col md:flex-row w-full h-full min-h-[500px] flex-1 rounded-lg border border-border bg-card overflow-hidden">
+    <div className={`relative flex flex-col md:flex-row w-full h-full min-h-0 flex-1 rounded-lg border border-border bg-card overflow-hidden ${className || ""}`}>
       {/* LEFT: Canvas Viewport */}
-      <div ref={containerRef} className="relative flex-1 h-full w-full min-h-[460px] overflow-hidden bg-background">
+      <div ref={containerRef} className="relative flex-1 h-full w-full min-h-0 overflow-hidden bg-background">
         {loading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-xs text-xs font-mono text-muted-foreground">
             Constructing force layout graph...

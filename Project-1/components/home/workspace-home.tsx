@@ -1489,7 +1489,7 @@ export function WorkspaceHome({
           }
           badgeText={String(vKind || "visual").toUpperCase()}
           viewMode={vKind === "sites" ? activeView : undefined}
-          availableViews={vKind === "sites" ? ["grid", "list", "table", "compact"] : undefined}
+          availableViews={vKind === "sites" ? ["cards", "grid", "list", "table", "compact"] : undefined}
           onViewModeChange={vKind === "sites" ? (mode) => handleSetWidgetView(widget.id, mode) : undefined}
           itemLimit={vKind === "sites" ? activeLimit : undefined}
           showItemLimitPicker={vKind === "sites"}
@@ -1621,7 +1621,7 @@ export function WorkspaceHome({
             icon={<Compass className="h-4 w-4 text-primary" />}
             badgeText={`${quickAccessList.length} sites`}
             viewMode={widgetViews["folders"] ?? "grid"}
-            availableViews={["grid", "list", "compact"]}
+            availableViews={["cards", "grid", "list", "table", "compact"]}
             onViewModeChange={(m) => handleSetWidgetView("folders", m)}
             onViewAll={() => {
               onSelectFolder(null);
@@ -1658,7 +1658,7 @@ export function WorkspaceHome({
             icon={<History className="h-4 w-4 text-blue-500" />}
             badgeText={`${recentlyVisited.length} sites`}
             viewMode={widgetViews["recent"] ?? "list"}
-            availableViews={["grid", "list", "compact"]}
+            availableViews={["cards", "grid", "list", "table", "compact"]}
             onViewModeChange={(m) => handleSetWidgetView("recent", m)}
             onViewAll={() => {
               onSelectFolder(null);
@@ -1696,7 +1696,7 @@ export function WorkspaceHome({
             icon={<Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
             badgeText={totalFavoritesCount > 0 ? `${totalFavoritesCount} ${totalFavoritesCount === 1 ? "site" : "sites"}` : undefined}
             viewMode={widgetViews["favorites"] ?? "grid"}
-            availableViews={["grid", "list", "compact"]}
+            availableViews={["cards", "grid", "list", "table", "compact"]}
             onViewModeChange={(m) => handleSetWidgetView("favorites", m)}
             onViewAll={() => {
               onSelectFolder(null);
@@ -1733,7 +1733,7 @@ export function WorkspaceHome({
             icon={<Inbox className="h-4 w-4 text-emerald-500" />}
             badgeText={totalUnsortedCount === 0 ? "Inbox Zero" : `${totalUnsortedCount} unfiled`}
             viewMode={widgetViews["unsorted"] ?? "compact"}
-            availableViews={["grid", "list", "compact"]}
+            availableViews={["cards", "grid", "list", "table", "compact"]}
             onViewModeChange={(m) => handleSetWidgetView("unsorted", m)}
             onViewAll={() => {
               onSelectFolder(null);

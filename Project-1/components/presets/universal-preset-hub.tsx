@@ -32,6 +32,7 @@ import {
   Pencil,
   X,
   Clock,
+  Save,
 } from "lucide-react";
 import { useResizableModal, ModalResizeHandles } from "@/lib/use-resizable-modal";
 import { ModalFormatControls } from "@/components/ui/modal-format-controls";
@@ -1001,6 +1002,22 @@ export function UniversalPresetHub({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Quick Save Preset Button (Leftmost of top right controls) */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!newPresetName) {
+                    setNewPresetName(`My ${activeTab === "home" ? "Homepage" : activeTab === "folder" ? "Folder Tabs" : activeTab === "box" ? "Visual Box" : activeTab === "visuals" ? "Studio" : "Search"} Preset`);
+                  }
+                  setSaveModalOpen(true);
+                }}
+                className="h-7 px-2.5 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                title={`Save current ${activeTab} configuration as a new preset`}
+              >
+                <Save className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Save Preset</span>
+              </button>
+
               <ModalFormatControls
                 format={format}
                 onToggleFormat={toggleFormat}
@@ -1419,6 +1436,45 @@ export function UniversalPresetHub({
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Universal Modal Footer */}
+        <div className="p-3.5 sm:px-6 border-t border-border bg-secondary/30 flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden sm:inline">
+              Category:
+            </span>
+            <span className="text-xs font-mono font-medium text-foreground bg-secondary px-2 py-0.5 rounded border border-border">
+              {activeTab.toUpperCase()} ({currentTabPresets.length} Presets)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="text-xs h-8 px-3 cursor-pointer"
+            >
+              Close
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (!newPresetName) {
+                  setNewPresetName(`My ${activeTab === "home" ? "Homepage" : activeTab === "folder" ? "Folder Tabs" : activeTab === "box" ? "Visual Box" : activeTab === "visuals" ? "Studio" : "Search"} Preset`);
+                }
+                setSaveModalOpen(true);
+              }}
+              className="text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 cursor-pointer gap-1.5 shadow-xs"
+            >
+              <Save className="h-3.5 w-3.5" />
+              <span>Save Preset</span>
+            </Button>
           </div>
         </div>
       </DialogContent>

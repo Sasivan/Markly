@@ -1,0 +1,35 @@
+@import "./dither-kit/engine/theme.css";
+@import "./dither-kit/engine/base.css";
+@import "./dither-kit/engine/tones.css";
+@import "tailwindcss";
+
+@source "./";
+@source "./dither-kit/solid";
+@source "./dither-kit/tailwind";
+
+/* Dither UI Markly custom overrides */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Scrollbar styling matching Dither dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}

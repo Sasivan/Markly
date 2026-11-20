@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "types": ["vite/client"],
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@dither-kit": ["src/dither-kit/solid/index.ts"],
+      "@dither-kit/engine": ["src/dither-kit/engine/api.ts"],
+      "@dither-kit/engine/*": ["src/dither-kit/engine/*"],
+      "@dither-kit/tailwind/*": ["src/dither-kit/tailwind/*"],
+      "@dither-kit/*": ["src/dither-kit/solid/*"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,42 @@
+{
+  "product": "Markly",
+  "visualSource": "Dither UI",
+  "sources": [
+    "https://dither-ui.com/",
+    "https://dither-ui.com/docs/",
+    "https://github.com/drvova/dither-ui"
+  ],
+  "frameworkVerification": {
+    "selectedVariant": null,
+    "quickStartUrl": "https://dither-ui.com/docs/getting-started/",
+    "sourcePathVerified": false,
+    "buildProofPassed": false,
+    "notes": "Must verify the live Vue tab and exact source path; current public surfaces have shown framework/source mismatch."
+  },
+  "targetCategoryCounts": {
+    "Overview": 1,
+    "Primitives": 19,
+    "Typography": 25,
+    "Handbook": 7,
+    "Examples": 32,
+    "Components": 103,
+    "Backgrounds": 49,
+    "Text": 24,
+    "Animations": 50,
+    "Utils": 2
+  },
+  "liveCategoryCounts": {},
+  "countDiscrepancies": [],
+  "items": [],
+  "coverage": {
+    "catalogueItems": 0,
+    "livePreviews": 0,
+    "coreProductUses": 0,
+    "notApplicable": 0
+  },
+  "rules": [
+    "Every live Dither catalogue item needs a real preview in Dither Lab or a justified status.",
+    "Do not invent entries to force target counts.",
+    "Keep irrelevant examples in isolated Dither Lab previews, not core Markly workflows."
+  ]
+}

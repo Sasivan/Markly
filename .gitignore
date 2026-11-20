@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+.env*.local
+test-results
+*.log
+DG-ARAD
+How
+Obsidian
+Project-0

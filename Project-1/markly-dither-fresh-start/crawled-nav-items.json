@@ -1,0 +1,2513 @@
+{
+  "counts": {
+    "Overview": 1,
+    "Primitives": 19,
+    "Typography": 25,
+    "Handbook": 7,
+    "Examples": 32,
+    "Components": 103,
+    "Backgrounds": 49,
+    "Text": 24,
+    "Animations": 50,
+    "Utils": 2
+  },
+  "total": 312,
+  "allItems": [
+    {
+      "category": "Overview",
+      "subcategory": null,
+      "id": "getting-started",
+      "label": "Quick start",
+      "title": "Quick start",
+      "file": "overview/overview-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "box",
+      "label": "Box",
+      "title": "Box",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "text",
+      "label": "Text",
+      "title": "Text",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "divider",
+      "label": "Divider",
+      "title": "Divider",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "visually-hidden",
+      "label": "VisuallyHidden",
+      "title": "VisuallyHidden",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "svg",
+      "label": "Svg",
+      "title": "Svg",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "img",
+      "label": "Image (plain)",
+      "title": "Image",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "spacer",
+      "label": "Spacer",
+      "title": "Spacer",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "portal",
+      "label": "Portal",
+      "title": "Portal",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "overlay",
+      "label": "Overlay",
+      "title": "Overlay",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "measure",
+      "label": "Measure",
+      "title": "Measure",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "clipboard",
+      "label": "Clipboard",
+      "title": "Clipboard",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "click-outside",
+      "label": "ClickOutside",
+      "title": "ClickOutside",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "focus-ring",
+      "label": "FocusRing",
+      "title": "FocusRing",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "focus-scope",
+      "label": "FocusScope",
+      "title": "FocusScope",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "hover-area",
+      "label": "HoverArea",
+      "title": "HoverArea",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "pressable",
+      "label": "Pressable",
+      "title": "Pressable",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "in-view",
+      "label": "InView",
+      "title": "InView",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "icon",
+      "label": "Icon",
+      "title": "Icon",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Primitives",
+      "subcategory": null,
+      "id": "icon-set",
+      "label": "IconSet",
+      "title": "IconSet",
+      "file": "primitives/primitives-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "heading",
+      "label": "Heading",
+      "title": "Heading",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "label",
+      "label": "Label",
+      "title": "Label",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "caption",
+      "label": "Caption",
+      "title": "Caption",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "overline",
+      "label": "Overline",
+      "title": "Overline",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "code",
+      "label": "Code",
+      "title": "Code",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "kbd-combo",
+      "label": "KbdCombo",
+      "title": "KbdCombo",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "blockquote",
+      "label": "Blockquote",
+      "title": "Blockquote",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "highlight",
+      "label": "Highlight",
+      "title": "Highlight",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "truncate",
+      "label": "Truncate",
+      "title": "Truncate",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "line-clamp",
+      "label": "LineClamp",
+      "title": "LineClamp",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "middle-ellipsis",
+      "label": "MiddleEllipsis",
+      "title": "MiddleEllipsis",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "ellipsis-tooltip",
+      "label": "EllipsisTooltip",
+      "title": "EllipsisTooltip",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "link",
+      "label": "Link",
+      "title": "Link",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "external-link",
+      "label": "ExternalLink",
+      "title": "ExternalLink",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "selectable-text",
+      "label": "SelectableText",
+      "title": "SelectableText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "copyable-text",
+      "label": "CopyableText",
+      "title": "CopyableText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "number-text",
+      "label": "NumberText",
+      "title": "NumberText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "currency-text",
+      "label": "CurrencyText",
+      "title": "CurrencyText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "percent-text",
+      "label": "PercentText",
+      "title": "PercentText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "file-size-text",
+      "label": "FileSizeText",
+      "title": "FileSizeText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "duration-text",
+      "label": "DurationText",
+      "title": "DurationText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "relative-time",
+      "label": "RelativeTime",
+      "title": "RelativeTime",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "date-time-text",
+      "label": "DateTimeText",
+      "title": "DateTimeText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "plural-text",
+      "label": "PluralText",
+      "title": "PluralText",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Typography",
+      "subcategory": null,
+      "id": "emoji",
+      "label": "Emoji",
+      "title": "Emoji",
+      "file": "typography/typography-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "styling",
+      "label": "Styling",
+      "title": "Styling",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "composition",
+      "label": "Composition",
+      "title": "Composition",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "seeds",
+      "label": "Seeds",
+      "title": "Seeds",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "engine",
+      "label": "Engine",
+      "title": "Engine",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "verification",
+      "label": "Verification",
+      "title": "Verification",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "motion",
+      "label": "Animation",
+      "title": "Motion",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Handbook",
+      "subcategory": null,
+      "id": "accessibility",
+      "label": "Accessibility",
+      "title": "Accessibility",
+      "file": "handbook/handbook-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Page",
+      "id": "dashboard",
+      "label": "Dashboard",
+      "title": "Dashboard example",
+      "file": "examples/page-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Page",
+      "id": "shell",
+      "label": "App shell",
+      "title": "App shell",
+      "file": "examples/page-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Page",
+      "id": "monitoring",
+      "label": "Monitoring",
+      "title": "Monitoring",
+      "file": "examples/page-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Page",
+      "id": "team",
+      "label": "Team",
+      "title": "Team",
+      "file": "examples/page-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Page",
+      "id": "usage",
+      "label": "Usage & billing",
+      "title": "Usage & billing",
+      "file": "examples/page-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Page",
+      "id": "signin",
+      "label": "Sign in",
+      "title": "Sign in",
+      "file": "examples/page-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Auth",
+      "id": "signup",
+      "label": "Sign up",
+      "title": "Sign up",
+      "file": "examples/auth-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Auth",
+      "id": "magic-link",
+      "label": "Magic link",
+      "title": "Magic link",
+      "file": "examples/auth-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Auth",
+      "id": "twofactor",
+      "label": "Two-factor",
+      "title": "Two-factor",
+      "file": "examples/auth-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Product",
+      "id": "pricing",
+      "label": "Pricing",
+      "title": "Pricing",
+      "file": "examples/product-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Product",
+      "id": "activity",
+      "label": "Activity feed",
+      "title": "Activity feed",
+      "file": "examples/product-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Product",
+      "id": "changelog",
+      "label": "Changelog",
+      "title": "Changelog",
+      "file": "examples/product-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-dashboard",
+      "label": "Basic dashboard",
+      "title": "Basic dashboard",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-admin",
+      "label": "Admin with profile",
+      "title": "Admin with profile",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-filters",
+      "label": "E-commerce filters",
+      "title": "E-commerce filters",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-docs",
+      "label": "Documentation nav",
+      "title": "Documentation nav",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-dual",
+      "label": "Dual layout",
+      "title": "Dual layout",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-personal",
+      "label": "Personal dashboard",
+      "title": "Personal dashboard",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-floating",
+      "label": "Floating left",
+      "title": "Floating left",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-right",
+      "label": "Right side",
+      "title": "Right side",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-teams",
+      "label": "Team switcher",
+      "title": "Team switcher",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-tree",
+      "label": "File tree",
+      "title": "File tree",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-drawer",
+      "label": "Mobile drawer",
+      "title": "Mobile drawer",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Sidebar",
+      "id": "sidebar-rail",
+      "label": "Icon rail",
+      "title": "Icon rail",
+      "file": "examples/sidebar-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Stats",
+      "id": "stats-cards",
+      "label": "Stat cards",
+      "title": "Stat cards",
+      "file": "examples/stats-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Stats",
+      "id": "stats-charts",
+      "label": "Stats with charts",
+      "title": "Stats with charts",
+      "file": "examples/stats-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Table",
+      "id": "table-members",
+      "label": "Data table",
+      "title": "Data table",
+      "file": "examples/table-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Chat",
+      "id": "chat-thread",
+      "label": "Chat thread",
+      "title": "Chat thread",
+      "file": "examples/chat-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Chat",
+      "id": "chat-assistant",
+      "label": "AI assistant",
+      "title": "AI assistant",
+      "file": "examples/chat-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Chat",
+      "id": "chat-support",
+      "label": "Support chat",
+      "title": "Support chat",
+      "file": "examples/chat-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Chat",
+      "id": "chat-channel",
+      "label": "Team channel",
+      "title": "Team channel",
+      "file": "examples/chat-nav.ts"
+    },
+    {
+      "category": "Examples",
+      "subcategory": "Notifications",
+      "id": "notification-center",
+      "label": "Notifications",
+      "title": "Notifications",
+      "file": "examples/notifications-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Charts",
+      "id": "area",
+      "label": "Area chart",
+      "title": "Area chart",
+      "file": "components/chart-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Charts",
+      "id": "line",
+      "label": "Line chart",
+      "title": "Line chart",
+      "file": "components/chart-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Charts",
+      "id": "bar",
+      "label": "Bar chart",
+      "title": "Bar chart",
+      "file": "components/chart-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Charts",
+      "id": "pie",
+      "label": "Pie chart",
+      "title": "Pie chart",
+      "file": "components/chart-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Charts",
+      "id": "radar",
+      "label": "Radar chart",
+      "title": "Radar chart",
+      "file": "components/chart-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Charts",
+      "id": "sparkline",
+      "label": "Sparkline",
+      "title": "Sparkline",
+      "file": "components/chart-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Basics",
+      "id": "button",
+      "label": "Button",
+      "title": "Button",
+      "file": "components/basics-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Basics",
+      "id": "avatar",
+      "label": "Avatar",
+      "title": "Avatar",
+      "file": "components/basics-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Basics",
+      "id": "gradient",
+      "label": "Gradient",
+      "title": "Gradient",
+      "file": "components/basics-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Basics",
+      "id": "image",
+      "label": "Image",
+      "title": "Image",
+      "file": "components/basics-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Form",
+      "id": "switch",
+      "label": "Switch",
+      "title": "Switch",
+      "file": "components/form-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Form",
+      "id": "checkbox",
+      "label": "Checkbox",
+      "title": "Checkbox",
+      "file": "components/form-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Form",
+      "id": "slider",
+      "label": "Slider",
+      "title": "Slider",
+      "file": "components/form-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Form",
+      "id": "progress",
+      "label": "Progress",
+      "title": "Progress",
+      "file": "components/form-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "input",
+      "label": "Input",
+      "title": "Input",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "textarea",
+      "label": "Textarea",
+      "title": "Textarea",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "field",
+      "label": "Field",
+      "title": "Field",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "fieldset",
+      "label": "Fieldset",
+      "title": "Fieldset",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "form",
+      "label": "Form",
+      "title": "Form",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "number-field",
+      "label": "Number field",
+      "title": "Number field",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Field",
+      "id": "otp-field",
+      "label": "OTP field",
+      "title": "OTP field",
+      "file": "components/field-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "password-input",
+      "label": "PasswordInput",
+      "title": "PasswordInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "search-input",
+      "label": "SearchInput",
+      "title": "SearchInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "email-input",
+      "label": "EmailInput",
+      "title": "EmailInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "phone-input",
+      "label": "PhoneInput",
+      "title": "PhoneInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "currency-input",
+      "label": "CurrencyInput",
+      "title": "CurrencyInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "scrub-input",
+      "label": "ScrubInput",
+      "title": "ScrubInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "hotkey-input",
+      "label": "HotkeyInput",
+      "title": "HotkeyInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "code-input",
+      "label": "CodeInput",
+      "title": "CodeInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "input-group",
+      "label": "InputGroup",
+      "title": "InputGroup",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "inline-edit",
+      "label": "InlineEdit",
+      "title": "InlineEdit",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "tag-input",
+      "label": "TagInput",
+      "title": "TagInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "choice-chips",
+      "label": "ChoiceChips",
+      "title": "ChoiceChips",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "checkbox-card",
+      "label": "CheckboxCard",
+      "title": "CheckboxCard",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "key-value-input",
+      "label": "KeyValueInput",
+      "title": "KeyValueInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "mention-input",
+      "label": "MentionInput",
+      "title": "MentionInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "file-input",
+      "label": "FileInput",
+      "title": "FileInput",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "list-box",
+      "label": "ListBox",
+      "title": "ListBox",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "multi-select",
+      "label": "MultiSelect",
+      "title": "MultiSelect",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "cascade-select",
+      "label": "CascadeSelect",
+      "title": "CascadeSelect",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "transfer-list",
+      "label": "TransferList",
+      "title": "TransferList",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "language-select",
+      "label": "LanguageSelect",
+      "title": "LanguageSelect",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "icon-picker",
+      "label": "IconPicker",
+      "title": "IconPicker",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "font-picker",
+      "label": "FontPicker",
+      "title": "FontPicker",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "calendar",
+      "label": "Calendar",
+      "title": "Calendar",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "date-picker",
+      "label": "DatePicker",
+      "title": "DatePicker",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "month-picker",
+      "label": "MonthPicker",
+      "title": "MonthPicker",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "color-swatch",
+      "label": "ColorSwatch",
+      "title": "ColorSwatch",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "color-picker",
+      "label": "ColorPicker",
+      "title": "ColorPicker",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "knob",
+      "label": "Knob",
+      "title": "Knob",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Forms",
+      "id": "signature-pad",
+      "label": "SignaturePad",
+      "title": "SignaturePad",
+      "file": "forms/forms-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "select",
+      "label": "Select",
+      "title": "Select",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "combobox",
+      "label": "Combobox",
+      "title": "Combobox",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "autocomplete",
+      "label": "Autocomplete",
+      "title": "Autocomplete",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "wheel-picker",
+      "label": "Wheel picker",
+      "title": "Wheel picker",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "radio",
+      "label": "Radio",
+      "title": "Radio",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "checkbox-group",
+      "label": "Checkbox group",
+      "title": "Checkbox group",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "toggle",
+      "label": "Toggle",
+      "title": "Toggle",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Selection",
+      "id": "toggle-group",
+      "label": "Toggle group",
+      "title": "Toggle group",
+      "file": "components/selection-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Feedback",
+      "id": "badge",
+      "label": "Badge",
+      "title": "Badge",
+      "file": "components/feedback-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Feedback",
+      "id": "skeleton",
+      "label": "Skeleton",
+      "title": "Skeleton",
+      "file": "components/feedback-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Feedback",
+      "id": "spinner",
+      "label": "Spinner",
+      "title": "Spinner",
+      "file": "components/feedback-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Feedback",
+      "id": "separator",
+      "label": "Separator",
+      "title": "Separator",
+      "file": "components/feedback-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Structure",
+      "id": "tabs",
+      "label": "Tabs",
+      "title": "Tabs",
+      "file": "components/structure-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Structure",
+      "id": "collapsible",
+      "label": "Collapsible",
+      "title": "Collapsible",
+      "file": "components/structure-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Structure",
+      "id": "dialog",
+      "label": "Dialog",
+      "title": "Dialog",
+      "file": "components/structure-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Structure",
+      "id": "center-morph-modal",
+      "label": "Center morph modal",
+      "title": "Center morph modal",
+      "file": "components/structure-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Structure",
+      "id": "kbd",
+      "label": "Kbd",
+      "title": "Kbd",
+      "file": "components/structure-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Layout",
+      "id": "dither-shell",
+      "label": "Shell",
+      "title": "Shell",
+      "file": "components/layout-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Layout",
+      "id": "rail",
+      "label": "Rail",
+      "title": "Rail",
+      "file": "components/layout-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Layout",
+      "id": "console",
+      "label": "Console",
+      "title": "Console",
+      "file": "components/layout-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Layout",
+      "id": "canvas",
+      "label": "Canvas",
+      "title": "Canvas",
+      "file": "components/layout-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Layout",
+      "id": "grid",
+      "label": "Grid",
+      "title": "Grid",
+      "file": "components/layout-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Layout",
+      "id": "infinite-canvas",
+      "label": "Infinite canvas",
+      "title": "Infinite canvas",
+      "file": "components/layout-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Media",
+      "id": "thumbnail",
+      "label": "Thumbnail",
+      "title": "Thumbnail",
+      "file": "components/media-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Media",
+      "id": "video-player",
+      "label": "Video player",
+      "title": "Video player",
+      "file": "components/media-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Media",
+      "id": "bracket",
+      "label": "Bracket",
+      "title": "Bracket",
+      "file": "components/media-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Media",
+      "id": "schedule",
+      "label": "Schedule",
+      "title": "Schedule",
+      "file": "components/media-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Media",
+      "id": "world",
+      "label": "World (3D)",
+      "title": "World (3D)",
+      "file": "components/media-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Media",
+      "id": "shader",
+      "label": "Shader (GLSL)",
+      "title": "Shader (GLSL)",
+      "file": "components/media-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "popover",
+      "label": "Popover",
+      "title": "Popover",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "menu",
+      "label": "Menu",
+      "title": "Menu",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "context-menu",
+      "label": "Context menu",
+      "title": "Context menu",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "menubar",
+      "label": "Menubar",
+      "title": "Menubar",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "tooltip",
+      "label": "Tooltip",
+      "title": "Tooltip",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "preview-card",
+      "label": "Preview card",
+      "title": "Preview card",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Overlay",
+      "id": "command",
+      "label": "Command",
+      "title": "Command",
+      "file": "components/overlay-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "accordion",
+      "label": "Accordion",
+      "title": "Accordion",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "alert-dialog",
+      "label": "Alert dialog",
+      "title": "Alert dialog",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "drawer",
+      "label": "Drawer",
+      "title": "Drawer",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "sidebar",
+      "label": "Sidebar",
+      "title": "Sidebar",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "toast",
+      "label": "Toast",
+      "title": "Toast",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "meter",
+      "label": "Meter",
+      "title": "Meter",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "gauge",
+      "label": "Gauge",
+      "title": "Gauge",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "scope",
+      "label": "Scope",
+      "title": "Scope",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "scroll-area",
+      "label": "Scroll area",
+      "title": "Scroll area",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "toolbar",
+      "label": "Toolbar",
+      "title": "Toolbar",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Surface",
+      "id": "nav-menu",
+      "label": "Navigation menu",
+      "title": "Navigation menu",
+      "file": "components/surface-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Navigation",
+      "id": "breadcrumb",
+      "label": "Breadcrumb",
+      "title": "Breadcrumb",
+      "file": "components/navigation-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Navigation",
+      "id": "pagination",
+      "label": "Pagination",
+      "title": "Pagination",
+      "file": "components/navigation-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Navigation",
+      "id": "rating",
+      "label": "Rating",
+      "title": "Rating",
+      "file": "components/navigation-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Navigation",
+      "id": "stepper",
+      "label": "Stepper",
+      "title": "Stepper",
+      "file": "components/navigation-nav.ts"
+    },
+    {
+      "category": "Components",
+      "subcategory": "Navigation",
+      "id": "timeline",
+      "label": "Timeline",
+      "title": "Timeline",
+      "file": "components/navigation-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "aurora",
+      "label": "Aurora",
+      "title": "Aurora",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "circuit",
+      "label": "Circuit",
+      "title": "Circuit",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "heat-trail",
+      "label": "Heat trail",
+      "title": "Heat trail",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "waves",
+      "label": "Waves",
+      "title": "Waves",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "line-waves",
+      "label": "Line waves",
+      "title": "Line waves",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "threads",
+      "label": "Threads",
+      "title": "Threads",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "silk",
+      "label": "Silk",
+      "title": "Silk",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "plasma",
+      "label": "Plasma",
+      "title": "Plasma",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "iridescence",
+      "label": "Iridescence",
+      "title": "Iridescence",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "dot-grid",
+      "label": "Dot grid",
+      "title": "Dot grid",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "ripple-grid",
+      "label": "Ripple grid",
+      "title": "Ripple grid",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "pixel-snow",
+      "label": "Pixel snow",
+      "title": "Pixel snow",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "beams",
+      "label": "Beams",
+      "title": "Beams",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "light-rays",
+      "label": "Light rays",
+      "title": "Light rays",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "side-rays",
+      "label": "Side rays",
+      "title": "Side rays",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "light-pillar",
+      "label": "Light pillar",
+      "title": "Light pillar",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "soft-aurora",
+      "label": "Soft aurora",
+      "title": "Soft aurora",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "grid-motion",
+      "label": "Grid motion",
+      "title": "Grid motion",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "grid-scan",
+      "label": "Grid scan",
+      "title": "Grid scan",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "grid-distortion",
+      "label": "Grid distortion",
+      "title": "Grid distortion",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "dot-field",
+      "label": "Dot field",
+      "title": "Dot field",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "color-bends",
+      "label": "Color bends",
+      "title": "Color bends",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "gradient-blinds",
+      "label": "Gradient blinds",
+      "title": "Gradient blinds",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "grainient",
+      "label": "Grainient",
+      "title": "Grainient",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "plasma-wave",
+      "label": "Plasma wave",
+      "title": "Plasma wave",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "floating-lines",
+      "label": "Floating lines",
+      "title": "Floating lines",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "flow-field",
+      "label": "Flow field",
+      "title": "Flow field",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "radar-sweep",
+      "label": "Radar",
+      "title": "Radar",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "dither",
+      "label": "Dither",
+      "title": "Dither",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "letter-glitch",
+      "label": "Letter glitch",
+      "title": "Letter glitch",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "shape-grid",
+      "label": "Shape grid",
+      "title": "Shape grid",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "lightning",
+      "label": "Lightning",
+      "title": "Lightning",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "orb",
+      "label": "Orb",
+      "title": "Orb",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "prism",
+      "label": "Prism",
+      "title": "Prism",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "galaxy",
+      "label": "Galaxy",
+      "title": "Galaxy",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "liquid-chrome",
+      "label": "Liquid chrome",
+      "title": "Liquid chrome",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "dark-veil",
+      "label": "Dark veil",
+      "title": "Dark veil",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "balatro",
+      "label": "Balatro",
+      "title": "Balatro",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "liquid-ether",
+      "label": "Liquid ether",
+      "title": "Liquid ether",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "ballpit",
+      "label": "Ballpit",
+      "title": "Ballpit",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "particles",
+      "label": "Particles",
+      "title": "Particles",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "hyperspeed",
+      "label": "Hyperspeed",
+      "title": "Hyperspeed",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "lightfall",
+      "label": "Lightfall",
+      "title": "Lightfall",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "pixel-blast",
+      "label": "Pixel blast",
+      "title": "Pixel blast",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "prismatic-burst",
+      "label": "Prismatic burst",
+      "title": "Prismatic burst",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "evil-eye",
+      "label": "Evil eye",
+      "title": "Evil eye",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "faulty-terminal",
+      "label": "Faulty terminal",
+      "title": "Faulty terminal",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "ferrofluid",
+      "label": "Ferrofluid",
+      "title": "Ferrofluid",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Backgrounds",
+      "subcategory": null,
+      "id": "poster",
+      "label": "Poster",
+      "title": "Poster",
+      "file": "backgrounds/backgrounds-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "gradient-text",
+      "label": "Gradient text",
+      "title": "Gradient text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "shiny-text",
+      "label": "Shiny text",
+      "title": "Shiny text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "glitch-text",
+      "label": "Glitch text",
+      "title": "Glitch text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "split-text",
+      "label": "Split text",
+      "title": "Split text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "rotating-text",
+      "label": "Rotating text",
+      "title": "Rotating text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "count-up",
+      "label": "Count up",
+      "title": "Count up",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "number-flow",
+      "label": "Number flow",
+      "title": "Number flow",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "text-type",
+      "label": "Text type",
+      "title": "Text type",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "blur-text",
+      "label": "Blur text",
+      "title": "Blur text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "decrypted-text",
+      "label": "Decrypted text",
+      "title": "Decrypted text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "scramble-text",
+      "label": "Scramble text",
+      "title": "Scramble text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "shuffle",
+      "label": "Shuffle",
+      "title": "Shuffle",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "falling-text",
+      "label": "Falling text",
+      "title": "Falling text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "scroll-reveal",
+      "label": "Scroll reveal",
+      "title": "Scroll reveal",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "scroll-float",
+      "label": "Scroll float",
+      "title": "Scroll float",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "scroll-velocity",
+      "label": "Scroll velocity",
+      "title": "Scroll velocity",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "text-cursor",
+      "label": "Text cursor",
+      "title": "Text cursor",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "text-pressure",
+      "label": "Text pressure",
+      "title": "Text pressure",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "variable-proximity",
+      "label": "Variable proximity",
+      "title": "Variable proximity",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "true-focus",
+      "label": "True focus",
+      "title": "True focus",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "circular-text",
+      "label": "Circular text",
+      "title": "Circular text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "curved-loop",
+      "label": "Curved loop",
+      "title": "Curved loop",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "fuzzy-text",
+      "label": "Fuzzy text",
+      "title": "Fuzzy text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Text",
+      "subcategory": null,
+      "id": "ascii-text",
+      "label": "ASCII text",
+      "title": "ASCII text",
+      "file": "text/text-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "animated-content",
+      "label": "Animated content",
+      "title": "Animated content",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "fade-content",
+      "label": "Fade content",
+      "title": "Fade content",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "gradual-blur",
+      "label": "Gradual blur",
+      "title": "Gradual blur",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "star-border",
+      "label": "Star border",
+      "title": "Star border",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "electric-border",
+      "label": "Electric border",
+      "title": "Electric border",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "glare-hover",
+      "label": "Glare hover",
+      "title": "Glare hover",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "magnet",
+      "label": "Magnet",
+      "title": "Magnet",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "click-spark",
+      "label": "Click spark",
+      "title": "Click spark",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "blob-cursor",
+      "label": "Blob cursor",
+      "title": "Blob cursor",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "crosshair",
+      "label": "Crosshair",
+      "title": "Crosshair",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "ghost-cursor",
+      "label": "Ghost cursor",
+      "title": "Ghost cursor",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "splash-cursor",
+      "label": "Splash cursor",
+      "title": "Splash cursor",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "target-cursor",
+      "label": "Target cursor",
+      "title": "Target cursor",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "pixel-trail",
+      "label": "Pixel trail",
+      "title": "Pixel trail",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "image-trail",
+      "label": "Image trail",
+      "title": "Image trail",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "meta-balls",
+      "label": "Meta balls",
+      "title": "Meta balls",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "metallic-paint",
+      "label": "Metallic paint",
+      "title": "Metallic paint",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "noise",
+      "label": "Noise",
+      "title": "Noise",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "step-timing",
+      "label": "Step timing",
+      "title": "Step timing",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "sequences",
+      "label": "Sequences",
+      "title": "Sequences",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "container-queries",
+      "label": "Container queries",
+      "title": "Container queries",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "stage",
+      "label": "Stage",
+      "title": "Stage",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "cubes",
+      "label": "Cubes",
+      "title": "Cubes",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "ribbons",
+      "label": "Ribbons",
+      "title": "Ribbons",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "shape-blur",
+      "label": "Shape blur",
+      "title": "Shape blur",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "strands",
+      "label": "Strands",
+      "title": "Strands",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "laser-flow",
+      "label": "Laser flow",
+      "title": "Laser flow",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "antigravity",
+      "label": "Antigravity",
+      "title": "Antigravity",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "logo-loop",
+      "label": "Logo loop",
+      "title": "Logo loop",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "magic-rings",
+      "label": "Magic rings",
+      "title": "Magic rings",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "magnet-lines",
+      "label": "Magnet lines",
+      "title": "Magnet lines",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "orbit-images",
+      "label": "Orbit images",
+      "title": "Orbit images",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "pixel-transition",
+      "label": "Pixel transition",
+      "title": "Pixel transition",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "dither-reveal",
+      "label": "Dither reveal",
+      "title": "Dither reveal",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "dither-transition",
+      "label": "Page transition",
+      "title": "Page transition",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "sticker-peel",
+      "label": "Sticker peel",
+      "title": "Sticker peel",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "expand-tabs",
+      "label": "Expand tabs",
+      "title": "Expand tabs",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "island",
+      "label": "Island",
+      "title": "Island",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "card-stack",
+      "label": "Card stack",
+      "title": "Card stack",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "dock",
+      "label": "Dock",
+      "title": "Dock",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "preview-rail",
+      "label": "Preview rail",
+      "title": "Preview rail",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "scroll-progress",
+      "label": "Scroll progress",
+      "title": "Scroll progress",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "snap-button",
+      "label": "Snap button",
+      "title": "Snap button",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "gooey-menu",
+      "label": "Gooey menu",
+      "title": "Gooey menu",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "bouncy-accordion",
+      "label": "Bouncy accordion",
+      "title": "Bouncy accordion",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "expanding-arrow",
+      "label": "Expanding arrow",
+      "title": "Expanding arrow",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "slide-action",
+      "label": "Slide action",
+      "title": "Slide action",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "hold-action",
+      "label": "Hold action",
+      "title": "Hold action",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "wallet-card",
+      "label": "Wallet card",
+      "title": "Wallet card",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Animations",
+      "subcategory": null,
+      "id": "notification-stack",
+      "label": "Notification stack",
+      "title": "Notification stack",
+      "file": "animations/animations-nav.ts"
+    },
+    {
+      "category": "Utils",
+      "subcategory": null,
+      "id": "palette",
+      "label": "Palette",
+      "title": "Palette",
+      "file": "utils/utils-nav.ts"
+    },
+    {
+      "category": "Utils",
+      "subcategory": null,
+      "id": "print-screens",
+      "label": "Print screens",
+      "title": "Print screens",
+      "file": "utils/utils-nav.ts"
+    }
+  ]
+}

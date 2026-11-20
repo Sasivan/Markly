@@ -187,10 +187,12 @@ export function KnowledgeGraph({
     const resizeCanvas = () => {
       if (containerRef.current && canvas) {
         const rect = containerRef.current.getBoundingClientRect();
-        canvas.width = rect.width * window.devicePixelRatio;
-        canvas.height = rect.height * window.devicePixelRatio;
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
+        if (rect.width > 20 && rect.height > 20) {
+          canvas.width = rect.width * window.devicePixelRatio;
+          canvas.height = rect.height * window.devicePixelRatio;
+          canvas.style.width = `${rect.width}px`;
+          canvas.style.height = `${rect.height}px`;
+        }
       }
     };
     resizeCanvas();
@@ -600,7 +602,7 @@ export function KnowledgeGraph({
   }, [nodes]);
 
   return (
-    <div className={`relative flex flex-col md:flex-row w-full h-full min-h-0 flex-1 rounded-lg border border-border bg-card overflow-hidden ${className || ""}`}>
+    <div className={`relative flex flex-row w-full h-full min-h-0 flex-1 rounded-lg border border-border bg-card overflow-hidden ${className || ""}`}>
       {/* LEFT: Canvas Viewport */}
       <div ref={containerRef} className="relative flex-1 h-full w-full min-h-0 overflow-hidden bg-background">
         {loading && (
@@ -719,7 +721,7 @@ export function KnowledgeGraph({
 
       {/* RIGHT: Inside Settings & Inspector Panel */}
       {showControls && rightPanelOpen && (
-        <div className="w-full md:w-80 h-full border-t md:border-t-0 md:border-l border-border bg-card flex flex-col justify-between overflow-y-auto z-20 text-xs">
+        <div className="w-72 sm:w-80 h-full border-l border-border bg-card flex flex-col justify-between overflow-y-auto shrink-0 z-20 text-xs">
           <div className="p-4 space-y-5">
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-border/80 pb-3">

@@ -1108,6 +1108,7 @@ export function VisualsPageView({
                   depth={graphDepth}
                   showControls={true}
                   onSelectDomain={onSelectDomain}
+                  className="w-full h-full border-0"
                 />
               </div>
             </div>

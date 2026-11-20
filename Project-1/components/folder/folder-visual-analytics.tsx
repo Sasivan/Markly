@@ -1427,13 +1427,14 @@ export function FolderVisualAnalytics({
 
                       {/* 6. KNOWLEDGE GRAPH VISUAL */}
                       {viz.kind === "graph" && (
-                        <div className="w-full h-full min-h-0 flex-1 flex flex-col rounded-lg overflow-hidden border border-border bg-card">
+                        <div className="w-full h-full min-h-0 flex-1 flex flex-col overflow-hidden">
                           <KnowledgeGraph
                             mode={folderId.startsWith("page_") ? "global" : "folder"}
                             folderId={folderId.startsWith("page_") ? undefined : folderId}
                             depth={viz.intelConfig?.graphDepth ?? viz.graphDepth ?? 2}
                             showControls={false}
                             onSelectDomain={handleSelectDomain}
+                            className="w-full h-full border-0"
                           />
                         </div>
                       )}

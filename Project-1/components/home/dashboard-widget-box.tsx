@@ -56,12 +56,15 @@ export interface WidgetBoxContextType {
   colSpan: WidgetColSpan;
   rowSpan: number;
   boxHeight: number | null;
+  cardCoverStyle?: "thumbnail" | "icon" | "monogram";
+  setCardCoverStyle?: (style: "thumbnail" | "icon" | "monogram") => void;
 }
 
 export const WidgetBoxContext = React.createContext<WidgetBoxContextType>({
   colSpan: 6,
   rowSpan: 1,
   boxHeight: null,
+  cardCoverStyle: "thumbnail",
 });
 
 interface DashboardWidgetBoxProps {
@@ -1169,51 +1172,65 @@ export function DashboardWidgetBox({
                       const Icon = v.icon;
                       const isSel = viewMode === v.id;
                       return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => {
-                            onViewModeChange(v.id as any);
-                            setViewBoxMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
-                            isSel ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary"
-                          }`}
-                        >
-                          <Icon className={`h-3 w-3 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
-                          <span className="text-[11px]">{v.label}</span>
-                        </button>
-                      );
-                    })}
-
-                  {/* Card Cover Variation Selector (Housed cleanly inside view dropdown, no toolbar clutter) */}
-                  {(viewMode === "cards" || viewMode === "grid") && (
-                    <div className="border-t border-border/60 pt-1.5 mt-1 px-1 space-y-1">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Cover Variation
-                      </div>
-                      <div className="grid grid-cols-3 gap-1">
-                        {[
-                          { id: "thumbnail", label: "Snapshot" },
-                          { id: "monogram", label: "Gradient" },
-                          { id: "icon", label: "Logo" },
-                        ].map((cv) => (
+                        <div key={v.id} className="space-y-1">
                           <button
-                            key={cv.id}
                             type="button"
-                            onClick={() => handleSetBoxCoverStyle(cv.id as any)}
-                            className={`px-1 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-colors ${
-                              boxCoverStyle === cv.id
-                                ? "bg-primary text-primary-foreground border-primary font-semibold"
-                                : "bg-secondary/40 text-foreground border-border/60 hover:bg-secondary"
+                            onClick={() => {
+                              onViewModeChange(v.id as any);
+                              if (v.id !== "cards") {
+                                setViewBoxMenuOpen(false);
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-left transition-colors cursor-pointer ${
+                              isSel ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary"
                             }`}
                           >
-                            {cv.label}
+                            <div className="flex items-center gap-2">
+                              <Icon className={`h-3 w-3 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
+                              <span className="text-[11px]">{v.label}</span>
+                            </div>
+                            {isSel && <Check className="h-3 w-3 text-primary" />}
                           </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
+                          {/* 3 Universal Card Cover Variations Under Cards */}
+                          {v.id === "cards" && isSel && (
+                            <div className="pl-5 pr-1 py-1 space-y-1 bg-secondary/30 rounded-md">
+                              <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                                <span>3 Card Variations</span>
+                                <span className="capitalize text-primary font-mono">{boxCoverStyle}</span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-1">
+                                {[
+                                  { id: "thumbnail", label: "Snapshot" },
+                                  { id: "monogram", label: "Gradient" },
+                                  { id: "icon", label: "Logo" },
+                                ].map((cv) => (
+                                  <button
+                                    key={cv.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetBoxCoverStyle(cv.id as any);
+                                      if (viewMode !== "cards") {
+                                        onViewModeChange("cards");
+                                      }
+                                    }}
+                                    className={`px-1 py-1 rounded text-[9px] font-medium border text-center cursor-pointer transition-colors ${
+                                      boxCoverStyle === cv.id
+                                        ? "bg-primary text-primary-foreground border-primary font-semibold"
+                                        : "bg-background text-foreground border-border hover:bg-secondary"
+                                    }`}
+                                    title={`Cover variant: ${cv.label}`}
+                                  >
+                                    {cv.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -1284,19 +1301,6 @@ export function DashboardWidgetBox({
                   >
                     <Pin className={`h-3.5 w-3.5 ${isPinned ? "fill-amber-500 text-amber-500" : "text-muted-foreground"}`} />
                     <span>{isPinned ? "Unpin Box" : "Pin Box (Lock Size)"}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(false);
-                      handlePinThisBoxToHome();
-                    }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-foreground hover:bg-secondary transition-colors cursor-pointer text-[11px]"
-                    title="Pin this visual box directly onto Dashboard Home"
-                  >
-                    <Pin className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Pin to Dashboard Home</span>
                   </button>
 
                   {/* Sizing & Dimensions */}
@@ -1451,6 +1455,8 @@ export function DashboardWidgetBox({
             colSpan: colSpanState,
             rowSpan: rowSpanState,
             boxHeight,
+            cardCoverStyle: boxCoverStyle,
+            setCardCoverStyle: handleSetBoxCoverStyle,
           }}
         >
           <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin rounded-b-xl animate-in fade-in duration-150 relative">
@@ -1636,7 +1642,7 @@ export interface BookmarkItemsViewProps {
 export function BookmarkItemsView({
   items,
   mode,
-  cardCoverStyle = "thumbnail",
+  cardCoverStyle: propCardCoverStyle,
   emptyMessage = "No bookmarks in this view yet",
   limit = "auto",
   onOpenPreview,
@@ -1974,7 +1980,7 @@ export function BookmarkItemsView({
 
   // 4. Cards View (Notion-Style Visual Cards with 3 Cover Variations: Snapshot / Logo / Gradient)
   if (mode === "cards") {
-    const cover = cardCoverStyle || "thumbnail";
+    const cover = propCardCoverStyle || boxCtx.cardCoverStyle || "thumbnail";
     return (
       <div
         ref={containerRef}

@@ -141,16 +141,16 @@ export function BookmarkTable({
   activeFolderId,
   activeView,
 }: BookmarkTableProps) {
-const TABLE_COLUMN_OPTIONS = [
-  { id: "title", label: "Title & URL" },
-  { id: "domain", label: "Domain" },
-  { id: "folder", label: "Folder Group" },
-  { id: "tags", label: "Tags" },
-  { id: "status", label: "Health Status" },
-  { id: "lastClicked", label: "Last Clicked" },
-  { id: "visitCount", label: "Visits" },
-  { id: "createdAt", label: "Date Added" },
-];
+  const TABLE_COLUMN_OPTIONS = [
+    { id: "title", label: "Title & URL" },
+    { id: "domain", label: "Domain" },
+    { id: "folder", label: "Folder Group" },
+    { id: "tags", label: "Tags" },
+    { id: "status", label: "Health Status" },
+    { id: "lastClicked", label: "Last Clicked" },
+    { id: "visitCount", label: "Visits" },
+    { id: "createdAt", label: "Date Added" },
+  ];
 
   // Persisted Sorting
   const [sorting, setSorting] = React.useState<SortingState>(() => {
@@ -158,7 +158,7 @@ const TABLE_COLUMN_OPTIONS = [
       try {
         const stored = localStorage.getItem("markly_table_sorting");
         if (stored) return JSON.parse(stored);
-      } catch {}
+      } catch { }
     }
     return [{ id: "createdAt", desc: true }];
   });
@@ -168,7 +168,7 @@ const TABLE_COLUMN_OPTIONS = [
       const next = typeof updaterOrValue === "function" ? updaterOrValue(prev) : updaterOrValue;
       try {
         localStorage.setItem("markly_table_sorting", JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -209,7 +209,7 @@ const TABLE_COLUMN_OPTIONS = [
       }
       setSavedSearchSuccess(true);
       setTimeout(() => setSavedSearchSuccess(false), 2000);
-    } catch {}
+    } catch { }
   };
 
   // Persisted Status Filter
@@ -218,7 +218,7 @@ const TABLE_COLUMN_OPTIONS = [
       try {
         const stored = localStorage.getItem("markly_table_status_filter");
         if (stored) return stored;
-      } catch {}
+      } catch { }
     }
     return "all";
   });
@@ -227,11 +227,11 @@ const TABLE_COLUMN_OPTIONS = [
     setStatusFilterState(val);
     try {
       localStorage.setItem("markly_table_status_filter", val);
-    } catch {}
+    } catch { }
   };
 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  
+
   // 4.1: Context Key & Universal vs Independent/Custom View State
   const viewContextKey = React.useMemo(() => {
     return activeFolderId ? `folder_${activeFolderId}` : (activeView || "all");
@@ -242,7 +242,7 @@ const TABLE_COLUMN_OPTIONS = [
       try {
         const stored = localStorage.getItem("markly_is_custom_view_" + viewContextKey);
         if (stored !== null) return stored === "true";
-      } catch {}
+      } catch { }
     }
     return false;
   });
@@ -252,7 +252,7 @@ const TABLE_COLUMN_OPTIONS = [
       try {
         const stored = localStorage.getItem("markly_is_custom_view_" + viewContextKey);
         setIsCustomView(stored === "true");
-      } catch {}
+      } catch { }
     }
   }, [viewContextKey]);
 
@@ -271,7 +271,7 @@ const TABLE_COLUMN_OPTIONS = [
       if (stored) return JSON.parse(stored);
       const legacy = localStorage.getItem("markly_table_columns");
       if (legacy) return JSON.parse(legacy);
-    } catch {}
+    } catch { }
     return {};
   }, [getColStorageKey]);
 
@@ -287,7 +287,7 @@ const TABLE_COLUMN_OPTIONS = [
         const key = getColStorageKey(viewMode, isCustomView);
         localStorage.setItem(key, JSON.stringify(next));
         localStorage.setItem("markly_table_columns", JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -297,7 +297,7 @@ const TABLE_COLUMN_OPTIONS = [
       try {
         const stored = localStorage.getItem("markly_notion_column_filters");
         if (stored) return JSON.parse(stored);
-      } catch {}
+      } catch { }
     }
     return [];
   });
@@ -306,7 +306,7 @@ const TABLE_COLUMN_OPTIONS = [
     setColumnFilters(filters);
     try {
       localStorage.setItem("markly_notion_column_filters", JSON.stringify(filters));
-    } catch {}
+    } catch { }
   };
 
   // 3.1: Live Reactive Sync for Smart Dynamic Collections
@@ -329,7 +329,7 @@ const TABLE_COLUMN_OPTIONS = [
       try {
         const stored = localStorage.getItem("markly_card_fallback") as any;
         if (stored && ["thumbnail", "icon", "monogram"].includes(stored)) return stored;
-      } catch {}
+      } catch { }
     }
     return "thumbnail";
   });
@@ -338,7 +338,7 @@ const TABLE_COLUMN_OPTIONS = [
     setCardFallbackMode(mode);
     try {
       localStorage.setItem("markly_card_fallback", mode);
-    } catch {}
+    } catch { }
   };
 
   // Interactive Chart Click Filter for Folders & Visuals
@@ -347,7 +347,7 @@ const TABLE_COLUMN_OPTIONS = [
   React.useEffect(() => {
     setActiveChartFilter(null);
   }, [activeFolderId]);
-  
+
   // 5 Notion-Inspired View Modes with persistent memory
   const getViewModeKey = React.useCallback((custom: boolean) => {
     return custom ? `markly_vmode_${viewContextKey}` : "markly_table_view_mode";
@@ -361,7 +361,7 @@ const TABLE_COLUMN_OPTIONS = [
         if (stored && ["table", "board", "cards", "list", "compact"].includes(stored)) {
           return stored;
         }
-      } catch {}
+      } catch { }
     }
     return "table";
   });
@@ -383,7 +383,7 @@ const TABLE_COLUMN_OPTIONS = [
           setInternalViewMode(stored);
           onControlledViewModeChange?.(stored);
         }
-      } catch {}
+      } catch { }
     }
   }, [isCustomView, viewContextKey, getViewModeKey, onControlledViewModeChange]);
 
@@ -397,7 +397,7 @@ const TABLE_COLUMN_OPTIONS = [
         if (!isCustomView) {
           localStorage.setItem("markly_table_view_mode", mode);
         }
-      } catch {}
+      } catch { }
     }
   }, [isCustomView, getViewModeKey, onControlledViewModeChange]);
 
@@ -410,7 +410,7 @@ const TABLE_COLUMN_OPTIONS = [
         localStorage.setItem(`markly_vmode_${viewContextKey}`, viewMode);
         localStorage.setItem(getColStorageKey(viewMode, true), JSON.stringify(columnVisibility));
       }
-    } catch {}
+    } catch { }
   };
 
   // Edit & Copy modals
@@ -451,45 +451,45 @@ const TABLE_COLUMN_OPTIONS = [
     }
   }, [filterMenuOpen, sortMenuOpen, colMenuOpen, viewMenuOpen]);
 
-// 5.3: Typo-Tolerant & Subsequence Fuzzy Matching
-function fuzzyMatch(text: string, query: string): boolean {
-  if (!query) return true;
-  text = text.toLowerCase();
-  query = query.toLowerCase();
-  if (text.includes(query)) return true;
-  // Subsequence matching (e.g. "ghub" matches "github")
-  let ti = 0;
-  let qi = 0;
-  while (ti < text.length && qi < query.length) {
-    if (text[ti] === query[qi]) qi++;
-    ti++;
-  }
-  if (qi === query.length) return true;
-  // Typo tolerance
-  const words = text.split(/\s+/);
-  for (const w of words) {
-    if (Math.abs(w.length - query.length) <= 2) {
-      let dist = 0;
-      const minLen = Math.min(w.length, query.length);
-      for (let i = 0; i < minLen; i++) {
-        if (w[i] !== query[i]) dist++;
-      }
-      dist += Math.abs(w.length - query.length);
-      if (dist <= 1 || (query.length > 5 && dist <= 2)) return true;
+  // 5.3: Typo-Tolerant & Subsequence Fuzzy Matching
+  function fuzzyMatch(text: string, query: string): boolean {
+    if (!query) return true;
+    text = text.toLowerCase();
+    query = query.toLowerCase();
+    if (text.includes(query)) return true;
+    // Subsequence matching (e.g. "ghub" matches "github")
+    let ti = 0;
+    let qi = 0;
+    while (ti < text.length && qi < query.length) {
+      if (text[ti] === query[qi]) qi++;
+      ti++;
     }
+    if (qi === query.length) return true;
+    // Typo tolerance
+    const words = text.split(/\s+/);
+    for (const w of words) {
+      if (Math.abs(w.length - query.length) <= 2) {
+        let dist = 0;
+        const minLen = Math.min(w.length, query.length);
+        for (let i = 0; i < minLen; i++) {
+          if (w[i] !== query[i]) dist++;
+        }
+        dist += Math.abs(w.length - query.length);
+        if (dist <= 1 || (query.length > 5 && dist <= 2)) return true;
+      }
+    }
+    return false;
   }
-  return false;
-}
 
-function getDomainGradient(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  function getDomainGradient(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h1 = Math.abs(hash) % 360;
+    const h2 = (h1 + 45) % 360;
+    return `linear-gradient(135deg, hsl(${h1}, 42%, 20%) 0%, hsl(${h2}, 52%, 11%) 100%)`;
   }
-  const h1 = Math.abs(hash) % 360;
-  const h2 = (h1 + 45) % 360;
-  return `linear-gradient(135deg, hsl(${h1}, 42%, 20%) 0%, hsl(${h2}, 52%, 11%) 100%)`;
-}
 
   // Filter data by status and search filter across all views (Table, Board, Cards, List, Compact)
   const filteredData = React.useMemo(() => {
@@ -1036,7 +1036,7 @@ function getDomainGradient(str: string): string {
       const now = Date.now();
       bm.lastVisitedAt = now;
       bm.lastClickedAt = now;
-      fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true }).catch(() => {});
+      fetch(`/api/bookmarks/${bm.id}/visit`, { method: "POST", keepalive: true }).catch(() => { });
     },
     [onRecordVisit]
   );
@@ -1226,8 +1226,8 @@ function getDomainGradient(str: string): string {
           return (
             <span
               className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${status === "dead"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                ? "bg-destructive/10 text-destructive"
+                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${status === "dead" ? "bg-destructive" : "bg-emerald-500"}`} />
@@ -1375,7 +1375,7 @@ function getDomainGradient(str: string): string {
         const next = typeof updaterOrValue === "function" ? updaterOrValue(prev) : updaterOrValue;
         try {
           localStorage.setItem("markly_table_columns", JSON.stringify(next));
-        } catch {}
+        } catch { }
         return next;
       });
     },
@@ -1430,14 +1430,14 @@ function getDomainGradient(str: string): string {
           activeFolderId
             ? folders.find((f) => f.id === activeFolderId)?.name || "Current Folder"
             : activeView === "favorites"
-            ? "Starred Favorites"
-            : activeView === "recent"
-            ? "Recently Visited"
-            : activeView === "unsorted"
-            ? "Inbox / Unsorted"
-            : activeView === "archive"
-            ? "Archive"
-            : "All Sites"
+              ? "Starred Favorites"
+              : activeView === "recent"
+                ? "Recently Visited"
+                : activeView === "unsorted"
+                  ? "Inbox / Unsorted"
+                  : activeView === "archive"
+                    ? "Archive"
+                    : "All Sites"
         }
         bookmarks={data}
         folders={folders}
@@ -1701,8 +1701,8 @@ function getDomainGradient(str: string): string {
                                   rule.field === "tags"
                                     ? "Tag name (e.g. design)"
                                     : rule.field === "visitCount"
-                                    ? "0"
-                                    : "Type text to match..."
+                                      ? "0"
+                                      : "Type text to match..."
                                 }
                                 className="w-full h-7 px-2 rounded border border-border bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                               />
@@ -1785,9 +1785,8 @@ function getDomainGradient(str: string): string {
                         const desc = isSelected ? !currentSort.desc : true;
                         handleSortingChange([{ id: opt.id, desc }]);
                       }}
-                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors text-xs ${
-                        isSelected ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-secondary text-foreground"
-                      }`}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors text-xs ${isSelected ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-secondary text-foreground"
+                        }`}
                     >
                       <span>{opt.label}</span>
                       {isSelected && (
@@ -1811,11 +1810,10 @@ function getDomainGradient(str: string): string {
             size="sm"
             variant={isCustomView ? "secondary" : "outline"}
             onClick={handleToggleCustomSync}
-            className={`h-8 px-2 text-xs gap-1.5 cursor-pointer transition-colors ${
-              isCustomView
+            className={`h-8 px-2 text-xs gap-1.5 cursor-pointer transition-colors ${isCustomView
                 ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
             title={
               isCustomView
                 ? "Custom View (Isolated to this page/folder). Click to switch back to Universal Sync."
@@ -1879,26 +1877,61 @@ function getDomainGradient(str: string): string {
                     const Icon = v.icon;
                     const isSel = viewMode === v.id;
                     return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => {
-                          setViewMode(v.id as any);
-                          setViewMenuOpen(false);
-                        }}
-                        className={`w-full flex items-start gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                          isSel ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary/70"
-                        }`}
-                      >
-                        <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs">{v.label}</span>
-                            {isSel && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      <div key={v.id} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewMode(v.id as any);
+                            if (v.id !== "cards") {
+                              setViewMenuOpen(false);
+                            }
+                          }}
+                          className={`w-full flex items-start gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${isSel ? "bg-primary/10 text-primary font-medium" : "text-foreground hover:bg-secondary/70"
+                            }`}
+                        >
+                          <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${isSel ? "text-primary" : "text-muted-foreground"}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs">{v.label}</span>
+                              {isSel && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground truncate">{v.desc}</p>
                           </div>
-                          <p className="text-[10px] text-muted-foreground truncate">{v.desc}</p>
-                        </div>
-                      </button>
+                        </button>
+
+                        {/* 3 Card Variations Directly Under Cards */}
+                        {v.id === "cards" && isSel && (
+                          <div className="pl-6 pr-2 py-1.5 space-y-1 bg-secondary/30 rounded-lg">
+                            <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                              <span>3 Card Variations</span>
+                              <span className="capitalize text-primary font-mono">{cardFallbackMode}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1">
+                              {[
+                                { id: "thumbnail", label: "Snapshot" },
+                                { id: "monogram", label: "Gradient" },
+                                { id: "icon", label: "Logo" },
+                              ].map((s) => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCardFallback(s.id as any);
+                                    if (viewMode !== "cards") setViewMode("cards");
+                                  }}
+                                  className={`px-1 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-colors ${cardFallbackMode === s.id
+                                      ? "bg-primary text-primary-foreground border-primary font-semibold"
+                                      : "bg-background text-foreground border-border hover:bg-secondary"
+                                    }`}
+                                >
+                                  {s.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -1922,11 +1955,10 @@ function getDomainGradient(str: string): string {
                             key={s.id}
                             type="button"
                             onClick={() => setCardFallback(s.id as any)}
-                            className={`px-1.5 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-colors ${
-                              cardFallbackMode === s.id
+                            className={`px-1.5 py-1 rounded text-[10px] font-medium border text-center cursor-pointer transition-colors ${cardFallbackMode === s.id
                                 ? "bg-primary text-primary-foreground border-primary"
                                 : "bg-secondary/50 text-foreground border-border hover:bg-secondary"
-                            }`}
+                              }`}
                           >
                             {s.label}
                           </button>
@@ -2095,9 +2127,8 @@ function getDomainGradient(str: string): string {
                         setFocusedIndex(index);
                         onOpenPreview?.(row.original);
                       }}
-                      className={`hover:bg-muted/30 transition-colors group cursor-pointer outline-none focus:outline-none ${
-                        row.getIsSelected() ? "bg-primary/5" : ""
-                      } ${focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""}`}
+                      className={`hover:bg-muted/30 transition-colors group cursor-pointer outline-none focus:outline-none ${row.getIsSelected() ? "bg-primary/5" : ""
+                        } ${focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""}`}
                     >
                       {row.getVisibleCells().map((cell) => {
                         const isInteractiveCell =
@@ -2145,7 +2176,7 @@ function getDomainGradient(str: string): string {
                     if (Array.isArray(ids) && ids.length > 0) {
                       handleBulkMove(col.id === "__UNSORTED__" ? null : col.id);
                     }
-                  } catch {}
+                  } catch { }
                 }
               }}
               className="w-72 flex-shrink-0 rounded-xl border border-border bg-card flex flex-col max-h-[75vh] shadow-xs"
@@ -2295,8 +2326,8 @@ function getDomainGradient(str: string): string {
           {filteredData.map((bm, index) => {
             const hasCustomImage = Boolean(
               bm.imageUrl &&
-                !bm.imageUrl.includes("avatar-") &&
-                !bm.imageUrl.includes("thum.io")
+              !bm.imageUrl.includes("avatar-") &&
+              !bm.imageUrl.includes("thum.io")
             );
             const gradientBg = getDomainGradient(bm.domain || bm.title || "markly");
 
@@ -2311,9 +2342,8 @@ function getDomainGradient(str: string): string {
                   if (onOpenPreview) onOpenPreview(bm);
                   else recordVisit(bm);
                 }}
-                className={`rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer outline-none focus:outline-none ${
-                  focusedIndex === index ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
-                }`}
+                className={`rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:border-border-hover transition-colors flex flex-col justify-between group cursor-pointer outline-none focus:outline-none ${focusedIndex === index ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
+                  }`}
               >
                 {/* Notion-Style Card Cover: High-Craft Local SVG Gradient Art / Snapshot / Monogram */}
                 <div className="relative h-36 w-full bg-secondary overflow-hidden border-b border-border/60">
@@ -2540,9 +2570,8 @@ function getDomainGradient(str: string): string {
                 if (onOpenPreview) onOpenPreview(bm);
                 else recordVisit(bm);
               }}
-              className={`flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer outline-none focus:outline-none ${
-                focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""
-              }`}
+              className={`flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 text-xs group transition-colors cursor-pointer outline-none focus:outline-none ${focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""
+                }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
                 <button
@@ -2676,9 +2705,8 @@ function getDomainGradient(str: string): string {
                 if (onOpenPreview) onOpenPreview(bm);
                 else recordVisit(bm);
               }}
-              className={`flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors cursor-pointer ${
-                focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""
-              }`}
+              className={`flex items-center justify-between px-2.5 py-1 hover:bg-muted/30 group transition-colors cursor-pointer ${focusedIndex === index ? "ring-2 ring-primary ring-inset bg-primary/10" : ""
+                }`}
             >
               <div className="flex items-center gap-2 truncate min-w-0 flex-1">
                 <button
